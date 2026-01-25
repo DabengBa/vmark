@@ -1,36 +1,12 @@
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { isSelectionInCode } from "@/utils/pasteUtils";
 
 const smartPastePluginKey = new PluginKey("smartPaste");
 
 function isValidUrl(str: string): boolean {
   return /^https?:\/\//i.test(str.trim());
-}
-
-/**
- * Check if selection is inside a code block or has inline code mark.
- * Smart paste should be disabled in code contexts.
- */
-function isSelectionInCode(state: EditorState): boolean {
-  const { selection, schema } = state;
-  const codeBlock = schema.nodes.codeBlock;
-  const codeMark = schema.marks.code;
-
-  // Check if inside code block
-  if (codeBlock) {
-    for (let depth = selection.$from.depth; depth > 0; depth--) {
-      if (selection.$from.node(depth).type === codeBlock) return true;
-    }
-  }
-
-  // Check if has inline code mark
-  if (codeMark) {
-    const fromMarks = selection.$from.marks();
-    if (codeMark.isInSet(fromMarks)) return true;
-  }
-
-  return false;
 }
 
 function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
