@@ -15,6 +15,7 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
 import { useImageContextMenuStore } from "@/stores/imageContextMenuStore";
 import { useImagePopupStore } from "@/stores/imagePopupStore";
+import { useImageTooltipStore } from "@/stores/imageTooltipStore";
 import { getWindowLabel } from "@/hooks/useWindowFocus";
 import { isRelativePath, isAbsolutePath, isExternalUrl, validateImagePath } from "./security";
 import { decodeMarkdownUrl } from "@/utils/markdownUrl";
@@ -140,6 +141,9 @@ export class ImageNodeView implements NodeView {
     const pos = this.getPos();
     if (pos === undefined) return;
 
+    // Close tooltip if open
+    useImageTooltipStore.getState().hideTooltip();
+
     // Set NodeSelection on this node for visual selection indicator
     try {
       const { view } = this.editor;
@@ -149,11 +153,17 @@ export class ImageNodeView implements NodeView {
       // Ignore selection errors
     }
 
+    // Get dimensions from the loaded image
+    const dimensions = this.dom.naturalWidth > 0
+      ? { width: this.dom.naturalWidth, height: this.dom.naturalHeight }
+      : null;
+
     const rect = this.dom.getBoundingClientRect();
     useImagePopupStore.getState().openPopup({
       imageSrc: this.originalSrc,
       imageAlt: this.dom.alt ?? "",
       imageNodePos: pos,
+      imageDimensions: dimensions,
       anchorRect: {
         top: rect.top,
         left: rect.left,

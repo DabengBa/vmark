@@ -48,15 +48,26 @@
   outline: none;
 }
 
-/* Caption/Alt Input - full width */
+/* Caption/Alt Input - flexible width */
 .image-popup-alt {
   flex: 1;
+  min-width: 0;
   padding: 4px 8px;
   border: none;
   background: transparent;
   color: var(--text-color);
   font-size: 12px;
   outline: none;
+}
+
+/* Dimensions display - read only */
+.image-popup-dimensions {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  padding-right: 4px;
+  flex-shrink: 0;
+  user-select: none;
 }
 
 .image-popup-src:focus,

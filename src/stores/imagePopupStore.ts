@@ -5,13 +5,8 @@
  */
 
 import { create } from "zustand";
-
-interface AnchorRect {
-  top: number;
-  left: number;
-  bottom: number;
-  right: number;
-}
+import type { AnchorRect } from "@/utils/popupPosition";
+import type { ImageDimensions } from "@/types/image";
 
 type ImageNodeType = "image" | "block_image";
 
@@ -21,6 +16,7 @@ interface ImagePopupState {
   imageAlt: string;
   imageNodePos: number;
   imageNodeType: ImageNodeType;
+  imageDimensions: ImageDimensions | null;
   anchorRect: AnchorRect | null;
 }
 
@@ -30,6 +26,7 @@ interface ImagePopupActions {
     imageAlt: string;
     imageNodePos: number;
     imageNodeType?: ImageNodeType;
+    imageDimensions?: ImageDimensions | null;
     anchorRect: AnchorRect;
   }) => void;
   closePopup: () => void;
@@ -46,6 +43,7 @@ const initialState: ImagePopupState = {
   imageAlt: "",
   imageNodePos: -1,
   imageNodeType: "image",
+  imageDimensions: null,
   anchorRect: null,
 };
 
@@ -59,6 +57,7 @@ export const useImagePopupStore = create<ImagePopupStore>((set) => ({
       imageAlt: data.imageAlt,
       imageNodePos: data.imageNodePos,
       imageNodeType: data.imageNodeType ?? "image",
+      imageDimensions: data.imageDimensions ?? null,
       anchorRect: data.anchorRect,
     }),
 
@@ -72,3 +71,4 @@ export const useImagePopupStore = create<ImagePopupStore>((set) => ({
 }));
 
 export type { ImageNodeType };
+export type { ImageDimensions } from "@/types/image";

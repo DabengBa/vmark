@@ -27,6 +27,7 @@ import { typewriterModeExtension } from "@/plugins/typewriterMode/tiptap";
 import { imageViewExtension } from "@/plugins/imageView/tiptap";
 import { blockImageExtension } from "@/plugins/blockImage/tiptap";
 import { imagePopupExtension } from "@/plugins/imagePopup/tiptap";
+import { imageTooltipExtension } from "@/plugins/imageTooltip";
 import { imageHandlerExtension } from "@/plugins/imageHandler/tiptap";
 import { codePreviewExtension } from "@/plugins/codePreview/tiptap";
 import { floatingMathPreviewExtension } from "@/plugins/codePreview/floatingMathPreview";
@@ -138,6 +139,7 @@ export function createTiptapExtensions(): Extensions {
     typewriterModeExtension,
     imageHandlerExtension,
     imagePopupExtension,
+    imageTooltipExtension,
     codePreviewExtension,
     floatingMathPreviewExtension,
     blockMathKeymapExtension,

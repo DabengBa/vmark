@@ -26,6 +26,7 @@ export class ImagePopupView {
   private srcInput: HTMLInputElement;
   private altInput: HTMLInputElement;
   private toggleBtn: HTMLElement;
+  private dimensionsSpan: HTMLElement;
   private unsubscribe: () => void;
   private editorView: EditorView;
   private justOpened = false;
@@ -48,6 +49,7 @@ export class ImagePopupView {
     this.srcInput = dom.srcInput;
     this.altInput = dom.altInput;
     this.toggleBtn = dom.toggleBtn;
+    this.dimensionsSpan = dom.dimensionsSpan;
 
     // Container will be appended to host in show()
 
@@ -75,9 +77,18 @@ export class ImagePopupView {
   }
 
   private show(imageSrc: string, imageAlt: string, anchorRect: AnchorRect) {
-    const { imageNodeType } = useImagePopupStore.getState();
+    const { imageNodeType, imageDimensions } = useImagePopupStore.getState();
     this.srcInput.value = imageSrc;
     this.altInput.value = imageAlt;
+
+    // Update dimensions display
+    if (imageDimensions && imageDimensions.width > 0 && imageDimensions.height > 0) {
+      this.dimensionsSpan.textContent = `${imageDimensions.width} × ${imageDimensions.height} px`;
+      this.dimensionsSpan.style.display = "";
+    } else {
+      this.dimensionsSpan.textContent = "";
+      this.dimensionsSpan.style.display = "none";
+    }
 
     // Mount to editor container if available, otherwise document.body
     this.host = getPopupHostForDom(this.editorView.dom) ?? document.body;

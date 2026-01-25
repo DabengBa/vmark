@@ -28,6 +28,7 @@ export interface ImagePopupDom {
   srcInput: HTMLInputElement;
   altInput: HTMLInputElement;
   toggleBtn: HTMLElement;
+  dimensionsSpan: HTMLElement;
 }
 
 export function createImagePopupDom(handlers: ImagePopupDomHandlers): ImagePopupDom {
@@ -59,7 +60,7 @@ export function createImagePopupDom(handlers: ImagePopupDomHandlers): ImagePopup
   srcRow.appendChild(toggleBtn);
   srcRow.appendChild(deleteBtn);
 
-  // Row 2: Caption/alt input
+  // Row 2: Caption/alt input + dimensions
   const altRow = document.createElement("div");
   altRow.className = "image-popup-row";
 
@@ -69,12 +70,17 @@ export function createImagePopupDom(handlers: ImagePopupDomHandlers): ImagePopup
   altInput.placeholder = "Caption (alt text)...";
   altInput.addEventListener("keydown", handlers.onInputKeydown);
 
+  // Dimensions display (read-only)
+  const dimensionsSpan = document.createElement("span");
+  dimensionsSpan.className = "image-popup-dimensions";
+
   altRow.appendChild(altInput);
+  altRow.appendChild(dimensionsSpan);
 
   container.appendChild(srcRow);
   container.appendChild(altRow);
 
-  return { container, srcInput, altInput, toggleBtn };
+  return { container, srcInput, altInput, toggleBtn, dimensionsSpan };
 }
 
 function buildIconButton(iconSvg: string, title: string, onClick: () => void): HTMLElement {
