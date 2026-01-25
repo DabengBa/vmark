@@ -39,6 +39,14 @@ import {
   sourceMermaidPreviewExtensions,
   sourceAlertDecorationExtensions,
   sourceDetailsDecorationExtensions,
+  visualLineUpKeymap,
+  visualLineDownKeymap,
+  visualLineUpSelectKeymap,
+  visualLineDownSelectKeymap,
+  smartHomeKeymap,
+  smartHomeSelectKeymap,
+  structuralBackspaceKeymap,
+  structuralDeleteKeymap,
 } from "@/plugins/codemirror";
 import {
   selectAllOccurrencesInBlock,
@@ -117,6 +125,17 @@ export function createSourceEditorExtensions(config: ExtensionConfig): Extension
     shortcutKeymapCompartment.of(keymap.of(buildSourceShortcutKeymap())),
     // Keymaps (no searchKeymap - we use our unified FindBar)
     keymap.of([
+      // Visual line navigation (must be before default keymap to override)
+      visualLineUpKeymap,
+      visualLineDownKeymap,
+      visualLineUpSelectKeymap,
+      visualLineDownSelectKeymap,
+      // Smart Home key (toggles between first non-whitespace and line start)
+      smartHomeKeymap,
+      smartHomeSelectKeymap,
+      // Structural character protection (table pipes, list markers, blockquote markers)
+      structuralBackspaceKeymap,
+      structuralDeleteKeymap,
       // Smart list continuation (must be before default keymap)
       listContinuationKeymap,
       // Table Tab navigation (must be before tabEscape)

@@ -34,6 +34,7 @@ import { floatingMathPreviewExtension } from "@/plugins/codePreview/floatingMath
 import { blockMathKeymapExtension } from "@/plugins/codePreview/blockMathKeymap";
 import { listContinuationExtension } from "@/plugins/listContinuation/tiptap";
 import { tableUIExtension } from "@/plugins/tableUI/tiptap";
+import { blockEscapeExtension } from "@/plugins/blockEscape";
 import { editorKeymapExtension } from "@/plugins/editorPlugins.tiptap";
 import { highlightExtension } from "@/plugins/highlight/tiptap";
 import { subscriptExtension, superscriptExtension } from "@/plugins/subSuperscript/tiptap";
@@ -122,6 +123,7 @@ export function createTiptapExtensions(): Extensions {
     AlignedTableHeader,
     AlignedTableCell,
     tableUIExtension,
+    blockEscapeExtension,
     compositionGuardExtension,
     blockImageExtension,
     imageViewExtension,

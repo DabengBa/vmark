@@ -26,3 +26,12 @@ export { sourceTableCellHighlightExtensions } from "./sourceTableCellHighlight";
 export { sourceMermaidPreviewExtensions } from "./sourceMermaidPreview";
 export { sourceAlertDecorationExtensions } from "./sourceAlertDecoration";
 export { sourceDetailsDecorationExtensions } from "./sourceDetailsDecoration";
+export {
+  visualLineUpKeymap,
+  visualLineDownKeymap,
+  visualLineUpSelectKeymap,
+  visualLineDownSelectKeymap,
+  smartHomeKeymap,
+  smartHomeSelectKeymap,
+} from "./visualLineNav";
+export { structuralBackspaceKeymap, structuralDeleteKeymap } from "./structuralCharProtection";
