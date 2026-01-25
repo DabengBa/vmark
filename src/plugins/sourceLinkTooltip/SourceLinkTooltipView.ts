@@ -14,22 +14,11 @@ import {
   type AnchorRect,
 } from "@/utils/popupPosition";
 import { isImeKeyEvent } from "@/utils/imeGuard";
+import { truncateUrl } from "@/utils/urlDetection";
 import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
 
 // SVG Icon for visit/open
 const visitIcon = `<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
-
-/**
- * Truncate URL for display, keeping it readable.
- */
-function truncateUrl(url: string, maxLength = 60): string {
-  if (url.length <= maxLength) return url;
-
-  // Try to keep the domain and end of path visible
-  const start = url.slice(0, 30);
-  const end = url.slice(-25);
-  return `${start}...${end}`;
-}
 
 /**
  * Source link tooltip view - manages the floating tooltip UI.
