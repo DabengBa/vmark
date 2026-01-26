@@ -24,7 +24,7 @@ export type ShortcutCategory =
 
 /**
  * Shortcut scope determines when a shortcut is active.
- * - global: Works everywhere (editor, terminal, etc.)
+ * - global: Works everywhere in the application
  * - editor: Only works when editor is focused (default)
  */
 export type ShortcutScope = "global" | "editor";
@@ -128,7 +128,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   { id: "lineNumbers", label: "Toggle Line Numbers", category: "view", defaultKey: "Alt-Mod-l", menuId: "line-numbers", description: "Show/hide line numbers in code blocks" },
   { id: "viewHistory", label: "View History", category: "view", defaultKey: "Mod-Shift-h", menuId: "view-history" },
   { id: "toggleHiddenFiles", label: "Toggle Hidden Files", category: "view", defaultKey: "Mod-Shift-.", defaultKeyOther: "Ctrl-h", description: "Show or hide hidden files in the file explorer" },
-  { id: "toggleTerminal", label: "Toggle Terminal", category: "view", defaultKey: "Ctrl-`", menuId: "terminal", description: "Show or hide the integrated terminal", scope: "global" },
 
   // === File ===
   { id: "newTab", label: "New Tab", category: "file", defaultKey: "Mod-t", description: "Create a new tab", scope: "global" },

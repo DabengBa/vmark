@@ -514,7 +514,7 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ],
     )?;
 
-    // View menu (Terminal moved to Tools)
+    // View menu
     let view_menu = Submenu::with_items(
         app,
         "View",
@@ -571,29 +571,6 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     )?;
 
     // Tools menu (utilities and cleanup operations)
-    // Terminal menu item only in debug builds (matches frontend DEV mode check)
-    #[cfg(debug_assertions)]
-    let tools_menu = Submenu::with_items(
-        app,
-        "Tools",
-        true,
-        &[
-            &MenuItem::with_id(
-                app,
-                "terminal",
-                "Toggle Terminal",
-                true,
-                Some("Ctrl+`"),
-            )?,
-            &PredefinedMenuItem::separator(app)?,
-            &cleanup_submenu,
-            &cjk_submenu,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "cleanup-images", "Clean Up Unused Images...", true, None::<&str>)?,
-        ],
-    )?;
-
-    #[cfg(not(debug_assertions))]
     let tools_menu = Submenu::with_items(
         app,
         "Tools",
@@ -1107,7 +1084,7 @@ fn create_menu_with_shortcuts(
         ],
     )?;
 
-    // View menu (Terminal moved to Tools)
+    // View menu
     let view_menu = Submenu::with_items(
         app,
         "View",
@@ -1128,23 +1105,6 @@ fn create_menu_with_shortcuts(
     )?;
 
     // Tools menu (utilities and cleanup operations)
-    // Terminal menu item only in debug builds (matches frontend DEV mode check)
-    #[cfg(debug_assertions)]
-    let tools_menu = Submenu::with_items(
-        app,
-        "Tools",
-        true,
-        &[
-            &MenuItem::with_id(app, "terminal", "Toggle Terminal", true, get_accel("terminal", "Ctrl+`"))?,
-            &PredefinedMenuItem::separator(app)?,
-            &cleanup_submenu,
-            &cjk_submenu,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "cleanup-images", "Clean Up Unused Images...", true, None::<&str>)?,
-        ],
-    )?;
-
-    #[cfg(not(debug_assertions))]
     let tools_menu = Submenu::with_items(
         app,
         "Tools",
