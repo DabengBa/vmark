@@ -143,10 +143,14 @@ export function useFileOperations() {
 
       // If file is missing, force Save As flow instead of normal save
       if (saveAction === "save_as_required" || !doc.filePath) {
-        // Use workspace root, another saved file's folder, or home
-        const defaultFolder = await getDefaultSaveFolderWithFallback(windowLabel);
+        // Build default path with suggested filename from tab title
+        const tab = useTabStore.getState().tabs[windowLabel]?.find(t => t.id === tabId);
+        const filename = tab?.title ? `${tab.title}.md` : "Untitled.md";
+        const folder = await getDefaultSaveFolderWithFallback(windowLabel);
+        const defaultPath = joinPath(folder, filename);
+
         const path = await save({
-          defaultPath: defaultFolder,
+          defaultPath,
           filters: [{ name: "Markdown", extensions: ["md"] }],
         });
         if (path) {
