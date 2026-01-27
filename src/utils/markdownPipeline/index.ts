@@ -43,12 +43,6 @@ export {
 export { parseMarkdownToMdast } from "./parser";
 export { serializeMdastToMarkdown } from "./serializer";
 
-// Fast parser (markdown-it based, ~42x faster for standard markdown)
-export {
-  parseMarkdownToMdastFast,
-  canUseFastParser,
-} from "./fastParser";
-
 // MDAST ↔ ProseMirror conversion
 export { mdastToProseMirror } from "./mdastToProseMirror";
 export { proseMirrorToMdast } from "./proseMirrorToMdast";

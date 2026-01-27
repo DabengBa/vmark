@@ -13,10 +13,6 @@
 import type { Schema, Node as PMNode } from "@tiptap/pm/model";
 import type { Root } from "mdast";
 import { parseMarkdownToMdast } from "./parser";
-import {
-  parseMarkdownToMdastFast,
-  canUseFastParser,
-} from "./fastParser";
 import { mdastToProseMirror } from "./mdastToProseMirror";
 import type { MarkdownPipelineOptions } from "./types";
 
@@ -103,10 +99,7 @@ export function parseMarkdownToMdastCached(
 ): Root {
   // Don't cache tiny documents
   if (markdown.length < MIN_CACHE_SIZE) {
-    // Use fast parser for standard markdown, remark for special syntax
-    return canUseFastParser(markdown)
-      ? parseMarkdownToMdastFast(markdown)
-      : parseMarkdownToMdast(markdown, options);
+    return parseMarkdownToMdast(markdown, options);
   }
 
   const hash = hashContent(markdown, options);
@@ -120,11 +113,9 @@ export function parseMarkdownToMdastCached(
     return cached.mdast;
   }
 
-  // Parse and cache - use fast parser when applicable
+  // Parse and cache
   cacheMisses++;
-  const mdast = canUseFastParser(markdown)
-    ? parseMarkdownToMdastFast(markdown)
-    : parseMarkdownToMdast(markdown, options);
+  const mdast = parseMarkdownToMdast(markdown, options);
 
   evictIfNeeded();
   mdastCache.set(hash, {

@@ -12,10 +12,6 @@
  */
 
 import { parseMarkdownToMdast } from "../utils/markdownPipeline/parser";
-import {
-  parseMarkdownToMdastFast,
-  canUseFastParser,
-} from "../utils/markdownPipeline/fastParser";
 import type { MarkdownPipelineOptions } from "../utils/markdownPipeline/types";
 
 /**
@@ -57,11 +53,7 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
 
   if (message.type === "parse") {
     try {
-      // Use fast parser (markdown-it, ~42x faster) for standard markdown
-      // Fall back to remark for math, wiki links, and custom syntax
-      const mdast = canUseFastParser(message.markdown)
-        ? parseMarkdownToMdastFast(message.markdown)
-        : parseMarkdownToMdast(message.markdown, message.options);
+      const mdast = parseMarkdownToMdast(message.markdown, message.options);
       const response: ParseSuccessResponse = {
         type: "parse-success",
         id: message.id,
