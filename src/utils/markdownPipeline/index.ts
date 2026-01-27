@@ -22,14 +22,6 @@
 // Adapter - unified interface
 export { parseMarkdown, serializeMarkdown } from "./adapter";
 
-// Async parsing (Web Worker)
-export {
-  parseMarkdownAsync,
-  parseMarkdownToMdastAsync,
-  shouldUseAsyncParsing,
-  terminateWorker,
-} from "./workerAdapter";
-
 // Cached parsing
 export {
   parseMarkdownCached,

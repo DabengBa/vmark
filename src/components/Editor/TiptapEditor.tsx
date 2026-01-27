@@ -5,12 +5,7 @@ import { Selection } from "@tiptap/pm/state";
 import { useDocumentActions, useDocumentContent, useDocumentCursorInfo } from "@/hooks/useDocumentState";
 import { useImageContextMenu } from "@/hooks/useImageContextMenu";
 import { useOutlineSync } from "@/hooks/useOutlineSync";
-import {
-  parseMarkdown,
-  parseMarkdownAsync,
-  serializeMarkdown,
-  shouldUseAsyncParsing,
-} from "@/utils/markdownPipeline";
+import { parseMarkdown, serializeMarkdown } from "@/utils/markdownPipeline";
 import { registerActiveWysiwygFlusher } from "@/utils/wysiwygFlush";
 import { getCursorInfoFromTiptap, restoreCursorInTiptap } from "@/utils/cursorSync/tiptap";
 import { getTiptapEditorView } from "@/utils/tiptapView";
@@ -296,16 +291,11 @@ export function TiptapEditorInner() {
     const contentToLoad = content;
     let cancelled = false;
 
-    const loadContent = async () => {
+    const loadContent = () => {
       try {
-        // Use async parsing for large documents
-        const doc = shouldUseAsyncParsing(contentToLoad.length)
-          ? await parseMarkdownAsync(editor.schema, contentToLoad, {
-              preserveLineBreaks: preserveLineBreaksRef.current,
-            })
-          : parseMarkdown(editor.schema, contentToLoad, {
-              preserveLineBreaks: preserveLineBreaksRef.current,
-            });
+        const doc = parseMarkdown(editor.schema, contentToLoad, {
+          preserveLineBreaks: preserveLineBreaksRef.current,
+        });
 
         // Check if this load is still relevant (content may have changed)
         if (cancelled) return;
