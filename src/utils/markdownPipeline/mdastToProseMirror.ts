@@ -31,6 +31,7 @@ import type {
   FootnoteReference,
   FootnoteDefinition,
 } from "mdast";
+import { perfStart, perfEnd } from "@/utils/perfLog";
 import type { InlineMath, Math } from "mdast-util-math";
 import type {
   Alert,
@@ -113,8 +114,14 @@ class MdastToPMConverter {
    * Convert root node to ProseMirror doc.
    */
   convertRoot(root: Root): PMNode {
+    perfStart("convertRoot:convertChildren");
     const children = this.convertChildren(root.children, [], "block");
-    return this.schema.topNodeType.create(null, children);
+    perfEnd("convertRoot:convertChildren", { childCount: children.length });
+
+    perfStart("convertRoot:createDoc");
+    const doc = this.schema.topNodeType.create(null, children);
+    perfEnd("convertRoot:createDoc", { docSize: doc.content.size });
+    return doc;
   }
 
   /**

@@ -17,6 +17,7 @@ import { mdastToProseMirror } from "./mdastToProseMirror";
 import { proseMirrorToMdast } from "./proseMirrorToMdast";
 import { serializeMdastToMarkdown } from "./serializer";
 import type { MarkdownPipelineOptions } from "./types";
+import { perfStart, perfEnd, perfMark } from "@/utils/perfLog";
 
 /**
  * Parse markdown string to ProseMirror document.
@@ -38,9 +39,19 @@ export function parseMarkdown(
   // Guard against null/undefined from IPC, clipboard, or other sources
   const safeMarkdown = markdown ?? "";
 
+  perfMark("parseMarkdown:start", { size: safeMarkdown.length });
+
   try {
+    perfStart("parseMarkdownToMdast");
     const mdast = parseMarkdownToMdast(safeMarkdown, options);
-    return mdastToProseMirror(schema, mdast);
+    perfEnd("parseMarkdownToMdast", { nodeCount: mdast.children?.length ?? 0 });
+
+    perfStart("mdastToProseMirror");
+    const doc = mdastToProseMirror(schema, mdast);
+    perfEnd("mdastToProseMirror", { docSize: doc.content.size });
+
+    perfMark("parseMarkdown:complete");
+    return doc;
   } catch (error) {
     const preview = safeMarkdown.slice(0, 100);
     const context = safeMarkdown.length > 100 ? `${preview}...` : preview;

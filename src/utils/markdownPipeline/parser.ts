@@ -17,6 +17,7 @@ import type { Root, Parent } from "mdast";
 import type { InlineMath } from "mdast-util-math";
 import { remarkCustomInline, remarkDetailsBlock, remarkResolveReferences, remarkWikiLinks } from "./plugins";
 import type { MarkdownPipelineOptions } from "./types";
+import { perfStart, perfEnd } from "@/utils/perfLog";
 
 /**
  * Plugin to validate inline math and convert invalid ones back to text.
@@ -168,9 +169,18 @@ export function parseMarkdownToMdast(
   markdown: string,
   options: MarkdownPipelineOptions = {}
 ): Root {
+  perfStart("createProcessor");
   const processor = createProcessor(markdown, options);
+  perfEnd("createProcessor");
+
+  perfStart("remarkParse");
   const result = processor.parse(markdown);
+  perfEnd("remarkParse");
+
   // Run transforms (plugins that modify the tree)
+  perfStart("remarkRunSync");
   const transformed = processor.runSync(result);
+  perfEnd("remarkRunSync");
+
   return transformed as Root;
 }

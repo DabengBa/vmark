@@ -5,6 +5,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, remove } from "@tauri-apps/plugin-fs";
+import { perfReset, perfStart, perfEnd, perfMark } from "@/utils/perfLog";
 import { useWindowLabel } from "@/contexts/WindowContext";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -70,20 +71,38 @@ export function useFileOperations() {
    */
   const openFileInNewTab = useCallback(
     async (path: string): Promise<void> => {
+      perfReset();
+      perfMark("openFileInNewTab:start", { path });
+
       // Check for existing tab first
       const existingTabId = findExistingTabForPath(windowLabel, path);
       if (existingTabId) {
         useTabStore.getState().setActiveTab(windowLabel, existingTabId);
+        perfMark("openFileInNewTab:activatedExisting");
         return;
       }
 
       // Create new tab
+      perfStart("createTab");
       const tabId = useTabStore.getState().createTab(windowLabel, path);
+      perfEnd("createTab");
+
       try {
+        perfStart("readTextFile");
         const content = await readTextFile(path);
+        perfEnd("readTextFile", { size: content.length });
+
+        perfStart("initDocument");
         useDocumentStore.getState().initDocument(tabId, content, path);
-        useDocumentStore.getState().setLineMetadata(tabId, detectLinebreaks(content));
+        perfEnd("initDocument");
+
+        perfStart("detectLinebreaks");
+        const lineMeta = detectLinebreaks(content);
+        useDocumentStore.getState().setLineMetadata(tabId, lineMeta);
+        perfEnd("detectLinebreaks");
+
         useRecentFilesStore.getState().addFile(path);
+        perfMark("openFileInNewTab:complete");
       } catch (error) {
         console.error("[FileOps] Failed to open file:", path, error);
       }
@@ -93,10 +112,17 @@ export function useFileOperations() {
 
   const handleOpen = useCallback(async () => {
     await withReentryGuard(windowLabel, "open", async () => {
+      perfReset();
+      perfMark("handleOpen:start");
+
+      perfStart("openDialog");
       const path = await open({
         filters: [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }],
       });
+      perfEnd("openDialog");
+
       if (!path) return;
+      perfMark("handleOpen:fileSelected", { path });
 
       // Use policy to decide where to open
       const { isWorkspaceMode, rootPath } = useWorkspaceStore.getState();
@@ -113,30 +139,47 @@ export function useFileOperations() {
         replaceableTab,
       });
 
+      perfMark("handleOpen:resolvedAction", { action: decision.action });
+
       switch (decision.action) {
         case "activate_tab":
           useTabStore.getState().setActiveTab(windowLabel, decision.tabId);
+          perfMark("handleOpen:activatedTab");
           break;
         case "create_tab":
           await openFileInNewTab(path);
+          perfMark("handleOpen:createdTab");
           break;
         case "replace_tab":
           // Replace the clean untitled tab with the file content
           try {
+            perfStart("replace_tab:readTextFile");
             const content = await readTextFile(path);
-            // Update the tab's file path
+            perfEnd("replace_tab:readTextFile", { size: content.length });
+
+            perfStart("replace_tab:updateTabPath");
             useTabStore.getState().updateTabPath(decision.tabId, decision.filePath);
-            // Load content into the document
+            perfEnd("replace_tab:updateTabPath");
+
+            perfStart("replace_tab:detectLinebreaks");
+            const lineMeta = detectLinebreaks(content);
+            perfEnd("replace_tab:detectLinebreaks");
+
+            perfStart("replace_tab:loadContent");
             useDocumentStore.getState().loadContent(
               decision.tabId,
               content,
               decision.filePath,
-              detectLinebreaks(content)
+              lineMeta
             );
-            // Open workspace with config for the file's parent folder
+            perfEnd("replace_tab:loadContent");
+
+            perfStart("replace_tab:openWorkspaceWithConfig");
             await openWorkspaceWithConfig(decision.workspaceRoot);
-            // Add to recent files
+            perfEnd("replace_tab:openWorkspaceWithConfig");
+
             useRecentFilesStore.getState().addFile(path);
+            perfMark("handleOpen:replacedTab");
           } catch (error) {
             console.error("[FileOps] Failed to replace tab with file:", error);
           }

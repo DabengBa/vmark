@@ -9,6 +9,7 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import { emit } from "@tauri-apps/api/event";
 import { useUIStore } from "@/stores/uiStore";
 import { useDocumentContent } from "@/hooks/useDocumentState";
+import { perfStart, perfEnd } from "@/utils/perfLog";
 
 interface HeadingItem {
   level: number;
@@ -164,13 +165,20 @@ export function OutlineView() {
     if (headingLinesKey === prevKeyRef.current) {
       return prevHeadingsRef.current;
     }
+    perfStart("OutlineView:extractHeadings");
     const newHeadings = extractHeadings(content);
+    perfEnd("OutlineView:extractHeadings", { count: newHeadings.length });
     prevHeadingsRef.current = newHeadings;
     prevKeyRef.current = headingLinesKey;
     return newHeadings;
   }, [headingLinesKey, content]);
 
-  const tree = useMemo(() => buildHeadingTree(headings), [headings]);
+  const tree = useMemo(() => {
+    perfStart("OutlineView:buildHeadingTree");
+    const result = buildHeadingTree(headings);
+    perfEnd("OutlineView:buildHeadingTree", { rootNodes: result.length });
+    return result;
+  }, [headings]);
   const activeIndex = activeHeadingIndex ?? -1;
 
   // Track collapsed state locally
