@@ -91,10 +91,14 @@
   margin-bottom: 0;
 }
 
-/* List padding = content padding (1em) + list indent (1.5em) to match alert block */
+/* Lists inside details - override content padding to 2.5em total
+   (Unlike blockquote/alert where container padding + list padding = 2.5em,
+   here the list padding replaces the content rule's padding-left directly)
+   Task items use negative margin to align, so no special rule needed */
 .details-block > ul:not(.details-summary),
 .details-block > ol:not(.details-summary) {
-  padding-left: 2.5em;
+  --list-padding: 2.5em;
+  padding-left: var(--list-padding);
 }
 
 /* Blockquote needs left margin so its border isn't flush against the edge */

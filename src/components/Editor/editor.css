@@ -205,11 +205,13 @@
   border-radius: 2px;
 }
 
-/* Lists - GitHub standard indentation for better readability */
+/* Lists - GitHub standard indentation for better readability
+   --list-padding is used as the base, task lists subtract checkbox width via calc() */
 .tiptap-editor ul,
 .tiptap-editor ol {
+  --list-padding: 2em;
   margin: 0 0 0.8em 0;
-  padding-left: 2em;
+  padding-left: var(--list-padding);
   font-size: var(--editor-font-size-sm);
   line-height: var(--editor-line-height-px);
 }
@@ -226,8 +228,9 @@
 
 .tiptap-editor li > ul,
 .tiptap-editor li > ol {
+  --list-padding: 1.5em;
   margin: 0;
-  padding-left: 1em; /* Nested bullet aligns with parent text */
+  padding-left: var(--list-padding);
 }
 
 .tiptap-editor li {
@@ -307,6 +310,14 @@
   color: inherit;
 }
 
+/* Lists inside blockquotes - account for blockquote's 1em padding
+   Final position: 1em (blockquote) + 1.5em (list) = 2.5em from edge */
+.tiptap-editor blockquote > ul,
+.tiptap-editor blockquote > ol {
+  --list-padding: 1.5em;
+  padding-left: var(--list-padding);
+}
+
 /* Horizontal rule */
 .tiptap-editor hr {
   height: 2px;
@@ -363,10 +374,13 @@
   margin-bottom: 0;
 }
 
-/* Task lists */
+/* Task list items - use negative margin to align text with regular list items.
+   The checkbox (~0.9em) + gap (~0.5em) = 1.4em is pulled into the padding area
+   where bullets would normally render. This works for mixed lists (regular + task
+   items in same ul) and pure task lists alike. */
 .tiptap-editor .task-list-item {
   list-style-type: none;
-  margin-left: 0;
+  margin-left: -1.4em;
   display: flex;
   align-items: baseline;
   gap: 0.5em;
@@ -389,6 +403,7 @@
 .tiptap-editor .task-list-item input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
+  box-sizing: border-box; /* Include border in width for consistent sizing */
   width: 0.9em;
   height: 0.9em;
   border: 0.1em solid var(--text-secondary);
@@ -411,12 +426,12 @@
 .tiptap-editor .task-list-item input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 0.25em;
-  top: 0.05em;
-  width: 0.25em;
-  height: 0.5em;
+  left: 0.15em;
+  top: 0.01em;
+  width: 0.2em;
+  height: 0.4em;
   border: solid white;
-  border-width: 0 0.12em 0.12em 0;
+  border-width: 0 0.1em 0.1em 0;
   transform: rotate(45deg);
 }
 
