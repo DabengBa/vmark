@@ -580,15 +580,17 @@ describe("convertStraightToSmartQuotes", () => {
       expect(convertStraightToSmartQuotes('"中文内容"', "curly")).toBe(`${OQ}中文内容${CQ}`);
     });
 
-    // NOTE: CJK characters are NOT in the "opening context" list
-    // So quote after CJK character is treated as closing quote
-    // This is a known limitation - both quotes become closing quotes
-    it("handles quotes embedded in CJK text (limitation)", () => {
-      // Current behavior: both quotes after CJK become closing quotes
+    // Quotes embedded in CJK text should use parity tracking
+    it("handles quotes embedded in CJK text", () => {
+      // With parity tracking: first quote = opening, second = closing
       const result = convertStraightToSmartQuotes('测试"内容"结束', "curly");
-      // Just verify straight quotes are converted to some curly quotes
-      expect(result).not.toBe('测试"内容"结束'); // Should change something
-      expect(result).toContain(CQ); // At least closing quotes present
+      expect(result).toBe(`测试${OQ}内容${CQ}结束`);
+    });
+
+    it("handles CJK text before quoted content with space", () => {
+      // 他说" 这是... → first quote after CJK, followed by space = opening
+      const result = convertStraightToSmartQuotes('他说" 这是内容"', "curly");
+      expect(result).toBe(`他说${OQ} 这是内容${CQ}`);
     });
 
     it("handles empty quotes", () => {

@@ -371,15 +371,34 @@ const QUOTE_STYLES: Record<QuoteStyle, {
  */
 export function convertStraightToSmartQuotes(text: string, style: QuoteStyle): string {
   const quotes = QUOTE_STYLES[style];
+  // CJK character pattern for context checks
+  const CJK_CHAR = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
+
+  // Track quote parity for CJK context (odd=opening, even=closing)
+  let cjkQuoteCount = 0;
 
   // Convert double quotes "
   // Opening: after whitespace, start of line/string, or opening brackets
   // Closing: after word characters, punctuation, or before whitespace/end
   text = text.replace(/"/g, (_, offset) => {
     const before = offset > 0 ? text[offset - 1] : "";
+    const after = offset < text.length - 1 ? text[offset + 1] : "";
+
     // Opening quote: at start, after whitespace, or after opening brackets
     if (offset === 0 || /[\s([{「『《【〈]/.test(before)) {
       return quotes.doubleOpen;
+    }
+    // CJK before quote: use parity tracking and context hints
+    if (CJK_CHAR.test(before)) {
+      cjkQuoteCount++;
+      // Odd count = opening, even count = closing
+      // But also check context: if followed by punctuation/end, definitely closing
+      if (!/[\s\w]/.test(after) && !CJK_CHAR.test(after)) {
+        // Followed by punctuation or end - closing quote
+        return quotes.doubleClose;
+      }
+      // Use parity: odd = opening, even = closing
+      return cjkQuoteCount % 2 === 1 ? quotes.doubleOpen : quotes.doubleClose;
     }
     // Closing quote: everything else
     return quotes.doubleClose;
@@ -393,6 +412,12 @@ export function convertStraightToSmartQuotes(text: string, style: QuoteStyle): s
   // A pair is: whitespace/start + ' + non-quote content + ' + whitespace/punctuation/end
   text = text.replace(
     /(^|[\s([{「『《【〈])'([^']*?)'/g,
+    (_, before, content) => `${before}${quotes.singleOpen}${content}${quotes.singleClose}`
+  );
+
+  // Also handle single quotes after CJK characters
+  text = text.replace(
+    new RegExp(`([${CJK_ALL}])'([^']*?)'`, "g"),
     (_, before, content) => `${before}${quotes.singleOpen}${content}${quotes.singleClose}`
   );
 

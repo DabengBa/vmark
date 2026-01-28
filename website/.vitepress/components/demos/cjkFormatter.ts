@@ -205,14 +205,42 @@ const QUOTE_STYLES: Record<QuoteStyle, { doubleOpen: string; doubleClose: string
 
 export function convertStraightToSmartQuotes(text: string, style: QuoteStyle): string {
   const quotes = QUOTE_STYLES[style];
+  // CJK character pattern for context checks
+  const CJK_CHAR = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
+
+  // Track quote parity for CJK context (odd=opening, even=closing)
+  let cjkQuoteCount = 0;
+
   text = text.replace(/"/g, (_, offset) => {
     const before = offset > 0 ? text[offset - 1] : "";
+    const after = offset < text.length - 1 ? text[offset + 1] : "";
+
+    // Clear opening indicators: start of string, whitespace, or opening brackets
     if (offset === 0 || /[\s([{「『《【〈]/.test(before)) {
       return quotes.doubleOpen;
     }
+    // CJK before quote: use parity tracking and context hints
+    if (CJK_CHAR.test(before)) {
+      cjkQuoteCount++;
+      // Odd count = opening, even count = closing
+      // But also check context: if followed by punctuation/end, definitely closing
+      if (!/[\s\w]/.test(after) && !CJK_CHAR.test(after)) {
+        // Followed by punctuation or end - closing quote
+        return quotes.doubleClose;
+      }
+      // Use parity: odd = opening, even = closing
+      return cjkQuoteCount % 2 === 1 ? quotes.doubleOpen : quotes.doubleClose;
+    }
     return quotes.doubleClose;
   });
+
+  // Single quotes: match pairs with content between them
+  // Handle both after whitespace/brackets AND after CJK characters
   text = text.replace(/(^|[\s([{「『《【〈])'([^']*?)'/g, (_, before, content) =>
+    `${before}${quotes.singleOpen}${content}${quotes.singleClose}`
+  );
+  // Also handle single quotes after CJK characters
+  text = text.replace(new RegExp(`([${CJK_ALL}])'([^']*?)'`, "g"), (_, before, content) =>
     `${before}${quotes.singleOpen}${content}${quotes.singleClose}`
   );
   return text;
