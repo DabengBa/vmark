@@ -7,6 +7,7 @@
 import {
   useSettingsStore,
   type MediaBorderStyle,
+  type MediaAlignment,
   type HtmlRenderingMode,
   type MarkdownPasteMode,
 } from "@/stores/settingsStore";
@@ -46,6 +47,19 @@ export function MarkdownSettings() {
 
       {/* Media Display */}
       <SettingsGroup title="Media Display">
+        <SettingRow
+          label="Image & table alignment"
+          description="Horizontal alignment for block images and tables"
+        >
+          <Select<MediaAlignment>
+            value={markdown.mediaAlignment}
+            options={[
+              { value: "center", label: "Center" },
+              { value: "left", label: "Left" },
+            ]}
+            onChange={(v) => updateSetting("mediaAlignment", v)}
+          />
+        </SettingRow>
         <SettingRow
           label="Image & diagram borders"
           description="Show borders around images, Mermaid diagrams, and math blocks"

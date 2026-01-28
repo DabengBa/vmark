@@ -150,6 +150,7 @@ export interface CJKFormattingSettings {
 }
 
 export type MediaBorderStyle = "none" | "always" | "hover";
+export type MediaAlignment = "left" | "center";
 
 // Quote style options for smart quote conversion
 // - curly: "" '' (Simplified Chinese, Western)
@@ -189,6 +190,7 @@ export interface MarkdownSettings {
   pasteMarkdownInWysiwyg: MarkdownPasteMode; // Convert pasted markdown into rich text
   pasteMode: PasteMode; // How to handle clipboard content (smart/plain/rich)
   mediaBorderStyle: MediaBorderStyle; // Border style for images and diagrams
+  mediaAlignment: MediaAlignment; // Alignment for block images and tables
   htmlRenderingMode: HtmlRenderingMode; // Rich text display for raw HTML
   hardBreakStyleOnSave: HardBreakStyleOnSave; // Preserve or normalize hard break output
   // Auto-pair
@@ -339,6 +341,7 @@ const initialState: SettingsState = {
     pasteMarkdownInWysiwyg: "auto",
     pasteMode: "smart", // Default: convert HTML to Markdown
     mediaBorderStyle: "none",
+    mediaAlignment: "center",
     htmlRenderingMode: "hidden",
     hardBreakStyleOnSave: "preserve",
     autoPairEnabled: true,

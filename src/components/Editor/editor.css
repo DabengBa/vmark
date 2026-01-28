@@ -98,10 +98,16 @@
 .tiptap-editor .ProseMirror > .html-block,
 .tiptap-editor .ProseMirror > .link-definition,
 .tiptap-editor .ProseMirror > .footnote-definition,
-.tiptap-editor .ProseMirror > .block-image,
-.tiptap-editor .ProseMirror > .math-display {
+.tiptap-editor .ProseMirror > .math-display,
+.tiptap-editor .ProseMirror > .block-image {
   margin-left: 2em;
   margin-right: 2em;
+}
+
+/* Center alignment for block images (when setting enabled) */
+.media-align-center .tiptap-editor .ProseMirror > .block-image {
+  display: flex;
+  justify-content: center;
 }
 
 /* Headings: compensate for larger font-size so left edge aligns with paragraphs.
@@ -446,8 +452,13 @@
 
 .tiptap-editor .table-scroll-wrapper table {
   width: max-content;
-  min-width: 100%;
   margin: 0;
+}
+
+/* Center alignment for tables (when setting enabled) */
+.media-align-center .tiptap-editor .table-scroll-wrapper {
+  display: flex;
+  justify-content: center;
 }
 
 /* Task list items - use negative margin to align text with regular list items.
