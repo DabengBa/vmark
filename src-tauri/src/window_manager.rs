@@ -89,6 +89,7 @@ fn create_document_window_with_url(
     let title = String::new();
     let (x, y) = get_cascaded_position(count);
 
+    // Start hidden to avoid flash - window will be shown when frontend emits "ready"
     let mut builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(url.into()))
         .title(&title)
         .inner_size(MIN_WIDTH, MIN_HEIGHT)
@@ -96,6 +97,7 @@ fn create_document_window_with_url(
         .position(x, y)
         .resizable(true)
         .fullscreen(false)
+        .visible(false)
         .focused(true);
 
     #[cfg(target_os = "macos")]
@@ -136,6 +138,7 @@ pub fn create_document_window(
     let (x, y) = get_cascaded_position(count);
 
     // CRITICAL: Full window configuration for proper behavior
+    // Start hidden to avoid flash - window will be shown when frontend emits "ready"
     let mut builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(url.into()))
         .title(&title)
         .inner_size(MIN_WIDTH, MIN_HEIGHT)
@@ -143,6 +146,7 @@ pub fn create_document_window(
         .position(x, y)
         .resizable(true)
         .fullscreen(false)
+        .visible(false)
         .focused(true);
 
     // macOS-specific: title bar styling and accept first mouse
