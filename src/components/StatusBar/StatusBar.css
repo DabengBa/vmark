@@ -292,5 +292,5 @@
 }
 
 .dark-theme .status-mcp.connected {
-  color: #4ade80;
+  color: var(--success-color-dark);
 }

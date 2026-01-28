@@ -262,9 +262,9 @@
 
 /* Dark theme adjustments */
 .dark-theme .mcp-status-indicator.healthy {
-  color: #4ade80;
+  color: var(--success-color-dark);
 }
 
 .dark-theme .mcp-status-value.success {
-  color: #4ade80;
+  color: var(--success-color-dark);
 }
