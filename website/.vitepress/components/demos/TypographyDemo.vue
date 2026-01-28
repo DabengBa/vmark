@@ -57,6 +57,7 @@ const fontSize = ref('18')
 const lineHeight = ref('1.8')
 const blockSpacing = ref('1')
 const cjkLetterSpacing = ref('0')
+const coloredEmphasis = ref(true)
 
 const fontFamily = computed(() => {
   const latin = latinFont.value === 'system'
@@ -76,9 +77,8 @@ const blockMargin = computed(() => {
 
 const sampleText = {
   heading: 'Typography Settings',
-  english: 'The quick brown fox jumps over the lazy dog. Good typography makes reading effortless.',
-  chinese: '中文排版需要特别关注字体、行高和字间距。良好的排版让阅读变得轻松愉悦。',
-  mixed: 'VMark 支持混合 CJK 和 Latin 文字排版，自动处理间距。',
+  english: 'Good typography makes reading effortless.',
+  chinese: '良好的排版让阅读变得轻松愉悦。',
 }
 </script>
 
@@ -140,10 +140,17 @@ const sampleText = {
           </option>
         </select>
       </div>
+
+      <div class="vmark-control vmark-control--toggle">
+        <label class="vmark-toggle">
+          <input type="checkbox" v-model="coloredEmphasis" class="vmark-toggle__input" />
+          <span>Color bold/italic</span>
+        </label>
+      </div>
     </div>
 
     <div
-      class="preview"
+      :class="['preview', { 'preview--colored': coloredEmphasis }]"
       :style="{
         fontFamily: fontFamily,
         fontSize: fontSize + 'px',
@@ -154,22 +161,15 @@ const sampleText = {
         {{ sampleText.heading }}
       </h2>
       <p class="preview__p" :style="{ marginBottom: blockMargin }">
-        {{ sampleText.english }}
-      </p>
-      <p
-        class="preview__p preview__p--cjk"
-        :style="{
-          marginBottom: blockMargin,
-          letterSpacing: cjkLetterSpacing === '0' ? 'normal' : cjkLetterSpacing + 'em',
-        }"
-      >
-        {{ sampleText.chinese }}
+        {{ sampleText.english }} Use <strong>bold</strong> and <em>italic</em> for emphasis.
       </p>
       <p
         class="preview__p"
-        :style="{ letterSpacing: cjkLetterSpacing === '0' ? 'normal' : cjkLetterSpacing + 'em' }"
+        :style="{
+          letterSpacing: cjkLetterSpacing === '0' ? 'normal' : cjkLetterSpacing + 'em',
+        }"
       >
-        {{ sampleText.mixed }}
+        {{ sampleText.chinese }}<strong>粗体</strong>和<em>斜体</em>可以突出重点。
       </p>
     </div>
   </div>
@@ -198,5 +198,21 @@ const sampleText = {
 
 .preview__p:last-child {
   margin-bottom: 0;
+}
+
+/* Colored emphasis */
+.preview--colored strong {
+  color: var(--strong-color);
+}
+
+.preview--colored em {
+  color: var(--emphasis-color);
+}
+
+/* Toggle alignment */
+.vmark-control--toggle {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
 }
 </style>
