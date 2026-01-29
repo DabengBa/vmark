@@ -24,7 +24,7 @@ import { useSourceCursorContextStore } from "@/stores/sourceCursorContextStore";
 import { getSourceMultiSelectionContext } from "@/plugins/toolbarActions/multiSelectionContext";
 import { performSourceToolbarAction, setSourceHeadingLevel } from "@/plugins/toolbarActions/sourceAdapter";
 import { guardCodeMirrorKeyBinding } from "@/utils/imeGuard";
-import { copyAsHtml } from "@/hooks/useExportOperations";
+import { copyAsHtml } from "@/export";
 import { formatMarkdown, formatSelection } from "@/lib/cjkFormatter";
 import { resolveHardBreakStyle } from "@/utils/linebreaks";
 import { getWindowLabel } from "@/hooks/useWindowFocus";

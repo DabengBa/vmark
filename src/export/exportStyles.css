@@ -1,0 +1,199 @@
+/**
+ * Export-only CSS
+ *
+ * Styles for ExportSurface and print output.
+ * These override editor styles to hide interactive elements
+ * and optimize for export/print.
+ */
+
+/* Export surface container */
+.export-surface {
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-sans);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+}
+
+.export-surface-editor {
+  padding: var(--editor-content-padding);
+  max-width: var(--editor-width, 100%);
+  margin: 0 auto;
+}
+
+/* Hide all interactive/editing elements */
+.export-surface .ProseMirror-gapcursor,
+.export-surface .ProseMirror-selectednode::after,
+.export-surface .ProseMirror-hideselection,
+.export-surface .resize-handle,
+.export-surface .table-ui-wrapper,
+.export-surface .code-block-edit-header,
+.export-surface .code-block-edit-actions,
+.export-surface .code-block-live-preview {
+  display: none !important;
+}
+
+/* Hide selection highlight */
+.export-surface .ProseMirror ::selection {
+  background: transparent;
+}
+
+/* Ensure code blocks don't show editing UI */
+.export-surface .code-block-editing {
+  /* Remove editing visual indicators */
+}
+
+/* Force preview-only mode for math/mermaid */
+.export-surface .code-block-preview-only pre {
+  display: none !important;
+}
+
+/* Ensure images are visible */
+.export-surface img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===========================================
+   Print Media Styles
+   =========================================== */
+
+@media print {
+  /* Force exact colors and backgrounds */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+
+  /* Hide non-content elements */
+  .ProseMirror-gapcursor,
+  .ProseMirror-selectednode::after,
+  .resize-handle,
+  .table-ui-wrapper,
+  .code-block-edit-header {
+    display: none !important;
+  }
+
+  /* Prevent page breaks inside blocks */
+  pre,
+  table,
+  .alert-block,
+  .details-block,
+  blockquote,
+  figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Keep headings with following content */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Prevent orphan headings at bottom of page */
+  h1, h2, h3, h4, h5, h6 {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Handle wide tables */
+  table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  /* Handle code blocks */
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: visible;
+  }
+
+  /* Ensure links show URL in print (optional) */
+  /* Disabled by default - uncomment if needed
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: var(--text-secondary);
+  }
+  */
+}
+
+/* ===========================================
+   Fit-to-Page Strategies
+   =========================================== */
+
+/* Shrink strategy (default) */
+.export-surface[data-fit-strategy="shrink"] .table-overflow,
+.export-surface[data-fit-strategy="shrink"] .code-overflow {
+  transform-origin: top left;
+  /* Scale is set dynamically via JS */
+}
+
+/* Wrap strategy */
+.export-surface[data-fit-strategy="wrap"] table {
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+.export-surface[data-fit-strategy="wrap"] td,
+.export-surface[data-fit-strategy="wrap"] th {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.export-surface[data-fit-strategy="wrap"] pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ===========================================
+   Export Preview Warning Banner
+   =========================================== */
+
+.export-warning-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--warning-bg, rgba(245, 158, 11, 0.1));
+  border-bottom: 1px solid var(--warning-border, rgba(245, 158, 11, 0.3));
+  color: var(--warning-color, #9a6700);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-warning-banner svg {
+  flex-shrink: 0;
+}
+
+@media print {
+  .export-warning-banner {
+    display: none !important;
+  }
+}
+
+/* ===========================================
+   Light Theme Override for Export
+   =========================================== */
+
+/* When exporting, default to light theme for print */
+.export-surface:not(.dark-theme) {
+  --bg-color: #ffffff;
+  --text-color: #1a1a1a;
+  --text-secondary: #666666;
+  --border-color: #d5d4d4;
+  --code-bg-color: #f6f8fa;
+  --code-text-color: #1f2328;
+}

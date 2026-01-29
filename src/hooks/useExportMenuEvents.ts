@@ -4,12 +4,14 @@
  * Handles menu:export-html, menu:save-pdf, menu:export-pdf, and menu:copy-html events.
  * Extracted from useMenuEvents to keep file sizes under 300 lines.
  *
+ * Uses ExportSurface for visual parity.
+ *
  * @module hooks/useExportMenuEvents
  */
 import { useEffect, useRef } from "react";
 import { type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { exportToHtml, exportToPdf, savePdf, copyAsHtml } from "@/hooks/useExportOperations";
+import { exportToHtml, exportToPdf, copyAsHtml } from "@/export";
 import { getFileNameWithoutExtension, getDirectory } from "@/utils/pathUtils";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
 import { withReentryGuard } from "@/utils/reentryGuard";
@@ -32,6 +34,7 @@ export function useExportMenuEvents(): void {
       const windowLabel = currentWindow.label;
 
       // Export menu events - share single "export" guard per window
+      // Uses ExportSurface for visual parity
       const unlistenExportHtml = await currentWindow.listen<string>("menu:export-html", async (event) => {
         if (event.payload !== windowLabel) return;
         flushActiveWysiwygNow();
@@ -44,7 +47,14 @@ export function useExportMenuEvents(): void {
             : "document";
           const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
           try {
-            await exportToHtml(doc.content, defaultName, defaultDir);
+            await exportToHtml({
+              markdown: doc.content,
+              defaultName,
+              defaultDirectory: defaultDir,
+              style: "styled",
+              packaging: "folder",
+              sourceFilePath: doc.filePath,
+            });
           } catch (error) {
             console.error("[Menu] Failed to export HTML:", error);
           }
@@ -53,6 +63,7 @@ export function useExportMenuEvents(): void {
       if (cancelled) { unlistenExportHtml(); return; }
       unlistenRefs.current.push(unlistenExportHtml);
 
+      // Save PDF via print (uses browser print dialog)
       const unlistenSavePdf = await currentWindow.listen<string>("menu:save-pdf", async (event) => {
         if (event.payload !== windowLabel) return;
         flushActiveWysiwygNow();
@@ -60,12 +71,12 @@ export function useExportMenuEvents(): void {
         await withReentryGuard(windowLabel, "export", async () => {
           const doc = getActiveDocument(windowLabel);
           if (!doc) return;
-          const defaultName = doc.filePath
-            ? getFileNameWithoutExtension(doc.filePath) || "document"
-            : "document";
-          const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
+          const title = doc.filePath
+            ? getFileNameWithoutExtension(doc.filePath) || "Document"
+            : "Document";
           try {
-            await savePdf(doc.content, defaultName, defaultDir);
+            // Uses browser print for PDF
+            await exportToPdf(doc.content, title);
           } catch (error) {
             console.error("[Menu] Failed to save PDF:", error);
           }

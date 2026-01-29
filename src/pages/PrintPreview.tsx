@@ -1,244 +1,228 @@
 /**
- * Print Preview Page
+ * Print Preview Page (v2)
  *
- * Renders markdown content for printing to PDF.
- * Auto-triggers print dialog after content is rendered.
+ * Uses ExportSurface for visual-parity rendering.
+ * Waits for all assets (fonts, images, Math, Mermaid) before printing.
  */
 
-import { useEffect, useState } from "react";
-import { markdownToHtml } from "@/utils/exportUtils";
-import { useSettingsStore } from "@/stores/settingsStore";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { ExportSurface, type ExportSurfaceRef } from "@/export";
+import { waitForAssets } from "@/export/waitForAssets";
+import "@/export/exportStyles.css";
 
-/** Storage key for print content (shared with main window) */
+/** Event name for print request from main window */
+const PRINT_REQUEST_EVENT = "export:print-request";
+
+/** Fallback: Storage key for print content (legacy support) */
 const PRINT_CONTENT_KEY = "vmark-print-content";
 
-/** Delay before triggering print dialog (ms) */
-const PRINT_DELAY_MS = 300;
+/** Maximum time to wait for rendering (ms) */
+const MAX_RENDER_TIMEOUT = 10000;
 
-/** Delay before showing error if content never arrives (ms) */
-const ERROR_DELAY_MS = 2000;
+interface PrintRequestPayload {
+  markdown: string;
+  title?: string;
+  lightTheme?: boolean;
+}
 
-/** Shared styles for status messages */
-const statusStyle = { padding: 24 } as const;
+interface PrintStatus {
+  stage: "loading" | "rendering" | "ready" | "error";
+  message?: string;
+}
 
-/** GitHub-style print CSS */
-const printStyles = `
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #1f2328;
-  background-color: #ffffff;
-  max-width: 100%;
-  margin: 0;
+export function PrintPreviewPage() {
+  const [markdown, setMarkdown] = useState<string | null>(null);
+  const [_title, setTitle] = useState<string>("Document");
+  const [lightTheme, setLightTheme] = useState(true);
+  const [status, setStatus] = useState<PrintStatus>({ stage: "loading" });
+  const surfaceRef = useRef<ExportSurfaceRef>(null);
+  const hasTriggeredPrint = useRef(false);
+
+  // Handle print when ready
+  const handlePrint = useCallback(async () => {
+    if (hasTriggeredPrint.current) return;
+
+    const container = surfaceRef.current?.getContainer();
+    if (!container) {
+      setStatus({ stage: "error", message: "Failed to get content container" });
+      return;
+    }
+
+    setStatus({ stage: "rendering", message: "Waiting for assets..." });
+
+    // Wait for all assets to be ready
+    const result = await waitForAssets(container, {
+      timeout: MAX_RENDER_TIMEOUT,
+      onProgress: (s) => {
+        const pending: string[] = [];
+        if (!s.fontsReady) pending.push("fonts");
+        if (!s.imagesReady) pending.push("images");
+        if (!s.mathReady) pending.push("math");
+        if (!s.mermaidReady) pending.push("diagrams");
+
+        if (pending.length > 0) {
+          setStatus({
+            stage: "rendering",
+            message: `Loading ${pending.join(", ")}...`,
+          });
+        }
+      },
+    });
+
+    if (result.warnings.length > 0) {
+      console.warn("[PrintPreview] Asset warnings:", result.warnings);
+    }
+
+    setStatus({ stage: "ready" });
+    hasTriggeredPrint.current = true;
+
+    // Trigger print after a short delay for final layout
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  }, []);
+
+  // Listen for print request from main window
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      unlisten = await listen<PrintRequestPayload>(PRINT_REQUEST_EVENT, (event) => {
+        const { markdown: md, title: t, lightTheme: lt } = event.payload;
+        setMarkdown(md);
+        if (t) setTitle(t);
+        if (lt !== undefined) setLightTheme(lt);
+      });
+    };
+
+    setupListener();
+
+    // Fallback: check localStorage for legacy support
+    const fallbackTimeout = setTimeout(() => {
+      if (markdown === null) {
+        const stored = localStorage.getItem(PRINT_CONTENT_KEY);
+        if (stored !== null) {
+          setMarkdown(stored);
+          localStorage.removeItem(PRINT_CONTENT_KEY);
+        }
+      }
+    }, 500);
+
+    // Error timeout if no content arrives
+    const errorTimeout = setTimeout(() => {
+      if (markdown === null) {
+        setStatus({
+          stage: "error",
+          message: "No content received. Please try again.",
+        });
+      }
+    }, 5000);
+
+    return () => {
+      unlisten?.();
+      clearTimeout(fallbackTimeout);
+      clearTimeout(errorTimeout);
+    };
+  }, [markdown]);
+
+  // Render status UI
+  const renderStatus = () => {
+    if (status.stage === "loading") {
+      return (
+        <div className="print-status print-status-loading">
+          Loading content...
+        </div>
+      );
+    }
+
+    if (status.stage === "rendering") {
+      return (
+        <div className="print-status print-status-rendering">
+          {status.message ?? "Preparing for print..."}
+        </div>
+      );
+    }
+
+    if (status.stage === "error") {
+      return (
+        <div className="print-status print-status-error">
+          {status.message ?? "An error occurred"}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className={`print-preview-container ${lightTheme ? "" : "dark-theme"}`}>
+      <style>{printPreviewStyles}</style>
+
+      {markdown !== null ? (
+        <ExportSurface
+          ref={surfaceRef}
+          markdown={markdown}
+          lightTheme={lightTheme}
+          onReady={handlePrint}
+          onError={(error) => {
+            setStatus({ stage: "error", message: error.message });
+          }}
+        />
+      ) : (
+        renderStatus()
+      )}
+
+      {/* Status overlay (hidden when printing) */}
+      {status.stage !== "ready" && (
+        <div className="print-status-overlay">{renderStatus()}</div>
+      )}
+    </div>
+  );
+}
+
+/** Print preview styles */
+const printPreviewStyles = `
+.print-preview-container {
+  min-height: 100vh;
+  background: var(--bg-color, #ffffff);
+}
+
+.print-status {
   padding: 24px;
+  text-align: center;
+  color: var(--text-secondary, #666666);
 }
 
-h1, h2, h3, h4, h5, h6 {
-  margin-top: 24px;
-  margin-bottom: 16px;
-  font-weight: 600;
-  line-height: 1.25;
+.print-status-error {
+  color: var(--error-color, #cf222e);
 }
 
-h1 { font-size: 1.75em; border-bottom: 1px solid #d1d5da; padding-bottom: 0.3em; }
-h2 { font-size: 1.5em; border-bottom: 1px solid #d1d5da; padding-bottom: 0.3em; }
-h3 { font-size: 1.25em; }
-h4 { font-size: 1em; }
-h5 { font-size: 0.875em; }
-h6 { font-size: 0.85em; color: #6e7781; }
-
-p { margin-top: 0; margin-bottom: 16px; }
-
-a { color: #0969da; text-decoration: none; }
-
-code {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 85%;
-  background-color: #f6f8fa;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-}
-
-pre {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 85%;
-  background-color: #f6f8fa;
-  padding: 16px;
-  overflow: auto;
-  border-radius: 6px;
-  white-space: pre;
-}
-
-pre code {
-  background-color: transparent;
-  padding: 0;
-}
-
-blockquote {
-  margin: 0 0 16px 0;
-  padding: 0 1em;
-  color: #656d76;
-  border-left: 0.25em solid #d1d5da;
-}
-
-ul, ol {
-  margin-top: 0;
-  margin-bottom: 16px;
-  padding-left: 2em;
-}
-
-table {
-  border-collapse: collapse;
-  width: max-content;
-  max-width: 100%;
-  display: block;
-  overflow-x: auto;
-  table-layout: auto;
-  margin-bottom: 16px;
-}
-
-th, td {
-  padding: 6px 13px;
-  border: 1px solid #d1d5da;
-  white-space: nowrap;
-}
-
-th {
-  font-weight: 600;
-  background-color: #f6f8fa;
-}
-
-hr {
-  height: 0.25em;
-  margin: 24px 0;
-  background-color: #d1d5da;
-  border: 0;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-.markdown-alert {
-  padding: 8px 16px;
-  margin-bottom: 16px;
-  border-left: 4px solid;
-  border-radius: 6px;
-}
-
-.markdown-alert-note { border-color: #0969da; background-color: #ddf4ff; }
-.markdown-alert-tip { border-color: #1a7f37; background-color: #dafbe1; }
-.markdown-alert-important { border-color: #8250df; background-color: #fbefff; }
-.markdown-alert-warning { border-color: #9a6700; background-color: #fff8c5; }
-.markdown-alert-caution { border-color: #cf222e; background-color: #ffebe9; }
-
-details {
-  margin: 0 0 16px 0;
-  padding: 8px 12px;
-  border: 1px solid #d1d5da;
-  border-radius: 6px;
-  background-color: #f6f8fa;
-}
-
-summary {
-  font-weight: 600;
-  cursor: pointer;
-}
-
-mark {
-  background-color: #fff8c5;
-}
-
-.wiki-link {
-  color: #0969da;
-  text-decoration: none;
-}
-
-.wiki-embed {
-  color: #57606a;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.math-inline,
-.math-block {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  background-color: #f6f8fa;
-  padding: 0.1em 0.3em;
-  border-radius: 4px;
-}
-
-.math-block {
-  display: block;
-  padding: 8px 12px;
-  margin: 12px 0;
-}
-
-.mermaid {
-  background-color: #f6f8fa;
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
+.print-status-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-color, #ffffff);
+  z-index: 1000;
 }
 
 @media print {
-  body { padding: 0; }
-  @page { margin: 1.5cm; }
+  .print-status-overlay {
+    display: none !important;
+  }
+
+  .print-preview-container {
+    background: white !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
 }
 `;
-
-export function PrintPreviewPage() {
-  const [htmlContent, setHtmlContent] = useState<string>("");
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const preserveLineBreaks = useSettingsStore.getState().markdown.preserveLineBreaks;
-    // Read content from localStorage (set by main window before opening this window)
-    const markdown = localStorage.getItem(PRINT_CONTENT_KEY);
-    // Use !== null to allow empty documents (empty string is valid content)
-    if (markdown !== null) {
-      const html = markdownToHtml(markdown, { preserveLineBreaks });
-      setHtmlContent(html);
-      setReady(true);
-
-      // Clean up
-      localStorage.removeItem(PRINT_CONTENT_KEY);
-
-      // Auto-trigger print after content is rendered
-      const printTimeout = setTimeout(() => {
-        window.print();
-      }, PRINT_DELAY_MS);
-
-      // Clear timeout if component unmounts before print fires
-      return () => clearTimeout(printTimeout);
-    } else {
-      // Set timeout to show error if content never arrives
-      const errorTimeout = setTimeout(() => {
-        setError("No content available for preview. Please try again.");
-      }, ERROR_DELAY_MS);
-
-      return () => clearTimeout(errorTimeout);
-    }
-  }, []);
-
-  return (
-    <>
-      <style>{printStyles}</style>
-      <div
-        className="print-preview-content"
-        dangerouslySetInnerHTML={{ __html: htmlContent }}
-      />
-      {!ready && !error && (
-        <div style={{ ...statusStyle, color: "#666" }}>
-          Loading preview...
-        </div>
-      )}
-      {error && (
-        <div style={{ ...statusStyle, color: "#cf222e" }}>
-          {error}
-        </div>
-      )}
-    </>
-  );
-}
