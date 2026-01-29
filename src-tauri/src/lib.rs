@@ -43,6 +43,12 @@ fn debug_log(message: String) {
     eprintln!("[Frontend] {}", message);
 }
 
+/// Print the current webview content using native print dialog
+#[tauri::command]
+fn print_webview(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -94,6 +100,7 @@ pub fn run() {
             mcp_config::mcp_config_uninstall,
             #[cfg(debug_assertions)]
             debug_log,
+            print_webview,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;
@@ -116,7 +123,7 @@ pub fn run() {
         })
         .on_menu_event(menu_events::handle_menu_event)
         // CRITICAL: Only intercept close for document windows (main, doc-*)
-        // Non-document windows (settings, print-preview) should close normally
+        // Non-document windows (settings) should close normally
         .on_window_event(|window, event| {
             use tauri::Emitter;
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -131,7 +138,7 @@ pub fn run() {
                     #[cfg(debug_assertions)]
                     eprintln!("[Tauri] Emitted window:close-requested to '{}'", label);
                 }
-                // Settings, print-preview, etc. close normally without interception
+                // Settings and other non-document windows close normally
             }
         });
 

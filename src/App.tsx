@@ -8,7 +8,6 @@ import { FindBar } from "@/components/FindBar";
 import { TitleBar } from "@/components/TitleBar";
 import { UniversalToolbar } from "@/components/Editor/UniversalToolbar";
 import { SettingsPage } from "@/pages/Settings";
-import { PrintPreviewPage } from "@/pages/PrintPreview";
 import { WindowProvider, useIsDocumentWindow, useWindowLabel } from "@/contexts/WindowContext";
 
 // Error Boundary to catch and display React errors
@@ -269,7 +268,6 @@ function App() {
         <Routes>
           <Route path="/" element={<MainLayout />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/print-preview" element={<PrintPreviewPage />} />
         </Routes>
         <Toaster position="top-center" />
         <McpStatusDialog />

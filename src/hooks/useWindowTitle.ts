@@ -6,8 +6,11 @@ import { getFileName } from "@/utils/pathUtils";
 
 /**
  * Update window title based on document state and settings.
- * Format: [• ]filename - VMark (when showFilenameInTitlebar is enabled)
- * Format: VMark (when showFilenameInTitlebar is disabled)
+ * Format: [• ]filename (when showFilenameInTitlebar is enabled)
+ * Format: (empty) (when showFilenameInTitlebar is disabled)
+ *
+ * Also sets document.title (without extension) for the print dialog's
+ * default PDF filename — otherwise it would always show "VMark".
  */
 export function useWindowTitle() {
   const filePath = useDocumentFilePath();
@@ -19,11 +22,16 @@ export function useWindowTitle() {
     const updateTitle = async () => {
       const window = getCurrentWebviewWindow();
 
-      if (showFilename) {
-        // Extract filename from path or use "Untitled"
-        const filename = filePath ? getFileName(filePath) || "Untitled" : "Untitled";
+      // Extract filename from path or use "Untitled"
+      const filename = filePath ? getFileName(filePath) || "Untitled" : "Untitled";
 
-        // Add dirty indicator
+      // Always update document.title for print dialog PDF filename
+      // Remove extension for cleaner PDF naming
+      const baseName = filename.replace(/\.[^.]+$/, "");
+      document.title = baseName;
+
+      if (showFilename) {
+        // Add dirty indicator for window title
         const dirtyIndicator = isDirty ? "• " : "";
         const title = `${dirtyIndicator}${filename}`;
 

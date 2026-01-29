@@ -112,6 +112,5 @@ mod tests {
         assert!(is_document_window_label("doc-0"));
         assert!(is_document_window_label("doc-123"));
         assert!(!is_document_window_label("settings"));
-        assert!(!is_document_window_label("print-preview"));
     }
 }

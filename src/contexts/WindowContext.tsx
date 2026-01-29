@@ -69,7 +69,7 @@ export function WindowProvider({ children }: WindowProviderProps) {
         setWindowLabel(label);
 
         // CRITICAL: Only init documents for document windows (main, doc-*)
-        // Settings, print-preview, etc. don't need document state
+        // Settings and other non-document windows don't need document state
         if (label === "main" || label.startsWith("doc-")) {
           // Check if we already have tabs for this window
           // Also check initStartedRef to prevent double-init from StrictMode

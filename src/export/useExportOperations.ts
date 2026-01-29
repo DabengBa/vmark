@@ -1,15 +1,13 @@
 /**
  * Export Operations
  *
- * Uses ExportSurface for visual-parity exports.
- * Guarantees the same rendering as the WYSIWYG editor.
+ * Print: Uses Typora-style direct printing (window.print() with @media print CSS).
+ * HTML Export: Uses ExportSurface for visual-parity rendering.
  */
 
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { emit } from "@tauri-apps/api/event";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 import React from "react";
@@ -21,9 +19,6 @@ import { captureThemeCSS } from "./themeSnapshot";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { joinPath } from "@/utils/pathUtils";
 import { showError, FileErrors } from "@/utils/errorDialog";
-
-/** Event name for print request */
-const PRINT_REQUEST_EVENT = "export:print-request";
 
 /** Timeout for waiting on assets (fonts, images, math, diagrams) */
 const ASSET_WAIT_TIMEOUT = 10000;
@@ -214,13 +209,14 @@ export async function exportToHtml(
 }
 
 /**
- * Export markdown to PDF via print dialog.
- * Opens a preview window with ExportSurface rendering.
+ * Print document via native print dialog.
+ * Uses Typora-style direct printing - no re-rendering needed.
+ * The current editor view IS the print source, with @media print CSS hiding UI.
  */
 export async function exportToPdf(
   markdown: string,
-  title: string = "Document",
-  sourceFilePath?: string | null
+  _title: string = "Document",
+  _sourceFilePath?: string | null
 ): Promise<void> {
   // Check for empty content
   const trimmedContent = markdown.trim();
@@ -229,102 +225,15 @@ export async function exportToPdf(
     return;
   }
 
+  // Use Tauri's native print API (wry WebView.print())
+  // This triggers the native macOS print dialog properly,
+  // unlike window.print() which silently fails in WKWebView
   try {
-    // Check if preview window already exists
-    const existing = await WebviewWindow.getByLabel("print-preview");
-    if (existing) {
-      await existing.close();
-    }
-
-    // Preprocess markdown to resolve relative image paths
-    let processedMarkdown = markdown;
-    if (sourceFilePath) {
-      processedMarkdown = resolveImagePaths(markdown, sourceFilePath);
-    }
-
-    // Also store in localStorage for fallback
-    localStorage.setItem("vmark-print-content", processedMarkdown);
-
-    // Create new print preview window
-    const previewWindow = new WebviewWindow("print-preview", {
-      url: "/print-preview",
-      title: `Print - ${title}`,
-      width: 800,
-      height: 900,
-      center: true,
-      resizable: true,
-    });
-
-    // Wait for window to be ready, then send content via event
-    previewWindow.once("tauri://created", async () => {
-      // Small delay to ensure window is fully initialized
-      await new Promise((r) => setTimeout(r, 100));
-
-      await emit(PRINT_REQUEST_EVENT, {
-        markdown: processedMarkdown,
-        title,
-        lightTheme: true,
-      });
-    });
+    await invoke("print_webview");
   } catch (error) {
-    console.error("[Export] Failed to export PDF:", error);
-    await showError(FileErrors.exportFailed("PDF"));
+    console.error("[Print] Failed to print:", error);
+    toast.error("Failed to open print dialog");
   }
-}
-
-/**
- * Resolve relative image paths in markdown to absolute asset:// URLs.
- */
-function resolveImagePaths(markdown: string, sourceFilePath: string): string {
-  // Get directory of source file
-  const sourceDir = sourceFilePath.replace(/[/\\][^/\\]*$/, "");
-
-  // Match markdown images: ![alt](path)
-  // Also match HTML images: <img src="path"
-  return markdown
-    .replace(
-      /!\[([^\]]*)\]\(([^)]+)\)/g,
-      (_match, alt, path) => {
-        const resolvedPath = resolvePath(path, sourceDir);
-        return `![${alt}](${resolvedPath})`;
-      }
-    )
-    .replace(
-      /<img([^>]*?)src=["']([^"']+)["']/gi,
-      (_match, attrs, path) => {
-        const resolvedPath = resolvePath(path, sourceDir);
-        return `<img${attrs}src="${resolvedPath}"`;
-      }
-    );
-}
-
-/**
- * Normalize path for convertFileSrc on Windows.
- * Windows paths use backslashes which convertFileSrc doesn't handle correctly.
- */
-function normalizePathForAsset(path: string): string {
-  return path.replace(/\\/g, "/");
-}
-
-/**
- * Resolve a path relative to a directory and convert to asset:// URL.
- */
-function resolvePath(path: string, sourceDir: string): string {
-  // Skip absolute URLs, data URLs, and already-converted asset URLs
-  if (path.startsWith("http://") || path.startsWith("https://") ||
-      path.startsWith("data:") || path.startsWith("file://") ||
-      path.startsWith("asset://") || path.startsWith("tauri://")) {
-    return path;
-  }
-
-  // Handle relative paths
-  if (path.startsWith("./")) {
-    path = path.slice(2);
-  }
-
-  // Build absolute path and convert to asset:// URL
-  const absolutePath = `${sourceDir}/${path}`;
-  return convertFileSrc(normalizePathForAsset(absolutePath));
 }
 
 /**
