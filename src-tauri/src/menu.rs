@@ -92,7 +92,6 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         &[
             &MenuItem::with_id(app, "export-html", "HTML...", true, Some("Alt+CmdOrCtrl+E"))?,
-            &MenuItem::with_id(app, "save-pdf", "PDF...", true, None::<&str>)?,
             &MenuItem::with_id(app, "export-pdf", "Print...", true, Some("CmdOrCtrl+P"))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, Some("CmdOrCtrl+Shift+C"))?,
@@ -880,8 +879,7 @@ fn create_menu_with_shortcuts(
         "Export",
         true,
         &[
-            &MenuItem::with_id(app, "export-html", "HTML...", true, get_accel("export-html", "CmdOrCtrl+Shift+E"))?,
-            &MenuItem::with_id(app, "save-pdf", "PDF...", true, None::<&str>)?,
+            &MenuItem::with_id(app, "export-html", "HTML...", true, get_accel("export-html", "Alt+CmdOrCtrl+E"))?,
             &MenuItem::with_id(app, "export-pdf", "Print...", true, get_accel("export-pdf", "CmdOrCtrl+P"))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, get_accel("copy-html", "CmdOrCtrl+Shift+C"))?,

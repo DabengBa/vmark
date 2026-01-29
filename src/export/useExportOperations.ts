@@ -188,6 +188,13 @@ export async function exportToHtml(
 
     if (result.warnings.length > 0) {
       console.warn("[Export] Warnings:", result.warnings);
+      // Surface warnings to user
+      const count = result.warnings.length;
+      toast.warning(
+        count === 1
+          ? "1 resource could not be included"
+          : `${count} resources could not be included`
+      );
     }
 
     return true;

@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ExportSurface, type ExportSurfaceRef } from "@/export";
 import { waitForAssets } from "@/export/waitForAssets";
 import "@/export/exportStyles.css";
@@ -27,8 +28,9 @@ interface PrintRequestPayload {
 }
 
 interface PrintStatus {
-  stage: "loading" | "rendering" | "ready" | "error";
+  stage: "loading" | "rendering" | "ready" | "error" | "warning";
   message?: string;
+  warningCount?: number;
 }
 
 export function PrintPreviewPage() {
@@ -38,6 +40,31 @@ export function PrintPreviewPage() {
   const [status, setStatus] = useState<PrintStatus>({ stage: "loading" });
   const surfaceRef = useRef<ExportSurfaceRef>(null);
   const hasTriggeredPrint = useRef(false);
+
+  // Close window handler
+  const closeWindow = useCallback(() => {
+    getCurrentWebviewWindow().close();
+  }, []);
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeWindow();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeWindow]);
+
+  // Trigger actual print
+  const triggerPrint = useCallback(() => {
+    hasTriggeredPrint.current = true;
+    setStatus({ stage: "ready" });
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  }, []);
 
   // Handle print when ready
   const handlePrint = useCallback(async () => {
@@ -74,14 +101,18 @@ export function PrintPreviewPage() {
       console.warn("[PrintPreview] Asset warnings:", result.warnings);
     }
 
-    setStatus({ stage: "ready" });
-    hasTriggeredPrint.current = true;
+    // If assets didn't fully load, show warning and let user decide
+    if (!result.success || result.warnings.length > 0) {
+      setStatus({
+        stage: "warning",
+        message: "Some content may be incomplete.",
+        warningCount: result.warnings.length,
+      });
+      return;
+    }
 
-    // Trigger print after a short delay for final layout
-    setTimeout(() => {
-      window.print();
-    }, 100);
-  }, []);
+    triggerPrint();
+  }, [triggerPrint]);
 
   // Listen for print request from main window
   useEffect(() => {
@@ -131,7 +162,10 @@ export function PrintPreviewPage() {
     if (status.stage === "loading") {
       return (
         <div className="print-status print-status-loading">
-          Loading content...
+          <span>Loading content...</span>
+          <button className="print-cancel-btn" onClick={closeWindow} tabIndex={0}>
+            Cancel
+          </button>
         </div>
       );
     }
@@ -139,7 +173,27 @@ export function PrintPreviewPage() {
     if (status.stage === "rendering") {
       return (
         <div className="print-status print-status-rendering">
-          {status.message ?? "Preparing for print..."}
+          <span>{status.message ?? "Preparing for print..."}</span>
+          <button className="print-cancel-btn" onClick={closeWindow} tabIndex={0}>
+            Cancel
+          </button>
+        </div>
+      );
+    }
+
+    if (status.stage === "warning") {
+      return (
+        <div className="print-status print-status-warning">
+          <span>{status.message ?? "Some content may be incomplete."}</span>
+          <span className="print-status-hint">Print anyway?</span>
+          <div className="print-status-actions">
+            <button className="print-cancel-btn" onClick={closeWindow} tabIndex={0}>
+              Cancel
+            </button>
+            <button className="print-confirm-btn" onClick={triggerPrint} tabIndex={0} autoFocus>
+              Print
+            </button>
+          </div>
         </div>
       );
     }
@@ -147,7 +201,10 @@ export function PrintPreviewPage() {
     if (status.stage === "error") {
       return (
         <div className="print-status print-status-error">
-          {status.message ?? "An error occurred"}
+          <span>{status.message ?? "An error occurred"}</span>
+          <button className="print-cancel-btn" onClick={closeWindow} tabIndex={0}>
+            Close
+          </button>
         </div>
       );
     }
@@ -158,6 +215,16 @@ export function PrintPreviewPage() {
   return (
     <div className={`print-preview-container ${lightTheme ? "" : "dark-theme"}`}>
       <style>{printPreviewStyles}</style>
+
+      {/* Close button (always visible except when printing) */}
+      <button
+        className="print-close-btn"
+        onClick={closeWindow}
+        aria-label="Close"
+        tabIndex={0}
+      >
+        ×
+      </button>
 
       {markdown !== null ? (
         <ExportSurface
@@ -188,14 +255,97 @@ const printPreviewStyles = `
   background: var(--bg-color, #ffffff);
 }
 
+.print-close-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1001;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-secondary, #e5e4e4);
+  color: var(--text-secondary, #666666);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.print-close-btn:hover {
+  background: var(--hover-bg-strong, rgba(0,0,0,0.08));
+  color: var(--text-color, #1a1a1a);
+}
+
+.print-close-btn:focus-visible {
+  outline: 2px solid var(--primary-color, #0066cc);
+  outline-offset: 2px;
+}
+
 .print-status {
   padding: 24px;
   text-align: center;
   color: var(--text-secondary, #666666);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .print-status-error {
   color: var(--error-color, #cf222e);
+}
+
+.print-status-warning {
+  color: var(--warning-color, #9a6700);
+}
+
+.print-status-hint {
+  font-size: 14px;
+  color: var(--text-tertiary, #999999);
+}
+
+.print-status-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.print-cancel-btn,
+.print-confirm-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.print-cancel-btn {
+  background: var(--bg-secondary, #e5e4e4);
+  color: var(--text-color, #1a1a1a);
+}
+
+.print-cancel-btn:hover {
+  background: var(--hover-bg-strong, rgba(0,0,0,0.08));
+}
+
+.print-confirm-btn {
+  background: var(--primary-color, #0066cc);
+  color: var(--contrast-text, white);
+}
+
+.print-confirm-btn:hover {
+  background: color-mix(in srgb, var(--primary-color, #0066cc) 85%, black);
+}
+
+.print-cancel-btn:focus-visible,
+.print-confirm-btn:focus-visible {
+  outline: 2px solid var(--primary-color, #0066cc);
+  outline-offset: 2px;
 }
 
 .print-status-overlay {
@@ -208,7 +358,8 @@ const printPreviewStyles = `
 }
 
 @media print {
-  .print-status-overlay {
+  .print-status-overlay,
+  .print-close-btn {
     display: none !important;
   }
 

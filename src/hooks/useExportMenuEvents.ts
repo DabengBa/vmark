@@ -11,6 +11,7 @@
 import { useEffect, useRef } from "react";
 import { type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { toast } from "sonner";
 import { exportToHtml, exportToPdf, copyAsHtml } from "@/export";
 import { getFileNameWithoutExtension, getDirectory } from "@/utils/pathUtils";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
@@ -47,7 +48,7 @@ export function useExportMenuEvents(): void {
             : "document";
           const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
           try {
-            await exportToHtml({
+            const success = await exportToHtml({
               markdown: doc.content,
               defaultName,
               defaultDirectory: defaultDir,
@@ -55,6 +56,9 @@ export function useExportMenuEvents(): void {
               packaging: "folder",
               sourceFilePath: doc.filePath,
             });
+            if (success) {
+              toast.success("Exported to HTML");
+            }
           } catch (error) {
             console.error("[Menu] Failed to export HTML:", error);
           }
@@ -63,28 +67,7 @@ export function useExportMenuEvents(): void {
       if (cancelled) { unlistenExportHtml(); return; }
       unlistenRefs.current.push(unlistenExportHtml);
 
-      // Save PDF via print (uses browser print dialog)
-      const unlistenSavePdf = await currentWindow.listen<string>("menu:save-pdf", async (event) => {
-        if (event.payload !== windowLabel) return;
-        flushActiveWysiwygNow();
-
-        await withReentryGuard(windowLabel, "export", async () => {
-          const doc = getActiveDocument(windowLabel);
-          if (!doc) return;
-          const title = doc.filePath
-            ? getFileNameWithoutExtension(doc.filePath) || "Document"
-            : "Document";
-          try {
-            // Uses browser print for PDF
-            await exportToPdf(doc.content, title);
-          } catch (error) {
-            console.error("[Menu] Failed to save PDF:", error);
-          }
-        });
-      });
-      if (cancelled) { unlistenSavePdf(); return; }
-      unlistenRefs.current.push(unlistenSavePdf);
-
+      // Print/PDF via print dialog
       const unlistenExportPdf = await currentWindow.listen<string>("menu:export-pdf", async (event) => {
         if (event.payload !== windowLabel) return;
         flushActiveWysiwygNow();
