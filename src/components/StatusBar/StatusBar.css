@@ -263,7 +263,16 @@
   background: transparent;
   color: var(--text-tertiary);
   font-size: 11px;
-  cursor: default;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.status-mcp:hover {
+  background-color: var(--hover-bg);
+}
+
+.status-mcp:active {
+  background-color: var(--hover-bg-strong);
 }
 
 .status-mcp.connected {
