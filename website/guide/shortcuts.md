@@ -165,11 +165,15 @@ VMark is designed for keyboard-first workflows. All shortcuts can be customized 
 Toggle Hidden Files uses `Ctrl + H` on Windows and Linux.
 :::
 
-## Help
+## Help (macOS only)
 
 | Action | Shortcut |
 |--------|----------|
-| Search Help | `Mod + /` |
+| Search Menus | `Cmd + Shift + /` |
+
+::: tip
+This is a native macOS system shortcut that searches all menu items. Type a keyword to find and execute any menu action.
+:::
 
 ## Smart Tab Navigation
 
