@@ -273,9 +273,6 @@ export function StatusBar() {
 
           {/* Right section: stats + mode */}
           <div className="status-bar-right">
-            {/* Update status indicator */}
-            <UpdateIndicator />
-
             {/* MCP status indicator */}
             <button
               className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
@@ -292,6 +289,9 @@ export function StatusBar() {
             >
               <Satellite size={12} />
             </button>
+
+            {/* Update status indicator */}
+            <UpdateIndicator />
 
             {showAutoSavePaused && (
               <span
