@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback, type MouseEvent, type Keyboa
 
 // Stable empty array to avoid creating new reference on each render
 const EMPTY_TABS: never[] = [];
-import { Code2, Type, Save, Plus, AlertTriangle, GitFork, Radio } from "lucide-react";
+import { Code2, Type, Save, Plus, AlertTriangle, GitFork, Satellite } from "lucide-react";
 import { countWords as alfaazCount } from "alfaaz";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -23,8 +23,10 @@ import { formatRelativeTime, formatExactTime } from "@/utils/dateUtils";
 import { Tab } from "@/components/Tabs/Tab";
 import { TabContextMenu, type ContextMenuPosition } from "@/components/Tabs/TabContextMenu";
 import { useShortcutsStore, formatKeyForDisplay } from "@/stores/shortcutsStore";
+import { emit } from "@tauri-apps/api/event";
+import { WebviewWindow, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { useMcpServer } from "@/hooks/useMcpServer";
-import { useMcpHealthStore } from "@/stores/mcpHealthStore";
 import { UpdateIndicator } from "./UpdateIndicator";
 import "./StatusBar.css";
 
@@ -92,8 +94,56 @@ export function StatusBar() {
   const sourceModeShortcut = useShortcutsStore((state) => state.getShortcut("sourceMode"));
 
   // MCP server status
-  const { running: mcpRunning, loading: mcpLoading } = useMcpServer();
-  const openMcpDialog = useMcpHealthStore((state) => state.openDialog);
+  const { running: mcpRunning, loading: mcpLoading, port: mcpPort, error: mcpError } = useMcpServer();
+
+  // Open Settings → Integrations for MCP status
+  const openMcpSettings = useCallback(async () => {
+    const settingsWidth = 760;
+    const settingsHeight = 540;
+    const currentWindow = getCurrentWebviewWindow();
+
+    const calculateCenteredPosition = async (): Promise<{ x: number; y: number } | null> => {
+      try {
+        const scaleFactor = await currentWindow.scaleFactor();
+        const [position, size] = await Promise.all([
+          currentWindow.outerPosition(),
+          currentWindow.outerSize(),
+        ]);
+        const x = Math.round(position.x / scaleFactor + (size.width / scaleFactor - settingsWidth) / 2);
+        const y = Math.round(position.y / scaleFactor + (size.height / scaleFactor - settingsHeight) / 2);
+        return { x, y };
+      } catch {
+        return null;
+      }
+    };
+
+    const existing = await WebviewWindow.getByLabel("settings");
+    if (existing) {
+      const pos = await calculateCenteredPosition();
+      if (pos) {
+        await existing.setPosition(new LogicalPosition(pos.x, pos.y));
+      }
+      await existing.setFocus();
+      await emit("settings:navigate", "integrations");
+      return;
+    }
+
+    const pos = await calculateCenteredPosition();
+    new WebviewWindow("settings", {
+      url: "/settings?section=integrations",
+      title: "Settings",
+      width: settingsWidth,
+      height: settingsHeight,
+      minWidth: 600,
+      minHeight: 400,
+      x: pos?.x,
+      y: pos?.y,
+      center: !pos,
+      resizable: true,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+    });
+  }, []);
 
   // Show warning when file is missing and auto-save is enabled
   const showAutoSavePaused = isMissing && autoSaveEnabled;
@@ -228,12 +278,19 @@ export function StatusBar() {
 
             {/* MCP status indicator */}
             <button
-              className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""}`}
-              onClick={openMcpDialog}
-              title={mcpLoading ? "MCP: Starting..." : mcpRunning ? "MCP: Connected" : "MCP: Disconnected"}
+              className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
+              onClick={openMcpSettings}
+              title={
+                mcpError
+                  ? `MCP error: ${mcpError}`
+                  : mcpLoading
+                    ? "MCP starting..."
+                    : mcpRunning
+                      ? `MCP running on port ${mcpPort}`
+                      : "MCP stopped · Click to configure"
+              }
             >
-              <Radio size={12} />
-              <span className="status-mcp-label">MCP</span>
+              <Satellite size={12} />
             </button>
 
             {showAutoSavePaused && (
