@@ -85,7 +85,7 @@ VMark is designed for keyboard-first workflows. All shortcuts can be customized 
 | Insert Caution | `Mod + Shift + U` |
 | Insert Collapsible | `Alt + Mod + D` |
 | Insert Diagram | `Alt + Shift + Mod + D` |
-| Toggle Comment | `Mod + Shift + /` |
+| Toggle Comment | `Mod + /` |
 
 ## Selection & Multi-Cursor
 
