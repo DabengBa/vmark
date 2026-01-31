@@ -52,8 +52,8 @@ function linkedText(text: string, href: string): Node {
 }
 
 describe("Tab Escape with Multi-Cursor", () => {
-  describe("Current behavior (undefined)", () => {
-    it("canTabEscape returns null for MultiSelection", () => {
+  describe("Multi-cursor escape behavior", () => {
+    it("returns MultiSelection with updated cursor positions", () => {
       const document = doc(p("hello ", boldText("bold"), " world"));
 
       // Create multi-cursor with two positions
@@ -69,15 +69,18 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const multiState = createState(document, [range1, range2]);
 
-      // canTabEscape checks selection.from !== selection.to
-      // For MultiSelection, this uses primary range only
       const result = canTabEscape(multiState);
 
-      // Expected: Currently returns null because multi-cursor not handled
-      expect(multiState.selection instanceof MultiSelection).toBe(true);
+      // Should return a MultiSelection with first cursor escaped
+      expect(result).toBeInstanceOf(MultiSelection);
+      expect((result as MultiSelection).ranges).toHaveLength(2);
+      // First cursor should move to end of bold (position 11)
+      expect((result as MultiSelection).ranges[0].$from.pos).toBe(11);
+      // Second cursor should stay in place (can't escape)
+      expect((result as MultiSelection).ranges[1].$from.pos).toBe(15);
     });
 
-    it("primary cursor in mark, secondary cursor in plain text", () => {
+    it("cursor in mark escapes, cursor in plain text stays", () => {
       const document = doc(p("hello ", boldText("bold"), " world"));
 
       const state = EditorState.create({ doc: document, schema: testSchema });
@@ -96,12 +99,15 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const result = canTabEscape(multiState);
 
-      // Current implementation only checks primary range
-      // from === to for primary cursor, but it's a MultiSelection
-      // So behavior is undefined
+      expect(result).toBeInstanceOf(MultiSelection);
+      const multiResult = result as MultiSelection;
+      // First cursor escaped
+      expect(multiResult.ranges[0].$from.pos).toBe(11);
+      // Second cursor stayed
+      expect(multiResult.ranges[1].$from.pos).toBe(15);
     });
 
-    it("both cursors in marks", () => {
+    it("both cursors in marks both escape", () => {
       const document = doc(
         p(boldText("first"), " and ", boldText("second"))
       );
@@ -122,10 +128,14 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const result = canTabEscape(multiState);
 
-      // Expected: Should handle both cursors, but currently doesn't
+      expect(result).toBeInstanceOf(MultiSelection);
+      const multiResult = result as MultiSelection;
+      // Both cursors should escape to end of their respective marks
+      expect(multiResult.ranges[0].$from.pos).toBe(6);
+      expect(multiResult.ranges[1].$from.pos).toBe(17);
     });
 
-    it("multiple cursors in same link", () => {
+    it("multiple cursors in same link both escape (and merge)", () => {
       const document = doc(
         p("text ", linkedText("long link text", "url"), " more")
       );
@@ -144,11 +154,20 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const multiState = createState(document, [range1, range2]);
 
-      // Expected: Both should jump to end of link
-      // Actual: Undefined behavior
+      const result = canTabEscape(multiState);
+
+      expect(result).toBeInstanceOf(MultiSelection);
+      const multiResult = result as MultiSelection;
+      // When both cursors end up at the same position, MultiSelection normalizes/merges them
+      // So we might end up with only one range
+      expect(multiResult.ranges.length).toBeGreaterThanOrEqual(1);
+      // All ranges should be at the end of link (position 20)
+      multiResult.ranges.forEach(range => {
+        expect(range.$from.pos).toBe(20);
+      });
     });
 
-    it("cursors in different marks", () => {
+    it("cursors in different mark types both escape", () => {
       const document = doc(
         p(boldText("bold"), " ", linkedText("link", "url"))
       );
@@ -161,19 +180,25 @@ describe("Tab Escape with Multi-Cursor", () => {
         state.doc.resolve(3)
       );
       const range2 = new SelectionRange(
-        state.doc.resolve(10), // Inside "link"
-        state.doc.resolve(10)
+        state.doc.resolve(8), // Inside "link"
+        state.doc.resolve(8)
       );
 
       const multiState = createState(document, [range1, range2]);
 
-      // Expected: Both should escape their respective contexts
-      // Actual: Undefined
+      const result = canTabEscape(multiState);
+
+      expect(result).toBeInstanceOf(MultiSelection);
+      const multiResult = result as MultiSelection;
+      // Bold cursor escapes to end of bold node
+      expect(multiResult.ranges[0].$from.pos).toBe(5);
+      // Link cursor escapes to end of link node
+      expect(multiResult.ranges[1].$from.pos).toBe(10);
     });
   });
 
   describe("Edge cases with selection ranges", () => {
-    it("one cursor, one selection (mixed)", () => {
+    it("one cursor, one selection (cursor escapes, selection unchanged)", () => {
       const document = doc(p("hello ", boldText("bold"), " world"));
 
       const state = EditorState.create({ doc: document, schema: testSchema });
@@ -192,13 +217,18 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const multiState = createState(document, [range1, range2]);
 
-      // canTabEscape checks from !== to
-      // For primary (range1): from === to (cursor)
-      // But it's still a MultiSelection
-      // Behavior is undefined
+      const result = canTabEscape(multiState);
+
+      expect(result).toBeInstanceOf(MultiSelection);
+      const multiResult = result as MultiSelection;
+      // Cursor escapes
+      expect(multiResult.ranges[0].$from.pos).toBe(11);
+      // Selection stays unchanged
+      expect(multiResult.ranges[1].$from.pos).toBe(13);
+      expect(multiResult.ranges[1].$to.pos).toBe(17);
     });
 
-    it("all selections (no cursors)", () => {
+    it("all selections (no cursors) returns null", () => {
       const document = doc(p("hello ", boldText("bold"), " world"));
 
       const state = EditorState.create({ doc: document, schema: testSchema });
@@ -218,8 +248,7 @@ describe("Tab Escape with Multi-Cursor", () => {
 
       const result = canTabEscape(multiState);
 
-      // Current implementation: from !== to → returns null
-      // Expected: Tab should not escape when there are selections
+      // No cursors to escape, only selections
       expect(result).toBeNull();
     });
   });

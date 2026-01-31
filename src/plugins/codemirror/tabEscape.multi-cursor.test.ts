@@ -3,6 +3,8 @@
  *
  * Tests Tab escape behavior with multiple cursors/selections in Source mode.
  * CodeMirror has built-in multi-cursor support via EditorSelection.
+ *
+ * Now fully functional - each cursor is processed independently.
  */
 
 import { describe, it, expect, afterEach } from "vitest";

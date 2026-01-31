@@ -6,7 +6,9 @@
  */
 
 import type { EditorState } from "@tiptap/pm/state";
+import { SelectionRange } from "@tiptap/pm/state";
 import type { Mark, ResolvedPos } from "@tiptap/pm/model";
+import { MultiSelection } from "@/plugins/multiCursor/MultiSelection";
 
 /** Mark types that Tab can escape from */
 const ESCAPABLE_MARKS = new Set(["bold", "italic", "code", "strike"]);
@@ -197,16 +199,138 @@ function isInEscapableMark(state: EditorState): boolean {
 }
 
 /**
+ * Calculate escape position for a single cursor position.
+ * Returns the target position or null if cursor cannot escape.
+ */
+function calculateEscapeForPosition(
+  state: EditorState,
+  pos: number
+): number | null {
+  const $pos = state.doc.resolve(pos);
+
+  // Check for link first (higher priority)
+  const linkMark = $pos.marks().find((m) => m.type.name === "link");
+  if (linkMark) {
+    const parent = $pos.parent;
+    const parentStart = $pos.start();
+
+    // Find the text node we're currently in
+    let offset = 0;
+    for (let i = 0; i < parent.childCount; i++) {
+      const child = parent.child(i);
+      const childStart = parentStart + offset;
+      const childEnd = childStart + child.nodeSize;
+
+      // Check if cursor is in this child node
+      if (pos >= childStart && pos < childEnd) {
+        // Check if this node has the link mark
+        if (child.marks.some((m) => m.type.name === "link")) {
+          // Return position right after this text node if it's different
+          return childEnd > pos ? childEnd : null;
+        }
+      }
+
+      offset += child.nodeSize;
+    }
+  }
+
+  // Check for escapable mark
+  const escapableMark = $pos.marks().find((m) => ESCAPABLE_MARKS.has(m.type.name));
+  if (escapableMark) {
+    const markType = escapableMark.type;
+    const parent = $pos.parent;
+    const parentStart = $pos.start();
+
+    // Find the text node we're currently in
+    let offset = 0;
+    for (let i = 0; i < parent.childCount; i++) {
+      const child = parent.child(i);
+      const childStart = parentStart + offset;
+      const childEnd = childStart + child.nodeSize;
+
+      // Check if cursor is in this child node
+      if (pos >= childStart && pos < childEnd) {
+        // Check if this node has our mark
+        if (child.marks.some((m) => m.type === markType)) {
+          // Return position right after this text node if it's different
+          return childEnd > pos ? childEnd : null;
+        }
+      }
+
+      offset += child.nodeSize;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Handle multi-cursor tab escape.
+ * Processes each cursor independently and returns updated MultiSelection.
+ */
+function canTabEscapeMulti(state: EditorState): MultiSelection | null {
+  const { selection } = state;
+
+  if (!(selection instanceof MultiSelection)) {
+    return null;
+  }
+
+  const newRanges: SelectionRange[] = [];
+  let hasAnyEscape = false;
+
+  for (const range of selection.ranges) {
+    const { $from, $to } = range;
+
+    // Only process cursors, not selections
+    if ($from.pos !== $to.pos) {
+      newRanges.push(range);
+      continue;
+    }
+
+    // Calculate escape position for this cursor
+    const escapePos = calculateEscapeForPosition(state, $from.pos);
+
+    if (escapePos !== null) {
+      // Can escape - move cursor to escape position
+      const $newPos = state.doc.resolve(escapePos);
+      newRanges.push(new SelectionRange($newPos, $newPos));
+      hasAnyEscape = true;
+    } else {
+      // Cannot escape - keep cursor in place
+      newRanges.push(range);
+    }
+  }
+
+  // Only return new selection if at least one cursor escaped
+  if (!hasAnyEscape) {
+    return null;
+  }
+
+  return new MultiSelection(newRanges, selection.primaryIndex);
+}
+
+/**
  * Determine if Tab can escape from current position and return target.
  *
- * Priority:
+ * For single cursor:
  * 1. If in a link, escape the link
  * 2. If in an escapable mark (bold/italic/code/strike), escape the mark
  *
- * @returns TabEscapeResult with target position, or null if Tab shouldn't escape
+ * For multi-cursor:
+ * - Each cursor is processed independently
+ * - Cursors that can escape move to end of their mark/link
+ * - Cursors that cannot escape stay in place
+ *
+ * @returns TabEscapeResult with target position, MultiSelection for multi-cursor, or null if Tab shouldn't escape
  */
-export function canTabEscape(state: EditorState): TabEscapeResult | null {
+export function canTabEscape(state: EditorState): TabEscapeResult | MultiSelection | null {
   const { selection } = state;
+
+  // Handle multi-cursor
+  if (selection instanceof MultiSelection) {
+    return canTabEscapeMulti(state);
+  }
+
   const { from, to } = selection;
 
   // Only handle cursor, not selection

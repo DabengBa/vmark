@@ -32,6 +32,7 @@ import { liftListItem, sinkListItem } from "@tiptap/pm/schema-list";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { isInTable, getTableInfo } from "@/plugins/tableUI/tableActions.tiptap";
 import { canTabEscape } from "./tabEscape";
+import { MultiSelection } from "@/plugins/multiCursor/MultiSelection";
 
 const tabIndentPluginKey = new PluginKey("tabIndent");
 
@@ -82,6 +83,15 @@ export const tabIndentExtension = Extension.create({
                 const escapeResult = canTabEscape(state);
                 if (escapeResult) {
                   event.preventDefault();
+
+                  // Handle multi-cursor
+                  if (escapeResult instanceof MultiSelection) {
+                    const tr = state.tr.setSelection(escapeResult);
+                    dispatch(tr);
+                    return true;
+                  }
+
+                  // Handle single cursor
                   const tr = state.tr.setSelection(
                     TextSelection.create(state.doc, escapeResult.targetPos)
                   );
