@@ -10,10 +10,9 @@
  * @see dev-docs/multi-cursor-features.md
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Schema, Node as PMNode } from "@tiptap/pm/model";
-import { EditorState, Selection, SelectionRange, TextSelection, Transaction, Plugin } from "@tiptap/pm/state";
-import { EditorView } from "@tiptap/pm/view";
+import { EditorState, Selection, SelectionRange, TextSelection, Transaction } from "@tiptap/pm/state";
 import { MultiSelection } from "../MultiSelection";
 
 // ============================================================================
@@ -134,14 +133,6 @@ function code(...content: any[]) {
   return testSchema.node("codeBlock", null, content.length ? content : undefined);
 }
 
-function ul(...items: any[]) {
-  return testSchema.node("bulletList", null, items);
-}
-
-function li(...content: any[]) {
-  return testSchema.node("listItem", null, content);
-}
-
 function table(...rows: any[]) {
   return testSchema.node("table", null, rows);
 }
@@ -164,10 +155,6 @@ function bold(text: string) {
 
 function italic(text: string) {
   return testSchema.text(text, [testSchema.marks.italic.create()]);
-}
-
-function inlineCode(text: string) {
-  return testSchema.text(text, [testSchema.marks.code.create()]);
 }
 
 function img(src = "test.png", alt = "") {
@@ -290,19 +277,6 @@ function moveCursors(
 
 function getDocText(state: EditorState): string {
   return state.doc.textContent;
-}
-
-// View helpers for integration tests
-function createView(state: EditorState, plugins: Plugin[] = []): EditorView {
-  const div = document.createElement("div");
-  return new EditorView(div, {
-    state: EditorState.create({
-      doc: state.doc,
-      schema: testSchema,
-      selection: state.selection,
-      plugins,
-    }),
-  });
 }
 
 // Performance measurement helper
@@ -1785,7 +1759,6 @@ describe("Test Suite Summary", () => {
     };
 
     expect(coverage.total).toBeGreaterThan(100);
-    console.log("Test Coverage Summary:", coverage);
   });
 
   it("should align with manual testing guide", () => {
@@ -1805,6 +1778,5 @@ describe("Test Suite Summary", () => {
     };
 
     expect(conventions).toBeDefined();
-    console.log("Industry Conventions Applied:", conventions);
   });
 });
