@@ -44,39 +44,56 @@ pub async fn write_session_atomic(
     let json = serde_json::to_string_pretty(session)
         .map_err(|e| format!("JSON serialization failed: {}", e))?;
 
-    // Write to temporary file in same directory (ensures same filesystem)
-    let tmp_dir = session_path
-        .parent()
-        .ok_or("Session path has no parent")?;
-    let mut tmp_file = NamedTempFile::new_in(tmp_dir)
-        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+    // Perform all blocking I/O in spawn_blocking to avoid blocking async executor
+    tokio::task::spawn_blocking(move || {
+        // Write to temporary file in same directory (ensures same filesystem)
+        let tmp_dir = session_path
+            .parent()
+            .ok_or("Session path has no parent")?;
+        let mut tmp_file = NamedTempFile::new_in(tmp_dir)
+            .map_err(|e| format!("Failed to create temp file: {}", e))?;
 
-    tmp_file
-        .write_all(json.as_bytes())
-        .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        tmp_file
+            .write_all(json.as_bytes())
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
 
-    // Flush to disk (critical for durability)
-    tmp_file
-        .flush()
-        .map_err(|e| format!("Failed to flush temp file: {}", e))?;
+        // Flush to disk (critical for durability)
+        tmp_file
+            .flush()
+            .map_err(|e| format!("Failed to flush temp file: {}", e))?;
 
-    tmp_file
-        .as_file()
-        .sync_all()
-        .map_err(|e| format!("Failed to sync temp file: {}", e))?;
+        tmp_file
+            .as_file()
+            .sync_all()
+            .map_err(|e| format!("Failed to sync temp file: {}", e))?;
 
-    // Backup existing session if it exists
-    if session_path.exists() {
-        std::fs::copy(&session_path, &backup_path)
-            .map_err(|e| format!("Failed to backup session: {}", e))?;
-    }
+        // Backup existing session (attempt copy, ignore NotFound errors)
+        // This avoids TOCTOU race from exists() check
+        match std::fs::copy(&session_path, &backup_path) {
+            Ok(_) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // No existing session to backup - this is fine
+            },
+            Err(e) => return Err(format!("Failed to backup session: {}", e)),
+        }
 
-    // Atomic rename (overwrites existing session.json)
-    tmp_file
-        .persist(&session_path)
-        .map_err(|e| format!("Failed to persist session: {}", e))?;
+        // Atomic rename (overwrites existing session.json)
+        tmp_file
+            .persist(&session_path)
+            .map_err(|e| format!("Failed to persist session: {}", e))?;
 
-    Ok(())
+        // Sync parent directory to ensure directory entry is persisted
+        // Critical for crash safety - ensures the file appears in directory after crash
+        if let Some(parent) = session_path.parent() {
+            if let Ok(dir) = File::open(parent) {
+                let _ = dir.sync_all(); // Best effort - ignore errors on non-Unix systems
+            }
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 /// Read session from disk

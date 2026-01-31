@@ -12,23 +12,34 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { restartWithHotExit } from "@/utils/hotExit/restartWithHotExit";
 import type { SessionData } from "@/utils/hotExit/types";
 
+/**
+ * Helper to wrap async operations with error handling
+ */
+async function withErrorHandling<T>(
+  fn: () => Promise<T>,
+  errorMessage: string
+): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (error) {
+    toast.error(errorMessage, {
+      description: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
 export function AdvancedSettings() {
   const [devTools, setDevTools] = useState(false);
-  const [hardwareAccel, setHardwareAccel] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
   const customLinkProtocols = useSettingsStore((state) => state.advanced.customLinkProtocols);
   const updateAdvancedSetting = useSettingsStore((state) => state.updateAdvancedSetting);
 
   return (
     <div>
-      <SettingsGroup title="System">
-        <SettingRow label="Developer tools" description="Enable developer mode">
+      <SettingsGroup title="Developer">
+        <SettingRow label="Developer tools" description="Enable developer mode and show dev tools below">
           <Toggle checked={devTools} onChange={setDevTools} />
-        </SettingRow>
-        <SettingRow
-          label="Hardware acceleration"
-          description="Use GPU for rendering"
-        >
-          <Toggle checked={hardwareAccel} onChange={setHardwareAccel} />
         </SettingRow>
       </SettingsGroup>
 
@@ -59,93 +70,107 @@ export function AdvancedSettings() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={async () => {
-                  try {
-                    const session = await invoke<SessionData>("hot_exit_capture");
+                  if (isBusy) return;
+                  setIsBusy(true);
+                  const session = await withErrorHandling(
+                    () => invoke<SessionData>("hot_exit_capture"),
+                    "Capture failed"
+                  );
+                  if (session) {
                     toast.success(`Captured ${session.windows.length} window(s)`, {
                       description: `v${session.vmark_version}`,
                     });
-                  } catch (error) {
-                    toast.error("Capture failed", {
-                      description: error instanceof Error ? error.message : String(error),
-                    });
                   }
+                  setIsBusy(false);
                 }}
-                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] rounded border border-[var(--border-color)] transition-colors"
+                disabled={isBusy}
+                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed rounded border border-[var(--border-color)] transition-colors"
               >
                 Test Capture
               </button>
 
               <button
                 onClick={async () => {
-                  try {
-                    const session = await invoke<SessionData | null>("hot_exit_inspect_session");
-                    if (!session) {
-                      toast.info("No saved session found");
-                      return;
-                    }
+                  if (isBusy) return;
+                  setIsBusy(true);
+                  const session = await withErrorHandling(
+                    () => invoke<SessionData | null>("hot_exit_inspect_session"),
+                    "Inspect failed"
+                  );
+                  if (session) {
                     const age = Math.max(0, Math.floor((Date.now() - session.timestamp * 1000) / 1000));
                     toast.info(`Session found (${age}s ago)`, {
                       description: `${session.windows.length} windows, v${session.vmark_version}`,
                     });
-                  } catch (error) {
-                    toast.error("Inspect failed", {
-                      description: error instanceof Error ? error.message : String(error),
-                    });
+                  } else if (session === null) {
+                    toast.info("No saved session found");
                   }
+                  setIsBusy(false);
                 }}
-                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] rounded border border-[var(--border-color)] transition-colors"
+                disabled={isBusy}
+                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed rounded border border-[var(--border-color)] transition-colors"
               >
                 Inspect Session
               </button>
 
               <button
                 onClick={async () => {
-                  try {
-                    const session = await invoke<SessionData | null>("hot_exit_inspect_session");
-                    if (!session) {
-                      toast.info("No saved session to restore");
-                      return;
+                  if (isBusy) return;
+                  setIsBusy(true);
+                  const session = await withErrorHandling(
+                    () => invoke<SessionData | null>("hot_exit_inspect_session"),
+                    "Restore failed"
+                  );
+                  if (session) {
+                    const result = await withErrorHandling(
+                      () => invoke<void>("hot_exit_restore", { session }),
+                      "Restore failed"
+                    );
+                    if (result !== null) {
+                      toast.success("Session restored successfully");
                     }
-                    await invoke<void>("hot_exit_restore", { session });
-                    toast.success("Session restored successfully");
-                  } catch (error) {
-                    toast.error("Restore failed", {
-                      description: error instanceof Error ? error.message : String(error),
-                    });
+                  } else if (session === null) {
+                    toast.info("No saved session to restore");
                   }
+                  setIsBusy(false);
                 }}
-                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] rounded border border-[var(--border-color)] transition-colors"
+                disabled={isBusy}
+                className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed rounded border border-[var(--border-color)] transition-colors"
               >
                 Test Restore
               </button>
 
               <button
                 onClick={async () => {
-                  try {
-                    await invoke<void>("hot_exit_clear_session");
+                  if (isBusy) return;
+                  setIsBusy(true);
+                  const result = await withErrorHandling(
+                    () => invoke<void>("hot_exit_clear_session"),
+                    "Clear failed"
+                  );
+                  if (result !== null) {
                     toast.success("Session cleared");
-                  } catch (error) {
-                    toast.error("Clear failed", {
-                      description: error instanceof Error ? error.message : String(error),
-                    });
                   }
+                  setIsBusy(false);
                 }}
-                className="px-3 py-1.5 text-sm bg-[var(--error-bg)] hover:bg-[var(--error-color)] hover:text-[var(--contrast-text)] text-[var(--error-color)] rounded border border-[var(--error-color)] transition-colors"
+                disabled={isBusy}
+                className="px-3 py-1.5 text-sm bg-[var(--error-bg)] hover:bg-[var(--error-color)] hover:text-[var(--contrast-text)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--error-color)] rounded border border-[var(--error-color)] transition-colors"
               >
                 Clear Session
               </button>
 
               <button
                 onClick={async () => {
-                  try {
-                    await restartWithHotExit();
-                  } catch (error) {
-                    toast.error("Restart failed", {
-                      description: error instanceof Error ? error.message : String(error),
-                    });
-                  }
+                  if (isBusy) return;
+                  setIsBusy(true);
+                  await withErrorHandling(
+                    () => restartWithHotExit(),
+                    "Restart failed"
+                  );
+                  // Note: If restart succeeds, app will close - setIsBusy won't run
                 }}
-                className="px-3 py-1.5 text-sm bg-[var(--primary-color)] hover:opacity-90 text-[var(--contrast-text)] rounded border border-[var(--primary-color)] transition-opacity"
+                disabled={isBusy}
+                className="px-3 py-1.5 text-sm bg-[var(--primary-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-[var(--contrast-text)] rounded border border-[var(--primary-color)] transition-opacity"
               >
                 Test Restart
               </button>

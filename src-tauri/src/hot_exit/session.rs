@@ -7,6 +7,12 @@ use serde::{Deserialize, Serialize};
 /// Schema version for hot exit sessions
 pub const SCHEMA_VERSION: u32 = 1;
 
+/// Maximum session age in days before considering it stale
+pub const MAX_SESSION_AGE_DAYS: i64 = 7;
+
+/// Seconds per day constant to avoid magic numbers
+const SECONDS_PER_DAY: i64 = 86_400;
+
 /// Complete application session state
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionData {
@@ -107,11 +113,35 @@ impl SessionData {
     }
 
     /// Check if session is stale (older than max_age_days)
+    ///
+    /// Returns true if:
+    /// - Session is older than max_age_days
+    /// - Session timestamp is in the future (clock skew)
+    /// - max_age_days is invalid (<= 0)
     pub fn is_stale(&self, max_age_days: i64) -> bool {
+        // Guard against invalid input
+        if max_age_days <= 0 {
+            eprintln!("[HotExit] Warning: max_age_days must be positive (got {})", max_age_days);
+            return true; // Treat as stale to be safe
+        }
+
         let now = chrono::Utc::now().timestamp();
         let age_seconds = now - self.timestamp;
-        let max_age_seconds = max_age_days * 24 * 60 * 60;
-        age_seconds > max_age_seconds
+
+        // Treat future timestamps as stale (clock skew)
+        if age_seconds < 0 {
+            eprintln!("[HotExit] Warning: Session timestamp is in the future (clock skew)");
+            return true;
+        }
+
+        // Use checked_mul to prevent overflow
+        match max_age_days.checked_mul(SECONDS_PER_DAY) {
+            Some(max_age_seconds) => age_seconds > max_age_seconds,
+            None => {
+                eprintln!("[HotExit] Warning: max_age_days overflow ({})", max_age_days);
+                true // Treat as stale on overflow
+            }
+        }
     }
 }
 
@@ -119,9 +149,11 @@ impl SessionData {
 mod tests {
     use super::*;
 
+    const TEST_VERSION: &str = "0.3.18";
+
     #[test]
     fn test_session_serialization() {
-        let session = SessionData::new("0.3.18".to_string());
+        let session = SessionData::new(TEST_VERSION.to_string());
         let json = serde_json::to_string(&session).unwrap();
         let deserialized: SessionData = serde_json::from_str(&json).unwrap();
         assert_eq!(session.version, deserialized.version);
@@ -130,24 +162,35 @@ mod tests {
 
     #[test]
     fn test_session_compatibility() {
-        let session = SessionData::new("0.3.18".to_string());
+        let session = SessionData::new(TEST_VERSION.to_string());
         assert!(session.is_compatible());
 
-        let mut old_session = session.clone();
+        // Create new incompatible session instead of cloning
+        let mut old_session = SessionData::new(TEST_VERSION.to_string());
         old_session.version = 0;
         assert!(!old_session.is_compatible());
     }
 
     #[test]
     fn test_stale_session() {
-        let mut session = SessionData::new("0.3.18".to_string());
+        let mut session = SessionData::new(TEST_VERSION.to_string());
+        let now = chrono::Utc::now().timestamp();
 
         // 8 days old - should be stale
-        session.timestamp = chrono::Utc::now().timestamp() - (8 * 24 * 60 * 60);
-        assert!(session.is_stale(7));
+        session.timestamp = now - (8 * SECONDS_PER_DAY);
+        assert!(session.is_stale(MAX_SESSION_AGE_DAYS));
 
         // 6 days old - should not be stale
-        session.timestamp = chrono::Utc::now().timestamp() - (6 * 24 * 60 * 60);
-        assert!(!session.is_stale(7));
+        session.timestamp = now - (6 * SECONDS_PER_DAY);
+        assert!(!session.is_stale(MAX_SESSION_AGE_DAYS));
+
+        // Future timestamp - should be stale (clock skew)
+        session.timestamp = now + SECONDS_PER_DAY;
+        assert!(session.is_stale(MAX_SESSION_AGE_DAYS));
+
+        // Invalid max_age_days - should be stale
+        session.timestamp = now - SECONDS_PER_DAY;
+        assert!(session.is_stale(0));
+        assert!(session.is_stale(-1));
     }
 }

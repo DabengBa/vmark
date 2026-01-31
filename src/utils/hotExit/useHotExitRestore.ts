@@ -100,9 +100,8 @@ function restoreUiState(windowState: WindowState): void {
   const editorStore = useEditorStore.getState();
 
   // Validate sidebar_view_mode before setting
-  const validViewModes = ['files', 'outline'] as const;
-  const viewMode = validViewModes.includes(ui_state.sidebar_view_mode as any)
-    ? (ui_state.sidebar_view_mode as 'files' | 'outline')
+  const viewMode = (ui_state.sidebar_view_mode === 'files' || ui_state.sidebar_view_mode === 'outline')
+    ? ui_state.sidebar_view_mode
     : 'files';
 
   // Restore sidebar state
@@ -197,10 +196,13 @@ async function restoreDocumentState(
   const { document: docState, file_path } = tabState;
 
   // Convert line ending format (validate and narrow type)
-  const validLineEndings: Array<'\n' | '\r\n' | 'unknown'> = ['\n', '\r\n', 'unknown'];
-  const lineEnding = validLineEndings.includes(docState.line_ending as any)
-    ? fromHotExitLineEnding(docState.line_ending as '\n' | '\r\n' | 'unknown')
-    : 'unknown' as LineEnding;
+  const lineEnding = (
+    docState.line_ending === '\n' ||
+    docState.line_ending === '\r\n' ||
+    docState.line_ending === 'unknown'
+  )
+    ? fromHotExitLineEnding(docState.line_ending)
+    : ('unknown' as LineEnding);
 
   // Initialize document with saved content first
   documentStore.initDocument(tabId, docState.saved_content, file_path);

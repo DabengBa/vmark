@@ -82,8 +82,10 @@ export function useUpdateChecker() {
     if (shouldCheckNow(autoCheckEnabled, checkFrequency, lastCheckTimestamp)) {
       hasChecked.current = true;
 
-      const timer = setTimeout(async () => {
-        await doCheckForUpdates();
+      const timer = setTimeout(() => {
+        doCheckForUpdates().catch((error) => {
+          console.error("[UpdateChecker] Auto-check failed on startup:", error);
+        });
       }, STARTUP_CHECK_DELAY_MS);
 
       return () => clearTimeout(timer);
@@ -161,7 +163,9 @@ export function useUpdateChecker() {
       !(skipVersion && updateInfo.version === skipVersion)
     ) {
       hasAutoDownloaded.current = true;
-      doDownloadAndInstall();
+      doDownloadAndInstall().catch((error) => {
+        console.error("[UpdateChecker] Auto-download failed:", error);
+      });
     }
   }, [status, autoDownload, updateInfo, skipVersion, doDownloadAndInstall]);
 
@@ -174,143 +178,175 @@ export function useUpdateChecker() {
 
   // Listen for check requests from other windows
   useEffect(() => {
-    const unlistenPromise = listen(EVENTS.REQUEST_CHECK, async () => {
-      await doCheckForUpdates();
+    const unlistenPromise = listen(EVENTS.REQUEST_CHECK, () => {
+      doCheckForUpdates().catch((error) => {
+        console.error("[UpdateChecker] Check request failed:", error);
+      });
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlistenPromise.then((fn) => fn()).catch(() => {
+        // Ignore cleanup errors
+      });
     };
   }, [doCheckForUpdates, EVENTS.REQUEST_CHECK]);
 
   // Listen for download requests from other windows
   useEffect(() => {
-    const unlistenPromise = listen(EVENTS.REQUEST_DOWNLOAD, async () => {
-      await doDownloadAndInstall();
+    const unlistenPromise = listen(EVENTS.REQUEST_DOWNLOAD, () => {
+      doDownloadAndInstall().catch((error) => {
+        console.error("[UpdateChecker] Download request failed:", error);
+      });
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlistenPromise.then((fn) => fn()).catch(() => {
+        // Ignore cleanup errors
+      });
     };
   }, [doDownloadAndInstall, EVENTS.REQUEST_DOWNLOAD]);
 
   // Listen for state requests from other windows - broadcast current state
   useEffect(() => {
-    const unlistenPromise = listen(EVENTS.REQUEST_STATE, async () => {
+    const unlistenPromise = listen(EVENTS.REQUEST_STATE, () => {
       // Trigger a broadcast by getting current state and emitting
       // The useUpdateBroadcast hook will handle the actual broadcast
       // We just need to force a re-emit by touching the store
       const currentState = useUpdateStore.getState();
       // Emit current state directly for immediate response
-      await emit("update:state-changed", {
+      emit("update:state-changed", {
         status: currentState.status,
         updateInfo: currentState.updateInfo,
         downloadProgress: currentState.downloadProgress,
         error: currentState.error,
+      }).catch((error) => {
+        console.error("[UpdateChecker] Failed to emit state:", error);
       });
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlistenPromise.then((fn) => fn()).catch(() => {
+        // Ignore cleanup errors
+      });
     };
   }, [EVENTS.REQUEST_STATE]);
 
   // Listen for menu "Check for Updates..." event - starts check immediately, then opens Settings
   // Event payload contains the focused window label from Rust
   useEffect(() => {
-    const unlistenPromise = listen<string>("menu:check-updates", async (event) => {
-      // Immediately start checking for updates (don't wait for user to click button)
-      await emit(EVENTS.REQUEST_CHECK);
-
-      const settingsWidth = 760;
-      const settingsHeight = 540;
-
-      // Calculate centered position based on the window that triggered the menu
-      const calculateCenteredPosition = async (): Promise<{ x: number; y: number } | null> => {
+    const unlistenPromise = listen<string>("menu:check-updates", (event) => {
+      (async () => {
         try {
-          const sourceWindow = await WebviewWindow.getByLabel(event.payload);
-          if (!sourceWindow) return null;
-          const scaleFactor = await sourceWindow.scaleFactor();
-          const [position, size] = await Promise.all([
-            sourceWindow.outerPosition(),
-            sourceWindow.outerSize(),
-          ]);
-          const x = Math.round(position.x / scaleFactor + (size.width / scaleFactor - settingsWidth) / 2);
-          const y = Math.round(position.y / scaleFactor + (size.height / scaleFactor - settingsHeight) / 2);
-          return { x, y };
-        } catch {
-          return null;
-        }
-      };
+          // Immediately start checking for updates (don't wait for user to click button)
+          await emit(EVENTS.REQUEST_CHECK);
 
-      // If Settings exists, reposition, navigate, and focus
-      const existing = await WebviewWindow.getByLabel("settings");
-      if (existing) {
-        const pos = await calculateCenteredPosition();
-        if (pos) {
-          await existing.setPosition(new LogicalPosition(pos.x, pos.y));
-        }
-        await existing.setFocus();
-        await emit("settings:navigate", "updates");
-        return;
-      }
+          const settingsWidth = 760;
+          const settingsHeight = 540;
 
-      // Create new Settings window
-      const pos = await calculateCenteredPosition();
-      new WebviewWindow("settings", {
-        url: "/settings?section=updates",
-        title: "Settings",
-        width: settingsWidth,
-        height: settingsHeight,
-        minWidth: 600,
-        minHeight: 400,
-        x: pos?.x,
-        y: pos?.y,
-        center: !pos,
-        resizable: true,
-        titleBarStyle: "overlay" as const,
-        hiddenTitle: true,
-      });
+          // Calculate centered position based on the window that triggered the menu
+          const calculateCenteredPosition = async (): Promise<{ x: number; y: number } | null> => {
+            try {
+              const sourceWindow = await WebviewWindow.getByLabel(event.payload);
+              if (!sourceWindow) return null;
+              const scaleFactor = await sourceWindow.scaleFactor();
+              const [position, size] = await Promise.all([
+                sourceWindow.outerPosition(),
+                sourceWindow.outerSize(),
+              ]);
+              const x = Math.round(position.x / scaleFactor + (size.width / scaleFactor - settingsWidth) / 2);
+              const y = Math.round(position.y / scaleFactor + (size.height / scaleFactor - settingsHeight) / 2);
+              return { x, y };
+            } catch {
+              return null;
+            }
+          };
+
+          // If Settings exists, reposition, navigate, and focus
+          const existing = await WebviewWindow.getByLabel("settings");
+          if (existing) {
+            const pos = await calculateCenteredPosition();
+            if (pos) {
+              await existing.setPosition(new LogicalPosition(pos.x, pos.y));
+            }
+            await existing.setFocus();
+            await emit("settings:navigate", "updates");
+            return;
+          }
+
+          // Create new Settings window
+          const pos = await calculateCenteredPosition();
+          new WebviewWindow("settings", {
+            url: "/settings?section=updates",
+            title: "Settings",
+            width: settingsWidth,
+            height: settingsHeight,
+            minWidth: 600,
+            minHeight: 400,
+            x: pos?.x,
+            y: pos?.y,
+            center: !pos,
+            resizable: true,
+            titleBarStyle: "overlay" as const,
+            hiddenTitle: true,
+          });
+        } catch (error) {
+          console.error("[UpdateChecker] Menu check-updates handler failed:", error);
+        }
+      })();
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlistenPromise.then((fn) => fn()).catch(() => {
+        // Ignore cleanup errors
+      });
     };
   }, [EVENTS.REQUEST_CHECK]);
 
   // Listen for restart request (from Settings page) - capture session and restart
   useEffect(() => {
-    const unlistenPromise = listen(EVENTS.REQUEST_RESTART, async () => {
-      const dirtyTabs = useDocumentStore.getState().getAllDirtyDocuments();
+    const unlistenPromise = listen(EVENTS.REQUEST_RESTART, () => {
+      (async () => {
+        try {
+          const dirtyTabs = useDocumentStore.getState().getAllDirtyDocuments();
 
-      if (dirtyTabs.length === 0) {
-        // No unsaved documents - capture session and restart
-        await restartWithHotExit();
-        return;
-      }
+          if (dirtyTabs.length === 0) {
+            // No unsaved documents - capture session and restart
+            await restartWithHotExit();
+            return;
+          }
 
-      // Ask user for confirmation
-      const confirmed = await ask(
-        `You have ${dirtyTabs.length} unsaved document(s). Restart and restore on relaunch?`,
-        {
-          title: "Unsaved Changes",
-          kind: "info",
-          okLabel: "Restart",
-          cancelLabel: "Cancel",
+          // Ask user for confirmation
+          const confirmed = await ask(
+            `You have ${dirtyTabs.length} unsaved document(s). Restart and restore on relaunch?`,
+            {
+              title: "Unsaved Changes",
+              kind: "info",
+              okLabel: "Restart",
+              cancelLabel: "Cancel",
+            }
+          );
+
+          if (confirmed) {
+            // Capture session (including unsaved documents) and restart
+            await restartWithHotExit();
+          } else {
+            // User cancelled - emit event so UI can reset
+            await emit("update:restart-cancelled");
+          }
+        } catch (error) {
+          console.error("[UpdateChecker] Restart request failed:", error);
+          // Emit cancel event on error so UI can reset
+          emit("update:restart-cancelled").catch((e) => {
+            console.error("[UpdateChecker] Failed to emit restart-cancelled:", e);
+          });
         }
-      );
-
-      if (confirmed) {
-        // Capture session (including unsaved documents) and restart
-        await restartWithHotExit();
-      } else {
-        // User cancelled - emit event so UI can reset
-        await emit("update:restart-cancelled");
-      }
+      })();
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlistenPromise.then((fn) => fn()).catch(() => {
+        // Ignore cleanup errors
+      });
     };
   }, [EVENTS.REQUEST_RESTART]);
 }
