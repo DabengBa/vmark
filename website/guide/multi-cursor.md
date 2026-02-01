@@ -68,6 +68,17 @@ Once you have multiple cursors, all standard editing works at each cursor:
 - **Shift + Arrow** — extend selection at each cursor
 - **Mod + Arrow** — jump by word/line at each cursor
 
+### Tab Escape
+
+Tab escape works independently for each cursor:
+
+- Cursors inside **bold**, *italic*, `code`, or ~~strike~~ jump to the end of that formatting
+- Cursors inside links escape from the link
+- Cursors before closing brackets `)` `]` `}` jump over them
+- Cursors in plain text stay in place
+
+This lets you escape from multiple formatted regions simultaneously. See [Smart Tab Navigation](./tab-navigation.md#multi-cursor-support) for details.
+
 ### Clipboard
 
 **Copy** (`Mod + C`):

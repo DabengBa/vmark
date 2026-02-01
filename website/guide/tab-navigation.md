@@ -118,6 +118,18 @@ Check out [VMark](https://vmark.app)| and...
 
 In Source mode, Tab provides smart navigation within Markdown link syntax.
 
+### Nested and Escaped Brackets
+
+VMark handles complex link syntax correctly:
+
+```markdown
+[text [with nested] brackets](url)     ✓ Works
+[text \[escaped\] brackets](url)       ✓ Works
+[link](https://example.com/page(1))    ✓ Works
+```
+
+Tab navigation correctly identifies link boundaries even with nested or escaped brackets.
+
 ### Standard Links
 
 ```markdown
@@ -226,6 +238,39 @@ If Tab escape conflicts with your workflow, you can disable auto-pair brackets e
 | Markdown char escape (`*`, `_`) | N/A | ✓ |
 | Table navigation | ✓ | N/A |
 | List indentation | ✓ | ✓ |
+| Multi-cursor support | ✓ | ✓ |
+
+## Multi-Cursor Support
+
+Tab escape works with multiple cursors — each cursor is processed independently.
+
+### How It Works
+
+When you have multiple cursors and press Tab:
+- Cursors inside formatting (bold, italic, etc.) escape to the end of that formatting
+- Cursors inside links escape from the link
+- Cursors before closing brackets jump over them
+- Cursors in plain text stay in place
+
+### Example
+
+```
+**bold|** and [link|](url) and plain|
+     ^1          ^2            ^3
+```
+
+Press **Tab**:
+
+```
+**bold**| and [link](url)| and plain|
+        ^1               ^2         ^3
+```
+
+Each cursor escapes independently based on its context.
+
+::: tip
+This is particularly powerful for bulk editing — select multiple occurrences with `Mod + D`, then use Tab to escape from all of them at once.
+:::
 
 ## Tips
 
@@ -236,3 +281,5 @@ If Tab escape conflicts with your workflow, you can disable auto-pair brackets e
 3. **Nested structures** — Tab escapes one level at a time. For `((nested))`, you need two Tabs to fully exit.
 
 4. **Shift + Tab** — In tables and lists, Shift + Tab moves backward or outdents. In other contexts, it removes leading spaces.
+
+5. **Multi-cursor** — Tab escape works with all your cursors simultaneously, making bulk edits even faster.
