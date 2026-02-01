@@ -25,6 +25,8 @@ const checks = [
       /alert-block\.css$/,     // GitHub alert colors
       /App\.css$/,             // Vite template (can be deleted)
       /editor\.css$/,          // Syntax highlighting (GitHub theme)
+      /printStyles\.css$/,     // Print overrides (forces light theme)
+      /exportStyles\.css$/,    // Export embeds standalone colors
     ],
   },
   {
