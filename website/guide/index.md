@@ -16,7 +16,7 @@ VMark is a local-first Markdown editor with dual editing modes, rich formatting 
 - **Editor**: The main writing area where you compose your documents
 - **Sidebar**: File tree navigation (toggle with `Cmd/Ctrl + Shift + B`)
 - **Outline**: Document structure view (toggle with `Cmd/Ctrl + Alt + 1`)
-- **Status Bar**: Word count, character count, and auto-save status
+- **Status Bar**: Word count, character count, and auto-save status (toggle with `F7`)
 
 ### Menu Bar
 
