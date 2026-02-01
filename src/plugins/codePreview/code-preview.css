@@ -31,19 +31,7 @@
   margin: 0;
 }
 
-/* Mermaid preview */
-.code-block-preview.mermaid-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 80px;
-  overflow: auto;
-}
-
-.code-block-preview.mermaid-preview svg {
-  max-width: 100%;
-  height: auto;
-}
+/* Mermaid preview styles are defined in mermaid.css to avoid duplication */
 
 /* Loading state */
 .code-block-preview.mermaid-loading {
