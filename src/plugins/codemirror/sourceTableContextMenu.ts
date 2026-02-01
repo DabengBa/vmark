@@ -6,6 +6,7 @@
  */
 
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { toast } from "sonner";
 import { icons } from "@/utils/icons";
 import { getPopupHost, toHostCoords } from "@/plugins/sourcePopup";
 import {
@@ -143,7 +144,11 @@ class SourceTableContextMenuView {
       {
         label: "Format Table",
         icon: icons.formatTable,
-        action: (v, i) => formatTable(v, i),
+        action: (v, i) => {
+          if (formatTable(v, i)) {
+            toast.success("Table formatted");
+          }
+        },
       },
     ];
 

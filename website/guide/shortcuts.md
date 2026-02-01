@@ -204,6 +204,7 @@ When cursor is inside a table:
 | Add Row Below | `Mod + Enter` |
 | Add Row Above | `Mod + Shift + Enter` |
 | Delete Row | `Mod + Backspace` |
+| Format Table | `Alt + Mod + T` |
 | Exit Table | Arrow keys at table edge |
 
 ## Popup Navigation

@@ -6,17 +6,8 @@
 
 import type { EditorView } from "@codemirror/view";
 import { getDisplayWidth, padToWidth } from "@/utils/stringWidth";
+import { parseTableRow } from "@/utils/tableParser";
 import type { SourceTableInfo, TableAlignment } from "./tableDetection";
-
-/**
- * Parse a table row into cells.
- */
-function parseRow(line: string): string[] {
-  let trimmed = line.trim();
-  if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
-  if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
-  return trimmed.split("|").map((cell) => cell.trim());
-}
 
 /**
  * Parse alignment from a separator cell.
@@ -120,7 +111,7 @@ export function insertColumnRight(
   for (let i = 0; i < info.lines.length; i++) {
     const lineNum = info.startLine + 1 + i;
     const line = doc.line(lineNum);
-    const cells = parseRow(info.lines[i]);
+    const cells = parseTableRow(info.lines[i]);
 
     const insertIdx = Math.min(info.colIndex + 1, cells.length);
     cells.splice(insertIdx, 0, i === 1 ? "-----" : "     ");
@@ -146,7 +137,7 @@ export function insertColumnLeft(
   for (let i = 0; i < info.lines.length; i++) {
     const lineNum = info.startLine + 1 + i;
     const line = doc.line(lineNum);
-    const cells = parseRow(info.lines[i]);
+    const cells = parseTableRow(info.lines[i]);
 
     cells.splice(info.colIndex, 0, i === 1 ? "-----" : "     ");
 
@@ -191,7 +182,7 @@ export function deleteColumn(view: EditorView, info: SourceTableInfo): void {
   for (let i = 0; i < info.lines.length; i++) {
     const lineNum = info.startLine + 1 + i;
     const line = doc.line(lineNum);
-    const cells = parseRow(info.lines[i]);
+    const cells = parseTableRow(info.lines[i]);
 
     if (info.colIndex < cells.length) {
       cells.splice(info.colIndex, 1);
@@ -229,7 +220,7 @@ export function deleteTable(view: EditorView, info: SourceTableInfo): void {
  * Get current column alignment.
  */
 export function getColumnAlignment(info: SourceTableInfo): TableAlignment {
-  const separatorCells = parseRow(info.lines[1]);
+  const separatorCells = parseTableRow(info.lines[1]);
   if (info.colIndex < separatorCells.length) {
     return parseAlignment(separatorCells[info.colIndex]);
   }
@@ -248,7 +239,7 @@ export function setColumnAlignment(
   const separatorLineNum = info.startLine + 2;
   const separatorLine = doc.line(separatorLineNum);
 
-  const cells = parseRow(info.lines[1]);
+  const cells = parseTableRow(info.lines[1]);
   if (info.colIndex < cells.length) {
     cells[info.colIndex] = formatAlignmentCell(alignment);
   }
@@ -273,7 +264,7 @@ export function setAllColumnsAlignment(
   const separatorLineNum = info.startLine + 2;
   const separatorLine = doc.line(separatorLineNum);
 
-  const cells = parseRow(info.lines[1]);
+  const cells = parseTableRow(info.lines[1]);
   const newCells = cells.map(() => formatAlignmentCell(alignment));
 
   const newLine = `| ${newCells.join(" | ")} |`;
@@ -302,10 +293,11 @@ function getMinWidthForAlignment(alignment: TableAlignment): number {
 /**
  * Format table with space-padded columns.
  * Ensures all lines have the same length.
+ * Returns true if formatting was applied.
  */
-export function formatTable(view: EditorView, info: SourceTableInfo): void {
+export function formatTable(view: EditorView, info: SourceTableInfo): boolean {
   const doc = view.state.doc;
-  const parsedRows = info.lines.map((line) => parseRow(line));
+  const parsedRows = info.lines.map((line) => parseTableRow(line));
 
   // First pass: determine alignments from separator row
   const separatorCells = parsedRows[1] || [];
@@ -354,4 +346,5 @@ export function formatTable(view: EditorView, info: SourceTableInfo): void {
   });
 
   view.focus();
+  return true;
 }

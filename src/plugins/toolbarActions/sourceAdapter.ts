@@ -7,6 +7,7 @@
 
 import type { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
+import { toast } from "sonner";
 import { clearAllFormatting } from "@/plugins/sourceContextDetection/clearFormatting";
 import { buildAlertBlock, buildDetailsBlock, buildDiagramBlock, buildMathBlock, type AlertType } from "@/plugins/sourceContextDetection/sourceInsertions";
 import { getBlockquoteInfo, nestBlockquote, removeBlockquote, unnestBlockquote } from "@/plugins/sourceContextDetection/blockquoteDetection";
@@ -725,7 +726,9 @@ function handleTableAction(view: EditorView, action: string): boolean {
       setAllColumnsAlignment(view, info, "right");
       return true;
     case "formatTable":
-      formatTable(view, info);
+      if (formatTable(view, info)) {
+        toast.success("Table formatted");
+      }
       return true;
     default:
       return false;

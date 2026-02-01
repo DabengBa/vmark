@@ -1,4 +1,5 @@
 import { open, message } from "@tauri-apps/plugin-dialog";
+import { toast } from "sonner";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import { NodeSelection, Selection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
@@ -730,7 +731,11 @@ export function performWysiwygToolbarAction(action: string, context: WysiwygTool
     case "alignAllRight":
       return view ? alignColumn(view, "right", true) : false;
     case "formatTable":
-      return view ? formatTable(view) : false;
+      if (view && formatTable(view)) {
+        toast.success("Table formatted");
+        return true;
+      }
+      return false;
     case "nestQuote":
       if (view && applyMultiSelectionBlockquoteAction(view, action)) return true;
       return view ? (handleBlockquoteNest(view), true) : false;

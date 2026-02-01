@@ -159,6 +159,7 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   { id: "tableAlignLeft", label: "Align Left", category: "blocks", defaultKey: "Mod-Alt-Shift-l" },
   { id: "tableAlignCenter", label: "Align Center", category: "blocks", defaultKey: "Mod-Alt-c" },
   { id: "tableAlignRight", label: "Align Right", category: "blocks", defaultKey: "Mod-Shift-r" },
+  { id: "formatTable", label: "Format Table", category: "blocks", defaultKey: "Alt-Mod-t", menuId: "format-table", description: "Align table columns with proper spacing" },
 
   // === Future: Alerts (Phase 3) ===
   { id: "insertNote", label: "Insert Note", category: "blocks", defaultKey: "Alt-Mod-n", menuId: "info-note" },

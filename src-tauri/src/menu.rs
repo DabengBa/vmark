@@ -403,7 +403,7 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &MenuItem::with_id(app, "align-all-center", "Align All Center", true, None::<&str>)?,
             &MenuItem::with_id(app, "align-all-right", "Align All Right", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "format-table", "Format Table", true, None::<&str>)?,
+            &MenuItem::with_id(app, "format-table", "Format Table", true, Some("Alt+CmdOrCtrl+T"))?,
         ],
     )?;
 
@@ -1072,7 +1072,7 @@ fn create_menu_with_shortcuts(
             &MenuItem::with_id(app, "align-all-center", "Align All Center", true, None::<&str>)?,
             &MenuItem::with_id(app, "align-all-right", "Align All Right", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "format-table", "Format Table", true, None::<&str>)?,
+            &MenuItem::with_id(app, "format-table", "Format Table", true, get_accel("format-table", "Alt+CmdOrCtrl+T"))?,
         ],
     )?;
 
