@@ -99,7 +99,10 @@ export default defineConfig(async () => ({
           ) {
             return "vendor-mermaid";
           }
-          if (pkgName === "katex") return "vendor-katex";
+          // KaTeX stays in main bundle to preserve CSS cascade order.
+          // Separate chunk would load before index.css, causing Tailwind's
+          // preflight (border:0) to override KaTeX's border-style settings.
+          // See: dev-docs/css-dev-prod-differences.md
           if (
             pkgName === "html2pdf.js" ||
             pkgName === "html2canvas" ||

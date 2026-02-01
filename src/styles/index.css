@@ -145,13 +145,6 @@
   --alert-caution-dark: #f85149;
 }
 
-/* Base styles */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html,
 body,
 #root {
@@ -173,11 +166,6 @@ body {
 /* Selection */
 ::selection {
   background-color: var(--selection-color);
-}
-
-/* Remove default focus outlines globally - components define their own focus indicators */
-*:focus-visible {
-  outline: none;
 }
 
 /* Scrollbar styling - thin scrollbars */
@@ -447,4 +435,13 @@ body {
     margin: 1.5cm;
     size: auto;
   }
+}
+
+/* ===========================================
+   Global Focus Reset
+   Components define their own focus indicators (U-shaped underlines, etc.)
+   Using :where() for zero specificity so component styles can override
+   =========================================== */
+:where(*):focus-visible {
+  outline: none;
 }
