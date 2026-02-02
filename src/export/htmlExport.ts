@@ -207,41 +207,41 @@ function getEditorContentCSS(): string {
   font-size: inherit;
 }
 
-/* Code block wrapper with line numbers */
+/* Code block wrapper with line numbers - uses flexbox like editor */
 .export-surface-editor .code-block-wrapper {
+  display: flex;
   position: relative;
-  margin: 1em 0;
+  margin: 0 0 var(--editor-block-spacing, 1em) 0;
   background: var(--code-bg-color);
-  border-radius: 6px;
-  overflow: hidden;
+  border-radius: var(--radius-md, 6px);
 }
 
 .export-surface-editor .code-block-wrapper pre {
   margin: 0;
   padding: 1em;
-  padding-left: 3.5em;
+  flex: 1;
+  min-width: 0;
   border-radius: 0;
+  background: transparent;
 }
 
 .export-surface-editor .code-line-numbers {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3em;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 2em;
   padding: 1em 0.5em;
   text-align: right;
   color: var(--text-tertiary);
   font-family: var(--font-mono);
-  font-size: 0.9em;
-  line-height: 1.5;
+  font-size: var(--editor-font-size-mono, 0.85em);
+  line-height: var(--editor-line-height, 1.6);
   user-select: none;
   border-right: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--code-bg-color);
 }
 
 .export-surface-editor .code-line-numbers .line-num {
-  display: block;
   line-height: inherit;
 }
 
