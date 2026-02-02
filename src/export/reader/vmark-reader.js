@@ -484,9 +484,12 @@
       // Line numbers toggle button (only if block has line numbers)
       const lineNumbers = wrapper.querySelector('.code-line-numbers');
       if (lineNumbers) {
+        // Hide line numbers by default
+        lineNumbers.style.display = 'none';
+
         const lineNumBtn = document.createElement('button');
         lineNumBtn.className = 'vmark-code-btn';
-        lineNumBtn.title = 'Toggle line numbers';
+        lineNumBtn.title = 'Show line numbers';
         lineNumBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6" x2="4" y2="6.01"></line>
           <line x1="4" y1="12" x2="4" y2="12.01"></line>
@@ -499,7 +502,7 @@
         lineNumBtn.addEventListener('click', () => {
           const isHidden = lineNumbers.style.display === 'none';
           lineNumbers.style.display = isHidden ? 'flex' : 'none';
-          lineNumBtn.classList.toggle('active', isHidden);
+          lineNumBtn.title = isHidden ? 'Hide line numbers' : 'Show line numbers';
         });
 
         btnContainer.appendChild(lineNumBtn);
