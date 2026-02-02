@@ -472,11 +472,23 @@
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
 }
 
-/* Code Copy Button */
-.vmark-code-copy-btn {
+/* Code Block Button Group */
+.vmark-code-btn-group {
   position: absolute;
   bottom: 8px;
   right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.code-block-wrapper:hover .vmark-code-btn-group {
+  opacity: 1;
+}
+
+.vmark-code-btn {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -488,45 +500,47 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
-  z-index: 10;
+  transition: background 0.15s, color 0.15s;
 }
 
-.code-block-wrapper:hover .vmark-code-copy-btn {
-  opacity: 1;
-}
-
-.vmark-code-copy-btn:hover {
+.vmark-code-btn:hover {
   background: var(--bg-tertiary, #d8d8d8);
   color: var(--text-color, #1a1a1a);
 }
 
-.vmark-code-copy-btn.copied {
+.vmark-code-btn.active {
+  color: var(--text-tertiary, #999);
+}
+
+.vmark-code-btn.copied {
   color: var(--success-color, #16a34a);
 }
 
-/* Dark theme copy button */
-.dark-theme .vmark-code-copy-btn {
+/* Dark theme code buttons */
+.dark-theme .vmark-code-btn {
   background: var(--bg-tertiary, #32363d);
   color: var(--text-secondary, #858585);
 }
 
-.dark-theme .vmark-code-copy-btn:hover {
+.dark-theme .vmark-code-btn:hover {
   background: var(--hover-bg-strong, rgba(255, 255, 255, 0.1));
   color: var(--text-color, #d6d9de);
 }
 
-.dark-theme .vmark-code-copy-btn.copied {
+.dark-theme .vmark-code-btn.active {
+  color: var(--text-tertiary, #6b7078);
+}
+
+.dark-theme .vmark-code-btn.copied {
   color: var(--success-color-dark, #4ade80);
 }
 
-/* Print: Hide TOC sidebar */
+/* Print: Hide interactive elements */
 @media print {
   .vmark-reader-toggle,
   .vmark-reader-panel,
   .vmark-toc-sidebar,
-  .vmark-code-copy-btn {
+  .vmark-code-btn-group {
     display: none !important;
   }
 

@@ -109,8 +109,7 @@
     theme: 'paper',
     cjkLatinSpacing: true,
     expandDetails: false,
-    showToc: false,
-    showLineNumbers: true
+    showToc: false
   };
 
   // Settings bounds
@@ -197,11 +196,8 @@
     // Table of Contents
     applyToc();
 
-    // Line numbers
-    applyLineNumbers();
-
-    // Copy buttons
-    applyCopyButtons();
+    // Code block buttons (copy, line numbers toggle)
+    applyCodeBlockButtons();
 
     // Update UI if panel exists
     updatePanelUI();
@@ -469,53 +465,70 @@
   }
 
   /**
-   * Apply show/hide line numbers on code blocks
-   * Excludes preview-only blocks (mermaid, math) which never show line numbers
+   * Apply code block buttons (copy, line numbers toggle)
    */
-  function applyLineNumbers() {
-    const lineNumbers = document.querySelectorAll('.code-block-wrapper:not(.code-block-preview-only) .code-line-numbers');
-    lineNumbers.forEach(el => {
-      el.style.display = settings.showLineNumbers ? 'flex' : 'none';
-    });
-  }
-
-  /**
-   * Apply copy buttons to code blocks
-   */
-  function applyCopyButtons() {
+  function applyCodeBlockButtons() {
     const editor = document.querySelector('.export-surface-editor');
     if (!editor) return;
 
     // Only add buttons once
-    if (editor.dataset.copyButtonsApplied === 'true') return;
+    if (editor.dataset.codeButtonsApplied === 'true') return;
 
     // Exclude preview-only blocks (mermaid, math) which show rendered output
     const codeBlocks = editor.querySelectorAll('.code-block-wrapper:not(.code-block-preview-only)');
     codeBlocks.forEach(wrapper => {
-      // Create copy button
-      const btn = document.createElement('button');
-      btn.className = 'vmark-code-copy-btn';
-      btn.title = 'Copy code';
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      // Create button container
+      const btnContainer = document.createElement('div');
+      btnContainer.className = 'vmark-code-btn-group';
+
+      // Line numbers toggle button (only if block has line numbers)
+      const lineNumbers = wrapper.querySelector('.code-line-numbers');
+      if (lineNumbers) {
+        const lineNumBtn = document.createElement('button');
+        lineNumBtn.className = 'vmark-code-btn';
+        lineNumBtn.title = 'Toggle line numbers';
+        lineNumBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="4" y2="6.01"></line>
+          <line x1="4" y1="12" x2="4" y2="12.01"></line>
+          <line x1="4" y1="18" x2="4" y2="18.01"></line>
+          <line x1="9" y1="6" x2="20" y2="6"></line>
+          <line x1="9" y1="12" x2="20" y2="12"></line>
+          <line x1="9" y1="18" x2="20" y2="18"></line>
+        </svg>`;
+
+        lineNumBtn.addEventListener('click', () => {
+          const isHidden = lineNumbers.style.display === 'none';
+          lineNumbers.style.display = isHidden ? 'flex' : 'none';
+          lineNumBtn.classList.toggle('active', isHidden);
+        });
+
+        btnContainer.appendChild(lineNumBtn);
+      }
+
+      // Copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'vmark-code-btn';
+      copyBtn.title = 'Copy code';
+      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
       </svg>`;
 
-      btn.addEventListener('click', () => {
+      copyBtn.addEventListener('click', () => {
         const pre = wrapper.querySelector('pre');
         if (!pre) return;
 
         const code = pre.textContent || '';
         navigator.clipboard.writeText(code).then(() => {
           // Show success feedback
-          btn.classList.add('copied');
-          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          copyBtn.classList.add('copied');
+          copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>`;
 
           setTimeout(() => {
-            btn.classList.remove('copied');
-            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>`;
@@ -525,10 +538,11 @@
         });
       });
 
-      wrapper.appendChild(btn);
+      btnContainer.appendChild(copyBtn);
+      wrapper.appendChild(btnContainer);
     });
 
-    editor.dataset.copyButtonsApplied = 'true';
+    editor.dataset.codeButtonsApplied = 'true';
   }
 
   // TOC state
@@ -813,12 +827,6 @@
             <span>Expand All Sections</span>
           </label>
         </div>
-        <div class="vmark-reader-group">
-          <label class="vmark-reader-checkbox-label">
-            <input type="checkbox" ${settings.showLineNumbers ? 'checked' : ''} data-setting="showLineNumbers">
-            <span>Code Line Numbers</span>
-          </label>
-        </div>
         <div class="vmark-reader-group vmark-reader-reset">
           <button class="vmark-reader-reset-btn" data-action="reset">Reset to Defaults</button>
         </div>
@@ -948,7 +956,6 @@
     panel.querySelector('[data-setting="showToc"]').checked = settings.showToc;
     panel.querySelector('[data-setting="cjkLatinSpacing"]').checked = settings.cjkLatinSpacing;
     panel.querySelector('[data-setting="expandDetails"]').checked = settings.expandDetails;
-    panel.querySelector('[data-setting="showLineNumbers"]').checked = settings.showLineNumbers;
 
     // Update selects
     panel.querySelector('[data-setting="latinFont"]').value = settings.latinFont;
