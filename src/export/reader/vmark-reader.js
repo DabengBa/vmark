@@ -814,14 +814,14 @@
         </div>
         <div class="vmark-reader-group">
           <label class="vmark-reader-checkbox-label">
-            <input type="checkbox" ${settings.showToc ? 'checked' : ''} data-setting="showToc">
-            <span>Table of Contents</span>
+            <input type="checkbox" ${settings.cjkLatinSpacing ? 'checked' : ''} data-setting="cjkLatinSpacing">
+            <span>CJK-Latin Spacing</span>
           </label>
         </div>
         <div class="vmark-reader-group">
           <label class="vmark-reader-checkbox-label">
-            <input type="checkbox" ${settings.cjkLatinSpacing ? 'checked' : ''} data-setting="cjkLatinSpacing">
-            <span>CJK-Latin Spacing</span>
+            <input type="checkbox" ${settings.showToc ? 'checked' : ''} data-setting="showToc">
+            <span>Table of Contents</span>
           </label>
         </div>
         <div class="vmark-reader-group">
