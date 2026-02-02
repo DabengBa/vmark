@@ -13,7 +13,8 @@ import { type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 // Export module is dynamically imported to avoid loading exportStyles.css at startup.
 // This prevents CSS cascade conflicts between dev and prod builds.
-import { getFileNameWithoutExtension, getDirectory } from "@/utils/pathUtils";
+import { getDirectory } from "@/utils/pathUtils";
+import { getExportFolderName } from "@/utils/exportNaming";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
 import { withReentryGuard } from "@/utils/reentryGuard";
 import { getActiveDocument } from "@/utils/activeDocument";
@@ -43,9 +44,8 @@ export function useExportMenuEvents(): void {
         await withReentryGuard(windowLabel, "export", async () => {
           const doc = getActiveDocument(windowLabel);
           if (!doc) return;
-          const defaultName = doc.filePath
-            ? getFileNameWithoutExtension(doc.filePath) || "document"
-            : "document";
+          // Use H1 as folder name, fall back to file name, then "Untitled"
+          const defaultName = getExportFolderName(doc.content, doc.filePath);
           const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
           try {
             const { exportToHtml } = await import("@/export");
