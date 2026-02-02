@@ -776,7 +776,7 @@ function getEditorContentCSS(): string {
   height: auto;
 }
 
-/* Footnotes */
+/* Footnotes - References */
 .export-surface-editor [data-type="footnote_reference"],
 .export-surface-editor .footnote-ref {
   font-size: 0.75em;
@@ -785,14 +785,23 @@ function getEditorContentCSS(): string {
   cursor: default;
 }
 
+.export-surface-editor [data-type="footnote_reference"]::before,
 .export-surface-editor .footnote-ref::before {
   content: "[";
 }
 
+.export-surface-editor [data-type="footnote_reference"]::after,
 .export-surface-editor .footnote-ref::after {
   content: "]";
 }
 
+/* Hide the inner link text styling - brackets are added via ::before/::after */
+.export-surface-editor [data-type="footnote_reference"] a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Footnotes - Definitions */
 .export-surface-editor [data-type="footnote_definition"],
 .export-surface-editor .footnote-def {
   font-size: 0.9em;
@@ -809,10 +818,12 @@ function getEditorContentCSS(): string {
   margin-right: 0.5em;
 }
 
+.export-surface-editor [data-type="footnote_definition"] dt::before,
 .export-surface-editor .footnote-def-label::before {
   content: "[";
 }
 
+.export-surface-editor [data-type="footnote_definition"] dt::after,
 .export-surface-editor .footnote-def-label::after {
   content: "]:";
 }
@@ -823,14 +834,17 @@ function getEditorContentCSS(): string {
   margin: 0;
 }
 
+/* Make paragraph inside dd inline to keep footnote on one line */
+.export-surface-editor [data-type="footnote_definition"] dd p {
+  display: inline;
+  margin: 0;
+}
+
 .export-surface-editor .footnote-backref {
   color: var(--primary-color);
   text-decoration: none;
   margin-left: 0.25em;
-}
-
-.export-surface-editor .footnote-backref::after {
-  content: "↩";
+  /* Arrow ↩ is already in innerHTML from vmark-reader.js, no ::after needed */
 }
 
 .export-surface-editor [data-type="footnote_definition"]:first-of-type,
