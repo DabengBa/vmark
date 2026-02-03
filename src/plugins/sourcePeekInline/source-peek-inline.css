@@ -95,10 +95,26 @@
   color: var(--success-color);
 }
 
-/* Live preview toggle */
+/* Live preview toggle - icon visibility based on state */
+.source-peek-inline-btn--live .icon-eye {
+  display: none;
+}
+
+.source-peek-inline-btn--live .icon-eye-off {
+  display: block;
+}
+
 .source-peek-inline-btn--live.active {
   background: var(--accent-bg);
   color: var(--accent-primary);
+}
+
+.source-peek-inline-btn--live.active .icon-eye {
+  display: block;
+}
+
+.source-peek-inline-btn--live.active .icon-eye-off {
+  display: none;
 }
 
 /* Focus indicator for buttons */

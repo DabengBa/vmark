@@ -103,17 +103,19 @@ function createEditHeader(
   hint.className = "source-peek-inline-hint";
   hint.textContent = "⌘↵ save · ⎋ cancel";
 
-  // Live preview toggle - eye when ON, eye-off when OFF
+  // Live preview toggle - both icons in DOM, CSS toggles visibility
   const liveBtn = document.createElement("button");
   liveBtn.className = `source-peek-inline-btn source-peek-inline-btn--live${livePreview ? " active" : ""}`;
-  liveBtn.title = livePreview ? "Live preview ON" : "Live preview OFF";
-  // Lucide eye icon when active, eye-off when inactive
-  const eyeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`;
-  const eyeOffIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`;
-  liveBtn.innerHTML = livePreview ? eyeIcon : eyeOffIcon;
+  liveBtn.title = "Toggle live preview";
+  // Both icons present, CSS shows/hides based on .active class
+  const eyeIcon = `<svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const eyeOffIcon = `<svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`;
+  liveBtn.innerHTML = eyeIcon + eyeOffIcon;
   liveBtn.addEventListener("mousedown", (e) => e.preventDefault());
   liveBtn.addEventListener("click", (e) => {
     e.preventDefault();
+    // Toggle class directly on button for icon switch
+    liveBtn.classList.toggle("active");
     onToggleLive();
   });
 
