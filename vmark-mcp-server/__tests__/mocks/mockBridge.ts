@@ -777,6 +777,88 @@ export class MockBridge implements Bridge {
         return { success: true, data: result };
       }
 
+      // Paragraph tools (Writer mode)
+      case 'paragraph.read': {
+        if (!window) {
+          return { success: false, error: `Window ${windowId} not found` };
+        }
+        const target = (request as { target?: { index?: number; containing?: string } }).target;
+        if (!target || (target.index === undefined && !target.containing)) {
+          return { success: false, error: 'target must specify index or containing' };
+        }
+        // Simple mock: treat content as paragraphs separated by double newlines
+        const paragraphs = window.content.split(/\n\n+/).filter(p => p.trim().length > 0);
+        let foundIndex: number | undefined;
+        if (target.index !== undefined) {
+          foundIndex = target.index >= 0 && target.index < paragraphs.length ? target.index : undefined;
+        } else if (target.containing) {
+          foundIndex = paragraphs.findIndex(p => p.toLowerCase().includes(target.containing!.toLowerCase()));
+          if (foundIndex === -1) foundIndex = undefined;
+        }
+        if (foundIndex === undefined) {
+          return { success: false, error: 'Paragraph not found', data: { code: 'not_found' } };
+        }
+        const paraText = paragraphs[foundIndex];
+        return {
+          success: true,
+          data: {
+            index: foundIndex,
+            content: paraText,
+            wordCount: paraText.split(/\s+/).filter(w => w.length > 0).length,
+            charCount: paraText.length,
+          },
+        };
+      }
+
+      case 'paragraph.write': {
+        if (!window) {
+          return { success: false, error: `Window ${windowId} not found` };
+        }
+        // Mock: acknowledge the write (actual content modification would be complex)
+        const operation = (request as { operation?: string }).operation ?? 'replace';
+        return {
+          success: true,
+          data: {
+            success: true,
+            message: `Paragraph ${operation === 'delete' ? 'deleted' : operation === 'append' ? 'appended to' : operation === 'prepend' ? 'prepended to' : 'replaced'} successfully`,
+            applied: true,
+            suggestionId: null,
+          },
+        };
+      }
+
+      // Smart insert (Writer mode)
+      case 'smartInsert': {
+        if (!window) {
+          return { success: false, error: `Window ${windowId} not found` };
+        }
+        const destination = (request as { destination?: unknown }).destination;
+        // Parse destination to determine location label
+        let locationLabel = 'end_of_document';
+        if (typeof destination === 'string') {
+          locationLabel = destination;
+        } else if (typeof destination === 'object' && destination !== null) {
+          const obj = destination as Record<string, unknown>;
+          if ('after_paragraph' in obj) {
+            locationLabel = `after paragraph ${obj.after_paragraph}`;
+          } else if ('after_paragraph_containing' in obj) {
+            locationLabel = `after paragraph containing "${obj.after_paragraph_containing}"`;
+          } else if ('after_section' in obj) {
+            locationLabel = `after section "${obj.after_section}"`;
+          }
+        }
+        // Mock: acknowledge the insert
+        return {
+          success: true,
+          data: {
+            success: true,
+            message: `Content inserted at ${locationLabel}`,
+            insertPosition: window.content.length,
+            applied: true,
+          },
+        };
+      }
+
       default:
         return {
           success: false,

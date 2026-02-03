@@ -6,7 +6,7 @@
  * - write_paragraph: Modify paragraph content
  */
 
-import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg, getNumberArg, getBooleanArg } from '../server.js';
+import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg, getBooleanArg } from '../server.js';
 import type {
   ParagraphTarget,
   ParagraphInfo,

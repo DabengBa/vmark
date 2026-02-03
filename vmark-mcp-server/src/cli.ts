@@ -342,6 +342,13 @@ interface JsonSchemaProperty {
   description?: string;
   enum?: string[];
   default?: unknown;
+  // For oneOf (union types)
+  oneOf?: JsonSchemaProperty[];
+  // For arrays with typed items
+  items?: JsonSchemaProperty;
+  // For nested objects
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
 }
 
 /**
@@ -355,6 +362,7 @@ interface JsonSchemaInput {
 
 /**
  * Convert a JSON Schema property to a Zod schema.
+ * Handles: enum, oneOf, nested objects, arrays with typed items, integer vs number.
  */
 function jsonSchemaPropertyToZod(prop: JsonSchemaProperty): ZodTypeAny {
   let schema: ZodTypeAny;
@@ -362,24 +370,55 @@ function jsonSchemaPropertyToZod(prop: JsonSchemaProperty): ZodTypeAny {
   // Handle enum first (takes precedence)
   if (prop.enum && prop.enum.length > 0) {
     schema = z.enum(prop.enum as [string, ...string[]]);
-  } else {
-    // Handle by type
+  }
+  // Handle oneOf (union type)
+  else if (prop.oneOf && prop.oneOf.length > 0) {
+    const variants = prop.oneOf.map((variant) => jsonSchemaPropertyToZod(variant as JsonSchemaProperty));
+    if (variants.length === 1) {
+      schema = variants[0];
+    } else {
+      schema = z.union(variants as [ZodTypeAny, ZodTypeAny, ...ZodTypeAny[]]);
+    }
+  }
+  // Handle by type
+  else {
     switch (prop.type) {
       case 'string':
         schema = z.string();
         break;
       case 'number':
-      case 'integer':
         schema = z.number();
+        break;
+      case 'integer':
+        schema = z.number().int();
         break;
       case 'boolean':
         schema = z.boolean();
         break;
       case 'array':
-        schema = z.array(z.unknown());
+        // Use typed items if available
+        if (prop.items) {
+          schema = z.array(jsonSchemaPropertyToZod(prop.items as JsonSchemaProperty));
+        } else {
+          schema = z.array(z.unknown());
+        }
         break;
       case 'object':
-        schema = z.record(z.unknown());
+        // Use nested properties if available
+        if (prop.properties) {
+          const shape: Record<string, ZodTypeAny> = {};
+          const required = new Set(prop.required ?? []);
+          for (const [key, subProp] of Object.entries(prop.properties)) {
+            let zodProp = jsonSchemaPropertyToZod(subProp);
+            if (!required.has(key)) {
+              zodProp = zodProp.optional();
+            }
+            shape[key] = zodProp;
+          }
+          schema = z.object(shape);
+        } else {
+          schema = z.record(z.unknown());
+        }
         break;
       default:
         schema = z.unknown();

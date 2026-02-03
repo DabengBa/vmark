@@ -500,11 +500,13 @@ export function useMcpBridge(): void {
       try {
         args = JSON.parse(argsJsonStr);
       } catch {
-        // Malformed JSON - respond with error
+        // Malformed JSON - respond with error (fire-and-forget with error logging)
         respond({
           id: raw.id,
           success: false,
           error: "Invalid JSON in request args",
+        }).catch((err) => {
+          console.error("[MCP Bridge] Failed to respond to malformed request:", err);
         });
         return;
       }
@@ -514,7 +516,10 @@ export function useMcpBridge(): void {
         type: raw.type,
         args,
       };
-      handleRequest(parsed);
+      // Fire-and-forget with error logging to prevent unhandled rejections
+      handleRequest(parsed).catch((err) => {
+        console.error("[MCP Bridge] Unhandled error in request handler:", err);
+      });
     }).then((fn) => {
       // If unmounted before Promise resolved, clean up immediately
       if (!mounted) {

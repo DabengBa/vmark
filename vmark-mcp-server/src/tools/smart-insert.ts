@@ -8,7 +8,7 @@
  * - After a specific section
  */
 
-import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg } from '../server.js';
+import { VMarkMcpServer, resolveWindowId, requireStringArg } from '../server.js';
 import type {
   SmartInsertDestination,
   SmartInsertResult,
