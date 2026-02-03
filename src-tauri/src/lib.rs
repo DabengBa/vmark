@@ -13,6 +13,8 @@ mod hot_exit;
 
 #[cfg(target_os = "macos")]
 mod macos_menu;
+#[cfg(target_os = "macos")]
+mod dock_recent;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -52,6 +54,13 @@ fn debug_log(message: String) {
 #[tauri::command]
 fn print_webview(window: tauri::WebviewWindow) -> Result<(), String> {
     window.print().map_err(|e| e.to_string())
+}
+
+/// Register a file with macOS Dock recent documents
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn register_dock_recent(path: String) {
+    dock_recent::register_recent_document(&path);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -123,6 +132,8 @@ pub fn run() {
             #[cfg(debug_assertions)]
             debug_log,
             print_webview,
+            #[cfg(target_os = "macos")]
+            register_dock_recent,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;

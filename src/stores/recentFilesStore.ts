@@ -34,6 +34,15 @@ async function updateNativeMenu(files: RecentFile[]) {
   }
 }
 
+// Register file with macOS Dock recent documents (silently ignored on other platforms)
+async function registerDockRecent(path: string) {
+  try {
+    await invoke("register_dock_recent", { path });
+  } catch {
+    // Silently ignore — command only exists on macOS
+  }
+}
+
 export const useRecentFilesStore = create<RecentFilesState>()(
   persist(
     (set, get) => ({
@@ -55,6 +64,7 @@ export const useRecentFilesStore = create<RecentFilesState>()(
 
         set({ files: newFiles });
         updateNativeMenu(newFiles);
+        registerDockRecent(path);
       },
 
       removeFile: (path: string) => {
