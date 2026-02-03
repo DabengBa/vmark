@@ -14,12 +14,14 @@ export const WRITER_MODE_TOOLS = [
 
   // === Read content ===
   'get_section', // Read section by heading
+  'read_paragraph', // Read paragraph by index/content (for flat documents)
   'document_get_content', // Full document (fallback)
 
   // === Write content ===
   'update_section', // Modify section content
   'insert_section', // Add new section
   'move_section', // Reorder sections
+  'write_paragraph', // Modify paragraph (for flat documents)
 
   // === Control ===
   'editor_undo', // Fix mistakes

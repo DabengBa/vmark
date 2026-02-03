@@ -47,6 +47,7 @@ export { registerStructureTools } from './tools/structure.js';
 export { registerMutationTools } from './tools/mutations.js';
 export { registerSectionTools } from './tools/sections.js';
 export { registerBatchOpTools } from './tools/batch-ops.js';
+export { registerParagraphTools } from './tools/paragraphs.js';
 
 // Resource registrations
 export { registerDocumentResources } from './resources/document.js';
@@ -115,6 +116,11 @@ export type {
   // List batch types
   ListTarget,
   ListOperation,
+  // Paragraph types
+  ParagraphTarget,
+  ParagraphInfo,
+  ParagraphOperation,
+  WriteParagraphResult,
 } from './bridge/types.js';
 
 export type {
@@ -144,6 +150,7 @@ import { registerStructureTools } from './tools/structure.js';
 import { registerMutationTools } from './tools/mutations.js';
 import { registerSectionTools } from './tools/sections.js';
 import { registerBatchOpTools } from './tools/batch-ops.js';
+import { registerParagraphTools } from './tools/paragraphs.js';
 import { registerDocumentResources } from './resources/document.js';
 import type { Bridge } from './bridge/types.js';
 
@@ -172,6 +179,7 @@ export function createVMarkMcpServer(bridge: Bridge): VMarkMcpServer {
   registerMutationTools(server);
   registerSectionTools(server);
   registerBatchOpTools(server);
+  registerParagraphTools(server);
 
   // Register resources
   registerDocumentResources(server);
@@ -226,6 +234,14 @@ export const TOOL_CATEGORIES = [
     tools: [
       'table_modify',
       'list_modify',
+    ],
+  },
+  {
+    name: 'Paragraph Tools',
+    description: 'Paragraph-level operations for flat documents without headings',
+    tools: [
+      'read_paragraph',
+      'write_paragraph',
     ],
   },
   {

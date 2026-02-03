@@ -322,6 +322,60 @@ export interface NewHeading {
 }
 
 // =============================================================================
+// Paragraph Types
+// =============================================================================
+
+/**
+ * Paragraph target specification.
+ * Used to identify a specific paragraph in a document.
+ */
+export interface ParagraphTarget {
+  /** Match by paragraph index (0-indexed) */
+  index?: number;
+  /** Match by text the paragraph contains */
+  containing?: string;
+  /** Scope the search to a specific section */
+  withinSection?: string;
+}
+
+/**
+ * Paragraph info response from read_paragraph.
+ */
+export interface ParagraphInfo {
+  /** Paragraph index in document (0-indexed) */
+  index: number;
+  /** Paragraph content as markdown */
+  content: string;
+  /** Word count */
+  wordCount: number;
+  /** Character count */
+  charCount: number;
+  /** Position range in document */
+  position: Range;
+  /** Context if requested */
+  context?: {
+    before?: string;
+    after?: string;
+  };
+}
+
+/**
+ * Paragraph operation type for write_paragraph.
+ */
+export type ParagraphOperation = 'replace' | 'append' | 'prepend' | 'delete';
+
+/**
+ * Write paragraph result.
+ */
+export interface WriteParagraphResult {
+  success: boolean;
+  message: string;
+  suggestionId?: string;
+  applied: boolean;
+  newRevision?: string;
+}
+
+// =============================================================================
 // Table Batch Operation Types
 // =============================================================================
 
@@ -603,7 +657,10 @@ export type BridgeRequest =
   // Table batch commands
   | { type: 'table.batchModify'; baseRevision: string; target: TableTarget; operations: TableOperation[]; mode?: OperationMode; windowId?: WindowId }
   // List batch commands
-  | { type: 'list.batchModify'; baseRevision: string; target: ListTarget; operations: ListOperation[]; mode?: OperationMode; windowId?: WindowId };
+  | { type: 'list.batchModify'; baseRevision: string; target: ListTarget; operations: ListOperation[]; mode?: OperationMode; windowId?: WindowId }
+  // Paragraph commands
+  | { type: 'paragraph.read'; target: ParagraphTarget; includeContext?: boolean; windowId?: WindowId }
+  | { type: 'paragraph.write'; baseRevision: string; target: ParagraphTarget; operation: ParagraphOperation; content?: string; mode?: OperationMode; windowId?: WindowId };
 
 /**
  * Bridge response types - responses from VMark.

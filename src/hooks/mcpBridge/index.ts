@@ -138,6 +138,12 @@ import {
   handleSectionMove,
 } from "./sectionHandlers";
 
+// Paragraph handlers (for flat documents without headings)
+import {
+  handleParagraphRead,
+  handleParagraphWrite,
+} from "./paragraphHandlers";
+
 // Batch operation handlers (AI-Oriented MCP Design)
 import {
   handleTableBatchModify,
@@ -429,6 +435,14 @@ async function handleRequest(event: McpRequestEvent): Promise<void> {
         break;
       case "section.move":
         await handleSectionMove(id, args);
+        break;
+
+      // Paragraph operations (for flat documents without headings)
+      case "paragraph.read":
+        await handleParagraphRead(id, args);
+        break;
+      case "paragraph.write":
+        await handleParagraphWrite(id, args);
         break;
 
       // Batch operations (AI-Oriented MCP Design)
