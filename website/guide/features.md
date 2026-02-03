@@ -24,6 +24,34 @@ Switch to raw Markdown editing with full syntax highlighting:
 
 Toggle between modes with `F6`.
 
+### Source Peek
+
+Edit the raw Markdown of a single block without leaving WYSIWYG mode. Press `F5` to open Source Peek for the block at cursor.
+
+**Layout:**
+- Header bar with block type label and action buttons
+- CodeMirror editor showing the block's Markdown source
+- Original block shown as dimmed preview (when live preview is ON)
+
+**Controls:**
+| Action | Shortcut |
+|--------|----------|
+| Save changes | `Cmd/Ctrl + Enter` |
+| Cancel (revert) | `Escape` |
+| Toggle live preview | Click eye icon |
+
+**Live Preview:**
+- **OFF (default):** Edit freely, changes applied only on save
+- **ON:** Changes applied immediately as you type, preview shown below
+
+**Excluded blocks:**
+Some blocks have their own editing mechanisms and skip Source Peek:
+- Code blocks (including Mermaid, LaTeX) — use double-click to edit
+- Block images — use image popup
+- Frontmatter, HTML blocks, horizontal rules
+
+Source Peek is useful for precise Markdown editing (fixing table syntax, adjusting list indentation) while staying in the visual editor.
+
 ## Text Formatting
 
 ### Basic Styles
