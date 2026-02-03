@@ -8,24 +8,39 @@ VMark offers two tool modes to optimize the AI assistant experience:
 
 ### Writer Mode (Default)
 
-**~15 tools** focused on reading and writing content. Ideal for writing assistance.
+**~19 tools** focused on reading and writing content. Ideal for writing assistance.
 
 Writer mode exposes only the essential tools for content creation:
-- `get_document_digest` — Document overview and outline
-- `document_search` — Find content
-- `get_section` — Read a section by heading
-- `document_get_content` — Full document content
+
+**Understand document:**
+- `get_document_digest` — Document overview, outline, and word counts
+- `document_search` — Find content in document
+
+**Read content:**
+- `get_section` — Read a section by heading (for structured documents)
+- `read_paragraph` — Read a paragraph by index or content (for flat documents)
+- `document_get_content` — Full document content (fallback)
+
+**Write content:**
 - `update_section` — Modify section content
 - `insert_section` — Add new sections
 - `move_section` — Reorder sections
+- `write_paragraph` — Modify paragraphs (replace, append, prepend, delete)
+- `smart_insert` — Insert at common locations (end, after paragraph/section)
+
+**Control:**
 - `editor_undo` / `editor_redo` — Fix mistakes
+
+**Suggestions:**
 - `suggestion_list` / `suggestion_accept` / `suggestion_reject` — Manage suggestions
+
+**Files:**
 - `workspace_save_document` — Save changes
 - `tabs_switch` / `tabs_list` — Navigate documents
 
 ### Full Mode
 
-**All 76 tools** including low-level editor controls. For power users and advanced automation.
+**All 78 tools** including low-level editor controls. For power users and advanced automation.
 
 ::: tip Changing Tool Mode
 Go to **Settings → Integrations → Tool Mode** to switch between Writer and Full modes. Changes take effect immediately when AI clients reconnect.
@@ -946,6 +961,70 @@ Batch modify a list's structure and content.
 | `windowId` | string | No | Window identifier. |
 
 Operations: `setItemContent`, `addItem`, `deleteItem`, `indent`, `outdent`, `setChecked`
+
+---
+
+## Paragraph Tools
+
+Tools for working with flat documents without headings. Complements Section Tools for structured documents.
+
+### read_paragraph
+
+Read a paragraph from the document by index or content match.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `target` | object | Yes | How to identify the paragraph. |
+| `includeContext` | boolean | No | Include surrounding paragraphs. Default: false. |
+| `windowId` | string | No | Window identifier. |
+
+**Target options:**
+- `{ index: 0 }` — Paragraph by 0-indexed position
+- `{ containing: "text" }` — First paragraph containing the text
+
+**Returns:** `{ index, content, wordCount, charCount, position, context? }`
+
+### write_paragraph
+
+Modify a paragraph in the document.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `baseRevision` | string | Yes | Document revision for conflict detection. |
+| `target` | object | Yes | How to identify the paragraph. |
+| `operation` | string | Yes | Operation: `replace`, `append`, `prepend`, `delete`. |
+| `content` | string | Conditional | New content (required except for `delete`). |
+| `mode` | string | No | `apply` or `suggest`. Default: `suggest`. |
+| `windowId` | string | No | Window identifier. |
+
+**Returns:** `{ success, message, suggestionId?, applied, newRevision? }`
+
+### smart_insert
+
+Insert content at common document locations. A unified tool for intuitive insertion scenarios.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `baseRevision` | string | Yes | Document revision for conflict detection. |
+| `destination` | varies | Yes | Where to insert (see options below). |
+| `content` | string | Yes | Markdown content to insert. |
+| `mode` | string | No | `apply` or `suggest`. Default: `suggest`. |
+| `windowId` | string | No | Window identifier. |
+
+**Destination options:**
+- `"end_of_document"` — Insert at the end
+- `"start_of_document"` — Insert at the beginning
+- `{ after_paragraph: 2 }` — Insert after paragraph at index 2
+- `{ after_paragraph_containing: "conclusion" }` — Insert after paragraph containing text
+- `{ after_section: "Introduction" }` — Insert after section heading
+
+**Returns:** `{ success, message, suggestionId?, applied, newRevision?, insertedAt? }`
+
+::: tip When to Use
+- **Structured documents** (with headings): Use `get_section`, `update_section`, `insert_section`
+- **Flat documents** (no headings): Use `read_paragraph`, `write_paragraph`, `smart_insert`
+- **End of document**: Use `smart_insert` with `"end_of_document"`
+:::
 
 ---
 
