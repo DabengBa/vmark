@@ -75,6 +75,8 @@ function createMockSession(windowConfigs: Array<{
         last_modified_timestamp: null,
         is_untitled: false,
         untitled_number: null,
+        undo_history: [],
+        redo_history: [],
       },
     })),
     ui_state: {
