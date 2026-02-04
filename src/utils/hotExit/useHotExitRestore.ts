@@ -120,9 +120,12 @@ export function useHotExitRestore() {
         try {
           const session = event.payload;
           await restoreSession(session);
-          // Signal completion for this window
-          await invoke('hot_exit_window_restore_complete', { window_label: windowLabel });
-          await emit(HOT_EXIT_EVENTS.RESTORE_COMPLETE, {});
+          // Signal completion for this window and check if all windows done
+          const allDone = await invoke<boolean>('hot_exit_window_restore_complete', { window_label: windowLabel });
+          // Only emit RESTORE_COMPLETE when ALL windows have completed
+          if (allDone) {
+            await emit(HOT_EXIT_EVENTS.RESTORE_COMPLETE, {});
+          }
         } catch (error) {
           console.error('[HotExit] Failed to restore session:', error);
           void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
@@ -218,8 +221,11 @@ async function restoreTabs(windowLabel: string, windowState: WindowState): Promi
 
   // Clear existing tabs by removing the window (bypasses pin rules)
   const existingTabs = tabStore.getTabsByWindow(windowLabel);
+  const historyStore = useUnifiedHistoryStore.getState();
   existingTabs.forEach((tab) => {
     documentStore.removeDocument(tab.id);
+    // Also clear unified history to prevent memory leaks
+    historyStore.clearDocument(tab.id);
   });
 
   // Remove window from tab store to clear all tabs at once

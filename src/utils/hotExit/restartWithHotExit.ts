@@ -73,6 +73,13 @@ export async function checkAndRestoreSession(
     // Check if session can be migrated
     if (!canMigrate(session.version)) {
       console.error(`[HotExit] Cannot restore session: incompatible version ${session.version} (current: ${SCHEMA_VERSION})`);
+      // Clear incompatible session to prevent repeated restore attempts on every launch
+      try {
+        await invoke<void>('hot_exit_clear_session');
+        console.log('[HotExit] Cleared incompatible session file');
+      } catch (clearError) {
+        console.warn('[HotExit] Failed to clear incompatible session:', clearError);
+      }
       return false;
     }
 
@@ -93,6 +100,10 @@ export async function checkAndRestoreSession(
       schemaVersion: migratedSession.version,
     });
 
+    // CRITICAL: Set up event listeners BEFORE invoking restore commands
+    // This prevents race conditions where fast events could be missed
+    const restorePromise = waitForRestoreEvent(timeoutMs);
+
     // Use multi-window restore if session has secondary windows
     // Otherwise use legacy single-window restore
     if (hasSecondaryWindows) {
@@ -110,7 +121,7 @@ export async function checkAndRestoreSession(
 
     // CRITICAL: Wait for restore to complete BEFORE deleting session
     // This prevents data loss if restore fails partway through
-    const restoreResult = await waitForRestoreEvent(timeoutMs);
+    const restoreResult = await restorePromise;
 
     if (restoreResult.success) {
       // Only delete session file after confirmed successful restore
@@ -143,62 +154,48 @@ export async function checkAndRestoreSession(
 async function waitForRestoreEvent(
   timeoutMs: number
 ): Promise<{ success: boolean; error?: string }> {
+  let resolved = false;
+  let unlistenComplete: (() => void) | null = null;
+  let unlistenFailed: (() => void) | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    unlistenComplete?.();
+    unlistenFailed?.();
+  };
+
   return new Promise((resolve) => {
-    let resolved = false;
-    let unlistenComplete: (() => void) | null = null;
-    let unlistenFailed: (() => void) | null = null;
-
-    const cleanup = () => {
-      unlistenComplete?.();
-      unlistenFailed?.();
-    };
-
-    // Set up timeout
-    const timeoutId = setTimeout(() => {
+    const handleResolve = (result: { success: boolean; error?: string }) => {
       if (!resolved) {
         resolved = true;
         cleanup();
-        resolve({ success: false, error: 'Restore timed out' });
+        resolve(result);
       }
+    };
+
+    // Set up timeout
+    timeoutId = setTimeout(() => {
+      handleResolve({ success: false, error: 'Restore timed out' });
     }, timeoutMs);
 
-    // Set up event listeners (async IIFE to avoid async executor)
-    void (async () => {
-      try {
-        // Listen for restore-complete event
-        unlistenComplete = await listen(HOT_EXIT_EVENTS.RESTORE_COMPLETE, () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeoutId);
-            cleanup();
-            resolve({ success: true });
-          }
-        });
-
-        // Listen for restore-failed event
-        unlistenFailed = await listen<{ error: string }>(
-          HOT_EXIT_EVENTS.RESTORE_FAILED,
-          (event) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              cleanup();
-              resolve({ success: false, error: event.payload.error });
-            }
-          }
-        );
-      } catch (error) {
-        // Failed to set up listeners
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeoutId);
-          cleanup();
-          resolve({
-            success: false,
-            error: `Failed to set up event listeners: ${error}`,
-          });
-        }
-      }
-    })();
+    // Register both listeners concurrently to avoid race conditions
+    // where an event arrives between sequential awaits
+    void Promise.all([
+      listen(HOT_EXIT_EVENTS.RESTORE_COMPLETE, () => {
+        handleResolve({ success: true });
+      }),
+      listen<{ error: string }>(HOT_EXIT_EVENTS.RESTORE_FAILED, (event) => {
+        handleResolve({ success: false, error: event.payload.error });
+      }),
+    ]).then(([completeUnlisten, failedUnlisten]) => {
+      unlistenComplete = completeUnlisten;
+      unlistenFailed = failedUnlisten;
+    }).catch((error) => {
+      handleResolve({
+        success: false,
+        error: `Failed to set up event listeners: ${error}`,
+      });
+    });
   });
 }

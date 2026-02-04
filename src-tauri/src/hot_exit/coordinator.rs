@@ -265,7 +265,8 @@ pub async fn restore_session_multi_window(
         let mut state = pending.lock().await;
         state.window_states.clear();
         state.completed_windows.clear();
-        state.expected_count = session.windows.len();
+        // Start with 1 for main window - will add successfully created secondary windows
+        state.expected_count = 1;
 
         for window_state in &session.windows {
             state.window_states.insert(window_state.window_label.clone(), window_state.clone());
@@ -291,9 +292,14 @@ pub async fn restore_session_multi_window(
                         ..ws
                     });
                 }
+                // Increment expected count for successfully created window
+                state.expected_count += 1;
                 windows_created.push(label);
             }
             Err(e) => {
+                // Remove failed window's state to prevent orphan entries
+                let mut state = pending.lock().await;
+                state.window_states.remove(&window_state.window_label);
                 eprintln!("[HotExit] Failed to create window for {}: {}", window_state.window_label, e);
             }
         }

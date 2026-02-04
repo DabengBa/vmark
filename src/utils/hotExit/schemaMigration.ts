@@ -6,15 +6,17 @@
  *
  * Migration Strategy:
  * - Sessions at current version pass through unchanged
- * - Older sessions are migrated step-by-step (v1 -> v2 -> v3 -> current)
+ * - Older sessions are migrated step-by-step (vN -> vN+1 -> ... -> current)
  * - Future sessions (higher version) cannot be migrated (fail gracefully)
  * - Version 0 is invalid and rejected
+ * - Every version step MUST have an explicit migration function
  */
 
 import type { SessionData, DocumentState } from './types';
+import { SCHEMA_VERSION } from './types';
 
-/** Current schema version - must match types.ts and Rust session.rs */
-export const SCHEMA_VERSION = 2;
+// Re-export for consumers that import from schemaMigration
+export { SCHEMA_VERSION };
 
 /** Minimum supported version for migration */
 const MIN_SUPPORTED_VERSION = 1;
@@ -82,16 +84,16 @@ export function migrateSession(session: SessionData): SessionData {
     const migrateFn = migrations[current.version];
 
     if (!migrateFn) {
-      // No migration function - just bump version
-      // This handles the case where schema is compatible but version differs
-      current = {
-        ...current,
-        version: current.version + 1,
-      };
-    } else {
-      // Apply migration
-      current = migrateFn(current);
+      // CRITICAL: Every version step must have an explicit migration
+      // Silently bumping version can skip required field additions
+      throw new Error(
+        `Missing migration function for version ${current.version}. ` +
+        `Add a migration in the 'migrations' registry.`
+      );
     }
+
+    // Apply migration
+    current = migrateFn(current);
   }
 
   return current;
@@ -131,19 +133,25 @@ function migrateV1toV2(session: SessionData): SessionData {
       ...window,
       tabs: window.tabs.map(tab => ({
         ...tab,
-        document: addHistoryToDocument(tab.document),
+        // V1 documents don't have undo_history/redo_history - cast to V1 type
+        document: addHistoryToDocument(tab.document as V1DocumentState),
       })),
     })),
   };
 }
 
 /**
- * Add empty history arrays to a document (v1 -> v2 migration helper)
+ * V1 DocumentState - all fields except undo/redo history (added in v2)
  */
-function addHistoryToDocument(doc: Partial<DocumentState>): DocumentState {
+type V1DocumentState = Omit<DocumentState, 'undo_history' | 'redo_history'>;
+
+/**
+ * Add empty history arrays to a v1 document (v1 -> v2 migration helper)
+ */
+function addHistoryToDocument(doc: V1DocumentState): DocumentState {
   return {
     ...doc,
     undo_history: [],
     redo_history: [],
-  } as DocumentState;
+  };
 }

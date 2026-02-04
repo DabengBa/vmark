@@ -24,10 +24,16 @@ export function isRestoreInProgress(): boolean {
 /**
  * Set the restore in progress flag.
  *
- * Called by useHotExitStartup when starting/completing restore.
+ * Called by useHotExitStartup when starting restore.
+ * IMPORTANT: When ending restore, use notifyRestoreComplete() instead
+ * to properly resolve all waiting callers.
  */
 export function setRestoreInProgress(inProgress: boolean): void {
   restoreInProgress = inProgress;
+  // When setting to false, also notify waiters to prevent deadlocks
+  if (!inProgress) {
+    notifyRestoreComplete();
+  }
 }
 
 /**

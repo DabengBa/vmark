@@ -46,7 +46,7 @@ export interface DocumentState {
   is_dirty: boolean;
   is_missing: boolean;
   is_divergent: boolean;
-  line_ending: string; // "\n" or "\r\n"
+  line_ending: LineEnding;
   cursor_info: CursorInfo | null;
   last_modified_timestamp: number | null;
   is_untitled: boolean;
