@@ -10,76 +10,15 @@ import { emit } from "@tauri-apps/api/event";
 import { useUIStore } from "@/stores/uiStore";
 import { useDocumentContent } from "@/hooks/useDocumentState";
 import { perfStart, perfEnd } from "@/utils/perfLog";
-
-interface HeadingItem {
-  level: number;
-  text: string;
-  line: number; // 0-based line number in content
-}
-
-interface HeadingNode extends HeadingItem {
-  children: HeadingNode[];
-  index: number; // Original index in flat list
-}
-
-function extractHeadings(content: string): HeadingItem[] {
-  const headings: HeadingItem[] = [];
-  const lines = content.split("\n");
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(/^(#{1,6})\s+(.+)$/);
-    if (match) {
-      headings.push({
-        level: match[1].length,
-        text: match[2].trim(),
-        line: i,
-      });
-    }
-  }
-
-  return headings;
-}
-
-function buildHeadingTree(headings: HeadingItem[]): HeadingNode[] {
-  const root: HeadingNode[] = [];
-  const stack: HeadingNode[] = [];
-
-  headings.forEach((heading, index) => {
-    const node: HeadingNode = { ...heading, children: [], index };
-
-    // Pop stack until we find a parent with smaller level
-    while (stack.length > 0 && stack[stack.length - 1].level >= heading.level) {
-      stack.pop();
-    }
-
-    if (stack.length === 0) {
-      root.push(node);
-    } else {
-      stack[stack.length - 1].children.push(node);
-    }
-
-    stack.push(node);
-  });
-
-  return root;
-}
-
-/**
- * Extract only heading lines from content for comparison.
- * Used to avoid re-extracting headings when non-heading content changes.
- */
-function getHeadingLinesKey(content: string): string {
-  const lines = content.split("\n");
-  const headingLines: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (/^#{1,6}\s/.test(lines[i])) {
-      // Include line number to detect moved headings
-      headingLines.push(`${i}:${lines[i]}`);
-    }
-  }
-  return headingLines.join("\n");
-}
+import {
+  extractHeadings,
+  buildHeadingTree,
+  getHeadingLinesKey,
+  countTreeNodes,
+  buildLimitedTree,
+  type HeadingItem,
+  type HeadingNode,
+} from "./outlineUtils";
 
 function OutlineItem({
   node,
@@ -150,7 +89,7 @@ function OutlineItem({
 
 // Size thresholds for performance
 const MAX_CONTENT_FOR_OUTLINE = 100000; // 100KB threshold
-const MAX_OUTLINE_ITEMS = 100; // Limit items (400+ causes severe slowdown)
+const MAX_OUTLINE_ITEMS = 100; // Limit total visible items
 
 export function OutlineView() {
   const content = useDocumentContent();
@@ -192,30 +131,42 @@ export function OutlineView() {
     return result;
   }, [headings, isTooLarge]);
 
+  // Count total nodes and build limited tree if needed
+  const totalNodes = useMemo(() => countTreeNodes(tree), [tree]);
+  const isTruncated = totalNodes > MAX_OUTLINE_ITEMS;
+
+  const limitedTree = useMemo(() => {
+    if (!isTruncated) return tree;
+    return buildLimitedTree(tree, MAX_OUTLINE_ITEMS);
+  }, [tree, isTruncated]);
+
   const activeIndex = activeHeadingIndex ?? -1;
 
-  // Track collapsed state by heading text (preserves state across edits)
-  const [collapsedTexts, setCollapsedTexts] = useState<Set<string>>(new Set());
+  // Track collapsed state by heading text + level (preserves state across edits)
+  // Using level:text as key to handle duplicate heading texts
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
-  // Convert text-based collapsed state to index-based for rendering
+  // Convert key-based collapsed state to index-based for rendering
   const collapsedSet = useMemo(() => {
     const set = new Set<number>();
     headings.forEach((h, i) => {
-      if (collapsedTexts.has(h.text)) set.add(i);
+      const key = `${h.level}:${h.text}`;
+      if (collapsedKeys.has(key)) set.add(i);
     });
     return set;
-  }, [headings, collapsedTexts]);
+  }, [headings, collapsedKeys]);
 
   const handleToggle = (index: number) => {
     const heading = headings[index];
     if (!heading) return;
 
-    setCollapsedTexts((prev) => {
+    const key = `${heading.level}:${heading.text}`;
+    setCollapsedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(heading.text)) {
-        next.delete(heading.text);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(heading.text);
+        next.add(key);
       }
       return next;
     });
@@ -237,9 +188,6 @@ export function OutlineView() {
     );
   }
 
-  const limitedTree = tree.length > MAX_OUTLINE_ITEMS ? tree.slice(0, MAX_OUTLINE_ITEMS) : tree;
-  const isTruncated = tree.length > MAX_OUTLINE_ITEMS;
-
   return (
     <div className="sidebar-view outline-view">
       {headings.length > 0 ? (
@@ -258,7 +206,7 @@ export function OutlineView() {
           </ul>
           {isTruncated && (
             <div className="outline-truncated">
-              + {tree.length - MAX_OUTLINE_ITEMS} more headings
+              + {totalNodes - MAX_OUTLINE_ITEMS} more headings
             </div>
           )}
         </>
