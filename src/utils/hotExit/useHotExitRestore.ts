@@ -18,15 +18,25 @@ import { useDocumentStore } from '@/stores/documentStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useUnifiedHistoryStore } from '@/stores/unifiedHistoryStore';
-import type { WindowState, HistoryCheckpoint } from './types';
+import type { WindowState, HistoryCheckpoint, CursorInfo } from './types';
 import { HOT_EXIT_EVENTS } from './types';
 import type { LineEnding } from '@/utils/linebreakDetection';
 import type { HistoryCheckpoint as StoreHistoryCheckpoint } from '@/stores/unifiedHistoryStore';
+import type { CursorInfo as StoreCursorInfo } from '@/types/cursorSync';
 
 /** Maximum retries when pulling state (handles timing issues) */
 const MAX_STATE_RETRIES = 5;
 /** Delay between retries in milliseconds */
 const RETRY_DELAY_MS = 100;
+/** Minimum valid sidebar width */
+const MIN_SIDEBAR_WIDTH = 150;
+/** Maximum valid sidebar width */
+const MAX_SIDEBAR_WIDTH = 500;
+/** Default sidebar width if invalid */
+const DEFAULT_SIDEBAR_WIDTH = 260;
+
+/** Simple sleep helper */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Convert hot exit line ending format back to store format
@@ -43,24 +53,44 @@ function fromHotExitLineEnding(lineEnding: '\n' | '\r\n' | 'unknown'): LineEndin
 }
 
 /**
+ * Convert hot exit cursor info to store format with validation.
+ * Returns null if input is null/undefined or has invalid data.
+ */
+function toStoreCursorInfo(cursorInfo: CursorInfo | null | undefined): StoreCursorInfo | null {
+  if (!cursorInfo) return null;
+
+  // Validate required numeric fields
+  if (
+    !Number.isFinite(cursorInfo.source_line) ||
+    !Number.isFinite(cursorInfo.offset_in_word) ||
+    !Number.isFinite(cursorInfo.percent_in_line)
+  ) {
+    console.warn('[HotExit] Invalid cursor info, skipping restore');
+    return null;
+  }
+
+  return {
+    sourceLine: cursorInfo.source_line,
+    wordAtCursor: cursorInfo.word_at_cursor ?? '',
+    offsetInWord: cursorInfo.offset_in_word,
+    nodeType: (cursorInfo.node_type ?? 'paragraph') as StoreCursorInfo['nodeType'],
+    percentInLine: cursorInfo.percent_in_line,
+    contextBefore: cursorInfo.context_before ?? '',
+    contextAfter: cursorInfo.context_after ?? '',
+    blockAnchor: cursorInfo.block_anchor as StoreCursorInfo['blockAnchor'],
+  };
+}
+
+/**
  * Convert hot exit checkpoint back to store format
  */
 function fromHotExitCheckpoint(checkpoint: HistoryCheckpoint): StoreHistoryCheckpoint {
   return {
     markdown: checkpoint.markdown,
-    mode: checkpoint.mode as 'source' | 'wysiwyg',
-    cursorInfo: checkpoint.cursor_info
-      ? {
-          sourceLine: checkpoint.cursor_info.source_line,
-          wordAtCursor: checkpoint.cursor_info.word_at_cursor,
-          offsetInWord: checkpoint.cursor_info.offset_in_word,
-          nodeType: checkpoint.cursor_info.node_type as import('@/types/cursorSync').NodeType,
-          percentInLine: checkpoint.cursor_info.percent_in_line,
-          contextBefore: checkpoint.cursor_info.context_before,
-          contextAfter: checkpoint.cursor_info.context_after,
-          blockAnchor: checkpoint.cursor_info.block_anchor as import('@/types/cursorSync').BlockAnchor | undefined,
-        }
-      : null,
+    mode: checkpoint.mode === 'source' || checkpoint.mode === 'wysiwyg'
+      ? checkpoint.mode
+      : 'wysiwyg', // Default to wysiwyg if invalid
+    cursorInfo: toStoreCursorInfo(checkpoint.cursor_info),
     timestamp: checkpoint.timestamp,
   };
 }
@@ -69,6 +99,8 @@ export function useHotExitRestore() {
   // Prevent concurrent restore attempts
   const isRestoring = useRef(false);
   const hasCheckedPending = useRef(false);
+  // Track if we were triggered by RESTORE_START (vs normal startup)
+  const restoreWasRequested = useRef(false);
 
   useEffect(() => {
     const windowLabel = getCurrentWebviewWindow().label;
@@ -93,12 +125,12 @@ export function useHotExitRestore() {
           // State not found - wait and retry (might not be stored yet)
           if (attempt < retries) {
             console.log(`[HotExit] Window '${windowLabel}' state not ready, retry ${attempt}/${retries}`);
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+            await sleep(RETRY_DELAY_MS);
           }
         } catch (error) {
           console.error(`[HotExit] Failed to pull state for '${windowLabel}' (attempt ${attempt}):`, error);
           if (attempt < retries) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+            await sleep(RETRY_DELAY_MS);
           }
         }
       }
@@ -108,8 +140,10 @@ export function useHotExitRestore() {
     /**
      * Restore this window's state by pulling from Rust coordinator.
      * Used by both main and secondary windows for consistency.
+     *
+     * @param isRequestedRestore - True if triggered by RESTORE_START event
      */
-    const restoreFromPulledState = async () => {
+    const restoreFromPulledState = async (isRequestedRestore: boolean) => {
       if (isRestoring.current) {
         console.warn(`[HotExit] Window '${windowLabel}' ignoring concurrent restore`);
         return;
@@ -122,8 +156,15 @@ export function useHotExitRestore() {
 
         if (!windowState) {
           console.warn(`[HotExit] No state found for window '${windowLabel}' after ${MAX_STATE_RETRIES} retries`);
-          // Still signal completion to unblock other windows
-          await invoke('hot_exit_window_restore_complete', { windowLabel });
+
+          // If restore was explicitly requested but no state found, emit failure
+          // (This prevents checkAndRestoreSession from waiting until timeout)
+          if (isRequestedRestore && isMainWindow) {
+            console.error('[HotExit] Restore was requested but no state available');
+            void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
+              error: `No restore state found for window '${windowLabel}'`,
+            }).catch((e) => console.error('[HotExit] Failed to emit restore failed:', e));
+          }
           return;
         }
 
@@ -157,11 +198,12 @@ export function useHotExitRestore() {
       // Secondary windows pull state immediately
       // Main window waits for RESTORE_START signal (to avoid restoring on normal startup)
       if (!isMainWindow) {
-        await restoreFromPulledState();
+        // Secondary windows created during restore are "requested"
+        await restoreFromPulledState(true);
       }
     };
 
-    checkPendingState();
+    void checkPendingState();
 
     // Listen for RESTORE_START signal (primarily for main window)
     // This is just a trigger — actual state is pulled, not passed in event
@@ -170,15 +212,16 @@ export function useHotExitRestore() {
       async () => {
         // Main window receives this signal and pulls its state
         if (isMainWindow) {
-          await restoreFromPulledState();
+          restoreWasRequested.current = true;
+          await restoreFromPulledState(true);
         }
         // Secondary windows ignore this — they restore on mount
       }
     );
 
     return () => {
-      void unlistenPromise.then((unlisten) => unlisten()).catch(() => {
-        // Ignore cleanup errors
+      void unlistenPromise.then((unlisten) => unlisten()).catch((e) => {
+        console.debug('[HotExit] Cleanup error (expected during unmount):', e);
       });
     };
   }, []);
@@ -209,11 +252,18 @@ function restoreUiState(windowState: WindowState): void {
     ? ui_state.sidebar_view_mode
     : 'files';
 
+  // Validate sidebar_width: must be finite and within reasonable bounds
+  const sidebarWidth = Number.isFinite(ui_state.sidebar_width)
+    && ui_state.sidebar_width >= MIN_SIDEBAR_WIDTH
+    && ui_state.sidebar_width <= MAX_SIDEBAR_WIDTH
+      ? ui_state.sidebar_width
+      : DEFAULT_SIDEBAR_WIDTH;
+
   // Restore sidebar state
   if (ui_state.sidebar_visible !== uiStore.sidebarVisible) {
     uiStore.toggleSidebar();
   }
-  uiStore.setSidebarWidth(ui_state.sidebar_width);
+  uiStore.setSidebarWidth(sidebarWidth);
 
   if (ui_state.outline_visible !== uiStore.outlineVisible) {
     uiStore.toggleOutline();
@@ -260,16 +310,14 @@ async function restoreTabs(windowLabel: string, windowState: WindowState): Promi
 
   // Restore each tab
   for (const tabState of windowState.tabs) {
-    // Create tab (will auto-activate if first tab)
+    // Create tab (createTab auto-activates, but we'll set active tab explicitly after)
     const newTabId = tabStore.createTab(windowLabel, tabState.file_path);
 
     // Store mapping
     tabIdMap.set(tabState.id, newTabId);
 
-    // Update tab metadata
-    if (tabState.title) {
-      tabStore.updateTabTitle(newTabId, tabState.title);
-    }
+    // Update tab metadata (title is required string, always set it)
+    tabStore.updateTabTitle(newTabId, tabState.title);
     if (tabState.is_pinned) {
       tabStore.togglePin(windowLabel, newTabId);
     }
@@ -333,18 +381,10 @@ async function restoreDocumentState(
     documentStore.markDivergent(tabId);
   }
 
-  // Restore cursor info
-  if (docState.cursor_info) {
-    documentStore.setCursorInfo(tabId, {
-      sourceLine: docState.cursor_info.source_line,
-      wordAtCursor: docState.cursor_info.word_at_cursor,
-      offsetInWord: docState.cursor_info.offset_in_word,
-      nodeType: docState.cursor_info.node_type as import('@/types/cursorSync').NodeType,
-      percentInLine: docState.cursor_info.percent_in_line,
-      contextBefore: docState.cursor_info.context_before,
-      contextAfter: docState.cursor_info.context_after,
-      blockAnchor: docState.cursor_info.block_anchor as import('@/types/cursorSync').BlockAnchor | undefined,
-    });
+  // Restore cursor info (using shared validation helper)
+  const cursorInfo = toStoreCursorInfo(docState.cursor_info);
+  if (cursorInfo) {
+    documentStore.setCursorInfo(tabId, cursorInfo);
   }
 
   // Restore unified history (cross-mode undo/redo checkpoints)
