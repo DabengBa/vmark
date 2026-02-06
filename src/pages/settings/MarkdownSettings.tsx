@@ -12,6 +12,7 @@ import {
   type BlockFontSize,
   type HtmlRenderingMode,
   type MarkdownPasteMode,
+  type CopyFormat,
 } from "@/stores/settingsStore";
 import { SettingRow, Toggle, SettingsGroup, Select } from "./components";
 
@@ -43,6 +44,19 @@ export function MarkdownSettings() {
               { value: "off", label: "Off" },
             ]}
             onChange={(v) => updateSetting("pasteMarkdownInWysiwyg", v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Copy format"
+          description="What to put in plain text when copying from WYSIWYG"
+        >
+          <Select<CopyFormat>
+            value={markdown.copyFormat}
+            options={[
+              { value: "default", label: "Plain text" },
+              { value: "markdown", label: "Markdown" },
+            ]}
+            onChange={(v) => updateSetting("copyFormat", v)}
           />
         </SettingRow>
       </SettingsGroup>

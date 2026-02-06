@@ -191,6 +191,10 @@ Print to PDF with native system dialog (`Cmd/Ctrl + P`).
 
 Copy formatted content for pasting into other apps (`Cmd/Ctrl + Shift + C`).
 
+### Copy Format
+
+By default, copying from WYSIWYG puts plain text (without formatting) in the clipboard. Enable **Markdown** copy format in **Settings > Markdown > Paste & Input** to put Markdown syntax in `text/plain` instead — headings keep their `#`, links keep their URLs, etc. Useful when pasting into terminals, code editors, or chat apps.
+
 ## CJK Formatting
 
 Built-in Chinese/Japanese/Korean text formatting:
