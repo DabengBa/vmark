@@ -8,6 +8,7 @@ import {
   useSettingsStore,
   type AppearanceSettings as AppearanceSettingsType,
   type AutoPairCJKStyle,
+  type CopyFormat,
 } from "@/stores/settingsStore";
 import { SettingRow, SettingsGroup, Select, Toggle } from "./components";
 
@@ -198,6 +199,28 @@ export function EditorSettings() {
             />
           </SettingRow>
         )}
+        <SettingRow
+          label="Copy format"
+          description="What to put in plain text when copying from WYSIWYG"
+        >
+          <Select<CopyFormat>
+            value={markdown.copyFormat}
+            options={[
+              { value: "default", label: "Plain text" },
+              { value: "markdown", label: "Markdown" },
+            ]}
+            onChange={(v) => updateMarkdownSetting("copyFormat", v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Copy on select"
+          description="Automatically copy selected text to clipboard"
+        >
+          <Toggle
+            checked={markdown.copyOnSelect}
+            onChange={(v) => updateMarkdownSetting("copyOnSelect", v)}
+          />
+        </SettingRow>
       </SettingsGroup>
 
       {/* Whitespace */}

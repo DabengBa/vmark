@@ -218,6 +218,7 @@ export interface MarkdownSettings {
   autoPairCJKStyle: AutoPairCJKStyle; // CJK bracket pairing style
   autoPairCurlyQuotes: boolean; // Include curly quotes in CJK pairing (may conflict with IME)
   copyFormat: CopyFormat; // What to put in text/plain on copy (default = plain text, markdown = markdown syntax)
+  copyOnSelect: boolean; // Auto-copy selected text to clipboard
 }
 
 // Image auto-resize options (0 = off, positive = max dimension in pixels)
@@ -377,7 +378,8 @@ const initialState: SettingsState = {
     autoPairEnabled: true,
     autoPairCJKStyle: "auto",
     autoPairCurlyQuotes: true,
-    copyFormat: "default",
+    copyFormat: "markdown",
+    copyOnSelect: true,
   },
   image: {
     autoResizeMax: 0, // Off by default

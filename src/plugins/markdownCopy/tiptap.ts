@@ -1,13 +1,14 @@
 /**
  * Markdown Copy Extension
  *
- * Customizes the text/plain clipboard content on copy/cut.
- * When the "Copy format" setting is "markdown", converts the
- * selection to markdown syntax instead of flattened plain text.
+ * Two features in one plugin:
  *
- * Uses ProseMirror's `clipboardTextSerializer` prop — the designed
- * extension point for customizing text/plain on copy/cut.
- * text/html remains untouched (ProseMirror handles it).
+ * 1. **Copy format**: Customizes text/plain clipboard content on copy/cut.
+ *    When "markdown", converts the selection to markdown syntax instead of
+ *    flattened plain text. Uses ProseMirror's `clipboardTextSerializer` prop.
+ *
+ * 2. **Copy on select**: Automatically copies selected text to clipboard
+ *    on mouseup, similar to terminal behavior.
  */
 
 import { Extension } from "@tiptap/core";
@@ -45,6 +46,42 @@ function createDocFromSlice(schema: Schema, slice: Slice): PMNode {
   }
 }
 
+/**
+ * Serialize a Slice to markdown with blank-line collapsing.
+ * Returns null on failure (caller decides fallback).
+ */
+function serializeSliceAsMarkdown(schema: Schema, slice: Slice): string | null {
+  try {
+    const doc = createDocFromSlice(schema, slice);
+    const md = serializeMarkdown(schema, doc);
+    return md.replace(/\n{3,}/g, "\n\n");
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[markdownCopy] Serialization failed:", error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Get text for the current selection, respecting copyFormat setting.
+ */
+function getSelectionText(view: EditorView): string {
+  const { state } = view;
+  const { from, to } = state.selection;
+  if (from === to) return "";
+
+  const { copyFormat } = useSettingsStore.getState().markdown;
+
+  if (copyFormat === "markdown") {
+    const slice = state.doc.slice(from, to);
+    const md = serializeSliceAsMarkdown(state.schema, slice);
+    if (md !== null) return md;
+  }
+
+  return state.doc.textBetween(from, to, "\n\n");
+}
+
 export const markdownCopyExtension = Extension.create({
   name: "markdownCopy",
   addProseMirrorPlugins() {
@@ -54,23 +91,28 @@ export const markdownCopyExtension = Extension.create({
         props: {
           clipboardTextSerializer(slice: Slice, view: EditorView) {
             const { copyFormat } = useSettingsStore.getState().markdown;
-            if (copyFormat !== "markdown") {
-              // Return empty string — PM falls through to default textBetween
-              return "";
-            }
+            if (copyFormat !== "markdown") return "";
 
-            try {
-              const { schema } = view.state;
-              const doc = createDocFromSlice(schema, slice);
-              const md = serializeMarkdown(schema, doc);
-              // Collapse 3+ consecutive newlines to 2 (one blank line max)
-              return md.replace(/\n{3,}/g, "\n\n");
-            } catch (error) {
-              if (import.meta.env.DEV) {
-                console.warn("[markdownCopy] Serialization failed, falling back to plain text:", error);
-              }
-              return "";
-            }
+            return serializeSliceAsMarkdown(view.state.schema, slice) ?? "";
+          },
+          handleDOMEvents: {
+            mouseup(view: EditorView) {
+              const { copyOnSelect } = useSettingsStore.getState().markdown;
+              if (!copyOnSelect) return false;
+
+              requestAnimationFrame(() => {
+                if (view.isDestroyed) return;
+
+                const text = getSelectionText(view);
+                if (text) {
+                  navigator.clipboard.writeText(text).catch(() => {
+                    // Clipboard write can fail if window loses focus
+                  });
+                }
+              });
+
+              return false;
+            },
           },
         },
       }),
