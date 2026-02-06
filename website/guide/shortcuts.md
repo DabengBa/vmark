@@ -260,14 +260,22 @@ When the integrated terminal is focused:
 
 | Action | Shortcut |
 |--------|----------|
+| Toggle Terminal | `` Ctrl + ` `` |
 | Copy | `Mod + C` (with selection) |
 | Paste | `Mod + V` |
 | Clear | `Mod + K` |
 | Search | `Mod + F` |
-| Toggle Terminal | `Ctrl + `` ` |
+
+When the terminal search bar is open:
+
+| Action | Shortcut |
+|--------|----------|
+| Next Match | `Enter` |
+| Previous Match | `Shift + Enter` |
+| Close Search | `Escape` |
 
 ::: tip
-Terminal shortcuts only activate when the terminal panel is focused. `Mod + C` without a selection sends SIGINT to the running process.
+`Mod + C` without a selection sends SIGINT to the running process. See [Integrated Terminal](/guide/terminal) for the full guide.
 :::
 
 ## Customizing Shortcuts
