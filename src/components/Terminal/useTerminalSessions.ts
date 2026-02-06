@@ -13,6 +13,7 @@ interface SessionEntry {
   instance: TerminalInstance;
   pty: IPty | null;
   ptyRefForKeys: React.RefObject<IPty | null>;
+  shellStarted: boolean;
   shellExited: boolean;
   disposed: boolean;
 }
@@ -169,6 +170,7 @@ export function useTerminalSessions(
         instance,
         pty: null,
         ptyRefForKeys,
+        shellStarted: false,
         shellExited: false,
         disposed: false,
       };
@@ -193,11 +195,10 @@ export function useTerminalSessions(
         }
       });
 
-      // Start shell
-      startShell(sessionId).then(() => {
-        const e = sessionsRef.current.get(sessionId);
-        if (e) ptyRefForKeys.current = e.pty;
-      });
+      // Shell is spawned lazily by switchVisibility after the container
+      // is visible and fitAddon has measured the real dimensions.
+      // This avoids spawning at 80×24 defaults while hidden, which
+      // causes blank lines when the terminal is later resized.
     },
     [containerRef, startShell],
   );
@@ -227,10 +228,20 @@ export function useTerminalSessions(
             entry.instance.fitAddon.fit();
             entry.instance.term.focus();
           } catch { /* ignore */ }
+
+          // Start shell after first fit so PTY gets the real dimensions
+          // instead of 80×24 defaults from a hidden container
+          if (!entry.shellStarted && !entry.shellExited && !entry.disposed) {
+            entry.shellStarted = true;
+            startShell(activeId).then(() => {
+              const e = sessionsRef.current.get(activeId);
+              if (e) e.ptyRefForKeys.current = e.pty;
+            });
+          }
         });
       }
     }
-  }, []);
+  }, [startShell]);
 
   // Initialize on mount — subscribe to store changes
   useEffect(() => {
