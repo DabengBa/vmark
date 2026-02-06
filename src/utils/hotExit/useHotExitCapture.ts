@@ -96,6 +96,8 @@ function getUiStateSafe() {
       source_mode_enabled: false,
       focus_mode_enabled: false,
       typewriter_mode_enabled: false,
+      terminal_visible: false,
+      terminal_height: 250,
     };
   }
 }

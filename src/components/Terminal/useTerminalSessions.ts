@@ -8,7 +8,6 @@ import {
 } from "./createTerminalInstance";
 import { spawnPty } from "./spawnPty";
 import type { SearchAddon } from "@xterm/addon-search";
-import type { SerializeAddon } from "@xterm/addon-serialize";
 
 interface SessionEntry {
   instance: TerminalInstance;
@@ -64,14 +63,6 @@ export function useTerminalSessions(
     if (!activeId) return null;
     const entry = sessionsRef.current.get(activeId);
     return entry?.instance.searchAddon ?? null;
-  }, []);
-
-  /** Get serialize addon of active session. */
-  const getActiveSerializeAddon = useCallback((): SerializeAddon | null => {
-    const activeId = useTerminalSessionStore.getState().activeSessionId;
-    if (!activeId) return null;
-    const entry = sessionsRef.current.get(activeId);
-    return entry?.instance.serializeAddon ?? null;
   }, []);
 
   /** Get terminal + pty refs for context menu. */
@@ -360,7 +351,6 @@ export function useTerminalSessions(
     fit,
     getActiveTerminal,
     getActiveSearchAddon,
-    getActiveSerializeAddon,
     restartActiveSession,
     sessionsRef,
   };
