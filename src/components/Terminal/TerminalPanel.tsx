@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useUIStore } from "@/stores/uiStore";
 import { useTerminal } from "./useTerminal";
 import { useTerminalResize } from "./useTerminalResize";
@@ -9,13 +9,15 @@ export function TerminalPanel() {
   const height = useUIStore((s) => s.terminalHeight);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Only mount xterm once visible for the first time
-  const hasBeenVisible = useRef(false);
-  if (visible) hasBeenVisible.current = true;
+  // Defer xterm init until first show
+  const [activated, setActivated] = useState(false);
+  useEffect(() => {
+    if (visible && !activated) setActivated(true);
+  }, [visible, activated]);
 
-  const { fit } = useTerminal(hasBeenVisible.current ? containerRef : { current: null });
+  const { fit } = useTerminal(activated ? containerRef : { current: null });
 
-  // Refit on height change
+  // Refit when shown or resized
   useEffect(() => {
     if (!visible) return;
     requestAnimationFrame(() => fit());
@@ -25,10 +27,16 @@ export function TerminalPanel() {
     requestAnimationFrame(() => fit());
   });
 
-  if (!visible) return null;
+  // Not yet activated — render nothing
+  if (!activated) return null;
 
+  // Once activated, always keep the DOM alive (display:none when hidden)
+  // so xterm stays attached to its container element.
   return (
-    <div className="terminal-panel" style={{ height }}>
+    <div
+      className="terminal-panel"
+      style={{ height, display: visible ? "flex" : "none" }}
+    >
       <div className="terminal-resize-handle" onMouseDown={handleResize} />
       <div ref={containerRef} className="terminal-container" />
     </div>

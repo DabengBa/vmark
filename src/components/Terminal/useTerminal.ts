@@ -5,11 +5,21 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { spawn, type IPty } from "tauri-pty";
 import { useSettingsStore, themes } from "@/stores/settingsStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useTabStore } from "@/stores/tabStore";
+import { useDocumentStore } from "@/stores/documentStore";
+import { getCurrentWindowLabel } from "@/utils/workspaceStorage";
 
 import "@xterm/xterm/css/xterm.css";
 
+/** Resolve --font-mono CSS variable to actual font family names. */
+function resolveMonoFont(): string {
+  const style = getComputedStyle(document.documentElement);
+  const mono = style.getPropertyValue("--font-mono").trim();
+  return mono || "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace";
+}
+
 /** Build xterm ITheme from the app's current theme. */
-function buildXtermTheme(): Record<string, string> {
+function buildXtermTheme() {
   const themeId = useSettingsStore.getState().appearance.theme;
   const colors = themes[themeId];
   return {
@@ -18,32 +28,53 @@ function buildXtermTheme(): Record<string, string> {
     cursor: colors.foreground,
     cursorAccent: colors.background,
     selectionBackground: colors.selection ?? "rgba(0,102,204,0.25)",
-    selectionForeground: undefined as unknown as string,
   };
 }
 
 /** Detect default shell on macOS/Linux. */
 function getDefaultShell(): string {
-  // $SHELL is always available on macOS/Linux
   return "/bin/zsh";
 }
 
 /**
+ * Resolve terminal working directory:
+ * 1. Workspace root (if open)
+ * 2. Active file's parent directory (if saved)
+ * 3. undefined — lets the shell start in its default ($HOME)
+ */
+function resolveTerminalCwd(): string | undefined {
+  const workspaceRoot = useWorkspaceStore.getState().rootPath;
+  if (workspaceRoot) return workspaceRoot;
+
+  const windowLabel = getCurrentWindowLabel();
+  const activeTabId = useTabStore.getState().activeTabId[windowLabel];
+  if (activeTabId) {
+    const doc = useDocumentStore.getState().getDocument(activeTabId);
+    if (doc?.filePath) {
+      const lastSlash = doc.filePath.lastIndexOf("/");
+      if (lastSlash > 0) return doc.filePath.substring(0, lastSlash);
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Hook managing xterm Terminal lifecycle and PTY connection.
- * The terminal instance persists across hide/show toggles.
+ * The terminal instance persists across hide/show toggles because
+ * TerminalPanel keeps its DOM alive (display:none when hidden).
  */
 export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>) {
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const ptyRef = useRef<IPty | null>(null);
-  const mountedRef = useRef(false);
+  const initializedRef = useRef(false);
 
   // Fit the terminal to its container
   const fit = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return;
     try {
       fitAddonRef.current.fit();
-      // Sync PTY dimensions
       const pty = ptyRef.current;
       const term = termRef.current;
       if (pty && term.cols > 0 && term.rows > 0) {
@@ -56,13 +87,13 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || mountedRef.current) return;
-    mountedRef.current = true;
+    if (!container || initializedRef.current) return;
+    initializedRef.current = true;
 
     // Create terminal
     const term = new Terminal({
       theme: buildXtermTheme(),
-      fontFamily: "var(--font-mono), monospace",
+      fontFamily: resolveMonoFont(),
       fontSize: 13,
       lineHeight: 1.4,
       cursorBlink: true,
@@ -90,16 +121,15 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       // Fallback to canvas renderer
     }
 
-    // Initial fit
+    // Initial fit (after layout settles)
     requestAnimationFrame(() => fit());
 
     // Spawn PTY
-    const cwd = useWorkspaceStore.getState().rootPath ?? undefined;
     try {
       const pty = spawn(getDefaultShell(), [], {
         cols: term.cols || 80,
         rows: term.rows || 24,
-        cwd,
+        cwd: resolveTerminalCwd(),
       });
       ptyRef.current = pty;
 
@@ -125,7 +155,6 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     }
 
     return () => {
-      // Kill PTY and dispose terminal on unmount
       if (ptyRef.current) {
         try { ptyRef.current.kill(); } catch { /* ignore */ }
         ptyRef.current = null;
@@ -133,7 +162,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       term.dispose();
       termRef.current = null;
       fitAddonRef.current = null;
-      mountedRef.current = false;
+      initializedRef.current = false;
     };
   }, [containerRef, fit]);
 
