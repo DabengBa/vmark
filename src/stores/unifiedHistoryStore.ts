@@ -66,6 +66,12 @@ interface UnifiedHistoryActions {
   pushRedo: (tabId: string, checkpoint: Omit<HistoryCheckpoint, "timestamp">) => void;
 
   /**
+   * Push current state to undo stack WITHOUT clearing redo stack.
+   * Used by performUnifiedRedo to save current state before restoring.
+   */
+  pushUndo: (tabId: string, checkpoint: Omit<HistoryCheckpoint, "timestamp">) => void;
+
+  /**
    * Check if there's a checkpoint available for undo.
    */
   canUndoCheckpoint: (tabId: string) => boolean;
@@ -198,6 +204,30 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
             [tabId]: {
               ...docHistory,
               redoStack: newRedoStack,
+            },
+          },
+        };
+      });
+    },
+
+    pushUndo: (tabId, checkpoint) => {
+      const newCheckpoint: HistoryCheckpoint = {
+        ...checkpoint,
+        timestamp: Date.now(),
+      };
+
+      set((state) => {
+        const docHistory = state.documents[tabId] || emptyHistory;
+        const newUndoStack = [...docHistory.undoStack, newCheckpoint];
+        if (newUndoStack.length > state.maxCheckpoints) {
+          newUndoStack.shift();
+        }
+        return {
+          documents: {
+            ...state.documents,
+            [tabId]: {
+              ...docHistory,
+              undoStack: newUndoStack,
             },
           },
         };

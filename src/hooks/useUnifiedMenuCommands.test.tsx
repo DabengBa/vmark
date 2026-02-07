@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useUnifiedMenuCommands } from "./useUnifiedMenuCommands";
 import { performWysiwygToolbarAction } from "@/plugins/toolbarActions/wysiwygAdapter";
 import { performSourceToolbarAction } from "@/plugins/toolbarActions/sourceAdapter";
+import { performUnifiedUndo, performUnifiedRedo } from "@/hooks/useUnifiedHistory";
 
 type MenuEventHandler = (event: { payload: string }) => void;
 
@@ -72,10 +73,17 @@ vi.mock("@/plugins/toolbarActions/sourceAdapter", () => ({
   setSourceHeadingLevel: vi.fn(() => true),
 }));
 
+vi.mock("@/hooks/useUnifiedHistory", () => ({
+  performUnifiedUndo: vi.fn(() => true),
+  performUnifiedRedo: vi.fn(() => true),
+}));
+
 vi.mock("@/plugins/actions/actionRegistry", () => ({
   MENU_TO_ACTION: {
     "menu:bold": { actionId: "bold" },
     "menu:italic": { actionId: "italic" },
+    "menu:undo": { actionId: "undo" },
+    "menu:redo": { actionId: "redo" },
   },
   ACTION_DEFINITIONS: {
     bold: {
@@ -88,6 +96,18 @@ vi.mock("@/plugins/actions/actionRegistry", () => ({
       id: "italic",
       label: "Italic",
       category: "formatting",
+      supports: { wysiwyg: true, source: true },
+    },
+    undo: {
+      id: "undo",
+      label: "Undo",
+      category: "edit",
+      supports: { wysiwyg: true, source: true },
+    },
+    redo: {
+      id: "redo",
+      label: "Redo",
+      category: "edit",
       supports: { wysiwyg: true, source: true },
     },
   },
@@ -138,6 +158,34 @@ describe("useUnifiedMenuCommands", () => {
       expect.objectContaining({ surface: "source" })
     );
     expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("routes undo through unified history, not adapters", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:undo")).toBe(true));
+
+    listeners.get("menu:undo")?.({ payload: "main" });
+
+    expect(performUnifiedUndo).toHaveBeenCalledWith("main");
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("routes redo through unified history, not adapters", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:redo")).toBe(true));
+
+    listeners.get("menu:redo")?.({ payload: "main" });
+
+    expect(performUnifiedRedo).toHaveBeenCalledWith("main");
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
   });
 
   it("blocks actions that are unsupported for the current mode", async () => {

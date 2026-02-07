@@ -158,20 +158,19 @@ function restoreFromCheckpoint(
   const editorStore = useEditorStore.getState();
 
   historyStore.setRestoring(true);
-  documentStore.setContent(tabId, checkpoint.markdown);
-
-  if (checkpoint.cursorInfo) {
+  try {
+    documentStore.setContent(tabId, checkpoint.markdown);
     documentStore.setCursorInfo(tabId, checkpoint.cursorInfo);
-  }
 
-  // Switch mode if checkpoint was from different mode
-  if (checkpoint.mode !== currentMode) {
-    editorStore.toggleSourceMode();
+    // Switch mode if checkpoint was from different mode
+    if (checkpoint.mode !== currentMode) {
+      editorStore.toggleSourceMode();
+    }
+  } finally {
+    queueMicrotask(() => {
+      historyStore.setRestoring(false);
+    });
   }
-
-  requestAnimationFrame(() => {
-    historyStore.setRestoring(false);
-  });
 }
 
 /**
@@ -197,9 +196,8 @@ export function clearAllHistory(): void {
  * Returns true if any undo action was performed.
  */
 export function performUnifiedUndo(windowLabel: string): boolean {
-  // First, try native undo
-  if (canNativeUndo()) {
-    doNativeUndo();
+  // First, try native undo (single call avoids TOCTOU gap)
+  if (doNativeUndo()) {
     return true;
   }
 
@@ -243,9 +241,8 @@ export function performUnifiedUndo(windowLabel: string): boolean {
  * Returns true if any redo action was performed.
  */
 export function performUnifiedRedo(windowLabel: string): boolean {
-  // First, try native redo
-  if (canNativeRedo()) {
-    doNativeRedo();
+  // First, try native redo (single call avoids TOCTOU gap)
+  if (doNativeRedo()) {
     return true;
   }
 
@@ -266,15 +263,16 @@ export function performUnifiedRedo(windowLabel: string): boolean {
   const editorStore = useEditorStore.getState();
   const currentMode = editorStore.sourceMode ? "source" : "wysiwyg";
 
-  // Save current state to undo stack before restoring
-  historyStore.createCheckpoint(tabId, {
+  // Pop redo checkpoint first (before pushing to undo, which doesn't clear redo)
+  const checkpoint = historyStore.popRedo(tabId);
+  if (!checkpoint) return false;
+
+  // Save current state to undo stack (preserving remaining redo stack)
+  historyStore.pushUndo(tabId, {
     markdown: doc.content,
     mode: currentMode,
     cursorInfo: doc.cursorInfo ?? null,
   });
-
-  const checkpoint = historyStore.popRedo(tabId);
-  if (!checkpoint) return false;
 
   restoreFromCheckpoint(tabId, checkpoint, currentMode);
   return true;
