@@ -1,8 +1,8 @@
 ---
 name: translate
-description: Translate text to English
+description: Translate to English
 scope: selection
-category: general
+category: tools
 icon: languages
 ---
 

@@ -2,7 +2,7 @@
 name: summarize
 description: Summarize the document
 scope: document
-category: general
+category: structure
 icon: file-text
 ---
 

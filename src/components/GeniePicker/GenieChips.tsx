@@ -7,10 +7,10 @@
 import type { GenieDefinition } from "@/types/aiGenies";
 
 const QUICK_ACTIONS = [
-  { label: "Improve", genieName: "improve-writing" },
-  { label: "Shorten", genieName: "shorten-text" },
-  { label: "Fix Grammar", genieName: "fix-grammar" },
-  { label: "Tone", genieName: "change-tone" },
+  { label: "Polish", genieName: "polish" },
+  { label: "Condense", genieName: "condense" },
+  { label: "Grammar", genieName: "fix-grammar" },
+  { label: "Rephrase", genieName: "rephrase" },
 ];
 
 interface GenieChipsProps {

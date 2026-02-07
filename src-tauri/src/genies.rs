@@ -334,37 +334,61 @@ struct DefaultGenie {
 }
 
 const DEFAULT_GENIES: &[DefaultGenie] = &[
+    // Editing
     DefaultGenie {
-        path: "writing/improve-writing.md",
-        content: include_str!("../resources/prompts/writing/improve-writing.md"),
+        path: "editing/polish.md",
+        content: include_str!("../resources/prompts/editing/polish.md"),
     },
     DefaultGenie {
-        path: "writing/shorten-text.md",
-        content: include_str!("../resources/prompts/writing/shorten-text.md"),
+        path: "editing/condense.md",
+        content: include_str!("../resources/prompts/editing/condense.md"),
     },
     DefaultGenie {
-        path: "writing/fix-grammar.md",
-        content: include_str!("../resources/prompts/writing/fix-grammar.md"),
+        path: "editing/fix-grammar.md",
+        content: include_str!("../resources/prompts/editing/fix-grammar.md"),
     },
     DefaultGenie {
-        path: "writing/change-tone.md",
-        content: include_str!("../resources/prompts/writing/change-tone.md"),
+        path: "editing/simplify.md",
+        content: include_str!("../resources/prompts/editing/simplify.md"),
+    },
+    // Creative
+    DefaultGenie {
+        path: "creative/expand.md",
+        content: include_str!("../resources/prompts/creative/expand.md"),
     },
     DefaultGenie {
-        path: "coding/explain-code.md",
-        content: include_str!("../resources/prompts/coding/explain-code.md"),
+        path: "creative/rephrase.md",
+        content: include_str!("../resources/prompts/creative/rephrase.md"),
     },
     DefaultGenie {
-        path: "coding/add-comments.md",
-        content: include_str!("../resources/prompts/coding/add-comments.md"),
+        path: "creative/vivid.md",
+        content: include_str!("../resources/prompts/creative/vivid.md"),
     },
     DefaultGenie {
-        path: "general/summarize.md",
-        content: include_str!("../resources/prompts/general/summarize.md"),
+        path: "creative/continue.md",
+        content: include_str!("../resources/prompts/creative/continue.md"),
+    },
+    // Structure
+    DefaultGenie {
+        path: "structure/summarize.md",
+        content: include_str!("../resources/prompts/structure/summarize.md"),
     },
     DefaultGenie {
-        path: "general/translate.md",
-        content: include_str!("../resources/prompts/general/translate.md"),
+        path: "structure/outline.md",
+        content: include_str!("../resources/prompts/structure/outline.md"),
+    },
+    DefaultGenie {
+        path: "structure/headline.md",
+        content: include_str!("../resources/prompts/structure/headline.md"),
+    },
+    // Tools
+    DefaultGenie {
+        path: "tools/translate.md",
+        content: include_str!("../resources/prompts/tools/translate.md"),
+    },
+    DefaultGenie {
+        path: "tools/rewrite-in-english.md",
+        content: include_str!("../resources/prompts/tools/rewrite-in-english.md"),
     },
 ];
 

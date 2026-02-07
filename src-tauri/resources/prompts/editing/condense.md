@@ -1,8 +1,8 @@
 ---
-name: shorten-text
+name: condense
 description: Make text more concise
 scope: selection
-category: writing
+category: editing
 icon: scissors
 ---
 
