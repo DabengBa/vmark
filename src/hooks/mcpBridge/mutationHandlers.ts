@@ -8,6 +8,7 @@ import {
   respond,
   getEditor,
   isAutoApproveEnabled,
+  getActiveTabId,
   findTextMatches,
   resolveNodeId,
   getTextRange,
@@ -211,6 +212,7 @@ export async function handleBatchEdit(
       for (const { op, resolved } of resolvedOps) {
         if (op.type === "insert" && typeof op.content === "string" && resolved) {
           const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+            tabId: getActiveTabId(),
             type: "insert",
             from: resolved.from,
             to: resolved.to,
@@ -221,6 +223,7 @@ export async function handleBatchEdit(
           // Get the text content range (inside the block, excluding structural tokens)
           const textRange = getTextRange(editor, resolved.from, resolved.to);
           const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+            tabId: getActiveTabId(),
             type: "replace",
             from: textRange.from,
             to: textRange.to,
@@ -230,6 +233,7 @@ export async function handleBatchEdit(
           suggestionIds.push(suggestionId);
         } else if (op.type === "delete" && resolved) {
           const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+            tabId: getActiveTabId(),
             type: "delete",
             from: resolved.from,
             to: resolved.to,
@@ -522,6 +526,7 @@ export async function handleApplyDiff(
 
       for (const match of matchesToProcess) {
         const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+          tabId: getActiveTabId(),
           type: "replace",
           from: match.from,
           to: match.to,
@@ -725,6 +730,7 @@ export async function handleReplaceAnchored(
     // For suggest mode, create suggestion
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "replace",
         from: match.from,
         to: match.to,

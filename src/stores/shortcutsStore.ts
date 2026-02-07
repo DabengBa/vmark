@@ -101,6 +101,7 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   { id: "copyAsHTML", label: "Copy as HTML", category: "editing", defaultKey: "Mod-Shift-c", menuId: "copy-html" },
   { id: "pastePlainText", label: "Paste as Plain Text", category: "editing", defaultKey: "Mod-Shift-v", description: "Paste without formatting in WYSIWYG" },
   { id: "toggleComment", label: "Toggle Comment", category: "editing", defaultKey: "Mod-/", description: "Insert HTML comment <!-- -->" },
+  { id: "aiPrompts", label: "AI Genies", category: "editing", defaultKey: "Mod-y", menuId: "search-genies", scope: "global", description: "Open AI genie picker" },
 
   // === Line Operations ===
   { id: "moveLineUp", label: "Move Line Up", category: "editing", defaultKey: "Alt-Up", menuId: "move-line-up" },
@@ -359,6 +360,9 @@ async function syncMenuShortcuts(shortcuts: Record<string, string>) {
       }
     }
     await invoke("rebuild_menu", { shortcuts: menuShortcuts });
+
+    // rebuild_menu resets the Genies submenu to a placeholder — re-populate it
+    await invoke("refresh_genies_menu");
   } catch (e) {
     // Menu rebuild may fail if command not yet implemented
     console.warn("Failed to sync menu shortcuts:", e);

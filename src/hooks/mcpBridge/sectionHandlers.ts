@@ -5,7 +5,7 @@
  */
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { respond, getEditor, isAutoApproveEnabled } from "./utils";
+import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 
@@ -189,6 +189,7 @@ export async function handleSectionUpdate(
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       const originalContent = editor.state.doc.textBetween(contentStart, section.to);
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "replace",
         from: contentStart,
         to: section.to,
@@ -315,6 +316,7 @@ export async function handleSectionInsert(
     // For suggest mode or non-auto-approve, create suggestion
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "insert",
         from: insertPos,
         to: insertPos,
@@ -451,6 +453,7 @@ export async function handleSectionMove(
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       // Create delete + insert suggestions
       const deleteId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "delete",
         from: sectionRange.from,
         to: sectionRange.to,
@@ -459,6 +462,7 @@ export async function handleSectionMove(
 
       // Note: This is a simplification - proper move would need atomic handling
       const insertId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "insert",
         from: targetPos,
         to: targetPos,

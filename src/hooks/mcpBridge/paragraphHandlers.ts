@@ -5,7 +5,7 @@
  */
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { respond, getEditor, isAutoApproveEnabled } from "./utils";
+import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 
@@ -280,6 +280,7 @@ export async function handleParagraphWrite(
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       const suggestionType = operation === "delete" ? "delete" : from === to ? "insert" : "replace";
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: suggestionType,
         from,
         to,

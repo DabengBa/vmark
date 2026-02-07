@@ -9,7 +9,7 @@
 
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
-import { respond, getEditor, isAutoApproveEnabled } from "./utils";
+import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
 
 /**
  * Check if the editor document is empty.
@@ -112,6 +112,7 @@ export async function handleInsertAtCursorWithSuggestion(
     // Create suggestion WITHOUT modifying the document
     // Content will be shown as ghost text decoration
     const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+      tabId: getActiveTabId(),
       type: "insert",
       from: insertPos,
       to: insertPos, // Same position - insert point
@@ -184,6 +185,7 @@ export async function handleInsertAtPositionWithSuggestion(
 
     // Create suggestion WITHOUT modifying the document
     const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+      tabId: getActiveTabId(),
       type: "insert",
       from: position,
       to: position,
@@ -290,6 +292,7 @@ export async function handleDocumentReplaceWithSuggestion(
 
     for (const match of reversedMatches) {
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "replace",
         from: match.from,
         to: match.to,
@@ -364,6 +367,7 @@ export async function handleSelectionReplaceWithSuggestion(
     // Create suggestion WITHOUT modifying the document
     // Original content shown with strikethrough, new content as ghost text
     const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+      tabId: getActiveTabId(),
       type: "replace",
       from,
       to,
@@ -424,6 +428,7 @@ export async function handleSelectionDeleteWithSuggestion(id: string): Promise<v
 
     // Create suggestion - content shown with strikethrough decoration
     const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+      tabId: getActiveTabId(),
       type: "delete",
       from,
       to,

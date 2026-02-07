@@ -21,6 +21,8 @@ export const AI_SUGGESTION_EVENTS = {
 export interface AiSuggestion {
   /** Unique identifier for this suggestion */
   id: string;
+  /** Tab that owns this suggestion */
+  tabId: string;
   /** Type of modification */
   type: SuggestionType;
   /** Start position in document */

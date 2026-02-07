@@ -19,6 +19,7 @@ vi.mock("./utils", () => ({
   respond: vi.fn(),
   getEditor: vi.fn(),
   isAutoApproveEnabled: vi.fn(() => false),
+  getActiveTabId: vi.fn(() => "test-tab"),
 }));
 
 // Mock aiSuggestionStore
@@ -167,6 +168,7 @@ describe("suggestionHandlers", () => {
       await handleInsertAtCursorWithSuggestion("req-1", { text: "inserted text" });
 
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "insert",
         from: 5,
         to: 5,
@@ -242,6 +244,7 @@ describe("suggestionHandlers", () => {
       await handleInsertAtPositionWithSuggestion("req-1", { text: "new text", position: 10 });
 
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "insert",
         from: 10,
         to: 10,
@@ -322,6 +325,7 @@ describe("suggestionHandlers", () => {
       });
 
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "replace",
         from: 0,
         to: 5,
@@ -410,6 +414,7 @@ describe("suggestionHandlers", () => {
       await handleSelectionReplaceWithSuggestion("req-1", { text: "hi" });
 
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "replace",
         from: 0,
         to: 5,
@@ -469,6 +474,7 @@ describe("suggestionHandlers", () => {
 
       // Should create an insert suggestion, not replace
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "insert",
         from: 5,
         to: 5,
@@ -494,6 +500,7 @@ describe("suggestionHandlers", () => {
       await handleSelectionDeleteWithSuggestion("req-1");
 
       expect(addSuggestion).toHaveBeenCalledWith({
+        tabId: "test-tab",
         type: "delete",
         from: 0,
         to: 5,

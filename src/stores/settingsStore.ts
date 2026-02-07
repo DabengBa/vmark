@@ -199,6 +199,7 @@ export interface TerminalSettings {
 export interface AdvancedSettingsState {
   mcpServer: McpServerSettings;
   customLinkProtocols: string[]; // Custom URL protocols to recognize (e.g., "obsidian", "vscode")
+  enableGenies: boolean; // Enable AI Genies feature (default: false, dev-only)
 }
 
 export interface MarkdownSettings {
@@ -401,6 +402,7 @@ const initialState: SettingsState = {
       toolMode: "writer", // Default to writer mode (~15 focused tools)
     },
     customLinkProtocols: ["obsidian", "vscode", "dict", "x-dictionary"],
+    enableGenies: false,
   },
   update: {
     autoCheckEnabled: true,

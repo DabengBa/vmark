@@ -30,6 +30,9 @@ import { getInitialFocusIndex } from "./toolbarFocus";
 import { getNextFocusableIndex, getPrevFocusableIndex } from "./toolbarNavigation";
 import { GroupDropdown } from "./GroupDropdown";
 import { toast } from "sonner";
+import { icons } from "@/utils/icons";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import "./universal-toolbar.css";
 
 /**
@@ -49,6 +52,7 @@ export function UniversalToolbar() {
   const wysiwygEditor = useTiptapEditorStore((state) => state.editor);
   const sourceContext = useSourceCursorContextStore((state) => state.context);
   const sourceView = useSourceCursorContextStore((state) => state.editorView);
+  const enableGenies = useSettingsStore((s) => s.advanced.enableGenies);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
@@ -464,6 +468,26 @@ export function UniversalToolbar() {
           })()}
         </div>
       ))}
+
+      {/* AI Prompts button (only when Genies feature is enabled) */}
+      {enableGenies && (
+        <>
+          <div className="universal-toolbar-divider" />
+          <button
+            type="button"
+            className="universal-toolbar-btn"
+            title="AI Prompts (⌘Y)"
+            aria-label="AI Prompts"
+            tabIndex={-1}
+            onClick={() => useGeniePickerStore.getState().openPicker({ filterScope: "selection" })}
+          >
+            <span
+              className="universal-toolbar-icon"
+              dangerouslySetInnerHTML={{ __html: icons.sparkles }}
+            />
+          </button>
+        </>
+      )}
 
       {menuOpen && menuAnchor && openGroup && (
         <GroupDropdown

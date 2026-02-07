@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTabStore } from "@/stores/tabStore";
 import { serializeMarkdown } from "@/utils/markdownPipeline";
 import type { McpResponse } from "./types";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -51,6 +52,13 @@ export function resolveWindowId(windowId: string | undefined): string {
     return "main";
   }
   return windowId ?? "main";
+}
+
+/**
+ * Get the active tab ID for the given window (defaults to "main").
+ */
+export function getActiveTabId(windowLabel = "main"): string {
+  return useTabStore.getState().activeTabId[windowLabel] ?? "unknown";
 }
 
 /**

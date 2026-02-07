@@ -5,6 +5,7 @@ use tauri::AppHandle;
 
 pub const RECENT_FILES_SUBMENU_ID: &str = "recent-files-submenu";
 pub const RECENT_WORKSPACES_SUBMENU_ID: &str = "recent-workspaces-submenu";
+pub const GENIES_SUBMENU_ID: &str = "genies-submenu";
 
 /// Stores the recent files list snapshot at menu build time.
 /// This ensures that when a menu item is clicked, we can look up
@@ -13,6 +14,10 @@ static RECENT_FILES_SNAPSHOT: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Stores the recent workspaces list snapshot at menu build time.
 static RECENT_WORKSPACES_SNAPSHOT: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Stores genie file paths for lookup when a genie menu item is clicked.
+/// Index corresponds to `genie-item-{index}` menu item IDs.
+static GENIES_SNAPSHOT: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Get the path for a recent file by its menu index.
 /// Returns None if index is out of bounds.
@@ -30,6 +35,15 @@ pub fn get_recent_workspace_path(index: usize) -> Option<String> {
         .lock()
         .ok()
         .and_then(|workspaces| workspaces.get(index).cloned())
+}
+
+/// Get the file path for a genie by its menu index.
+/// Returns None if index is out of bounds.
+pub fn get_genie_path(index: usize) -> Option<String> {
+    GENIES_SNAPSHOT
+        .lock()
+        .ok()
+        .and_then(|paths| paths.get(index).cloned())
 }
 
 // ============================================================================
@@ -678,6 +692,193 @@ pub fn update_recent_workspaces_menu(app: &AppHandle, workspaces: Vec<String>) -
 #[tauri::command]
 pub fn update_recent_workspaces(app: AppHandle, workspaces: Vec<String>) -> Result<(), String> {
     update_recent_workspaces_menu(&app, workspaces).map_err(|e| e.to_string())
+}
+
+/// Find the Edit submenu from the top-level menu.
+fn find_edit_submenu(menu: &Menu<tauri::Wry>) -> Option<Submenu<tauri::Wry>> {
+    for item in menu.items().ok()? {
+        if let MenuItemKind::Submenu(top) = item {
+            if top.text().ok().as_deref() == Some("Edit") {
+                return Some(top);
+            }
+        }
+    }
+    None
+}
+
+/// Find the Genies submenu inside a parent submenu by ID.
+fn find_genies_submenu(parent: &Submenu<tauri::Wry>) -> Option<Submenu<tauri::Wry>> {
+    if let Some(MenuItemKind::Submenu(found)) = parent.get(GENIES_SUBMENU_ID) {
+        return Some(found);
+    }
+    None
+}
+
+/// Refresh the Genies submenu by scanning global and workspace prompt directories.
+/// Called by frontend on mount and when workspace changes.
+/// Creates the submenu dynamically inside Edit if it doesn't already exist.
+#[tauri::command]
+pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
+    use crate::genies;
+
+    let global_dir = genies::global_genies_dir(&app)?;
+    let global_entries = if global_dir.is_dir() {
+        genies::scan_genies_with_titles(&global_dir)
+    } else {
+        Vec::new()
+    };
+
+    let mut snapshot: Vec<String> = Vec::new();
+
+    let menu = app.menu().ok_or("No menu")?;
+    let edit_menu = find_edit_submenu(&menu).ok_or("Edit menu not found")?;
+
+    // Find or create the Genies submenu
+    let submenu = if let Some(existing) = find_genies_submenu(&edit_menu) {
+        // Clear existing items
+        while let Some(item) = existing.items().map_err(|e| e.to_string())?.first() {
+            existing.remove(item).map_err(|e| e.to_string())?;
+        }
+        existing
+    } else {
+        // Create new submenu and append to Edit
+        let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+        edit_menu.append(&sep).map_err(|e| e.to_string())?;
+        let new_sub = Submenu::with_id_and_items(
+            &app,
+            GENIES_SUBMENU_ID,
+            "Genies",
+            true,
+            &[],
+        ).map_err(|e| e.to_string())?;
+        edit_menu.append(&new_sub).map_err(|e| e.to_string())?;
+        new_sub
+    };
+
+    // "Search Genies…" at top — opens the picker (Cmd+Y)
+    let search_item = MenuItem::with_id(&app, "search-genies", "Search Genies…", true, Some("CmdOrCtrl+Y"))
+        .map_err(|e| e.to_string())?;
+    submenu.append(&search_item).map_err(|e| e.to_string())?;
+    let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    submenu.append(&sep).map_err(|e| e.to_string())?;
+
+    if global_entries.is_empty() {
+        let no_genies = MenuItem::with_id(&app, "no-genies", "No Genies", false, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        submenu.append(&no_genies).map_err(|e| e.to_string())?;
+    } else {
+        append_genie_entries(&app, &submenu, &global_entries, &mut snapshot)?;
+    }
+
+    // Separator before folder action
+    let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    submenu.append(&sep).map_err(|e| e.to_string())?;
+
+    // Reload Genies
+    let reload = MenuItem::with_id(&app, "reload-genies", "Reload Genies", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    submenu.append(&reload).map_err(|e| e.to_string())?;
+
+    // Open Genies Folder
+    let open_folder = MenuItem::with_id(&app, "open-genies-folder", "Open Genies Folder", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    submenu.append(&open_folder).map_err(|e| e.to_string())?;
+
+    // Update snapshot
+    if let Ok(mut s) = GENIES_SNAPSHOT.lock() {
+        *s = snapshot;
+    }
+
+    Ok(())
+}
+
+/// Remove the Genies submenu from the Edit menu.
+/// Called when the feature is toggled off (useGenieShortcuts unmounts).
+#[tauri::command]
+pub fn hide_genies_menu(app: AppHandle) -> Result<(), String> {
+    let menu = app.menu().ok_or("No menu")?;
+    let edit_menu = find_edit_submenu(&menu).ok_or("Edit menu not found")?;
+
+    // Find and remove the Genies submenu
+    let was_present = if let Some(genies_sub) = find_genies_submenu(&edit_menu) {
+        edit_menu
+            .remove(&genies_sub)
+            .map_err(|e| e.to_string())?;
+        true
+    } else {
+        false
+    };
+
+    // Remove the separator that refresh_genies_menu prepended before the submenu.
+    // Only attempt this when we actually removed the submenu above, so we never
+    // accidentally strip a real menu item (Cut/Copy/Paste are also Predefined).
+    if was_present {
+        if let Some(last) = edit_menu.items().map_err(|e| e.to_string())?.last() {
+            if matches!(last, MenuItemKind::Predefined(_)) {
+                edit_menu.remove(last).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    // Clear stale snapshot so removed menu items can't resolve genie paths
+    if let Ok(mut s) = GENIES_SNAPSHOT.lock() {
+        s.clear();
+    }
+
+    Ok(())
+}
+
+/// Append genie entries to a submenu: root-level items flat, categorized items as group submenus.
+fn append_genie_entries(
+    app: &AppHandle,
+    parent: &Submenu<tauri::Wry>,
+    entries: &[crate::genies::GenieMenuEntry],
+    snapshot: &mut Vec<String>,
+) -> Result<(), String> {
+    // Separate root-level entries from categorized entries
+    let mut root_entries = Vec::new();
+    let mut groups: HashMap<String, Vec<&crate::genies::GenieMenuEntry>> = HashMap::new();
+
+    for entry in entries {
+        if let Some(ref cat) = entry.category {
+            groups.entry(cat.clone()).or_default().push(entry);
+        } else {
+            root_entries.push(entry);
+        }
+    }
+
+    // Add root-level entries first
+    for entry in &root_entries {
+        let index = snapshot.len();
+        let item_id = format!("genie-item-{}", index);
+        let item = MenuItem::with_id(app, &item_id, &entry.title, true, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        parent.append(&item).map_err(|e| e.to_string())?;
+        snapshot.push(entry.path.clone());
+    }
+
+    // Add group submenus (sorted by name)
+    let mut group_names: Vec<String> = groups.keys().cloned().collect();
+    group_names.sort();
+
+    for group_name in &group_names {
+        let group_entries = &groups[group_name];
+        let group_sub = Submenu::new(app, group_name, true)
+            .map_err(|e| e.to_string())?;
+
+        for entry in group_entries {
+            let index = snapshot.len();
+            let item_id = format!("genie-item-{}", index);
+            let item = MenuItem::with_id(app, &item_id, &entry.title, true, None::<&str>)
+                .map_err(|e| e.to_string())?;
+            group_sub.append(&item).map_err(|e| e.to_string())?;
+            snapshot.push(entry.path.clone());
+        }
+
+        parent.append(&group_sub).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 /// Rebuild the application menu with custom keyboard shortcuts.

@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import { type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { mkdir } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -117,6 +119,20 @@ export function useMenuEvents(): void {
       });
       if (cancelled) { unlistenReportIssue(); return; }
       unlistenRefs.current.push(unlistenReportIssue);
+
+      // Open Genies Folder
+      const unlistenOpenGeniesFolder = await currentWindow.listen<string>("menu:open-genies-folder", async (event) => {
+        if (event.payload !== windowLabel) return;
+        try {
+          const dir = await invoke<string>("get_genies_dir");
+          await mkdir(dir, { recursive: true });
+          await revealItemInDir(dir);
+        } catch (error) {
+          console.error("[Menu] Failed to open genies folder:", error);
+        }
+      });
+      if (cancelled) { unlistenOpenGeniesFolder(); return; }
+      unlistenRefs.current.push(unlistenOpenGeniesFolder);
     };
 
     setupListeners().catch((error) => {

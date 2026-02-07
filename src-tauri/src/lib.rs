@@ -1,3 +1,4 @@
+mod ai_provider;
 mod app_paths;
 mod mcp_bridge;
 mod mcp_config;
@@ -5,6 +6,7 @@ mod mcp_server;
 mod menu;
 mod menu_events;
 mod pdf_export;
+mod genies;
 mod quit;
 mod watcher;
 mod window_manager;
@@ -99,6 +101,8 @@ pub fn run() {
             get_pending_file_opens,
             menu::update_recent_files,
             menu::update_recent_workspaces,
+            menu::refresh_genies_menu,
+            menu::hide_genies_menu,
             menu::rebuild_menu,
             window_manager::new_window,
             window_manager::open_file_in_new_window,
@@ -143,6 +147,11 @@ pub fn run() {
             pdf_export::convert_html_to_pdf,
             pdf_export::convert_html_string_to_pdf,
             get_default_shell,
+            genies::get_genies_dir,
+            genies::list_genies,
+            genies::read_genie,
+            ai_provider::detect_ai_providers,
+            ai_provider::run_ai_prompt,
             #[cfg(debug_assertions)]
             debug_log,
             print_webview,
@@ -166,6 +175,11 @@ pub fn run() {
             // Migrate legacy files from ~/.vmark/ to app data directory
             if let Err(e) = app_paths::migrate_legacy_files(app.handle()) {
                 eprintln!("[Tauri] Warning: Failed to migrate legacy files: {}", e);
+            }
+
+            // Install default AI genies (no-op if already present)
+            if let Err(e) = genies::install_default_genies(app.handle()) {
+                eprintln!("[Tauri] Warning: Failed to install default genies: {}", e);
             }
 
             // Listen for "ready" events from frontend windows

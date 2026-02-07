@@ -3,6 +3,7 @@
  *
  * Manages AI-generated content suggestions that require user approval.
  * Uses CustomEvent pattern for plugin communication (like searchStore).
+ * Suggestions are scoped to their originating tab.
  */
 
 import { create } from "zustand";
@@ -17,6 +18,7 @@ interface AiSuggestionState {
 interface AiSuggestionActions {
   /** Add a new suggestion. Returns the generated ID. */
   addSuggestion: (params: {
+    tabId: string;
     type: SuggestionType;
     from: number;
     to: number;
@@ -55,7 +57,7 @@ interface AiSuggestionActions {
   /** Get suggestion by ID */
   getSuggestion: (id: string) => AiSuggestion | undefined;
 
-  /** Clear all suggestions (used on document change) */
+  /** Clear all suggestions (used on document/tab change) */
   clearAll: () => void;
 }
 
@@ -102,6 +104,7 @@ export const useAiSuggestionStore = create<AiSuggestionState & AiSuggestionActio
       const id = generateSuggestionId();
       const suggestion: AiSuggestion = {
         id,
+        tabId: params.tabId,
         type: params.type,
         from: params.from,
         to: params.to,
@@ -243,3 +246,24 @@ export const useAiSuggestionStore = create<AiSuggestionState & AiSuggestionActio
     },
   })
 );
+
+// Clear suggestions on tab switch to prevent stale suggestions mutating wrong document.
+// Initialized lazily by initSuggestionTabWatcher() to avoid circular imports.
+let _tabWatcherInitialized = false;
+let _prevActiveTabId: string | null = null;
+
+/** Start watching for tab changes. Call once at app startup. */
+export function initSuggestionTabWatcher(
+  tabStoreSubscribe: (cb: (state: { activeTabId: Record<string, string | null> }) => void) => () => void
+): void {
+  if (_tabWatcherInitialized) return;
+  _tabWatcherInitialized = true;
+
+  tabStoreSubscribe((state) => {
+    const currentTabId = state.activeTabId["main"] ?? null;
+    if (_prevActiveTabId !== null && currentTabId !== _prevActiveTabId) {
+      useAiSuggestionStore.getState().clearAll();
+    }
+    _prevActiveTabId = currentTabId;
+  });
+}
