@@ -5,6 +5,7 @@
  */
 
 import type { EditorView } from "@codemirror/view";
+import { splitTableCells, parseTableRow } from "@/utils/tableParser";
 
 /**
  * Table information in source mode.
@@ -32,10 +33,15 @@ export type TableAlignment = "left" | "center" | "right";
 
 /**
  * Check if a line is part of a markdown table.
+ * Requires the line starts with optional whitespace then `|`,
+ * AND has at least two `|` characters (a cell boundary).
  */
-function isTableLine(line: string): boolean {
+export function isTableLine(line: string): boolean {
   const trimmed = line.trim();
-  return trimmed.startsWith("|") || trimmed.includes("|");
+  if (!trimmed.startsWith("|")) return false;
+  // Need at least 2 cells for a valid table row (e.g., "| A |" or "| A | B")
+  const cells = splitTableCells(trimmed.slice(1)); // slice off leading pipe
+  return cells.length >= 2;
 }
 
 /**
@@ -45,16 +51,6 @@ function isSeparatorLine(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed.startsWith("|")) return false;
   return /^\|[\s|:-]+\|?$/.test(trimmed);
-}
-
-/**
- * Parse a table row into cells.
- */
-function parseRow(line: string): string[] {
-  let trimmed = line.trim();
-  if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
-  if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
-  return trimmed.split("|").map((cell) => cell.trim());
 }
 
 /**
@@ -116,15 +112,12 @@ export function getSourceTableInfo(view: EditorView): SourceTableInfo | null {
   // Calculate current row index
   const rowIndex = currentLine.number - startLine;
 
-  // Calculate column index
+  // Calculate column index using splitTableCells (handles escaped pipes + code spans)
   const posInLine = from - currentLine.from;
-  const beforeCursor = currentLineText.slice(0, posInLine);
-  const colIndex =
-    (beforeCursor.match(/\|/g) || []).length -
-    (beforeCursor.startsWith("|") ? 1 : 0);
+  const colIndex = getColIndexAtPosition(currentLineText, posInLine);
 
-  // Get column count from separator line
-  const separatorCells = parseRow(lines[1]);
+  // Get column count from separator line (escape-aware)
+  const separatorCells = parseTableRow(lines[1]);
   const colCount = separatorCells.length;
 
   // Get table start/end positions
@@ -141,6 +134,57 @@ export function getSourceTableInfo(view: EditorView): SourceTableInfo | null {
     colCount,
     lines,
   };
+}
+
+/**
+ * Calculate the column index at a given character position within a table line.
+ * Uses the same escape/code-span logic as splitTableCells.
+ */
+function getColIndexAtPosition(lineText: string, pos: number): number {
+  let col = -1;
+  let escaped = false;
+  let inCode = false;
+  let codeFenceLen = 0;
+
+  for (let i = 0; i < pos && i < lineText.length; i++) {
+    const ch = lineText[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (ch === "`") {
+      let runLen = 1;
+      while (i + runLen < lineText.length && lineText[i + runLen] === "`") {
+        runLen++;
+      }
+
+      if (!inCode) {
+        inCode = true;
+        codeFenceLen = runLen;
+      } else if (runLen === codeFenceLen) {
+        inCode = false;
+        codeFenceLen = 0;
+      }
+
+      i += runLen - 1;
+      continue;
+    }
+
+    if (ch === "|" && !inCode) {
+      col++;
+    }
+  }
+
+  // The leading pipe increments col but isn't a real column boundary,
+  // so col is already correct (first cell = 0 after the leading pipe bump)
+  return Math.max(0, col);
 }
 
 /**

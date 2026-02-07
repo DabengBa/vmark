@@ -6,7 +6,7 @@
 
 import type { EditorView } from "@codemirror/view";
 import { getDisplayWidth, padToWidth } from "@/utils/stringWidth";
-import { parseTableRow } from "@/utils/tableParser";
+import { parseTableRow, splitTableCells } from "@/utils/tableParser";
 import type { SourceTableInfo, TableAlignment } from "./tableDetection";
 
 /**
@@ -47,6 +47,26 @@ function formatAlignmentCell(alignment: TableAlignment, width = 5): string {
 }
 
 /**
+ * Build empty cells matching the widths of existing table columns.
+ * Uses raw (untrimmed) cell content from splitTableCells to match
+ * the actual column display widths in a formatted table.
+ */
+function buildEmptyCells(info: SourceTableInfo): string[] {
+  // Use splitTableCells on raw header to preserve padding widths
+  let rawHeader = info.lines[0].trim();
+  if (rawHeader.startsWith("|")) rawHeader = rawHeader.slice(1);
+  rawHeader = rawHeader.trimEnd();
+  if (rawHeader.endsWith("|") && !rawHeader.endsWith("\\|")) rawHeader = rawHeader.slice(0, -1);
+  const rawCells = splitTableCells(rawHeader);
+
+  return Array.from({ length: info.colCount }, (_, i) => {
+    const cellWidth = i < rawCells.length ? getDisplayWidth(rawCells[i]) : 3;
+    const width = Math.max(3, cellWidth);
+    return padToWidth("", width);
+  });
+}
+
+/**
  * Insert a new row below current position.
  */
 export function insertRowBelow(view: EditorView, info: SourceTableInfo): void {
@@ -54,7 +74,7 @@ export function insertRowBelow(view: EditorView, info: SourceTableInfo): void {
   const currentLineNum = info.startLine + 1 + info.rowIndex;
   const currentLine = doc.line(currentLineNum);
 
-  const cells = Array(info.colCount).fill("     ");
+  const cells = buildEmptyCells(info);
   const newRow = `| ${cells.join(" | ")} |`;
 
   view.dispatch({
@@ -74,7 +94,7 @@ export function insertRowAbove(view: EditorView, info: SourceTableInfo): void {
   // Can't insert above header - insert below separator instead
   if (info.rowIndex === 0) {
     const separatorLine = doc.line(info.startLine + 2);
-    const cells = Array(info.colCount).fill("     ");
+    const cells = buildEmptyCells(info);
     const newRow = `| ${cells.join(" | ")} |`;
     view.dispatch({
       changes: { from: separatorLine.to, insert: `\n${newRow}` },
@@ -87,7 +107,7 @@ export function insertRowAbove(view: EditorView, info: SourceTableInfo): void {
   const currentLineNum = info.startLine + 1 + info.rowIndex;
   const currentLine = doc.line(currentLineNum);
 
-  const cells = Array(info.colCount).fill("     ");
+  const cells = buildEmptyCells(info);
   const newRow = `| ${cells.join(" | ")} |\n`;
 
   view.dispatch({
@@ -151,10 +171,17 @@ export function insertColumnLeft(
 
 /**
  * Delete current row.
+ * If only one data row remains (header + separator + 1 data), deletes entire table.
  */
 export function deleteRow(view: EditorView, info: SourceTableInfo): void {
   // Can't delete header or separator
   if (info.rowIndex <= 1) return;
+
+  // If only header + separator + 1 data row, delete entire table
+  if (info.lines.length <= 3) {
+    deleteTable(view, info);
+    return;
+  }
 
   const doc = view.state.doc;
   const lineNum = info.startLine + 1 + info.rowIndex;
