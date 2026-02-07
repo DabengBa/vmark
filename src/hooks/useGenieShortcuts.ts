@@ -12,6 +12,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useShortcutsStore } from "@/stores/shortcutsStore";
 import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import { useGeniesStore } from "@/stores/geniesStore";
+import { useAiProviderStore } from "@/stores/aiProviderStore";
 import { useTabStore } from "@/stores/tabStore";
 import { initSuggestionTabWatcher } from "@/stores/aiSuggestionStore";
 import { useGenieInvocation } from "@/hooks/useGenieInvocation";
@@ -45,12 +46,13 @@ export function useGenieShortcuts() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Load genies + sync menu on mount; init tab watcher for suggestion scoping
+  // Load genies + sync menu on mount; pre-fill env API keys; init tab watcher
   // On unmount (feature disabled), remove the Genies submenu from the native menu
   useEffect(() => {
     loadAndSyncMenu().catch((e) =>
       console.error("[useGenieShortcuts] Failed to load genies:", e)
     );
+    useAiProviderStore.getState().loadEnvApiKeys();
     initSuggestionTabWatcher(useTabStore.subscribe);
     return () => {
       invoke("hide_genies_menu").catch(() => {});

@@ -139,7 +139,7 @@ export function useGenieInvocation() {
         if (chunk.requestId !== requestId) return;
 
         if (chunk.error) {
-          console.error("AI error:", chunk.error);
+          toast.error(chunk.error);
           cancel();
           return;
         }
@@ -174,7 +174,7 @@ export function useGenieInvocation() {
           endpoint: restConfig?.endpoint ?? null,
         });
       } catch (e) {
-        console.error("Failed to invoke AI genie:", e);
+        toast.error(`Failed to invoke AI genie: ${e}`);
         cancel();
       }
     },
