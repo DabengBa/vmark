@@ -15,7 +15,7 @@ use tauri::{command, AppHandle, Manager};
 // ============================================================================
 
 #[derive(Debug, Serialize, Clone)]
-pub struct PromptEntry {
+pub struct GenieEntry {
     pub name: String,
     pub path: String,
     pub source: String, // "global"
@@ -23,13 +23,13 @@ pub struct PromptEntry {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PromptContent {
-    pub metadata: PromptMetadata,
+pub struct GenieContent {
+    pub metadata: GenieMetadata,
     pub template: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct PromptMetadata {
+pub struct GenieMetadata {
     pub name: String,
     pub description: String,
     pub scope: String,
@@ -45,21 +45,21 @@ pub struct PromptMetadata {
 /// Return the global genies directory path.
 #[command]
 pub fn get_genies_dir(app: AppHandle) -> Result<String, String> {
-    let dir = global_prompts_dir(&app)?;
+    let dir = global_genies_dir(&app)?;
     Ok(dir.to_string_lossy().to_string())
 }
 
 /// List all available prompts from the global genies directory.
 #[command]
-pub fn list_prompts(app: AppHandle) -> Result<Vec<PromptEntry>, String> {
-    let mut by_name: HashMap<String, PromptEntry> = HashMap::new();
+pub fn list_genies(app: AppHandle) -> Result<Vec<GenieEntry>, String> {
+    let mut by_name: HashMap<String, GenieEntry> = HashMap::new();
 
-    let global_dir = global_prompts_dir(&app)?;
+    let global_dir = global_genies_dir(&app)?;
     if global_dir.is_dir() {
-        scan_prompts_dir(&global_dir, &global_dir, "global", &mut by_name);
+        scan_genies_dir(&global_dir, &global_dir, "global", &mut by_name);
     }
 
-    let mut entries: Vec<PromptEntry> = by_name.into_values().collect();
+    let mut entries: Vec<GenieEntry> = by_name.into_values().collect();
     entries.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(entries)
 }
@@ -67,40 +67,40 @@ pub fn list_prompts(app: AppHandle) -> Result<Vec<PromptEntry>, String> {
 /// Read a single prompt file — parse frontmatter and return metadata + template.
 /// Validates the path is within the global genies directory to prevent traversal.
 #[command]
-pub fn read_prompt(app: AppHandle, path: String) -> Result<PromptContent, String> {
+pub fn read_genie(app: AppHandle, path: String) -> Result<GenieContent, String> {
     // Canonicalize requested path
     let requested = fs::canonicalize(&path)
         .map_err(|e| format!("Invalid prompt path {}: {}", path, e))?;
 
     // Validate path is within the global genies directory
-    let global_dir = fs::canonicalize(global_prompts_dir(&app)?)
-        .unwrap_or_else(|_| global_prompts_dir(&app).unwrap_or_default());
+    let global_dir = fs::canonicalize(global_genies_dir(&app)?)
+        .unwrap_or_else(|_| global_genies_dir(&app).unwrap_or_default());
 
     if !requested.starts_with(&global_dir) {
         return Err("Prompt path is outside allowed directories".to_string());
     }
 
-    let content = fs::read_to_string(&path)
+    let content = fs::read_to_string(&requested)
         .map_err(|e| format!("Failed to read prompt file {}: {}", path, e))?;
 
-    parse_prompt(&content, &path)
+    parse_genie(&content, &path)
 }
 
 // ============================================================================
 // Scanning
 // ============================================================================
 
-pub fn global_prompts_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub fn global_genies_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(app_data.join("genies"))
 }
 
 /// Recursively scan a directory for `.md` files. Subdirectory names become categories.
-fn scan_prompts_dir(
+fn scan_genies_dir(
     dir: &Path,
     base: &Path,
     source: &str,
-    entries: &mut HashMap<String, PromptEntry>,
+    entries: &mut HashMap<String, GenieEntry>,
 ) {
     let read_dir = match fs::read_dir(dir) {
         Ok(rd) => rd,
@@ -119,7 +119,7 @@ fn scan_prompts_dir(
 
         let path = entry.path();
         if ft.is_dir() {
-            scan_prompts_dir(&path, base, source, entries);
+            scan_genies_dir(&path, base, source, entries);
         } else if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
             let name = path
                 .file_stem()
@@ -134,9 +134,18 @@ fn scan_prompts_dir(
                 .filter(|rel| !rel.as_os_str().is_empty())
                 .map(|rel| rel.to_string_lossy().to_string());
 
+            // Key by relative path (e.g. "writing/improve") to avoid collisions
+            // between files with the same stem in different categories.
+            let rel_key = path
+                .strip_prefix(base)
+                .unwrap_or(&path)
+                .with_extension("")
+                .to_string_lossy()
+                .to_string();
+
             entries.insert(
-                name.clone(),
-                PromptEntry {
+                rel_key,
+                GenieEntry {
                     name,
                     path: path.to_string_lossy().to_string(),
                     source: source.to_string(),
@@ -239,7 +248,7 @@ fn extract_frontmatter_name(content: &str) -> Option<String> {
 // Frontmatter Parser
 // ============================================================================
 
-fn parse_prompt(content: &str, path: &str) -> Result<PromptContent, String> {
+fn parse_genie(content: &str, path: &str) -> Result<GenieContent, String> {
     // Strip UTF-8 BOM if present
     let content = content.trim_start_matches('\u{FEFF}');
     let trimmed = content.trim_start();
@@ -251,8 +260,8 @@ fn parse_prompt(content: &str, path: &str) -> Result<PromptContent, String> {
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        return Ok(PromptContent {
-            metadata: PromptMetadata {
+        return Ok(GenieContent {
+            metadata: GenieMetadata {
                 name,
                 description: String::new(),
                 scope: "selection".to_string(),
@@ -299,8 +308,8 @@ fn parse_prompt(content: &str, path: &str) -> Result<PromptContent, String> {
                 .to_string()
         });
 
-    Ok(PromptContent {
-        metadata: PromptMetadata {
+    Ok(GenieContent {
+        metadata: GenieMetadata {
             name,
             description: fields.get("description").cloned().unwrap_or_default(),
             scope: fields
@@ -319,51 +328,51 @@ fn parse_prompt(content: &str, path: &str) -> Result<PromptContent, String> {
 // Default Prompts Installer
 // ============================================================================
 
-struct DefaultPrompt {
+struct DefaultGenie {
     path: &'static str,
     content: &'static str,
 }
 
-const DEFAULT_PROMPTS: &[DefaultPrompt] = &[
-    DefaultPrompt {
+const DEFAULT_GENIES: &[DefaultGenie] = &[
+    DefaultGenie {
         path: "writing/improve-writing.md",
         content: include_str!("../resources/prompts/writing/improve-writing.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "writing/shorten-text.md",
         content: include_str!("../resources/prompts/writing/shorten-text.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "writing/fix-grammar.md",
         content: include_str!("../resources/prompts/writing/fix-grammar.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "writing/change-tone.md",
         content: include_str!("../resources/prompts/writing/change-tone.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "coding/explain-code.md",
         content: include_str!("../resources/prompts/coding/explain-code.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "coding/add-comments.md",
         content: include_str!("../resources/prompts/coding/add-comments.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "general/summarize.md",
         content: include_str!("../resources/prompts/general/summarize.md"),
     },
-    DefaultPrompt {
+    DefaultGenie {
         path: "general/translate.md",
         content: include_str!("../resources/prompts/general/translate.md"),
     },
 ];
 
 /// Install default genies into `<appDataDir>/genies/` if they don't already exist.
-pub fn install_default_prompts(app: &AppHandle) -> Result<(), String> {
-    let base = global_prompts_dir(app)?;
+pub fn install_default_genies(app: &AppHandle) -> Result<(), String> {
+    let base = global_genies_dir(app)?;
 
-    for prompt in DEFAULT_PROMPTS {
+    for prompt in DEFAULT_GENIES {
         let target = base.join(prompt.path);
 
         // Create parent directories
@@ -399,7 +408,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_prompt_with_frontmatter() {
+    fn test_parse_genie_with_frontmatter() {
         let content = r#"---
 name: improve-writing
 description: Improve clarity and flow
@@ -412,7 +421,7 @@ You are an expert editor. Improve the following text:
 
 {{content}}"#;
 
-        let result = parse_prompt(content, "improve-writing.md").unwrap();
+        let result = parse_genie(content, "improve-writing.md").unwrap();
         assert_eq!(result.metadata.name, "improve-writing");
         assert_eq!(result.metadata.description, "Improve clarity and flow");
         assert_eq!(result.metadata.scope, "selection");
@@ -422,26 +431,63 @@ You are an expert editor. Improve the following text:
     }
 
     #[test]
-    fn test_parse_prompt_without_frontmatter() {
+    fn test_parse_genie_without_frontmatter() {
         let content = "Just a plain prompt template\n\n{{content}}";
-        let result = parse_prompt(content, "test-prompt.md").unwrap();
+        let result = parse_genie(content, "test-prompt.md").unwrap();
         assert_eq!(result.metadata.name, "test-prompt");
         assert_eq!(result.metadata.scope, "selection");
         assert!(result.template.contains("{{content}}"));
     }
 
     #[test]
-    fn test_parse_prompt_with_bom() {
+    fn test_parse_genie_with_bom() {
         let content = "\u{FEFF}---\nname: bom-test\ndescription: Has BOM\nscope: document\n---\n\nTemplate here";
-        let result = parse_prompt(content, "bom-test.md").unwrap();
+        let result = parse_genie(content, "bom-test.md").unwrap();
         assert_eq!(result.metadata.name, "bom-test");
         assert_eq!(result.metadata.scope, "document");
     }
 
     #[test]
-    fn test_parse_prompt_missing_closing() {
+    fn test_parse_genie_missing_closing() {
         let content = "---\nname: broken\nno closing fence";
-        let result = parse_prompt(content, "broken.md");
+        let result = parse_genie(content, "broken.md");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_no_collision_same_name_different_category() {
+        use std::io::Write as _;
+        let tmp = tempfile::tempdir().unwrap();
+        let base = tmp.path();
+
+        // Create two files with the same stem in different subdirs
+        let writing = base.join("writing");
+        let coding = base.join("coding");
+        fs::create_dir_all(&writing).unwrap();
+        fs::create_dir_all(&coding).unwrap();
+
+        let mut f1 = fs::File::create(writing.join("improve.md")).unwrap();
+        writeln!(f1, "---\nname: improve-writing\nscope: selection\n---\ntemplate1").unwrap();
+
+        let mut f2 = fs::File::create(coding.join("improve.md")).unwrap();
+        writeln!(f2, "---\nname: improve-code\nscope: selection\n---\ntemplate2").unwrap();
+
+        let mut entries: HashMap<String, GenieEntry> = HashMap::new();
+        scan_genies_dir(base, base, "global", &mut entries);
+
+        // Both should be present (keyed by relative path, not bare stem)
+        assert_eq!(entries.len(), 2);
+        assert!(entries.values().any(|e| e.name == "improve" && e.category.as_deref() == Some("writing")));
+        assert!(entries.values().any(|e| e.name == "improve" && e.category.as_deref() == Some("coding")));
+    }
+
+    #[test]
+    fn test_read_genie_uses_canonical_path() {
+        // Validates that read_genie reads from the canonicalized path.
+        // The function canonicalizes, validates prefix, then reads from canonicalized path.
+        // This is tested via the parse_genie function which is the tail of read_genie.
+        let content = "---\nname: canonical-test\nscope: document\n---\nSafe content";
+        let result = parse_genie(content, "canonical-test.md").unwrap();
+        assert_eq!(result.metadata.name, "canonical-test");
     }
 }

@@ -1,27 +1,27 @@
 /**
- * AI Prompts Types
+ * AI Genies Types
  *
- * Core types for the AI prompts system — prompt definitions,
+ * Core types for the AI genies system — genie definitions,
  * provider configuration, and streaming response chunks.
  */
 
 // ============================================================================
-// Prompt Types
+// Genie Types
 // ============================================================================
 
-export type PromptScope = "selection" | "block" | "document";
+export type GenieScope = "selection" | "block" | "document";
 
-export interface PromptMetadata {
+export interface GenieMetadata {
   name: string;
   description: string;
-  scope: PromptScope;
+  scope: GenieScope;
   category?: string;
   icon?: string;
   model?: string;
 }
 
-export interface PromptDefinition {
-  metadata: PromptMetadata;
+export interface GenieDefinition {
+  metadata: GenieMetadata;
   template: string;
   filePath: string;
   source: "global";

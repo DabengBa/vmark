@@ -14,7 +14,7 @@ import type {
   RestProviderConfig,
   ProviderType,
   RestProviderType,
-} from "@/types/aiPrompts";
+} from "@/types/aiGenies";
 
 // ============================================================================
 // Types
@@ -29,6 +29,8 @@ interface AiProviderState {
 
 interface AiProviderActions {
   detectProviders(): Promise<void>;
+  /** Ensure a provider is available. Auto-detects if none set. Returns true if ready. */
+  ensureProvider(): Promise<boolean>;
   setActiveProvider(type: ProviderType): void;
   updateRestProvider(
     type: RestProviderType,
@@ -146,6 +148,12 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
             set({ detecting: false });
           }
         }
+      },
+
+      ensureProvider: async () => {
+        if (get().activeProvider) return true;
+        await get().detectProviders();
+        return get().activeProvider !== null;
       },
 
       setActiveProvider: (type) => {

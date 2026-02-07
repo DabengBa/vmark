@@ -9,7 +9,7 @@
  */
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { respond, getEditor, isAutoApproveEnabled } from "./utils";
+import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 
@@ -207,6 +207,7 @@ export async function handleSmartInsert(
     // For suggest mode or non-auto-approve, create suggestion
     if (mode === "suggest" || !isAutoApproveEnabled()) {
       const suggestionId = useAiSuggestionStore.getState().addSuggestion({
+        tabId: getActiveTabId(),
         type: "insert",
         from: insertPos,
         to: insertPos,

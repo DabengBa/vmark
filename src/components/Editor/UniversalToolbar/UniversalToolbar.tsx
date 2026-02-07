@@ -31,7 +31,7 @@ import { getNextFocusableIndex, getPrevFocusableIndex } from "./toolbarNavigatio
 import { GroupDropdown } from "./GroupDropdown";
 import { toast } from "sonner";
 import { icons } from "@/utils/icons";
-import { usePromptPickerStore } from "@/stores/promptPickerStore";
+import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import "./universal-toolbar.css";
 
 /**
@@ -475,7 +475,7 @@ export function UniversalToolbar() {
         title="AI Prompts (⌘Y)"
         aria-label="AI Prompts"
         tabIndex={-1}
-        onClick={() => usePromptPickerStore.getState().openPicker({ filterScope: "selection" })}
+        onClick={() => useGeniePickerStore.getState().openPicker({ filterScope: "selection" })}
       >
         <span
           className="universal-toolbar-icon"

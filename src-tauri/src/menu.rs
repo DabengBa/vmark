@@ -710,11 +710,11 @@ pub fn update_recent_workspaces(app: AppHandle, workspaces: Vec<String>) -> Resu
 /// Called by frontend on mount and when workspace changes.
 #[tauri::command]
 pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
-    use crate::prompts;
+    use crate::genies;
 
-    let global_dir = prompts::global_prompts_dir(&app)?;
+    let global_dir = genies::global_genies_dir(&app)?;
     let global_entries = if global_dir.is_dir() {
-        prompts::scan_genies_with_titles(&global_dir)
+        genies::scan_genies_with_titles(&global_dir)
     } else {
         Vec::new()
     };
@@ -742,7 +742,7 @@ pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
     }
 
     // "Search Genies…" at top — opens the picker (Cmd+Y)
-    let search_item = MenuItem::with_id(&app, "search-genies", "Search Genies…", true, None::<&str>)
+    let search_item = MenuItem::with_id(&app, "search-genies", "Search Genies…", true, Some("CmdOrCtrl+Y"))
         .map_err(|e| e.to_string())?;
     submenu.append(&search_item).map_err(|e| e.to_string())?;
     let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
@@ -782,12 +782,12 @@ pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
 fn append_genie_entries(
     app: &AppHandle,
     parent: &Submenu<tauri::Wry>,
-    entries: &[crate::prompts::GenieMenuEntry],
+    entries: &[crate::genies::GenieMenuEntry],
     snapshot: &mut Vec<String>,
 ) -> Result<(), String> {
     // Separate root-level entries from categorized entries
     let mut root_entries = Vec::new();
-    let mut groups: HashMap<String, Vec<&crate::prompts::GenieMenuEntry>> = HashMap::new();
+    let mut groups: HashMap<String, Vec<&crate::genies::GenieMenuEntry>> = HashMap::new();
 
     for entry in entries {
         if let Some(ref cat) = entry.category {

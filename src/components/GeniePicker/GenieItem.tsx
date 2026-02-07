@@ -1,44 +1,44 @@
 /**
- * Prompt Item
+ * Genie Item
  *
- * A single prompt entry in the PromptPicker list.
+ * A single genie entry in the GeniePicker list.
  */
 
-import type { PromptDefinition } from "@/types/aiPrompts";
+import type { GenieDefinition } from "@/types/aiGenies";
 
-interface PromptItemProps {
-  prompt: PromptDefinition;
+interface GenieItemProps {
+  genie: GenieDefinition;
   index: number;
   selected: boolean;
-  onSelect: (prompt: PromptDefinition) => void;
+  onSelect: (genie: GenieDefinition) => void;
   onHover: (index: number) => void;
 }
 
-export function PromptItem({
-  prompt,
+export function GenieItem({
+  genie,
   index,
   selected,
   onSelect,
   onHover,
-}: PromptItemProps) {
+}: GenieItemProps) {
   return (
     <div
       className={`prompt-picker-item ${selected ? "prompt-picker-item--selected" : ""}`}
       data-index={index}
-      onClick={() => onSelect(prompt)}
+      onClick={() => onSelect(genie)}
       onMouseEnter={() => onHover(index)}
     >
       <div className="prompt-picker-item-name">
-        {formatName(prompt.metadata.name)}
+        {formatName(genie.metadata.name)}
       </div>
       <div className="prompt-picker-item-meta">
-        {prompt.metadata.description && (
+        {genie.metadata.description && (
           <span className="prompt-picker-item-desc">
-            {prompt.metadata.description}
+            {genie.metadata.description}
           </span>
         )}
         <span className="prompt-picker-item-scope">
-          {prompt.metadata.scope}
+          {genie.metadata.scope}
         </span>
       </div>
     </div>

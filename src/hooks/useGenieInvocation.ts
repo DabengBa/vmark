@@ -1,20 +1,23 @@
 /**
- * Prompt Invocation Hook
+ * Genie Invocation Hook
  *
- * Orchestrates the full AI prompt pipeline:
+ * Orchestrates the full AI genie pipeline:
  * extract content → fill template → invoke provider → stream → create suggestion
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import type { PromptDefinition, PromptScope, AiResponseChunk } from "@/types/aiPrompts";
+import { toast } from "sonner";
+import type { GenieDefinition, GenieScope, AiResponseChunk } from "@/types/aiGenies";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { useAiProviderStore } from "@/stores/aiProviderStore";
+import { useAiInvocationStore } from "@/stores/aiInvocationStore";
 import { useEditorStore } from "@/stores/editorStore";
 import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
-import { usePromptsStore } from "@/stores/promptsStore";
+import { useGeniesStore } from "@/stores/geniesStore";
+import { useTabStore } from "@/stores/tabStore";
 
 // ============================================================================
 // Content Extraction
@@ -26,7 +29,7 @@ interface ExtractionResult {
   to: number;
 }
 
-function extractContent(scope: PromptScope): ExtractionResult | null {
+function extractContent(scope: GenieScope): ExtractionResult | null {
   const editor = useTiptapEditorStore.getState().editor;
   const sourceMode = useEditorStore.getState().sourceMode;
 
@@ -84,9 +87,8 @@ function fillTemplate(template: string, content: string): string {
 // Hook
 // ============================================================================
 
-export function usePromptInvocation() {
-  const [isRunning, setIsRunning] = useState(false);
-  const isRunningRef = useRef(false);
+export function useGenieInvocation() {
+  const isRunning = useAiInvocationStore((s) => s.isRunning);
   const unlistenRef = useRef<UnlistenFn | null>(null);
 
   // Cleanup listener on unmount
@@ -104,33 +106,32 @@ export function usePromptInvocation() {
       unlistenRef.current();
       unlistenRef.current = null;
     }
-    isRunningRef.current = false;
-    setIsRunning(false);
+    useAiInvocationStore.getState().cancel();
   }, []);
 
-  const runPrompt = useCallback(
+  const runGenie = useCallback(
     async (filledPrompt: string, extraction: ExtractionResult, model?: string) => {
-      // Guard against concurrent invocations
-      if (isRunningRef.current) return;
-
       const providerState = useAiProviderStore.getState();
       const provider = providerState.activeProvider;
-      if (!provider) {
-        console.error("No active AI provider");
-        return;
-      }
+      if (!provider) return; // Callers ensure provider exists
 
       // Get REST config if applicable
       const restConfig = providerState.restProviders.find(
         (p) => p.type === provider
       );
 
-      isRunningRef.current = true;
-      setIsRunning(true);
-      let accumulated = "";
-
       // Generate unique request ID
       const requestId = crypto.randomUUID();
+
+      // Capture current tab ID for suggestion scoping
+      const tabId = useTabStore.getState().activeTabId["main"] ?? "unknown";
+
+      // Try to acquire the invocation lock
+      if (!useAiInvocationStore.getState().tryStart(requestId)) {
+        return; // Already running
+      }
+
+      let accumulated = "";
 
       // Listen for streamed response, filtering by request ID
       const unlisten = await listen<AiResponseChunk>("ai:response", (event) => {
@@ -149,6 +150,7 @@ export function usePromptInvocation() {
           // Create suggestion from accumulated result
           if (accumulated.trim()) {
             useAiSuggestionStore.getState().addSuggestion({
+              tabId,
               type: "replace",
               from: extraction.from,
               to: extraction.to,
@@ -172,34 +174,60 @@ export function usePromptInvocation() {
           endpoint: restConfig?.endpoint ?? null,
         });
       } catch (e) {
-        console.error("Failed to invoke AI prompt:", e);
+        console.error("Failed to invoke AI genie:", e);
         cancel();
       }
     },
     [cancel]
   );
 
-  const invokePrompt = useCallback(
-    async (prompt: PromptDefinition, scopeOverride?: PromptScope) => {
-      const scope = scopeOverride ?? prompt.metadata.scope;
+  const invokeGenie = useCallback(
+    async (genie: GenieDefinition, scopeOverride?: GenieScope) => {
+      // Block in Source Mode — suggestions can only apply via Tiptap
+      if (useEditorStore.getState().sourceMode) {
+        toast.info("Genies are not available in Source Mode");
+        return;
+      }
+
+      // Auto-detect provider if none selected
+      const hasProvider = await useAiProviderStore.getState().ensureProvider();
+      if (!hasProvider) {
+        toast.error("No AI provider available. Configure one in Settings.");
+        return;
+      }
+
+      const scope = scopeOverride ?? genie.metadata.scope;
       const extracted = extractContent(scope);
       if (!extracted) {
         console.warn("No content to extract for scope:", scope);
         return;
       }
 
-      const filled = fillTemplate(prompt.template, extracted.text);
+      const filled = fillTemplate(genie.template, extracted.text);
 
-      // Track prompt as recent
-      usePromptsStore.getState().addRecent(prompt.metadata.name);
+      // Track genie as recent
+      useGeniesStore.getState().addRecent(genie.metadata.name);
 
-      await runPrompt(filled, extracted, prompt.metadata.model);
+      await runGenie(filled, extracted, genie.metadata.model);
     },
-    [runPrompt]
+    [runGenie]
   );
 
   const invokeFreeform = useCallback(
-    async (userPrompt: string, scope: PromptScope) => {
+    async (userPrompt: string, scope: GenieScope) => {
+      // Block in Source Mode — suggestions can only apply via Tiptap
+      if (useEditorStore.getState().sourceMode) {
+        toast.info("Genies are not available in Source Mode");
+        return;
+      }
+
+      // Auto-detect provider if none selected
+      const hasProvider = await useAiProviderStore.getState().ensureProvider();
+      if (!hasProvider) {
+        toast.error("No AI provider available. Configure one in Settings.");
+        return;
+      }
+
       const extracted = extractContent(scope);
       if (!extracted) {
         console.warn("No content to extract for scope:", scope);
@@ -207,10 +235,10 @@ export function usePromptInvocation() {
       }
 
       const filled = `${userPrompt}\n\n${extracted.text}`;
-      await runPrompt(filled, extracted);
+      await runGenie(filled, extracted);
     },
-    [runPrompt]
+    [runGenie]
   );
 
-  return { invokePrompt, invokeFreeform, isRunning, cancel };
+  return { invokeGenie, invokeFreeform, isRunning, cancel };
 }

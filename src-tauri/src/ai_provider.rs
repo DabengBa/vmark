@@ -182,7 +182,7 @@ fn run_cli_provider(
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn {}: {}", cmd, e))?;
 
@@ -211,10 +211,17 @@ fn run_cli_provider(
         }
     }
 
-    // Check exit status
-    let status = child.wait().map_err(|e| format!("Wait failed: {}", e))?;
-    if !status.success() {
-        emit_error(window, request_id, &format!("{} exited with status {}", cmd, status));
+    // Check exit status — include stderr in error message
+    let output = child.wait_with_output().map_err(|e| format!("Wait failed: {}", e))?;
+    if !output.status.success() {
+        let stderr_text = String::from_utf8_lossy(&output.stderr);
+        let stderr_msg = stderr_text.trim();
+        let msg = if stderr_msg.is_empty() {
+            format!("{} exited with status {}", cmd, output.status)
+        } else {
+            format!("{} exited with status {}: {}", cmd, output.status, stderr_msg)
+        };
+        emit_error(window, request_id, &msg);
     } else {
         emit_done(window, request_id);
     }

@@ -1,7 +1,7 @@
 /**
- * Prompt Picker
+ * Genie Picker
  *
- * Spotlight-style centered overlay for browsing and invoking AI prompts.
+ * Spotlight-style centered overlay for browsing and invoking AI genies.
  * Opens via Cmd+Y, supports keyboard navigation, search, and freeform input.
  */
 
@@ -13,26 +13,26 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { usePromptPickerStore } from "@/stores/promptPickerStore";
-import { usePromptsStore } from "@/stores/promptsStore";
-import { usePromptInvocation } from "@/hooks/usePromptInvocation";
-import type { PromptDefinition, PromptScope } from "@/types/aiPrompts";
-import { PromptChips } from "./PromptChips";
-import { PromptItem } from "./PromptItem";
+import { useGeniePickerStore } from "@/stores/geniePickerStore";
+import { useGeniesStore } from "@/stores/geniesStore";
+import { useGenieInvocation } from "@/hooks/useGenieInvocation";
+import type { GenieDefinition, GenieScope } from "@/types/aiGenies";
+import { GenieChips } from "./GenieChips";
+import { GenieItem } from "./GenieItem";
 import "./prompt-picker.css";
 
-const SCOPES: PromptScope[] = ["selection", "block", "document"];
+const SCOPES: GenieScope[] = ["selection", "block", "document"];
 
-export function PromptPicker() {
-  const isOpen = usePromptPickerStore((s) => s.isOpen);
-  const filterScope = usePromptPickerStore((s) => s.filterScope);
+export function GeniePicker() {
+  const isOpen = useGeniePickerStore((s) => s.isOpen);
+  const filterScope = useGeniePickerStore((s) => s.filterScope);
 
-  const prompts = usePromptsStore((s) => s.prompts);
-  const loading = usePromptsStore((s) => s.loading);
+  const genies = useGeniesStore((s) => s.genies);
+  const loading = useGeniesStore((s) => s.loading);
 
   const [filter, setFilter] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [activeScope, setActiveScope] = useState<PromptScope | null>(null);
+  const [activeScope, setActiveScope] = useState<GenieScope | null>(null);
   const [freeform, setFreeform] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,12 +40,12 @@ export function PromptPicker() {
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { invokePrompt, invokeFreeform, isRunning } = usePromptInvocation();
+  const { invokeGenie, invokeFreeform, isRunning } = useGenieInvocation();
 
-  // Load prompts on open
+  // Load genies on open
   useEffect(() => {
     if (isOpen) {
-      usePromptsStore.getState().loadPrompts();
+      useGeniesStore.getState().loadGenies();
       setFilter("");
       setSelectedIndex(0);
       setFreeform("");
@@ -62,39 +62,39 @@ export function PromptPicker() {
     }
   }, [isOpen]);
 
-  // Filtered + grouped prompts
+  // Filtered + grouped genies
   const filtered = useMemo(() => {
     const lower = filter.toLowerCase();
-    return prompts.filter((p) => {
-      if (activeScope && p.metadata.scope !== activeScope) return false;
+    return genies.filter((g) => {
+      if (activeScope && g.metadata.scope !== activeScope) return false;
       if (!lower) return true;
       return (
-        p.metadata.name.toLowerCase().includes(lower) ||
-        p.metadata.description.toLowerCase().includes(lower) ||
-        (p.metadata.category?.toLowerCase().includes(lower) ?? false)
+        g.metadata.name.toLowerCase().includes(lower) ||
+        g.metadata.description.toLowerCase().includes(lower) ||
+        (g.metadata.category?.toLowerCase().includes(lower) ?? false)
       );
     });
-  }, [filter, activeScope, prompts]);
+  }, [filter, activeScope, genies]);
 
   const recents = useMemo(() => {
     if (filter) return [];
-    return usePromptsStore.getState().getRecent().filter((p) => {
-      if (activeScope && p.metadata.scope !== activeScope) return false;
+    return useGeniesStore.getState().getRecent().filter((g) => {
+      if (activeScope && g.metadata.scope !== activeScope) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, activeScope, prompts]);
+  }, [filter, activeScope, genies]);
 
   const grouped = useMemo(() => {
-    const groups = new Map<string, PromptDefinition[]>();
-    for (const p of filtered) {
+    const groups = new Map<string, GenieDefinition[]>();
+    for (const g of filtered) {
       // Skip recents from main list if showing recents section
-      if (!filter && recents.some((r) => r.metadata.name === p.metadata.name)) {
+      if (!filter && recents.some((r) => r.metadata.name === g.metadata.name)) {
         continue;
       }
-      const cat = p.metadata.category ?? "Uncategorized";
+      const cat = g.metadata.category ?? "Uncategorized";
       const list = groups.get(cat) ?? [];
-      list.push(p);
+      list.push(g);
       groups.set(cat, list);
     }
     return groups;
@@ -102,7 +102,7 @@ export function PromptPicker() {
 
   // Flat list for keyboard navigation
   const flatList = useMemo(() => {
-    const items: PromptDefinition[] = [];
+    const items: GenieDefinition[] = [];
     if (recents.length > 0) items.push(...recents);
     for (const [, list] of grouped) {
       items.push(...list);
@@ -111,18 +111,18 @@ export function PromptPicker() {
   }, [recents, grouped]);
 
   const handleClose = useCallback(() => {
-    usePromptPickerStore.getState().closePicker();
+    useGeniePickerStore.getState().closePicker();
     setFilter("");
     setSelectedIndex(0);
     setFreeform("");
   }, []);
 
   const handleSelect = useCallback(
-    (prompt: PromptDefinition) => {
+    (genie: GenieDefinition) => {
       handleClose();
-      invokePrompt(prompt, activeScope ?? undefined);
+      invokeGenie(genie, activeScope ?? undefined);
     },
-    [handleClose, invokePrompt, activeScope]
+    [handleClose, invokeGenie, activeScope]
   );
 
   const handleFreeformSubmit = useCallback(() => {
@@ -237,10 +237,10 @@ export function PromptPicker() {
 
         {/* Quick chips (only when selection scope) */}
         {activeScope === "selection" && (
-          <PromptChips prompts={prompts} onSelect={handleSelect} />
+          <GenieChips genies={genies} onSelect={handleSelect} />
         )}
 
-        {/* Prompt list */}
+        {/* Genie list */}
         <div className="prompt-picker-list" ref={listRef}>
           {loading && (
             <div className="prompt-picker-empty">Loading genies...</div>
@@ -262,12 +262,12 @@ export function PromptPicker() {
           {recents.length > 0 && (
             <>
               <div className="prompt-picker-section-title">Recently Used</div>
-              {recents.map((prompt) => {
+              {recents.map((genie) => {
                 const idx = itemIndex++;
                 return (
-                  <PromptItem
-                    key={`recent-${prompt.metadata.name}`}
-                    prompt={prompt}
+                  <GenieItem
+                    key={`recent-${genie.metadata.name}`}
+                    genie={genie}
                     index={idx}
                     selected={idx === selectedIndex}
                     onSelect={handleSelect}
@@ -282,12 +282,12 @@ export function PromptPicker() {
           {Array.from(grouped.entries()).map(([category, list]) => (
             <div key={category}>
               <div className="prompt-picker-section-title">{category}</div>
-              {list.map((prompt) => {
+              {list.map((genie) => {
                 const idx = itemIndex++;
                 return (
-                  <PromptItem
-                    key={prompt.filePath}
-                    prompt={prompt}
+                  <GenieItem
+                    key={genie.filePath}
+                    genie={genie}
                     index={idx}
                     selected={idx === selectedIndex}
                     onSelect={handleSelect}
@@ -328,4 +328,3 @@ export function PromptPicker() {
     document.body
   );
 }
-

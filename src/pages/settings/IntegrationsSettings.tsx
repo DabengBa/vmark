@@ -15,7 +15,7 @@ import { useMcpHealthStore } from "@/stores/mcpHealthStore";
 import { useAiProviderStore } from "@/stores/aiProviderStore";
 import { McpConfigInstaller } from "./McpConfigInstaller";
 import { RefreshCw, Users, ExternalLink } from "lucide-react";
-import type { ProviderType, RestProviderType, RestProviderConfig } from "@/types/aiPrompts";
+import type { ProviderType, RestProviderType, RestProviderConfig } from "@/types/aiGenies";
 
 function StatusBadge({ running, loading }: { running: boolean; loading: boolean }) {
   if (loading) {

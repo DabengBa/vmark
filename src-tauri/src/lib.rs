@@ -6,7 +6,7 @@ mod mcp_server;
 mod menu;
 mod menu_events;
 mod pdf_export;
-mod prompts;
+mod genies;
 mod quit;
 mod watcher;
 mod window_manager;
@@ -146,9 +146,9 @@ pub fn run() {
             pdf_export::convert_html_to_pdf,
             pdf_export::convert_html_string_to_pdf,
             get_default_shell,
-            prompts::get_genies_dir,
-            prompts::list_prompts,
-            prompts::read_prompt,
+            genies::get_genies_dir,
+            genies::list_genies,
+            genies::read_genie,
             ai_provider::detect_ai_providers,
             ai_provider::run_ai_prompt,
             #[cfg(debug_assertions)]
@@ -176,9 +176,9 @@ pub fn run() {
                 eprintln!("[Tauri] Warning: Failed to migrate legacy files: {}", e);
             }
 
-            // Install default AI prompts (no-op if already present)
-            if let Err(e) = prompts::install_default_prompts(app.handle()) {
-                eprintln!("[Tauri] Warning: Failed to install default prompts: {}", e);
+            // Install default AI genies (no-op if already present)
+            if let Err(e) = genies::install_default_genies(app.handle()) {
+                eprintln!("[Tauri] Warning: Failed to install default genies: {}", e);
             }
 
             // Listen for "ready" events from frontend windows

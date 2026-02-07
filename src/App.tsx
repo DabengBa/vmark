@@ -90,8 +90,8 @@ import { useFinderFileOpen } from "@/hooks/useFinderFileOpen";
 import { useHotExitCapture } from "@/utils/hotExit/useHotExitCapture";
 import { useHotExitRestore } from "@/utils/hotExit/useHotExitRestore";
 import { useHotExitStartup } from "@/utils/hotExit/useHotExitStartup";
-import { usePromptShortcuts } from "@/hooks/usePromptShortcuts";
-import { PromptPicker } from "@/components/PromptPicker/PromptPicker";
+import { useGenieShortcuts } from "@/hooks/useGenieShortcuts";
+import { GeniePicker } from "@/components/GeniePicker/GeniePicker";
 
 /** Height of the title bar area in pixels */
 const TITLEBAR_HEIGHT = 40;
@@ -192,7 +192,7 @@ function MainLayout() {
   useUniversalToolbar(); // Universal toolbar toggle (shortcut configurable)
   useFileExplorerShortcuts(); // Toggle hidden files
   useImagePasteToast(); // Image paste confirmation toast
-  usePromptShortcuts(); // Cmd+Y AI prompt picker
+  useGenieShortcuts(); // Cmd+Y AI genie picker
 
   const classNames = [
     "app-layout",
@@ -280,7 +280,7 @@ function App() {
           <Route path="/" element={<MainLayout />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
-        <PromptPicker />
+        <GeniePicker />
         <Toaster
           position="top-center"
           icons={{
