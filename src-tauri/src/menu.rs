@@ -250,16 +250,6 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ],
     )?;
 
-    let genies_submenu = Submenu::with_id_and_items(
-        app,
-        GENIES_SUBMENU_ID,
-        "Genies",
-        true,
-        &[
-            &MenuItem::with_id(app, "genies-loading", "Loading...", false, None::<&str>)?,
-        ],
-    )?;
-
     let edit_menu = Submenu::with_items(
         app,
         "Edit",
@@ -277,8 +267,6 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &selection_submenu,
             &lines_submenu,
             &line_endings_submenu,
-            &PredefinedMenuItem::separator(app)?,
-            &genies_submenu,
         ],
     )?;
 
@@ -706,8 +694,29 @@ pub fn update_recent_workspaces(app: AppHandle, workspaces: Vec<String>) -> Resu
     update_recent_workspaces_menu(&app, workspaces).map_err(|e| e.to_string())
 }
 
+/// Find the Edit submenu from the top-level menu.
+fn find_edit_submenu(menu: &Menu<tauri::Wry>) -> Option<Submenu<tauri::Wry>> {
+    for item in menu.items().ok()? {
+        if let MenuItemKind::Submenu(top) = item {
+            if top.text().ok().as_deref() == Some("Edit") {
+                return Some(top);
+            }
+        }
+    }
+    None
+}
+
+/// Find the Genies submenu inside a parent submenu by ID.
+fn find_genies_submenu(parent: &Submenu<tauri::Wry>) -> Option<Submenu<tauri::Wry>> {
+    if let Some(MenuItemKind::Submenu(found)) = parent.get(GENIES_SUBMENU_ID) {
+        return Some(found);
+    }
+    None
+}
+
 /// Refresh the Genies submenu by scanning global and workspace prompt directories.
 /// Called by frontend on mount and when workspace changes.
+/// Creates the submenu dynamically inside Edit if it doesn't already exist.
 #[tauri::command]
 pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
     use crate::genies;
@@ -722,24 +731,29 @@ pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
     let mut snapshot: Vec<String> = Vec::new();
 
     let menu = app.menu().ok_or("No menu")?;
+    let edit_menu = find_edit_submenu(&menu).ok_or("Edit menu not found")?;
 
-    // Find the Genies submenu (Edit → Genies)
-    let mut submenu_opt = None;
-    for item in menu.items().map_err(|e| e.to_string())? {
-        if let MenuItemKind::Submenu(top) = item {
-            if let Some(MenuItemKind::Submenu(found)) = top.get(GENIES_SUBMENU_ID) {
-                submenu_opt = Some(found);
-                break;
-            }
+    // Find or create the Genies submenu
+    let submenu = if let Some(existing) = find_genies_submenu(&edit_menu) {
+        // Clear existing items
+        while let Some(item) = existing.items().map_err(|e| e.to_string())?.first() {
+            existing.remove(item).map_err(|e| e.to_string())?;
         }
-    }
-
-    let submenu = submenu_opt.ok_or("Genies submenu not found")?;
-
-    // Clear existing items
-    while let Some(item) = submenu.items().map_err(|e| e.to_string())?.first() {
-        submenu.remove(item).map_err(|e| e.to_string())?;
-    }
+        existing
+    } else {
+        // Create new submenu and append to Edit
+        let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+        edit_menu.append(&sep).map_err(|e| e.to_string())?;
+        let new_sub = Submenu::with_id_and_items(
+            &app,
+            GENIES_SUBMENU_ID,
+            "Genies",
+            true,
+            &[],
+        ).map_err(|e| e.to_string())?;
+        edit_menu.append(&new_sub).map_err(|e| e.to_string())?;
+        new_sub
+    };
 
     // "Search Genies…" at top — opens the picker (Cmd+Y)
     let search_item = MenuItem::with_id(&app, "search-genies", "Search Genies…", true, Some("CmdOrCtrl+Y"))
@@ -773,6 +787,31 @@ pub fn refresh_genies_menu(app: AppHandle) -> Result<(), String> {
     // Update snapshot
     if let Ok(mut s) = GENIES_SNAPSHOT.lock() {
         *s = snapshot;
+    }
+
+    Ok(())
+}
+
+/// Remove the Genies submenu from the Edit menu.
+/// Called when the feature is toggled off (useGenieShortcuts unmounts).
+#[tauri::command]
+pub fn hide_genies_menu(app: AppHandle) -> Result<(), String> {
+    let menu = app.menu().ok_or("No menu")?;
+    let edit_menu = find_edit_submenu(&menu).ok_or("Edit menu not found")?;
+
+    // Find and remove the Genies submenu
+    if let Some(genies_sub) = find_genies_submenu(&edit_menu) {
+        edit_menu
+            .remove(&genies_sub)
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Also remove the trailing separator before genies (last item in Edit should now be a separator)
+    if let Some(last) = edit_menu.items().map_err(|e| e.to_string())?.last() {
+        if matches!(last, MenuItemKind::Predefined(_)) {
+            // PredefinedMenuItem includes separators — remove it
+            edit_menu.remove(last).map_err(|e| e.to_string())?;
+        }
     }
 
     Ok(())
@@ -1049,16 +1088,6 @@ fn create_menu_with_shortcuts(
         ],
     )?;
 
-    let genies_submenu = Submenu::with_id_and_items(
-        app,
-        GENIES_SUBMENU_ID,
-        "Genies",
-        true,
-        &[
-            &MenuItem::with_id(app, "genies-loading", "Loading...", false, None::<&str>)?,
-        ],
-    )?;
-
     let edit_menu = Submenu::with_items(
         app,
         "Edit",
@@ -1076,8 +1105,6 @@ fn create_menu_with_shortcuts(
             &selection_submenu,
             &lines_submenu,
             &line_endings_submenu,
-            &PredefinedMenuItem::separator(app)?,
-            &genies_submenu,
         ],
     )?;
 

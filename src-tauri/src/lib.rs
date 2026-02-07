@@ -102,6 +102,7 @@ pub fn run() {
             menu::update_recent_files,
             menu::update_recent_workspaces,
             menu::refresh_genies_menu,
+            menu::hide_genies_menu,
             menu::rebuild_menu,
             window_manager::new_window,
             window_manager::open_file_in_new_window,

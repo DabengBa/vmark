@@ -46,11 +46,15 @@ export function useGenieShortcuts() {
   }, []);
 
   // Load genies + sync menu on mount; init tab watcher for suggestion scoping
+  // On unmount (feature disabled), remove the Genies submenu from the native menu
   useEffect(() => {
     loadAndSyncMenu().catch((e) =>
       console.error("[useGenieShortcuts] Failed to load genies:", e)
     );
     initSuggestionTabWatcher(useTabStore.subscribe);
+    return () => {
+      invoke("hide_genies_menu").catch(() => {});
+    };
   }, []);
 
   // Direct genie invocation from Genies menu — reads from disk directly

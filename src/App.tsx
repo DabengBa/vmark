@@ -90,6 +90,7 @@ import { useFinderFileOpen } from "@/hooks/useFinderFileOpen";
 import { useHotExitCapture } from "@/utils/hotExit/useHotExitCapture";
 import { useHotExitRestore } from "@/utils/hotExit/useHotExitRestore";
 import { useHotExitStartup } from "@/utils/hotExit/useHotExitStartup";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useGenieShortcuts } from "@/hooks/useGenieShortcuts";
 import { GeniePicker } from "@/components/GeniePicker/GeniePicker";
 
@@ -146,6 +147,12 @@ function DocumentWindowHooks() {
   return null;
 }
 
+// Wrapper so useGenieShortcuts can be called conditionally via mount/unmount
+function GenieShortcutsRunner() {
+  useGenieShortcuts();
+  return null;
+}
+
 // Main window specific hooks (only for "main" window, not doc-*)
 function MainWindowHooks() {
   useMcpAutoStart(); // Auto-start MCP server if enabled
@@ -192,7 +199,8 @@ function MainLayout() {
   useUniversalToolbar(); // Universal toolbar toggle (shortcut configurable)
   useFileExplorerShortcuts(); // Toggle hidden files
   useImagePasteToast(); // Image paste confirmation toast
-  useGenieShortcuts(); // Cmd+Y AI genie picker
+
+  const enableGenies = useSettingsStore((s) => s.advanced.enableGenies);
 
   const classNames = [
     "app-layout",
@@ -219,6 +227,8 @@ function MainLayout() {
       {isDocumentWindow && <DocumentWindowHooks />}
       {/* Main window specific hooks */}
       {windowLabel === "main" && <MainWindowHooks />}
+      {/* AI Genies hooks (only when enabled in advanced settings) */}
+      {enableGenies && <GenieShortcutsRunner />}
 
       {/* Drop zone indicator for drag-and-drop */}
       <DropOverlay />
@@ -272,6 +282,12 @@ function MainLayout() {
   );
 }
 
+function GeniePickerGate() {
+  const enabled = useSettingsStore((s) => s.advanced.enableGenies);
+  if (!enabled) return null;
+  return <GeniePicker />;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -280,7 +296,7 @@ function App() {
           <Route path="/" element={<MainLayout />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
-        <GeniePicker />
+        <GeniePickerGate />
         <Toaster
           position="top-center"
           icons={{
