@@ -52,6 +52,31 @@ describe("unifiedHistoryStore", () => {
       expect(store.canUndoCheckpoint(TAB_A)).toBe(false);
     });
 
+    it("skips duplicate checkpoint when markdown is unchanged", () => {
+      const store = useUnifiedHistoryStore.getState();
+
+      store.createCheckpoint(TAB_A, createCheckpointData("Same content"));
+      store.createCheckpoint(TAB_A, createCheckpointData("Same content"));
+      store.createCheckpoint(TAB_A, createCheckpointData("Same content"));
+
+      // Only one checkpoint should exist
+      expect(store.popUndo(TAB_A)!.markdown).toBe("Same content");
+      expect(store.popUndo(TAB_A)).toBeNull();
+    });
+
+    it("allows checkpoint with same markdown but different content after other changes", () => {
+      const store = useUnifiedHistoryStore.getState();
+
+      store.createCheckpoint(TAB_A, createCheckpointData("A"));
+      store.createCheckpoint(TAB_A, createCheckpointData("B"));
+      store.createCheckpoint(TAB_A, createCheckpointData("A")); // back to "A" — not a duplicate
+
+      expect(store.popUndo(TAB_A)!.markdown).toBe("A");
+      expect(store.popUndo(TAB_A)!.markdown).toBe("B");
+      expect(store.popUndo(TAB_A)!.markdown).toBe("A");
+      expect(store.popUndo(TAB_A)).toBeNull();
+    });
+
     it("clears redo stack when new checkpoint is created", () => {
       const store = useUnifiedHistoryStore.getState();
 
@@ -196,28 +221,6 @@ describe("unifiedHistoryStore", () => {
 
       expect(store.canUndoCheckpoint("missing")).toBe(false);
       expect(store.canRedoCheckpoint("missing")).toBe(false);
-    });
-  });
-
-  describe("getNextUndoMode / getNextRedoMode", () => {
-    it("returns null when no checkpoints exist", () => {
-      const store = useUnifiedHistoryStore.getState();
-
-      expect(store.getNextUndoMode(TAB_A)).toBeNull();
-      expect(store.getNextRedoMode(TAB_A)).toBeNull();
-    });
-
-    it("returns mode of most recent checkpoint", () => {
-      const store = useUnifiedHistoryStore.getState();
-
-      store.createCheckpoint(TAB_A, createCheckpointData("Content", "source"));
-      store.createCheckpoint(TAB_A, createCheckpointData("Content", "wysiwyg"));
-
-      expect(store.getNextUndoMode(TAB_A)).toBe("wysiwyg");
-
-      store.pushRedo(TAB_A, createCheckpointData("Redo", "source"));
-
-      expect(store.getNextRedoMode(TAB_A)).toBe("source");
     });
   });
 

@@ -32,6 +32,7 @@ import {
   getSourceMultiSelectionContext,
   getWysiwygMultiSelectionContext,
 } from "@/plugins/toolbarActions/multiSelectionContext";
+import { performUnifiedUndo, performUnifiedRedo } from "@/hooks/useUnifiedHistory";
 import { shouldBlockMenuAction } from "@/utils/focusGuard";
 import { runOrQueueCodeMirrorAction } from "@/utils/imeGuard";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
@@ -320,6 +321,17 @@ export function useUnifiedMenuCommands(): void {
             console.debug(
               `[UnifiedMenuDispatcher] Action ${actionId} not supported in WYSIWYG mode`
             );
+            return;
+          }
+
+          // Undo/redo must go through the unified history system
+          // (not the per-editor native adapters) to support cross-mode undo
+          if (actionId === "undo") {
+            performUnifiedUndo(windowLabel);
+            return;
+          }
+          if (actionId === "redo") {
+            performUnifiedRedo(windowLabel);
             return;
           }
 

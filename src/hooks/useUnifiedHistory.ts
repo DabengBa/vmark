@@ -4,7 +4,7 @@
  * Provides cross-mode undo/redo functionality by:
  * 1. Creating checkpoints when switching modes
  * 2. Intercepting undo/redo when native history is exhausted
- * 3. Restoring to checkpoints (potentially switching modes)
+ * 3. Restoring content from checkpoints (mode is never changed — that's a view preference)
  */
 
 import { useCallback } from "react";
@@ -109,16 +109,12 @@ export function doNativeUndo(): boolean {
 
   if (sourceMode) {
     const view = useActiveEditorStore.getState().activeSourceView;
-    if (!view) return false;
-    if (undoDepth(view.state) === 0) return false;
-    undo(view);
-    return true;
+    if (!view || undoDepth(view.state) === 0) return false;
+    return undo(view);
   } else {
     const editor = useTiptapEditorStore.getState().editor;
-    if (!editor) return false;
-    if (!editor.can().undo()) return false;
-    editor.commands.undo();
-    return true;
+    if (!editor || !editor.can().undo()) return false;
+    return editor.commands.undo();
   }
 }
 
@@ -131,16 +127,12 @@ export function doNativeRedo(): boolean {
 
   if (sourceMode) {
     const view = useActiveEditorStore.getState().activeSourceView;
-    if (!view) return false;
-    if (redoDepth(view.state) === 0) return false;
-    redo(view);
-    return true;
+    if (!view || redoDepth(view.state) === 0) return false;
+    return redo(view);
   } else {
     const editor = useTiptapEditorStore.getState().editor;
-    if (!editor) return false;
-    if (!editor.can().redo()) return false;
-    editor.commands.redo();
-    return true;
+    if (!editor || !editor.can().redo()) return false;
+    return editor.commands.redo();
   }
 }
 
@@ -150,28 +142,22 @@ export function doNativeRedo(): boolean {
  */
 function restoreFromCheckpoint(
   tabId: string,
-  checkpoint: HistoryCheckpoint,
-  currentMode: "source" | "wysiwyg"
+  checkpoint: HistoryCheckpoint
 ): void {
   const historyStore = useUnifiedHistoryStore.getState();
   const documentStore = useDocumentStore.getState();
-  const editorStore = useEditorStore.getState();
 
   historyStore.setRestoring(true);
-  documentStore.setContent(tabId, checkpoint.markdown);
-
-  if (checkpoint.cursorInfo) {
+  try {
+    documentStore.setContent(tabId, checkpoint.markdown);
     documentStore.setCursorInfo(tabId, checkpoint.cursorInfo);
+    // Mode is NOT restored — undo/redo only affects content, never view preference.
+    // The user's current mode is their explicit choice; undo should not override it.
+  } finally {
+    queueMicrotask(() => {
+      historyStore.setRestoring(false);
+    });
   }
-
-  // Switch mode if checkpoint was from different mode
-  if (checkpoint.mode !== currentMode) {
-    editorStore.toggleSourceMode();
-  }
-
-  requestAnimationFrame(() => {
-    historyStore.setRestoring(false);
-  });
 }
 
 /**
@@ -197,9 +183,8 @@ export function clearAllHistory(): void {
  * Returns true if any undo action was performed.
  */
 export function performUnifiedUndo(windowLabel: string): boolean {
-  // First, try native undo
-  if (canNativeUndo()) {
-    doNativeUndo();
+  // First, try native undo (single call avoids TOCTOU gap)
+  if (doNativeUndo()) {
     return true;
   }
 
@@ -217,8 +202,7 @@ export function performUnifiedUndo(windowLabel: string): boolean {
   const doc = documentStore.getDocument(tabId);
   if (!doc) return false;
 
-  const editorStore = useEditorStore.getState();
-  const currentMode = editorStore.sourceMode ? "source" : "wysiwyg";
+  const currentMode = useEditorStore.getState().sourceMode ? "source" : "wysiwyg";
 
   // Save current state to redo stack before restoring
   historyStore.pushRedo(tabId, {
@@ -230,7 +214,7 @@ export function performUnifiedUndo(windowLabel: string): boolean {
   const checkpoint = historyStore.popUndo(tabId);
   if (!checkpoint) return false;
 
-  restoreFromCheckpoint(tabId, checkpoint, currentMode);
+  restoreFromCheckpoint(tabId, checkpoint);
   return true;
 }
 
@@ -238,14 +222,12 @@ export function performUnifiedUndo(windowLabel: string): boolean {
  * Perform unified redo (can be called from any context).
  * 1. Try native redo first
  * 2. If native history exhausted, restore from checkpoint
- * 3. May trigger mode switch if checkpoint is from different mode
  *
  * Returns true if any redo action was performed.
  */
 export function performUnifiedRedo(windowLabel: string): boolean {
-  // First, try native redo
-  if (canNativeRedo()) {
-    doNativeRedo();
+  // First, try native redo (single call avoids TOCTOU gap)
+  if (doNativeRedo()) {
     return true;
   }
 
@@ -263,19 +245,19 @@ export function performUnifiedRedo(windowLabel: string): boolean {
   const doc = documentStore.getDocument(tabId);
   if (!doc) return false;
 
-  const editorStore = useEditorStore.getState();
-  const currentMode = editorStore.sourceMode ? "source" : "wysiwyg";
+  const currentMode = useEditorStore.getState().sourceMode ? "source" : "wysiwyg";
 
-  // Save current state to undo stack before restoring
-  historyStore.createCheckpoint(tabId, {
+  // Pop redo checkpoint first (before pushing to undo, which doesn't clear redo)
+  const checkpoint = historyStore.popRedo(tabId);
+  if (!checkpoint) return false;
+
+  // Save current state to undo stack (preserving remaining redo stack)
+  historyStore.pushUndo(tabId, {
     markdown: doc.content,
     mode: currentMode,
     cursorInfo: doc.cursorInfo ?? null,
   });
 
-  const checkpoint = historyStore.popRedo(tabId);
-  if (!checkpoint) return false;
-
-  restoreFromCheckpoint(tabId, checkpoint, currentMode);
+  restoreFromCheckpoint(tabId, checkpoint);
   return true;
 }

@@ -78,6 +78,9 @@ vi.mock("@/stores/settingsStore", () => {
       blockFontSize: "1",
       htmlRenderingMode: "hidden",
     },
+    advanced: {
+      keepBothEditorsAlive: false,
+    },
   };
 
   return { useSettingsStore: createZustandMock(state) };

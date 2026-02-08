@@ -66,6 +66,12 @@ interface UnifiedHistoryActions {
   pushRedo: (tabId: string, checkpoint: Omit<HistoryCheckpoint, "timestamp">) => void;
 
   /**
+   * Push current state to undo stack WITHOUT clearing redo stack.
+   * Used by performUnifiedRedo to save current state before restoring.
+   */
+  pushUndo: (tabId: string, checkpoint: Omit<HistoryCheckpoint, "timestamp">) => void;
+
+  /**
    * Check if there's a checkpoint available for undo.
    */
   canUndoCheckpoint: (tabId: string) => boolean;
@@ -74,16 +80,6 @@ interface UnifiedHistoryActions {
    * Check if there's a checkpoint available for redo.
    */
   canRedoCheckpoint: (tabId: string) => boolean;
-
-  /**
-   * Get the mode of the next undo checkpoint (for UI hints).
-   */
-  getNextUndoMode: (tabId: string) => "source" | "wysiwyg" | null;
-
-  /**
-   * Get the mode of the next redo checkpoint (for UI hints).
-   */
-  getNextRedoMode: (tabId: string) => "source" | "wysiwyg" | null;
 
   /**
    * Set restoring flag (prevents checkpoint creation during restore).
@@ -115,14 +111,21 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
       // Don't create checkpoint while restoring
       if (get().isRestoring) return;
 
+      // Skip if content hasn't changed since last checkpoint (deduplication)
+      const docHistory = get().documents[tabId];
+      if (docHistory && docHistory.undoStack.length > 0) {
+        const last = docHistory.undoStack[docHistory.undoStack.length - 1];
+        if (last.markdown === checkpoint.markdown) return;
+      }
+
       const newCheckpoint: HistoryCheckpoint = {
         ...checkpoint,
         timestamp: Date.now(),
       };
 
       set((state) => {
-        const docHistory = state.documents[tabId] || emptyHistory;
-        const newUndoStack = [...docHistory.undoStack, newCheckpoint];
+        const currentHistory = state.documents[tabId] || emptyHistory;
+        const newUndoStack = [...currentHistory.undoStack, newCheckpoint];
         // Trim to max size
         if (newUndoStack.length > state.maxCheckpoints) {
           newUndoStack.shift();
@@ -204,6 +207,30 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
       });
     },
 
+    pushUndo: (tabId, checkpoint) => {
+      const newCheckpoint: HistoryCheckpoint = {
+        ...checkpoint,
+        timestamp: Date.now(),
+      };
+
+      set((state) => {
+        const docHistory = state.documents[tabId] || emptyHistory;
+        const newUndoStack = [...docHistory.undoStack, newCheckpoint];
+        if (newUndoStack.length > state.maxCheckpoints) {
+          newUndoStack.shift();
+        }
+        return {
+          documents: {
+            ...state.documents,
+            [tabId]: {
+              ...docHistory,
+              undoStack: newUndoStack,
+            },
+          },
+        };
+      });
+    },
+
     canUndoCheckpoint: (tabId) => {
       const docHistory = get().documents[tabId];
       return docHistory ? docHistory.undoStack.length > 0 : false;
@@ -212,18 +239,6 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
     canRedoCheckpoint: (tabId) => {
       const docHistory = get().documents[tabId];
       return docHistory ? docHistory.redoStack.length > 0 : false;
-    },
-
-    getNextUndoMode: (tabId) => {
-      const docHistory = get().documents[tabId];
-      if (!docHistory || docHistory.undoStack.length === 0) return null;
-      return docHistory.undoStack[docHistory.undoStack.length - 1].mode;
-    },
-
-    getNextRedoMode: (tabId) => {
-      const docHistory = get().documents[tabId];
-      if (!docHistory || docHistory.redoStack.length === 0) return null;
-      return docHistory.redoStack[docHistory.redoStack.length - 1].mode;
     },
 
     setRestoring: (value) => {

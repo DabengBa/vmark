@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -72,8 +72,34 @@ function getAdaptiveDebounceDelay(docSize: number): number {
   return 100;                        // Default: 100ms (using RAF for small docs)
 }
 
+/**
+ * Parse markdown and sync it into the editor without touching undo history.
+ * Updates lastExternalContent tracking ref on success.
+ * Returns true if content was synced, false if already current or on error.
+ */
+function syncMarkdownToEditor(
+  editor: TiptapEditor,
+  markdown: string,
+  lastExternalContent: MutableRefObject<string>,
+  preserveLineBreaks: boolean,
+): boolean {
+  if (markdown === lastExternalContent.current) return false;
+  try {
+    const doc = parseMarkdown(editor.schema, markdown, { preserveLineBreaks });
+    setContentWithoutHistory(editor, doc);
+    lastExternalContent.current = markdown;
+    return true;
+  } catch (error) {
+    console.error("[TiptapEditor] Failed to sync markdown:", error);
+    return false;
+  }
+}
 
-export function TiptapEditorInner() {
+interface TiptapEditorInnerProps {
+  hidden?: boolean;
+}
+
+export function TiptapEditorInner({ hidden = false }: TiptapEditorInnerProps) {
   const content = useDocumentContent();
   const cursorInfo = useDocumentCursorInfo();
   const { setContent, setCursorInfo } = useDocumentActions();
@@ -97,9 +123,11 @@ export function TiptapEditorInner() {
   const editorInitialized = useRef(false);
   const preserveLineBreaksRef = useRef(preserveLineBreaks);
   const hardBreakStyleOnSaveRef = useRef(hardBreakStyleOnSave);
+  const hiddenRef = useRef(hidden);
   cursorInfoRef.current = cursorInfo;
   preserveLineBreaksRef.current = preserveLineBreaks;
   hardBreakStyleOnSaveRef.current = hardBreakStyleOnSave;
+  hiddenRef.current = hidden;
 
   const extensions = useMemo(() => createTiptapExtensions(), []);
 
@@ -189,11 +217,14 @@ export function TiptapEditorInner() {
       // NOTE: Flusher registration moved to useEffect to avoid dual registration issues
       // with React Strict Mode. The useEffect ensures proper cleanup on unmount.
 
-      scheduleTiptapFocusAndRestore(
-        editor,
-        () => cursorInfoRef.current,
-        restoreCursorInTiptap
-      );
+      // Only focus/restore cursor when not hidden
+      if (!hiddenRef.current) {
+        scheduleTiptapFocusAndRestore(
+          editor,
+          () => cursorInfoRef.current,
+          restoreCursorInTiptap
+        );
+      }
 
       const view = getTiptapEditorView(editor);
       if (view) {
@@ -201,6 +232,9 @@ export function TiptapEditorInner() {
       }
     },
     onUpdate: ({ editor }) => {
+      // Skip updates when hidden — prevents polluting document store
+      if (hiddenRef.current) return;
+
       // Cancel any pending flush
       if (pendingRaf.current) {
         cancelAnimationFrame(pendingRaf.current);
@@ -230,6 +264,7 @@ export function TiptapEditorInner() {
       }
     },
     onSelectionUpdate: ({ editor }) => {
+      if (hiddenRef.current) return;
       if (!cursorTrackingEnabled.current) return;
       const view = getTiptapEditorView(editor);
       if (!view) return;
@@ -238,7 +273,11 @@ export function TiptapEditorInner() {
     },
   });
 
-  const getEditorView = useCallback(() => getTiptapEditorView(editor), [editor]);
+  // Return null from getEditorView when hidden to prevent outline sync from stale editor
+  const getEditorView = useCallback(
+    () => (hidden ? null : getTiptapEditorView(editor)),
+    [editor, hidden]
+  );
   const handleImageContextMenuAction = useImageContextMenu(getEditorView);
   useOutlineSync(getEditorView);
 
@@ -252,7 +291,7 @@ export function TiptapEditorInner() {
   useImageDragDrop({
     tiptapEditor: editor,
     isSourceMode: false,
-    enabled: !!editor,
+    enabled: !!editor && !hidden,
   });
 
   // Cleanup all pending timers/RAFs on unmount to prevent memory leaks
@@ -281,35 +320,32 @@ export function TiptapEditorInner() {
     };
   }, []);
 
-  // Register flusher that captures the current editor directly.
-  // The useEffect re-runs whenever `editor` changes, so the flusher
-  // always has a fresh reference to the current editor instance.
-  // The cleanup function unregisters on unmount, preventing stale editors
-  // from being used in React Strict Mode scenarios.
+  // Register flusher — only when visible
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || hidden) return;
     registerActiveWysiwygFlusher(() => {
       flushToStore(editor);
     });
     return () => {
       registerActiveWysiwygFlusher(null);
     };
-  }, [editor, flushToStore]);
+  }, [editor, flushToStore, hidden]);
 
+  // Register editor stores — only when visible
   useEffect(() => {
-    useTiptapEditorStore.getState().setEditor(editor ?? null);
-    // Register with activeEditorStore for unified menu dispatcher
-    if (editor) {
-      useActiveEditorStore.getState().setActiveWysiwygEditor(editor);
+    if (!hidden) {
+      useTiptapEditorStore.getState().setEditor(editor ?? null);
+      if (editor) {
+        useActiveEditorStore.getState().setActiveWysiwygEditor(editor);
+      }
     }
     return () => {
       useTiptapEditorStore.getState().clear();
-      // Use conditional clear to avoid clearing a newly active editor
       if (editor) {
         useActiveEditorStore.getState().clearWysiwygEditorIfMatch(editor);
       }
     };
-  }, [editor]);
+  }, [editor, hidden]);
 
   // Force CJK letter spacing decorations to recalculate when setting changes.
   // The plugin tracks wasEnabled state, but needs a transaction to trigger apply().
@@ -330,56 +366,51 @@ export function TiptapEditorInner() {
   // This prevents double-loading on initial mount and React Strict Mode remounts.
   useEffect(() => {
     if (!editor) return;
+    // Skip sync when hidden — content will be synced on visibility transition
+    if (hiddenRef.current) return;
     if (isInternalChange.current) return;
     if (content === lastExternalContent.current) return;
     // Skip if onCreate hasn't run yet - let onCreate handle initial content loading
     if (!editorInitialized.current) return;
 
-    // Track content at the time of this effect to handle race conditions
-    const contentToLoad = content;
-    let cancelled = false;
+    const synced = syncMarkdownToEditor(
+      editor, content, lastExternalContent, preserveLineBreaksRef.current,
+    );
 
-    const loadContent = () => {
-      try {
-        const doc = parseMarkdown(editor.schema, contentToLoad, {
-          preserveLineBreaks: preserveLineBreaksRef.current,
-        });
-
-        if (cancelled) return;
-
-        // Use helper to avoid polluting undo history with external content sync
-        // (e.g., content changed in source mode, tab switch, etc.)
-        setContentWithoutHistory(editor, doc);
-        lastExternalContent.current = contentToLoad;
-
-        // For fresh document load (no saved cursor position), set cursor to start
-        if (!cursorInfoRef.current) {
-          const view = getTiptapEditorView(editor);
-          if (view) {
-            try {
-              const tr = view.state.tr
-                .setSelection(Selection.atStart(view.state.doc))
-                .scrollIntoView()
-                .setMeta("addToHistory", false); // Don't pollute undo history during load
-              view.dispatch(tr);
-            } catch {
-              // Ignore selection errors
-            }
-          }
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("[TiptapEditor] Failed to parse external markdown:", error);
+    // For fresh document load (no saved cursor position), set cursor to start
+    if (synced && !cursorInfoRef.current) {
+      const view = getTiptapEditorView(editor);
+      if (view) {
+        try {
+          const tr = view.state.tr
+            .setSelection(Selection.atStart(view.state.doc))
+            .scrollIntoView()
+            .setMeta("addToHistory", false);
+          view.dispatch(tr);
+        } catch {
+          // Ignore selection errors
         }
       }
-    };
-
-    loadContent();
-
-    return () => {
-      cancelled = true;
-    };
+    }
   }, [content, editor]);
+
+  // Handle visibility transitions: hidden → visible
+  useEffect(() => {
+    if (hidden) return;
+    if (!editor || !editorInitialized.current) return;
+
+    syncMarkdownToEditor(
+      editor, content, lastExternalContent, preserveLineBreaksRef.current,
+    );
+
+    // Focus and restore cursor
+    scheduleTiptapFocusAndRestore(
+      editor,
+      () => cursorInfoRef.current,
+      restoreCursorInTiptap
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidden]);
 
   const editorClassName = showLineNumbers
     ? "tiptap-editor show-line-numbers"
@@ -387,10 +418,10 @@ export function TiptapEditorInner() {
 
   return (
     <>
-      <div className={editorClassName}>
+      <div className={editorClassName} style={hidden ? { display: "none" } : undefined}>
         <EditorContent editor={editor} />
       </div>
-      <ImageContextMenu onAction={handleImageContextMenuAction} />
+      {!hidden && <ImageContextMenu onAction={handleImageContextMenuAction} />}
     </>
   );
 }

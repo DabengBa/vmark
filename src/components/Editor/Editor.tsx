@@ -45,6 +45,7 @@ export function Editor() {
   const mediaAlignment = useSettingsStore((s) => s.markdown.mediaAlignment);
   const headingAlignment = useSettingsStore((s) => s.markdown.headingAlignment);
   const htmlRenderingMode = useSettingsStore((s) => s.markdown.htmlRenderingMode);
+  const keepAlive = useSettingsStore((s) => s.advanced.keepBothEditorsAlive);
 
   // Mount unified menu dispatcher (handles routing based on mode)
   useUnifiedMenuCommands();
@@ -59,8 +60,17 @@ export function Editor() {
       className={containerClass}
       data-html-rendering-mode={htmlRenderingMode}
     >
-      <div className="editor-content">
-        {sourceMode ? <SourceEditor key={editorKey} /> : <TiptapEditorInner key={editorKey} />}
+      <div className="editor-content" data-active-editor={sourceMode ? "source" : "wysiwyg"}>
+        {keepAlive ? (
+          <>
+            <SourceEditor key={editorKey} hidden={!sourceMode} />
+            <TiptapEditorInner key={editorKey} hidden={sourceMode} />
+          </>
+        ) : (
+          sourceMode
+            ? <SourceEditor key={editorKey} />
+            : <TiptapEditorInner key={editorKey} />
+        )}
       </div>
       <HeadingPicker />
       <DropZoneIndicator />

@@ -2,20 +2,26 @@
  * MCP Bridge - Editor Operation Handlers
  */
 
-import { undoDepth, redoDepth } from "@tiptap/pm/history";
+import { undoDepth as pmUndoDepth, redoDepth as pmRedoDepth } from "@tiptap/pm/history";
+import { undoDepth as cmUndoDepth, redoDepth as cmRedoDepth } from "@codemirror/commands";
 import { respond, getEditor } from "./utils";
+import { performUnifiedUndo, performUnifiedRedo, canNativeUndo, canNativeRedo } from "@/hooks/useUnifiedHistory";
+import { useUnifiedHistoryStore } from "@/stores/unifiedHistoryStore";
+import { useEditorStore } from "@/stores/editorStore";
+import { useActiveEditorStore } from "@/stores/activeEditorStore";
+import { useTabStore } from "@/stores/tabStore";
+import { getCurrentWindowLabel } from "@/utils/workspaceStorage";
 
 /**
  * Handle editor.undo request.
+ * Uses the unified history system to support cross-mode undo.
  */
 export async function handleUndo(id: string): Promise<void> {
   try {
-    const editor = getEditor();
-    if (!editor) throw new Error("No active editor");
+    const windowLabel = getCurrentWindowLabel();
+    const performed = performUnifiedUndo(windowLabel);
 
-    editor.commands.undo();
-
-    await respond({ id, success: true, data: null });
+    await respond({ id, success: true, data: { performed } });
   } catch (error) {
     await respond({
       id,
@@ -27,15 +33,14 @@ export async function handleUndo(id: string): Promise<void> {
 
 /**
  * Handle editor.redo request.
+ * Uses the unified history system to support cross-mode redo.
  */
 export async function handleRedo(id: string): Promise<void> {
   try {
-    const editor = getEditor();
-    if (!editor) throw new Error("No active editor");
+    const windowLabel = getCurrentWindowLabel();
+    const performed = performUnifiedRedo(windowLabel);
 
-    editor.commands.redo();
-
-    await respond({ id, success: true, data: null });
+    await respond({ id, success: true, data: { performed } });
   } catch (error) {
     await respond({
       id,
@@ -67,23 +72,47 @@ export async function handleFocus(id: string): Promise<void> {
 
 /**
  * Handle editor.getUndoState request.
- * Returns current undo/redo state for MCP clients.
+ * Returns unified undo/redo state (native + cross-mode checkpoints).
  */
 export async function handleGetUndoState(id: string): Promise<void> {
   try {
-    const editor = getEditor();
-    if (!editor) throw new Error("No active editor");
+    const windowLabel = getCurrentWindowLabel();
+    const tabId = useTabStore.getState().activeTabId[windowLabel];
+    const historyStore = useUnifiedHistoryStore.getState();
+    const isSourceMode = useEditorStore.getState().sourceMode;
 
-    const state = editor.state;
+    const hasNativeUndo = canNativeUndo();
+    const hasNativeRedo = canNativeRedo();
+    const hasCheckpointUndo = tabId ? historyStore.canUndoCheckpoint(tabId) : false;
+    const hasCheckpointRedo = tabId ? historyStore.canRedoCheckpoint(tabId) : false;
+
+    // Mode-appropriate native depths
+    let nativeUndoCount = 0;
+    let nativeRedoCount = 0;
+    if (isSourceMode) {
+      const view = useActiveEditorStore.getState().activeSourceView;
+      if (view) {
+        nativeUndoCount = cmUndoDepth(view.state);
+        nativeRedoCount = cmRedoDepth(view.state);
+      }
+    } else {
+      const editor = getEditor();
+      if (editor) {
+        nativeUndoCount = pmUndoDepth(editor.state);
+        nativeRedoCount = pmRedoDepth(editor.state);
+      }
+    }
 
     await respond({
       id,
       success: true,
       data: {
-        canUndo: editor.can().undo(),
-        canRedo: editor.can().redo(),
-        undoDepth: undoDepth(state),
-        redoDepth: redoDepth(state),
+        canUndo: hasNativeUndo || hasCheckpointUndo,
+        canRedo: hasNativeRedo || hasCheckpointRedo,
+        undoDepth: nativeUndoCount,
+        redoDepth: nativeRedoCount,
+        hasCheckpointUndo,
+        hasCheckpointRedo,
       },
     });
   } catch (error) {
