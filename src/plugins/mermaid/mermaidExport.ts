@@ -109,14 +109,18 @@ export function setupMermaidExport(
     closeMenu();
 
     const svg = await renderMermaidForExport(mermaidSource, theme);
-    if (!svg) return;
+    if (!svg) {
+      console.warn("[mermaid-export] render returned no SVG");
+      return;
+    }
 
     const bgColor = theme === "dark" ? DARK_BG : LIGHT_BG;
 
     let pngData: Uint8Array;
     try {
       pngData = await svgToPngBytes(svg, 2, bgColor);
-    } catch {
+    } catch (e) {
+      console.warn("[mermaid-export] SVG→PNG conversion failed", e);
       return;
     }
 
@@ -126,7 +130,11 @@ export function setupMermaidExport(
     });
     if (!filePath) return;
 
-    await writeFile(filePath, pngData);
+    try {
+      await writeFile(filePath, pngData);
+    } catch (e) {
+      console.warn("[mermaid-export] failed to write file", e);
+    }
   }
 
   // --- Button event listeners ---
