@@ -32,6 +32,9 @@ import { getHeadingInfo, setHeadingLevel, convertToHeading } from "@/plugins/sou
 import { getListItemInfo, toBulletList, toOrderedList, toTaskList, removeList } from "@/plugins/sourceContextDetection/listDetection";
 import { toggleBlockquote as toggleBlockquoteAction } from "@/plugins/sourceContextDetection/blockquoteActions";
 import { getCodeFenceInfo } from "@/plugins/sourceContextDetection/codeFenceDetection";
+import { getSourceTableInfo } from "@/plugins/sourceContextDetection/tableDetection";
+import { getBlockquoteInfo } from "@/plugins/sourceContextDetection/blockquoteDetection";
+import { getListBlockBounds } from "@/plugins/sourceContextDetection/listDetection";
 
 function buildSourceContext(view: EditorView) {
   const cursorContext = useSourceCursorContextStore.getState().context;
@@ -350,6 +353,53 @@ function doSortLinesDesc(view: EditorView): boolean {
   return true;
 }
 
+// --- Source smart select-all state ---
+
+interface SourceSelectUndo {
+  prev: { from: number; to: number };
+  expanded: { from: number; to: number };
+}
+
+const sourceSelectUndoState = new WeakMap<EditorView, SourceSelectUndo>();
+
+/**
+ * Get the bounds of the block containing the cursor in source mode.
+ * Detection order: code fence -> table -> blockquote -> list.
+ * Returns { from, to } or null if cursor is not in any block.
+ */
+export function getSourceBlockBounds(view: EditorView): { from: number; to: number } | null {
+  // 1. Code fence
+  const fenceInfo = getCodeFenceInfo(view);
+  if (fenceInfo) {
+    const doc = view.state.doc;
+    // Empty fence — no content to select
+    if (fenceInfo.endLine - fenceInfo.startLine <= 1) return null;
+    const contentStartLine = doc.line(fenceInfo.startLine + 1);
+    const contentEndLine = doc.line(fenceInfo.endLine - 1);
+    return { from: contentStartLine.from, to: contentEndLine.to };
+  }
+
+  // 2. Table
+  const tableInfo = getSourceTableInfo(view);
+  if (tableInfo) {
+    return { from: tableInfo.start, to: tableInfo.end };
+  }
+
+  // 3. Blockquote
+  const bqInfo = getBlockquoteInfo(view);
+  if (bqInfo) {
+    return { from: bqInfo.from, to: bqInfo.to };
+  }
+
+  // 4. List block
+  const listBounds = getListBlockBounds(view);
+  if (listBounds) {
+    return listBounds;
+  }
+
+  return null;
+}
+
 export function buildSourceShortcutKeymap(): KeyBinding[] {
   const shortcuts = useShortcutsStore.getState();
   const bindings: KeyBinding[] = [];
@@ -445,39 +495,61 @@ export function buildSourceShortcutKeymap(): KeyBinding[] {
   bindIfKey(bindings, shortcuts.getShortcut("transformTitleCase"), doTransformTitleCase);
   bindIfKey(bindings, shortcuts.getShortcut("transformToggleCase"), doTransformToggleCase);
 
-  // --- Code fence select all ---
-  // Mod-a in a code fence selects fence content first, then whole document on second press
+  // --- Smart select-all: block-level expansion ---
+  // Mod-a detects block context and selects block content first, then whole document on second press.
+  // Detection order: code fence -> table -> blockquote -> list -> default
   bindings.push(
     guardCodeMirrorKeyBinding({
       key: "Mod-a",
       run: (view) => {
-        const fenceInfo = getCodeFenceInfo(view);
-        if (!fenceInfo) {
-          return false; // Not in code fence, use default selectAll
-        }
+        const { from, to } = view.state.selection.main;
 
-        const doc = view.state.doc;
-        // Content is between opening fence line and closing fence line (exclusive)
-        const contentStartLine = doc.line(fenceInfo.startLine + 1);
-        const contentEndLine = doc.line(fenceInfo.endLine - 1);
-
-        // If fence has no content lines (empty fence), select nothing special
-        if (fenceInfo.endLine - fenceInfo.startLine <= 1) {
+        const blockBounds = getSourceBlockBounds(view);
+        if (!blockBounds) {
+          // Not in any block — clear undo state and let default select-all handle it
+          sourceSelectUndoState.delete(view);
           return false;
         }
 
-        const contentFrom = contentStartLine.from;
-        const contentTo = contentEndLine.to;
-
-        // Check if already selecting entire fence content
-        const { from, to } = view.state.selection.main;
-        if (from === contentFrom && to === contentTo) {
-          return false; // Let default selectAll take over for whole document
+        // If already selecting entire block, clear undo state and fall through
+        if (from === blockBounds.from && to === blockBounds.to) {
+          sourceSelectUndoState.delete(view);
+          return false;
         }
 
-        // Select fence content only
+        // Save current selection for undo, then select block
+        sourceSelectUndoState.set(view, {
+          prev: { from, to },
+          expanded: { from: blockBounds.from, to: blockBounds.to },
+        });
         view.dispatch({
-          selection: { anchor: contentFrom, head: contentTo },
+          selection: { anchor: blockBounds.from, head: blockBounds.to },
+        });
+        return true;
+      },
+      preventDefault: true,
+    })
+  );
+
+  // --- Smart select-all undo ---
+  // Mod-z restores the previous selection if the last action was a smart select-all expansion
+  bindings.push(
+    guardCodeMirrorKeyBinding({
+      key: "Mod-z",
+      run: (view) => {
+        const undoInfo = sourceSelectUndoState.get(view);
+        if (!undoInfo) return false;
+
+        const { from, to } = view.state.selection.main;
+        // Only restore if current selection matches the expansion
+        if (from !== undoInfo.expanded.from || to !== undoInfo.expanded.to) {
+          sourceSelectUndoState.delete(view);
+          return false;
+        }
+
+        sourceSelectUndoState.delete(view);
+        view.dispatch({
+          selection: { anchor: undoInfo.prev.from, head: undoInfo.prev.to },
         });
         return true;
       },
