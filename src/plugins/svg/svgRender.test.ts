@@ -45,4 +45,8 @@ describe("renderSvgBlock", () => {
   it("returns null for XML declaration without SVG root", () => {
     expect(renderSvgBlock('<?xml version="1.0"?><html><body>test</body></html>')).toBeNull();
   });
+
+  it("returns null for tags that start with 'svg' but are not <svg>", () => {
+    expect(renderSvgBlock("<svgFoo>test</svgFoo>")).toBeNull();
+  });
 });

@@ -22,7 +22,7 @@ export { createSourceImagePreviewPlugin } from "./sourceImagePreview";
 export { sourceMultiCursorExtensions } from "./sourceMultiCursorPlugin";
 export { sourceTableContextMenuExtensions } from "./sourceTableContextMenu";
 export { sourceTableCellHighlightExtensions } from "./sourceTableCellHighlight";
-export { sourceMermaidPreviewExtensions } from "./sourceMermaidPreview";
+export { sourceDiagramPreviewExtensions } from "./sourceMermaidPreview";
 export { sourceAlertDecorationExtensions } from "./sourceAlertDecoration";
 export { sourceDetailsDecorationExtensions } from "./sourceDetailsDecoration";
 export {

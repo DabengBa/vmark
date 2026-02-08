@@ -40,7 +40,7 @@ import {
   sourceMultiCursorExtensions,
   sourceTableContextMenuExtensions,
   sourceTableCellHighlightExtensions,
-  sourceMermaidPreviewExtensions,
+  sourceDiagramPreviewExtensions,
   sourceAlertDecorationExtensions,
   sourceDetailsDecorationExtensions,
   visualLineUpKeymap,
@@ -238,8 +238,8 @@ export function createSourceEditorExtensions(config: ExtensionConfig): Extension
     ...sourceTableContextMenuExtensions,
     // Table cell highlight
     ...sourceTableCellHighlightExtensions,
-    // Mermaid preview
-    ...sourceMermaidPreviewExtensions,
+    // Diagram preview (mermaid + SVG)
+    ...sourceDiagramPreviewExtensions,
     // Alert block decorations (colored left border)
     ...sourceAlertDecorationExtensions,
     // Details block decorations

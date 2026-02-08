@@ -15,15 +15,23 @@ export async function svgToPngBytes(
   const svgEl = doc.documentElement;
 
   const viewBox = svgEl.getAttribute("viewBox");
-  let width: number;
-  let height: number;
+  let width = 800;
+  let height = 600;
   if (viewBox) {
     const parts = viewBox.split(/[\s,]+/).map(Number);
-    width = parts[2];
-    height = parts[3];
-  } else {
-    width = parseFloat(svgEl.getAttribute("width") || "800");
-    height = parseFloat(svgEl.getAttribute("height") || "600");
+    if (parts.length >= 4 && !isNaN(parts[2]) && !isNaN(parts[3])) {
+      width = parts[2];
+      height = parts[3];
+    }
+  }
+  // Fall back to explicit width/height attributes
+  if (width === 800 && svgEl.getAttribute("width")) {
+    const w = parseFloat(svgEl.getAttribute("width")!);
+    if (!isNaN(w)) width = w;
+  }
+  if (height === 600 && svgEl.getAttribute("height")) {
+    const h = parseFloat(svgEl.getAttribute("height")!);
+    if (!isNaN(h)) height = h;
   }
 
   // Insert background rect as first child
@@ -48,7 +56,11 @@ export async function svgToPngBytes(
       const canvas = document.createElement("canvas");
       canvas.width = width * scale;
       canvas.height = height * scale;
-      const ctx = canvas.getContext("2d")!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas 2D context"));
+        return;
+      }
       ctx.scale(scale, scale);
       ctx.drawImage(img, 0, 0);
       canvas.toBlob(

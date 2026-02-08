@@ -78,12 +78,13 @@ export async function handleInsertMathBlock(
 }
 
 /**
- * Handle vmark.insertMermaid request.
- * Inserts Mermaid diagram (mermaid code block) at cursor position.
+ * Insert a code block with the given language at cursor position.
+ * Shared by mermaid and SVG insert handlers.
  */
-export async function handleInsertMermaid(
+async function handleInsertCodeBlock(
   id: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
+  language: string,
 ): Promise<void> {
   try {
     const editor = getEditor();
@@ -92,13 +93,12 @@ export async function handleInsertMermaid(
     const code = args.code as string;
     if (!code) throw new Error("code is required");
 
-    // Insert as a code block with mermaid language
     editor
       .chain()
       .focus()
       .insertContent({
         type: "codeBlock",
-        attrs: { language: "mermaid" },
+        attrs: { language },
         content: [{ type: "text", text: code }],
       })
       .run();
@@ -113,40 +113,20 @@ export async function handleInsertMermaid(
   }
 }
 
-/**
- * Handle vmark.insertSvg request.
- * Inserts SVG graphic (svg code block) at cursor position.
- */
+/** Handle vmark.insertMermaid — insert mermaid code block at cursor. */
+export async function handleInsertMermaid(
+  id: string,
+  args: Record<string, unknown>,
+): Promise<void> {
+  return handleInsertCodeBlock(id, args, "mermaid");
+}
+
+/** Handle vmark.insertSvg — insert SVG code block at cursor. */
 export async function handleInsertSvg(
   id: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): Promise<void> {
-  try {
-    const editor = getEditor();
-    if (!editor) throw new Error("No active editor");
-
-    const code = args.code as string;
-    if (!code) throw new Error("code is required");
-
-    // Insert as a code block with svg language
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "codeBlock",
-        attrs: { language: "svg" },
-        content: [{ type: "text", text: code }],
-      })
-      .run();
-
-    await respond({ id, success: true, data: null });
-  } catch (error) {
-    await respond({
-      id,
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+  return handleInsertCodeBlock(id, args, "svg");
 }
 
 /**

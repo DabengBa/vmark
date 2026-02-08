@@ -205,6 +205,3 @@ export function createSourceDiagramPreviewPlugin() {
  */
 export const sourceDiagramPreviewExtensions = [createSourceDiagramPreviewPlugin()];
 
-// Keep old names as aliases for backward compatibility
-export const createSourceMermaidPreviewPlugin = createSourceDiagramPreviewPlugin;
-export const sourceMermaidPreviewExtensions = sourceDiagramPreviewExtensions;
