@@ -654,6 +654,7 @@ export type BridgeRequest =
   | { type: 'vmark.insertMathInline'; latex: string; windowId?: WindowId }
   | { type: 'vmark.insertMathBlock'; latex: string; windowId?: WindowId }
   | { type: 'vmark.insertMermaid'; code: string; windowId?: WindowId }
+  | { type: 'vmark.insertSvg'; code: string; windowId?: WindowId }
   | { type: 'vmark.insertWikiLink'; target: string; displayText?: string; windowId?: WindowId }
   | { type: 'vmark.cjkPunctuationConvert'; direction: CjkDirection; windowId?: WindowId }
   | { type: 'vmark.cjkSpacingFix'; action: CjkSpacingAction; windowId?: WindowId }

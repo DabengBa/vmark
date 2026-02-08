@@ -1,5 +1,5 @@
 /**
- * VMark-specific tools - Math, Mermaid, Wiki links, CJK formatting.
+ * VMark-specific tools - Math, Mermaid, SVG, Wiki links, CJK formatting.
  */
 
 import { VMarkMcpServer, resolveWindowId } from '../server.js';
@@ -144,6 +144,53 @@ export function registerVMarkTools(server: VMarkMcpServer): void {
       } catch (error) {
         return VMarkMcpServer.errorResult(
           `Failed to insert Mermaid diagram: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+
+  // insert_svg - Insert SVG graphic
+  server.registerTool(
+    {
+      name: 'insert_svg',
+      description:
+        'Insert an SVG graphic at the cursor position. ' +
+        'The SVG code will be rendered as an inline graphic with pan, zoom, and PNG export. ' +
+        'Use this for charts, illustrations, icons, or any visual that does not fit Mermaid grammar.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'The SVG markup (must be valid XML with an <svg> root element).',
+          },
+          windowId: {
+            type: 'string',
+            description: 'Optional window identifier. Defaults to focused window.',
+          },
+        },
+        required: ['code'],
+      },
+    },
+    async (args) => {
+      const code = args.code as string;
+      const windowId = resolveWindowId(args.windowId as string | undefined);
+
+      if (typeof code !== 'string' || code.length === 0) {
+        return VMarkMcpServer.errorResult('code must be a non-empty string');
+      }
+
+      try {
+        await server.sendBridgeRequest<null>({
+          type: 'vmark.insertSvg',
+          code,
+          windowId,
+        });
+
+        return VMarkMcpServer.successResult('Inserted SVG graphic');
+      } catch (error) {
+        return VMarkMcpServer.errorResult(
+          `Failed to insert SVG graphic: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

@@ -318,6 +318,7 @@ export const TOOL_CATEGORIES = [
       'insert_math_inline',
       'insert_math_block',
       'insert_mermaid',
+      'insert_svg',
       'insert_wiki_link',
       'cjk_punctuation_convert',
       'cjk_spacing_fix',

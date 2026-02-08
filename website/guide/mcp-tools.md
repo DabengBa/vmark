@@ -482,6 +482,24 @@ graph TD
     B --> C[End]
 ```
 
+### insert_svg
+
+Insert an SVG graphic. The SVG renders inline with pan, zoom, and PNG export.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | string | Yes | SVG markup (valid XML with `<svg>` root). |
+| `windowId` | string | No | Window identifier. |
+
+**Example:**
+```svg
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="100" rx="10" fill="#4a6fa5"/>
+  <text x="100" y="55" text-anchor="middle" fill="white"
+        font-size="18" font-family="system-ui">Hello SVG</text>
+</svg>
+```
+
 ### insert_wiki_link
 
 Insert a wiki-style link.

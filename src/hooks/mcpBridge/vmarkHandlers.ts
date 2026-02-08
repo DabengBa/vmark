@@ -1,6 +1,6 @@
 /**
  * MCP Bridge - VMark-Specific Operation Handlers
- * Math, Mermaid, Wiki Links, CJK Formatting
+ * Math, Mermaid, SVG, Wiki Links, CJK Formatting
  */
 
 import { respond, getEditor } from "./utils";
@@ -99,6 +99,42 @@ export async function handleInsertMermaid(
       .insertContent({
         type: "codeBlock",
         attrs: { language: "mermaid" },
+        content: [{ type: "text", text: code }],
+      })
+      .run();
+
+    await respond({ id, success: true, data: null });
+  } catch (error) {
+    await respond({
+      id,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Handle vmark.insertSvg request.
+ * Inserts SVG graphic (svg code block) at cursor position.
+ */
+export async function handleInsertSvg(
+  id: string,
+  args: Record<string, unknown>
+): Promise<void> {
+  try {
+    const editor = getEditor();
+    if (!editor) throw new Error("No active editor");
+
+    const code = args.code as string;
+    if (!code) throw new Error("code is required");
+
+    // Insert as a code block with svg language
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "codeBlock",
+        attrs: { language: "svg" },
         content: [{ type: "text", text: code }],
       })
       .run();

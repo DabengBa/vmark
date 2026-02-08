@@ -104,6 +104,7 @@ import {
   handleInsertMathInline,
   handleInsertMathBlock,
   handleInsertMermaid,
+  handleInsertSvg,
   handleInsertWikiLink,
   handleCjkPunctuationConvert,
   handleCjkSpacingFix,
@@ -382,6 +383,9 @@ async function handleRequest(event: McpRequestEvent): Promise<void> {
         break;
       case "vmark.insertMermaid":
         await handleInsertMermaid(id, args);
+        break;
+      case "vmark.insertSvg":
+        await handleInsertSvg(id, args);
         break;
       case "vmark.insertWikiLink":
         await handleInsertWikiLink(id, args);
