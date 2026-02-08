@@ -34,6 +34,7 @@ export function AdvancedSettings() {
   const [isBusy, setIsBusy] = useState(false);
   const customLinkProtocols = useSettingsStore((state) => state.advanced.customLinkProtocols);
   const enableGenies = useSettingsStore((state) => state.advanced.enableGenies);
+  const keepBothEditorsAlive = useSettingsStore((state) => state.advanced.keepBothEditorsAlive);
   const updateAdvancedSetting = useSettingsStore((state) => state.updateAdvancedSetting);
 
   return (
@@ -58,6 +59,18 @@ export function AdvancedSettings() {
             placeholder="Add protocol..."
           />
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="Performance">
+        <SettingRow
+          label="Keep both editors alive"
+          description="Faster mode switching at the cost of higher memory usage"
+        >
+          <Toggle
+            checked={keepBothEditorsAlive}
+            onChange={(v) => updateAdvancedSetting("keepBothEditorsAlive", v)}
+          />
+        </SettingRow>
       </SettingsGroup>
 
       {/* Feature flags - only visible when developer mode is enabled */}

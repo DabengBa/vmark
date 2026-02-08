@@ -200,6 +200,7 @@ export interface AdvancedSettingsState {
   mcpServer: McpServerSettings;
   customLinkProtocols: string[]; // Custom URL protocols to recognize (e.g., "obsidian", "vscode")
   enableGenies: boolean; // Enable AI Genies feature (default: false, dev-only)
+  keepBothEditorsAlive: boolean; // Keep both editors mounted for faster mode switching (default: false)
 }
 
 export interface MarkdownSettings {
@@ -403,6 +404,7 @@ const initialState: SettingsState = {
     },
     customLinkProtocols: ["obsidian", "vscode", "dict", "x-dictionary"],
     enableGenies: false,
+    keepBothEditorsAlive: false,
   },
   update: {
     autoCheckEnabled: true,

@@ -747,12 +747,12 @@
 }
 
 /* Source mode indicator - subtle background, extends left to cover resize handle gap */
-.editor-container:has(.source-editor) {
+.editor-container:has([data-active-editor="source"]) {
   background-color: var(--source-mode-bg, rgba(0, 0, 0, 0.02));
   box-shadow: -6px 0 0 0 var(--source-mode-bg, rgba(0, 0, 0, 0.02));
 }
 
-.editor-content:has(.source-editor) {
+.editor-content[data-active-editor="source"] {
   /* Remove padding in source mode - let cm-scroller handle scrolling at edge */
   padding: 0;
   /* Disable scrolling on editor-content - cm-scroller handles it */
@@ -762,7 +762,7 @@
 }
 
 /* Override max-width in source mode so editor fills container */
-.editor-content:has(.source-editor) .source-editor {
+.editor-content[data-active-editor="source"] .source-editor {
   max-width: 100%;
 }
 

@@ -32,10 +32,16 @@ import {
   shortcutKeymapCompartment,
 } from "@/utils/sourceEditorExtensions";
 
-export function SourceEditor() {
+interface SourceEditorProps {
+  hidden?: boolean;
+}
+
+export function SourceEditor({ hidden = false }: SourceEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isInternalChange = useRef(false);
+  const hiddenRef = useRef(hidden);
+  hiddenRef.current = hidden;
 
   useSourceMenuCommands(viewRef);
 
@@ -62,7 +68,7 @@ export function SourceEditor() {
   useImageDragDrop({
     cmViewRef: viewRef,
     isSourceMode: true,
-    enabled: true,
+    enabled: !hidden,
   });
 
   // Create CodeMirror instance
@@ -70,6 +76,9 @@ export function SourceEditor() {
     if (!containerRef.current || viewRef.current) return;
 
     const updateListener = EditorView.updateListener.of((update) => {
+      // Skip updates when hidden — prevents polluting document store
+      if (hiddenRef.current) return;
+
       if (update.docChanged) {
         isInternalChange.current = true;
         const newContent = update.state.doc.toString();
@@ -126,8 +135,11 @@ export function SourceEditor() {
     });
 
     viewRef.current = view;
-    // Register with activeEditorStore for unified menu dispatcher
-    useActiveEditorStore.getState().setActiveSourceView(view);
+
+    // Only register and focus when not hidden
+    if (!hiddenRef.current) {
+      useActiveEditorStore.getState().setActiveSourceView(view);
+    }
 
     const updateShortcutKeymap = () => {
       runOrQueueCodeMirrorAction(view, () => {
@@ -145,35 +157,67 @@ export function SourceEditor() {
       view
     );
 
-    // Auto-focus and restore cursor on mount
-    // Capture cursorInfo at mount time (before it might change)
+    // Auto-focus and restore cursor on mount (only when visible)
     const initialCursorInfo = cursorInfo;
-    const focusTimeoutId = setTimeout(() => {
-      // Guard: view may have been destroyed if component unmounted quickly
-      if (!viewRef.current) return;
-      view.focus();
-      // Restore cursor position from previous mode if available
-      if (initialCursorInfo) {
-        restoreCursorInCodeMirror(view, initialCursorInfo);
-      } else {
-        // Fresh document load - set cursor to start of document
-        view.dispatch({
-          selection: { anchor: 0 },
-          scrollIntoView: true,
-        });
-      }
-    }, 50);
+    let focusTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (!hiddenRef.current) {
+      focusTimeoutId = setTimeout(() => {
+        if (!viewRef.current) return;
+        view.focus();
+        if (initialCursorInfo) {
+          restoreCursorInCodeMirror(view, initialCursorInfo);
+        } else {
+          view.dispatch({
+            selection: { anchor: 0 },
+            scrollIntoView: true,
+          });
+        }
+      }, 50);
+    }
 
     return () => {
-      clearTimeout(focusTimeoutId);
+      if (focusTimeoutId !== null) clearTimeout(focusTimeoutId);
       unsubscribeShortcuts();
-      // Use conditional clear to avoid clearing a newly active view
       useActiveEditorStore.getState().clearSourceViewIfMatch(view);
       view.destroy();
       viewRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Handle visibility transitions: hidden → visible
+  useEffect(() => {
+    if (hidden) return;
+    const view = viewRef.current;
+    if (!view) return;
+
+    // Sync content from document store to CodeMirror
+    const currentContent = view.state.doc.toString();
+    if (currentContent !== content) {
+      runOrQueueCodeMirrorAction(view, () => {
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: content,
+          },
+        });
+      });
+    }
+
+    // Register as active source view
+    useActiveEditorStore.getState().setActiveSourceView(view);
+
+    // Focus and restore cursor
+    setTimeout(() => {
+      if (!viewRef.current || hiddenRef.current) return;
+      view.focus();
+      if (cursorInfoRef.current) {
+        restoreCursorInCodeMirror(view, cursorInfoRef.current);
+      }
+    }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidden]);
 
   // Use extracted hooks for sync and search functionality
   useSourceEditorSync({
@@ -189,7 +233,13 @@ export function SourceEditor() {
 
   useSourceEditorSearch(viewRef);
 
-  return <div ref={containerRef} className={`source-editor${showLineNumbers ? " show-line-numbers" : ""}`} />;
+  return (
+    <div
+      ref={containerRef}
+      className={`source-editor${showLineNumbers ? " show-line-numbers" : ""}`}
+      style={hidden ? { display: "none" } : undefined}
+    />
+  );
 }
 
 export default SourceEditor;
