@@ -207,6 +207,117 @@ export function toTaskList(view: EditorView, info: ListItemInfo): void {
 }
 
 /**
+ * Pattern matching any list item line (bullet, ordered, or task).
+ * Used by getListBlockBounds to detect contiguous list regions.
+ */
+const LIST_LINE_PATTERN = /^(\s*)([-*+]\s*\[[ xX]\]\s|[-*+]\s|\d+\.\s)/;
+
+/**
+ * Check if a line of text is a list item (any type).
+ */
+function isListLine(text: string): boolean {
+  return LIST_LINE_PATTERN.test(text);
+}
+
+/**
+ * Check if a line looks like a horizontal rule (---, ***, ___) rather than a list marker.
+ */
+function isHorizontalRule(text: string): boolean {
+  const trimmed = text.trim();
+  return /^[-*_]{3,}$/.test(trimmed);
+}
+
+/**
+ * Get the bounds of a contiguous list block around the cursor.
+ * Includes blank lines within the list (GFM loose lists) if the next
+ * non-blank line is also a list item.
+ *
+ * Returns { from, to } character offsets or null if cursor is not in a list.
+ */
+export function getListBlockBounds(view: EditorView): { from: number; to: number } | null {
+  const { state } = view;
+  const { from } = state.selection.main;
+  const doc = state.doc;
+  const currentLine = doc.lineAt(from);
+
+  // Cursor must be on a list line
+  if (!isListLine(currentLine.text) || isHorizontalRule(currentLine.text)) {
+    return null;
+  }
+
+  const totalLines = doc.lines;
+  let startLineNum = currentLine.number;
+  let endLineNum = currentLine.number;
+
+  // Scan upward
+  for (let lineNum = currentLine.number - 1; lineNum >= 1; lineNum--) {
+    const line = doc.line(lineNum);
+    if (isListLine(line.text) && !isHorizontalRule(line.text)) {
+      startLineNum = lineNum;
+      continue;
+    }
+    // Blank line: include if a list line exists above it
+    if (line.text.trim() === "") {
+      // Look further up for a list line
+      let foundList = false;
+      for (let above = lineNum - 1; above >= 1; above--) {
+        const aboveLine = doc.line(above);
+        if (aboveLine.text.trim() === "") continue;
+        if (isListLine(aboveLine.text) && !isHorizontalRule(aboveLine.text)) {
+          foundList = true;
+        }
+        break;
+      }
+      if (foundList) {
+        startLineNum = lineNum;
+        continue;
+      }
+    }
+    break;
+  }
+
+  // Scan downward
+  for (let lineNum = currentLine.number + 1; lineNum <= totalLines; lineNum++) {
+    const line = doc.line(lineNum);
+    if (isListLine(line.text) && !isHorizontalRule(line.text)) {
+      endLineNum = lineNum;
+      continue;
+    }
+    // Blank line: include if a list line follows
+    if (line.text.trim() === "") {
+      let foundList = false;
+      for (let below = lineNum + 1; below <= totalLines; below++) {
+        const belowLine = doc.line(below);
+        if (belowLine.text.trim() === "") continue;
+        if (isListLine(belowLine.text) && !isHorizontalRule(belowLine.text)) {
+          foundList = true;
+        }
+        break;
+      }
+      if (foundList) {
+        endLineNum = lineNum;
+        continue;
+      }
+    }
+    break;
+  }
+
+  // Trim trailing blank lines from the block
+  while (endLineNum > startLineNum && doc.line(endLineNum).text.trim() === "") {
+    endLineNum--;
+  }
+  // Trim leading blank lines from the block
+  while (startLineNum < endLineNum && doc.line(startLineNum).text.trim() === "") {
+    startLineNum++;
+  }
+
+  return {
+    from: doc.line(startLineNum).from,
+    to: doc.line(endLineNum).to,
+  };
+}
+
+/**
  * Remove list formatting, converting to plain paragraph.
  */
 export function removeList(view: EditorView, info: ListItemInfo): void {
