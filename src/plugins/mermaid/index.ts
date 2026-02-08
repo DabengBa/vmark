@@ -105,6 +105,15 @@ function applyMermaidConfig(): void {
     securityLevel: "antiscript",
     fontFamily: "inherit",
     fontSize: currentFontSize,
+    markdownAutoWrap: true,
+    flowchart: {
+      htmlLabels: true,
+      wrappingWidth: Math.round(currentFontSize * 14),
+      padding: Math.round(currentFontSize * 1.2),
+      nodeSpacing: Math.round(currentFontSize * 3),
+      rankSpacing: Math.round(currentFontSize * 3),
+      useMaxWidth: true,
+    },
     themeVariables,
   });
 }
