@@ -75,6 +75,12 @@ export function ProviderSwitcher({ onClose, onCloseAll }: ProviderSwitcherProps)
     openSettingsWindow("integrations");
   };
 
+  // Hide ollama-api from REST list when CLI Ollama is already shown
+  const cliTypes = new Set(cliProviders.map((p) => p.type));
+  const filteredRest = restProviders.filter(
+    (p) => !(p.type === "ollama-api" && cliTypes.has("ollama")),
+  );
+
   return (
     <div ref={containerRef} className="provider-switcher">
       {/* CLI providers */}
@@ -104,7 +110,7 @@ export function ProviderSwitcher({ onClose, onCloseAll }: ProviderSwitcherProps)
       {/* REST providers */}
       <div className="provider-switcher-section">
         <div className="provider-switcher-label">API</div>
-        {restProviders.map((p) => {
+        {filteredRest.map((p) => {
           const hasKey = !!p.apiKey || KEY_OPTIONAL_REST.has(p.type);
           return (
             <button
