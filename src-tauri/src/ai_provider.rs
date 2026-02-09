@@ -42,7 +42,6 @@ pub fn detect_ai_providers() -> Vec<CliProviderEntry> {
         ("claude", "Claude", "claude"),
         ("codex", "Codex", "codex"),
         ("gemini", "Gemini", "gemini"),
-        ("ollama", "Ollama", "ollama"),
     ];
 
     providers
@@ -281,10 +280,6 @@ pub async fn run_ai_prompt(
         "claude" => run_cli_provider(&window, &request_id, "claude", &["--print", "--output-format", "text"], Some(&prompt)),
         "codex" => run_cli_provider(&window, &request_id, "codex", &["exec", &prompt], None),
         "gemini" => run_cli_provider(&window, &request_id, "gemini", &["-p", &prompt], None),
-        "ollama" => {
-            let m = model.as_deref().unwrap_or("llama3.2");
-            run_cli_provider(&window, &request_id, "ollama", &["run", m], Some(&prompt))
-        }
 
         // REST providers
         "anthropic" => {
