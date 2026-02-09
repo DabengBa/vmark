@@ -308,6 +308,11 @@
   font-family: var(--font-mono);
 }
 
+.genie-picker-provider {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
 .genie-picker-running {
   color: var(--primary-color);
 }

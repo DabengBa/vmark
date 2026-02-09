@@ -12,7 +12,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import type { GenieDefinition, GenieScope, GenieAction, AiResponseChunk } from "@/types/aiGenies";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
-import { useAiProviderStore } from "@/stores/aiProviderStore";
+import { useAiProviderStore, REST_TYPES, KEY_OPTIONAL_REST } from "@/stores/aiProviderStore";
 import { useAiInvocationStore } from "@/stores/aiInvocationStore";
 import { useEditorStore } from "@/stores/editorStore";
 import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
@@ -156,6 +156,15 @@ export function useGenieInvocation() {
       const restConfig = providerState.restProviders.find(
         (p) => p.type === provider
       );
+
+      // Validate REST provider has an API key before calling Rust
+      if (REST_TYPES.has(provider) && !KEY_OPTIONAL_REST.has(provider)) {
+        if (!restConfig?.apiKey) {
+          const name = restConfig?.name ?? provider;
+          toast.error(`${name} API key is required. Configure it in Settings → Integrations.`);
+          return;
+        }
+      }
 
       // Generate unique request ID
       const requestId = crypto.randomUUID();

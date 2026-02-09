@@ -326,6 +326,12 @@ function AiProviderSettings() {
   const activeProvider = useAiProviderStore((s) => s.activeProvider);
   const detecting = useAiProviderStore((s) => s.detecting);
 
+  // Auto-detect CLI providers when settings page mounts so users
+  // immediately see available CLIs without clicking "Detect"
+  useEffect(() => {
+    useAiProviderStore.getState().detectProviders();
+  }, []);
+
   const handleDetect = () => {
     useAiProviderStore.getState().detectProviders();
   };

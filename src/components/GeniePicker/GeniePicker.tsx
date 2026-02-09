@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import { useGeniesStore } from "@/stores/geniesStore";
 import { useGenieInvocation } from "@/hooks/useGenieInvocation";
+import { useAiProviderStore } from "@/stores/aiProviderStore";
 import { usePromptHistory } from "@/hooks/usePromptHistory";
 import type { GenieDefinition, GenieScope } from "@/types/aiGenies";
 import { GenieChips } from "./GenieChips";
@@ -43,6 +44,7 @@ export function GeniePicker() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { invokeGenie, invokeFreeform, isRunning } = useGenieInvocation();
+  const activeProvider = useAiProviderStore((s) => s.activeProvider);
 
   // Prompt history hook
   const promptHistory = usePromptHistory();
@@ -357,6 +359,11 @@ export function GeniePicker() {
           <span className="genie-picker-scope">
             scope: {activeScope ?? "all"}
           </span>
+          {activeProvider && (
+            <span className="genie-picker-provider">
+              via {useAiProviderStore.getState().getActiveProviderName()}
+            </span>
+          )}
           {isRunning && (
             <span className="genie-picker-running">Running...</span>
           )}
