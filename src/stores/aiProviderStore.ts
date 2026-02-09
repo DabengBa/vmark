@@ -82,6 +82,12 @@ const DEFAULT_REST_PROVIDERS: RestProviderConfig[] = [
   },
 ];
 
+/** REST provider types (need API key). CLI types are everything else. */
+const REST_TYPES = new Set<string>(["anthropic", "openai", "google-ai", "ollama-api"]);
+
+/** Ollama API doesn't require an API key. */
+const KEY_OPTIONAL_REST = new Set<string>(["ollama-api"]);
+
 // Race guard counter for detectProviders
 let _detectId = 0;
 
@@ -125,27 +131,37 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
           // Validate active provider is still available
           const { activeProvider, restProviders } = get();
           if (activeProvider) {
-            const isCli = providers.some(
-              (p) => p.type === activeProvider
-            );
+            const isCli = !REST_TYPES.has(activeProvider);
             // CLI provider that is no longer available → fall back
             if (isCli) {
               const stillAvailable = providers.some(
                 (p) => p.type === activeProvider && p.available
               );
               if (!stillAvailable) {
+                // Try another CLI, then any REST with an API key, then null
                 const firstCli = providers.find((p) => p.available);
+                const firstReadyRest = restProviders.find(
+                  (p) => p.apiKey && !KEY_OPTIONAL_REST.has(p.type)
+                ) ?? restProviders.find((p) => KEY_OPTIONAL_REST.has(p.type));
                 set({
-                  activeProvider: firstCli?.type ?? restProviders.find((p) => p.enabled)?.type ?? null,
+                  activeProvider: firstCli?.type ?? firstReadyRest?.type ?? null,
                 });
               }
             }
             // REST providers are always selectable — no validation needed
           } else {
-            // No active provider — auto-select first available
-            const first = providers.find((p) => p.available);
-            if (first) {
-              set({ activeProvider: first.type });
+            // No active provider — auto-select first available CLI,
+            // or first REST with an API key configured
+            const firstCli = providers.find((p) => p.available);
+            if (firstCli) {
+              set({ activeProvider: firstCli.type });
+            } else {
+              const firstReadyRest = restProviders.find(
+                (p) => p.apiKey && !KEY_OPTIONAL_REST.has(p.type)
+              ) ?? restProviders.find((p) => KEY_OPTIONAL_REST.has(p.type));
+              if (firstReadyRest) {
+                set({ activeProvider: firstReadyRest.type });
+              }
             }
           }
         } catch (e) {
@@ -157,7 +173,14 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
       },
 
       ensureProvider: async () => {
-        if (get().activeProvider) return true;
+        const { activeProvider, cliProviders } = get();
+        // If a CLI provider is selected but detection hasn't run yet,
+        // run it to validate availability.
+        if (activeProvider && !REST_TYPES.has(activeProvider) && cliProviders.length === 0) {
+          await get().detectProviders();
+          return get().activeProvider !== null;
+        }
+        if (activeProvider) return true;
         await get().detectProviders();
         return get().activeProvider !== null;
       },
@@ -224,11 +247,12 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
         restProviders: state.restProviders,
       }),
       onRehydrateStorage: () => {
-        // After hydration, fill empty API key fields from environment variables.
-        // This runs after persisted keys are restored, so manually entered keys
-        // are preserved and env vars only fill gaps.
+        // After hydration:
+        // 1. Fill empty API key fields from environment variables.
+        // 2. Detect CLI providers so the CLI section is populated on startup.
         return () => {
           useAiProviderStore.getState().loadEnvApiKeys();
+          useAiProviderStore.getState().detectProviders();
         };
       },
       migrate: (persisted, version) => {
