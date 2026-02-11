@@ -116,6 +116,7 @@ describe("activeDocument", () => {
           "tab-1": {
             content: "# Hello",
             savedContent: "# Hello",
+            lastDiskContent: "# Hello",
             filePath: "/test.md",
             isDirty: false,
             documentId: 1,
@@ -150,6 +151,7 @@ describe("activeDocument", () => {
           "tab-1": {
             content: "First content",
             savedContent: "First content",
+            lastDiskContent: "First content",
             filePath: "/first.md",
             isDirty: false,
             documentId: 1,
@@ -163,6 +165,7 @@ describe("activeDocument", () => {
           "tab-2": {
             content: "Second content",
             savedContent: "Second content",
+            lastDiskContent: "Second content",
             filePath: "/second.md",
             isDirty: false,
             documentId: 2,

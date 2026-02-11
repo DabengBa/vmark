@@ -154,6 +154,7 @@ describe("useRecentWorkspacesMenuEvents - dirty tabs detection", () => {
         tab1: {
           content: "test",
           savedContent: "original",
+          lastDiskContent: "original",
           filePath: "/test.md",
           isDirty: true,
           documentId: 1,

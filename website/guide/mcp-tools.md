@@ -500,7 +500,7 @@ Insert a Mermaid diagram.
 
 **Example:**
 ```
-graph TD
+flowchart TD
     A[Start] --> B[Process]
     B --> C[End]
 ```

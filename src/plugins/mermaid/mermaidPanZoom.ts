@@ -1,12 +1,10 @@
 /**
  * Mermaid Pan+Zoom
  *
- * Adds scroll-to-pan, Cmd/Ctrl+scroll zoom, and drag-to-pan to mermaid
- * diagram containers in WYSIWYG mode. Uses @panzoom/panzoom on the SVG
- * element directly (CSS transforms), with noBind to coexist with
- * double-click-to-edit.
- *
- * Scroll behavior matches markmap: plain scroll = pan, Cmd/Ctrl+scroll = zoom.
+ * Adds Cmd/Ctrl+scroll zoom and drag-to-pan to mermaid diagram containers
+ * in WYSIWYG mode. Uses @panzoom/panzoom on the SVG element directly
+ * (CSS transforms), with noBind to coexist with double-click-to-edit.
+ * Plain scroll passes through to the document.
  */
 
 import Panzoom, { type PanzoomObject } from "@panzoom/panzoom";
@@ -23,6 +21,8 @@ export function setupMermaidPanZoom(
   container: HTMLElement,
   options?: { showResetButton?: boolean }
 ): MermaidPanZoomInstance | null {
+  if (container.classList.contains("panzoom-enabled")) return null;
+
   const svg = container.querySelector<SVGSVGElement>("svg");
   if (!svg) return null;
 

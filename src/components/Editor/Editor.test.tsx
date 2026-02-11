@@ -46,9 +46,23 @@ vi.mock("@/stores/editorStore", () => {
 });
 
 vi.mock("@/stores/documentStore", () => {
+  const mockDoc = {
+    content: "",
+    savedContent: "",
+    lastDiskContent: "",
+    filePath: null,
+    isDirty: false,
+    documentId: 1,
+    cursorInfo: null,
+    lastAutoSave: null,
+    isMissing: false,
+    isDivergent: false,
+    lineEnding: "unknown" as const,
+    hardBreakStyle: "unknown" as const,
+  };
   const mockDocumentStore = {
-    documents: { "tab-1": { documentId: 1, content: "", isDirty: false, filePath: null } },
-    getDocument: () => ({ content: "", isDirty: false, filePath: null }),
+    documents: { "tab-1": mockDoc },
+    getDocument: () => mockDoc,
     initDocument: vi.fn(),
   };
 

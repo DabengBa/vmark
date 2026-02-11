@@ -65,6 +65,9 @@ async function loadMarkmap(): Promise<void> {
   ]).then(([lib, view]) => {
     transformerInstance = new lib.Transformer();
     markmapViewModule = view;
+  }).catch((err) => {
+    loadPromise = null;
+    throw err;
   });
 
   return loadPromise;
@@ -104,6 +107,8 @@ export async function renderMarkmapToElement(
     // (enter edit mode) can fire without the graph zooming in.
     mm.svg.on("dblclick.zoom", null);
 
+    const existing = activeInstances.get(svgEl);
+    if (existing) existing.mm.destroy();
     activeInstances.set(svgEl, { mm, content: trimmed });
 
     // Self-register cleanup so sweepDetached / cleanupDescendants handle it
@@ -154,12 +159,15 @@ export async function renderMarkmapToSvgString(
   try {
     const { root } = transformerInstance.transform(trimmed);
     const dark = theme === "dark";
-    const options = getColorOptions(dark);
+    const options: Partial<IMarkmapOptions> = {
+      ...getColorOptions(dark),
+      duration: 0, // no animation — serialize immediately
+    };
 
     const mm = markmapViewModule.Markmap.create(svgEl, options, root);
     mm.fit();
 
-    // Wait a frame for D3 transitions to settle
+    // One frame for D3 synchronous layout to apply
     await new Promise((r) => requestAnimationFrame(r));
 
     // Set background for export
@@ -193,7 +201,7 @@ export async function updateMarkmapTheme(isDark: boolean): Promise<boolean> {
   if (!transformerInstance) return false;
 
   // Re-render all active instances
-  for (const [svgEl, { mm, content }] of activeInstances) {
+  for (const [, { mm, content }] of activeInstances) {
     try {
       const { root } = transformerInstance.transform(content);
       const options = getColorOptions(isDark);
