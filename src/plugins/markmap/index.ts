@@ -92,7 +92,11 @@ export async function renderMarkmapToElement(
   try {
     const { root } = transformerInstance.transform(trimmed);
     currentIsDark = isDarkMode();
-    const options = getColorOptions(currentIsDark);
+    const options: Partial<IMarkmapOptions> = {
+      ...getColorOptions(currentIsDark),
+      scrollForPan: true,  // zoom filter rejects plain scroll
+      pan: false,          // don't bind wheel→handlePan
+    };
 
     const mm = markmapViewModule.Markmap.create(svgEl, options, root);
 

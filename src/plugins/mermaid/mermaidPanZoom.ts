@@ -46,19 +46,11 @@ export function setupMermaidPanZoom(
     noBind: true,
   });
 
-  // --- Wheel: plain scroll = pan, Cmd/Ctrl+scroll = zoom ---
-  // Matches markmap's scrollForPan behavior.
+  // --- Wheel: Cmd/Ctrl+scroll = zoom, plain scroll passes through ---
   const onWheel = (e: WheelEvent) => {
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault();
       pz.zoomWithWheel(e, { animate: false });
-    } else {
-      e.preventDefault();
-      const scale = pz.getScale();
-      pz.pan(-e.deltaX / scale, -e.deltaY / scale, {
-        relative: true,
-        animate: false,
-      });
     }
   };
   container.addEventListener("wheel", onWheel, { passive: false });
