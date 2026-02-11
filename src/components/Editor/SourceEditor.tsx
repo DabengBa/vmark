@@ -71,6 +71,17 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
     enabled: !hidden,
   });
 
+  // Reset parent scroll when source editor mounts or becomes visible.
+  // .editor-content retains its scrollTop from WYSIWYG mode even after
+  // overflow switches to hidden, causing the source editor to appear
+  // displaced (content at bottom instead of top).
+  useEffect(() => {
+    const editorContent = containerRef.current?.closest(".editor-content") as HTMLElement | null;
+    if (editorContent && !hidden) {
+      editorContent.scrollTop = 0;
+    }
+  }, [hidden]);
+
   // Create CodeMirror instance
   useEffect(() => {
     if (!containerRef.current || viewRef.current) return;
