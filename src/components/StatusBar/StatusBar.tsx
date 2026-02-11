@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect, useCallback, type MouseEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef, type MouseEvent, type KeyboardEvent } from "react";
 
 // Stable empty array to avoid creating new reference on each render
 const EMPTY_TABS: never[] = [];
 import { Code2, Type, Save, Plus, AlertTriangle, GitFork, Satellite, Sparkles, Terminal } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { countWords as alfaazCount } from "alfaaz";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -10,7 +12,9 @@ import { useWindowLabel, useIsDocumentWindow } from "@/contexts/WindowContext";
 import { useTabStore, type Tab as TabType } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useImagePasteToastStore } from "@/stores/imagePasteToastStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
+import { useTabDragOut } from "@/hooks/useTabDragOut";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
 import {
   useDocumentContent,
@@ -122,6 +126,7 @@ export function StatusBar() {
 
   const [showAutoSave, setShowAutoSave] = useState(false);
   const [autoSaveTime, setAutoSaveTime] = useState<string>("");
+  const tabDragScopeRef = useRef<HTMLDivElement>(null);
 
   // Auto-save indicator effect
   useEffect(() => {
@@ -179,6 +184,77 @@ export function StatusBar() {
     useDocumentStore.getState().initDocument(tabId, "", null);
   }, [windowLabel]);
 
+  const handleDragOut = useCallback(
+    async (tabId: string) => {
+      const tabState = useTabStore.getState();
+      const windowTabs = tabState.getTabsByWindow(windowLabel);
+      const tab = windowTabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      // Prevent drag-out of last tab in main window
+      if (windowLabel === "main" && windowTabs.length <= 1) return;
+
+      const doc = useDocumentStore.getState().getDocument(tabId);
+      if (!doc) return;
+
+      try {
+        await invoke<string>("detach_tab_to_new_window", {
+          data: {
+            tabId: tab.id,
+            title: tab.title,
+            filePath: tab.filePath ?? null,
+            content: doc.content,
+            savedContent: doc.savedContent,
+            isDirty: doc.isDirty,
+            workspaceRoot: useWorkspaceStore.getState().rootPath ?? null,
+          },
+        });
+
+        // Remove tab from source window (no dirty check — content is transferred)
+        tabState.detachTab(windowLabel, tabId);
+        useDocumentStore.getState().removeDocument(tabId);
+
+        // If no tabs remain in a doc window, close it
+        const remaining = useTabStore.getState().getTabsByWindow(windowLabel);
+        if (remaining.length === 0 && windowLabel !== "main") {
+          const win = getCurrentWebviewWindow();
+          invoke("close_window", { label: win.label }).catch(() => {});
+        }
+      } catch (err) {
+        console.error("[StatusBar] drag-out failed:", err);
+      }
+    },
+    [windowLabel]
+  );
+
+  const handleReorder = useCallback(
+    (tabId: string, dropIdx: number) => {
+      const windowTabs = useTabStore.getState().tabs[windowLabel] ?? [];
+      const fromIndex = windowTabs.findIndex((t) => t.id === tabId);
+      if (fromIndex === -1) return;
+
+      // calcDropIndex returns visual insertion point (0..N).
+      // reorderTabs does splice(from,1) then splice(to,0,item),
+      // so when moving forward the target shifts left by 1.
+      let toIndex = dropIdx;
+      if (fromIndex < dropIdx) {
+        toIndex = dropIdx - 1;
+      }
+      // Clamp to valid range
+      toIndex = Math.max(0, Math.min(toIndex, windowTabs.length - 1));
+
+      if (fromIndex === toIndex) return;
+      useTabStore.getState().reorderTabs(windowLabel, fromIndex, toIndex);
+    },
+    [windowLabel]
+  );
+
+  const { getTabDragHandlers, isDragging, isReordering, dragTabId, dropIndex } = useTabDragOut({
+    tabBarRef: tabDragScopeRef,
+    onDragOut: handleDragOut,
+    onReorder: handleReorder,
+  });
+
   // Memoize stripped content once, then derive both counts from it
   // This avoids running the expensive stripMarkdown regex twice per keystroke
   const strippedContent = useMemo(() => stripMarkdown(content), [content]);
@@ -197,7 +273,7 @@ export function StatusBar() {
       <div className="status-bar-container visible" onKeyDown={preventSelectAllOnButtons}>
         <div className="status-bar">
           {/* Left section: tabs */}
-          <div className="status-bar-left">
+          <div className="status-bar-left" ref={tabDragScopeRef}>
             {/* New tab button - always on the left */}
             {showNewTabButton && (
               <button
@@ -214,16 +290,29 @@ export function StatusBar() {
             {/* Tabs section (pill style) */}
             {showTabs && (
               <div className="status-tabs" role="tablist">
-                {tabs.map((tab) => (
-                  <Tab
-                    key={tab.id}
-                    tab={tab}
-                    isActive={tab.id === activeTabId}
-                    onActivate={() => handleActivateTab(tab.id)}
-                    onClose={() => handleCloseTab(tab.id)}
-                    onContextMenu={(e) => handleContextMenu(e, tab)}
-                  />
-                ))}
+                {tabs.map((tab, index) => {
+                  const dragHandlers = getTabDragHandlers(tab.id, tab.isPinned);
+                  const isBeingDragged = dragTabId === tab.id;
+                  const showDropBefore = isReordering && dropIndex === index && !isBeingDragged;
+
+                  return (
+                    <Tab
+                      key={tab.id}
+                      tab={tab}
+                      isActive={tab.id === activeTabId}
+                      isDragTarget={isDragging && isBeingDragged}
+                      isReordering={isReordering && isBeingDragged}
+                      showDropIndicator={showDropBefore}
+                      onActivate={() => handleActivateTab(tab.id)}
+                      onClose={() => handleCloseTab(tab.id)}
+                      onContextMenu={(e) => handleContextMenu(e, tab)}
+                      onPointerDown={dragHandlers.onPointerDown}
+                    />
+                  );
+                })}
+                {isReordering && dropIndex !== null && dropIndex >= tabs.length && (
+                  <div className="tab-drop-indicator" />
+                )}
               </div>
             )}
 

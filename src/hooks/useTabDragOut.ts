@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
-/** Vertical distance (px) below the tab bar bottom to trigger drag-out. */
+/** Vertical distance (px) outside the tab bar to trigger drag-out. */
 const DRAG_OUT_THRESHOLD = 40;
 
 /** Horizontal distance (px) to lock into reorder mode. */
@@ -42,6 +42,10 @@ function calcDropIndex(bar: HTMLElement, clientX: number): number {
     }
   }
   return tabs.length;
+}
+
+function isOutsideVerticalBand(barTop: number, barBottom: number, clientY: number): boolean {
+  return clientY > barBottom + DRAG_OUT_THRESHOLD || clientY < barTop - DRAG_OUT_THRESHOLD;
 }
 
 export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOptions): UseTabDragResult {
@@ -104,11 +108,13 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
           if (!bar) return;
 
           const dx = ev.clientX - s.startX;
-          const barBottom = bar.getBoundingClientRect().bottom;
+          const barRect = bar.getBoundingClientRect();
+          const barTop = barRect.top;
+          const barBottom = barRect.bottom;
 
           if (s.mode === "pending") {
             // Direction lock: determine reorder vs drag-out
-            if (ev.clientY > barBottom + DRAG_OUT_THRESHOLD) {
+            if (isOutsideVerticalBand(barTop, barBottom, ev.clientY)) {
               s.mode = "dragout";
               setIsDragging(true);
             } else if (Math.abs(dx) > REORDER_LOCK_THRESHOLD) {
@@ -127,7 +133,7 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
             setDropIndex(idx);
 
             // Allow escape to drag-out even while reordering
-            if (ev.clientY > barBottom + DRAG_OUT_THRESHOLD) {
+            if (isOutsideVerticalBand(barTop, barBottom, ev.clientY)) {
               s.mode = "dragout";
               setIsReordering(false);
               setIsDragging(true);
