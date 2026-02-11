@@ -15,6 +15,7 @@
 import type { Transformer } from "markmap-lib";
 import type { Markmap, IMarkmapOptions } from "markmap-view";
 import type { INode } from "markmap-common";
+import { registerCleanup } from "@/plugins/shared/diagramCleanup";
 
 // Lazy-loaded module references
 let transformerInstance: Transformer | null = null;
@@ -31,7 +32,8 @@ let currentIsDark = false;
  * Detect if dark mode is active by checking document class
  */
 function isDarkMode(): boolean {
-  return document.documentElement.classList.contains("dark");
+  const cl = document.documentElement.classList;
+  return cl.contains("dark-theme") || cl.contains("dark");
 }
 
 /**
@@ -70,16 +72,17 @@ async function loadMarkmap(): Promise<void> {
 
 /**
  * Render markmap content into a live SVG element.
- * Returns a dispose function to clean up the instance.
+ * Self-registers cleanup via diagramCleanup so callers don't need to
+ * track destroy manually.
  *
  * @param svgEl  An SVG element to mount into (must be attached to DOM)
  * @param content  Markdown content with headings
- * @returns Object with dispose function and fit method, or null on failure
+ * @returns Object with fit method, or null on failure
  */
 export async function renderMarkmapToElement(
   svgEl: SVGSVGElement,
   content: string,
-): Promise<{ dispose: () => void; fit: () => void } | null> {
+): Promise<{ fit: () => void } | null> {
   await loadMarkmap();
   if (!transformerInstance || !markmapViewModule) return null;
 
@@ -95,11 +98,13 @@ export async function renderMarkmapToElement(
 
     activeInstances.set(svgEl, { mm, content: trimmed });
 
+    // Self-register cleanup so sweepDetached / cleanupDescendants handle it
+    registerCleanup(svgEl, () => {
+      activeInstances.delete(svgEl);
+      mm.destroy();
+    });
+
     return {
-      dispose: () => {
-        activeInstances.delete(svgEl);
-        mm.destroy();
-      },
       fit: () => {
         mm.fit();
       },
@@ -169,32 +174,6 @@ export async function renderMarkmapToSvgString(
 }
 
 /**
- * Dispose all markmap instances whose SVG is a descendant of `container`.
- * Call before clearing a container's innerHTML that may hold markmap SVGs.
- */
-export function disposeMarkmapInContainer(container: Element): void {
-  for (const [svgEl, { mm }] of activeInstances) {
-    if (container.contains(svgEl)) {
-      mm.destroy();
-      activeInstances.delete(svgEl);
-    }
-  }
-}
-
-/**
- * Dispose markmap instances whose SVG has been detached from the DOM.
- * Sweeps stale entries left behind when ProseMirror removes widget nodes.
- */
-export function disposeDetachedInstances(): void {
-  for (const [svgEl, { mm }] of activeInstances) {
-    if (!svgEl.isConnected) {
-      mm.destroy();
-      activeInstances.delete(svgEl);
-    }
-  }
-}
-
-/**
  * Update markmap theme when app theme changes.
  * Re-renders all active instances with new colors.
  * Returns true if theme changed.
@@ -213,9 +192,9 @@ export async function updateMarkmapTheme(isDark: boolean): Promise<boolean> {
       mm.setOptions(options);
       mm.setData(root);
       mm.fit();
-    } catch {
-      // If re-render fails, remove the stale instance
-      activeInstances.delete(svgEl);
+    } catch (error) {
+      // Keep the instance so future theme changes can retry
+      console.warn("[Markmap] Failed to update theme for instance:", error);
     }
   }
 
