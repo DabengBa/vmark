@@ -14,7 +14,7 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useImagePasteToastStore } from "@/stores/imagePasteToastStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
-import { useTabDragOut } from "@/hooks/useTabDragOut";
+import { useTabDragOut, type DragOutPoint } from "@/hooks/useTabDragOut";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
 import {
   useDocumentContent,
@@ -82,6 +82,16 @@ function countWordsFromPlain(plainText: string): number {
  */
 function countCharsFromPlain(plainText: string): number {
   return plainText.replace(/\s/g, "").length;
+}
+
+interface TabTransferPayload {
+  tabId: string;
+  title: string;
+  filePath: string | null;
+  content: string;
+  savedContent: string;
+  isDirty: boolean;
+  workspaceRoot: string | null;
 }
 
 export function StatusBar() {
@@ -185,7 +195,7 @@ export function StatusBar() {
   }, [windowLabel]);
 
   const handleDragOut = useCallback(
-    async (tabId: string) => {
+    async (tabId: string, point: DragOutPoint) => {
       const tabState = useTabStore.getState();
       const windowTabs = tabState.getTabsByWindow(windowLabel);
       const tab = windowTabs.find((t) => t.id === tabId);
@@ -197,18 +207,33 @@ export function StatusBar() {
       const doc = useDocumentStore.getState().getDocument(tabId);
       if (!doc) return;
 
+      const transferData: TabTransferPayload = {
+        tabId: tab.id,
+        title: tab.title,
+        filePath: tab.filePath ?? null,
+        content: doc.content,
+        savedContent: doc.savedContent,
+        isDirty: doc.isDirty,
+        workspaceRoot: useWorkspaceStore.getState().rootPath ?? null,
+      };
+
       try {
-        await invoke<string>("detach_tab_to_new_window", {
-          data: {
-            tabId: tab.id,
-            title: tab.title,
-            filePath: tab.filePath ?? null,
-            content: doc.content,
-            savedContent: doc.savedContent,
-            isDirty: doc.isDirty,
-            workspaceRoot: useWorkspaceStore.getState().rootPath ?? null,
-          },
+        const targetWindowLabel = await invoke<string | null>("find_drop_target_window", {
+          sourceWindowLabel: windowLabel,
+          screenX: point.screenX,
+          screenY: point.screenY,
         });
+
+        if (targetWindowLabel) {
+          await invoke("transfer_tab_to_existing_window", {
+            targetWindowLabel,
+            data: transferData,
+          });
+        } else {
+          await invoke<string>("detach_tab_to_new_window", {
+            data: transferData,
+          });
+        }
 
         // Remove tab from source window (no dirty check — content is transferred)
         tabState.detachTab(windowLabel, tabId);

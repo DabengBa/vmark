@@ -57,7 +57,7 @@ function createTabBar({
 
 function dispatchPointer(type: string, clientX: number, clientY: number) {
   document.dispatchEvent(
-    new MouseEvent(type, { bubbles: true, clientX, clientY })
+    new MouseEvent(type, { bubbles: true, clientX, clientY, screenX: clientX, screenY: clientY })
   );
 }
 
@@ -123,7 +123,12 @@ describe("useTabDragOut", () => {
       dispatchPointer("pointerup", 30, 100);
     });
 
-    expect(onDragOut).toHaveBeenCalledWith("tab-1");
+    expect(onDragOut).toHaveBeenCalledWith("tab-1", {
+      clientX: 30,
+      clientY: 100,
+      screenX: 30,
+      screenY: 100,
+    });
     expect(onReorder).not.toHaveBeenCalled();
   });
 
@@ -152,7 +157,12 @@ describe("useTabDragOut", () => {
       dispatchPointer("pointerup", 30, 700);
     });
 
-    expect(onDragOut).toHaveBeenCalledWith("tab-1");
+    expect(onDragOut).toHaveBeenCalledWith("tab-1", {
+      clientX: 30,
+      clientY: 700,
+      screenX: 30,
+      screenY: 700,
+    });
     expect(onReorder).not.toHaveBeenCalled();
   });
 });

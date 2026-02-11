@@ -28,20 +28,7 @@ interface TabTransferData {
   workspaceRoot: string | null;
 }
 
-/**
- * Claim transfer data from Rust and create the tab + document.
- * Returns true if a transfer was handled (caller should skip normal init).
- */
-async function handleTabTransfer(label: string): Promise<boolean> {
-  const urlParams = new URLSearchParams(globalThis.location?.search || "");
-  if (!urlParams.has("transfer")) return false;
-
-  const data = await invoke<TabTransferData | null>(
-    "claim_tab_transfer",
-    { windowLabel: label }
-  );
-  if (!data) return false;
-
+async function applyTabTransferData(label: string, data: TabTransferData): Promise<void> {
   // Set up workspace: prefer transferred root, fall back to file's parent
   const workspaceRoot = data.workspaceRoot
     ?? (data.filePath ? resolveWorkspaceRootForExternalFile(data.filePath) : null);
@@ -64,6 +51,22 @@ async function handleTabTransfer(label: string): Promise<boolean> {
   if (data.filePath) {
     useRecentFilesStore.getState().addFile(data.filePath);
   }
+}
+
+/**
+ * Claim transfer data from Rust and create the tab + document.
+ * Returns true if a transfer was handled (caller should skip normal init).
+ */
+async function handleTabTransfer(label: string): Promise<boolean> {
+  const urlParams = new URLSearchParams(globalThis.location?.search || "");
+  if (!urlParams.has("transfer")) return false;
+
+  const data = await invoke<TabTransferData | null>(
+    "claim_tab_transfer",
+    { windowLabel: label }
+  );
+  if (!data) return false;
+  await applyTabTransferData(label, data);
 
   return true;
 }
@@ -258,6 +261,39 @@ export function WindowProvider({ children }: WindowProviderProps) {
       setTimeout(() => errorWindow.emit("ready", errorWindow.label), READY_EVENT_DELAY_MS);
     });
   }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (windowLabel !== "main" && !windowLabel.startsWith("doc-")) return;
+
+    const currentWindow = getCurrentWebviewWindow();
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+
+    currentWindow.listen<TabTransferData>("tab:transfer", async (event) => {
+      if (cancelled) return;
+      try {
+        await applyTabTransferData(windowLabel, event.payload);
+      } catch (error) {
+        console.error("[WindowContext] Failed to apply runtime tab transfer:", error);
+      }
+    }).then((fn) => {
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    }).catch((error) => {
+      console.error("[WindowContext] Failed to setup tab transfer listener:", error);
+    });
+
+    return () => {
+      cancelled = true;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [isReady, windowLabel]);
 
   const isDocumentWindow = windowLabel === "main" || windowLabel.startsWith("doc-");
 

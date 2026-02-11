@@ -8,9 +8,16 @@ const REORDER_LOCK_THRESHOLD = 6;
 
 type DragMode = "idle" | "pending" | "reorder" | "dragout";
 
+export interface DragOutPoint {
+  clientX: number;
+  clientY: number;
+  screenX: number;
+  screenY: number;
+}
+
 interface UseTabDragOptions {
   tabBarRef: RefObject<HTMLElement | null>;
-  onDragOut: (tabId: string) => void;
+  onDragOut: (tabId: string, point: DragOutPoint) => void;
   onReorder: (tabId: string, toIndex: number) => void;
 }
 
@@ -91,6 +98,14 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
         // Only primary button; skip pinned tabs
         if (e.button !== 0 || isPinned) return;
 
+        const captureTarget = e.currentTarget as HTMLElement;
+        const pointerId = e.pointerId;
+        try {
+          captureTarget.setPointerCapture(pointerId);
+        } catch {
+          // Best effort: some environments may reject pointer capture.
+        }
+
         stateRef.current = {
           tabId,
           mode: "pending",
@@ -144,11 +159,16 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
           // dragout mode: nothing more to track
         };
 
-        const handleUp = () => {
+        const handleUp = (ev: PointerEvent) => {
           const s = stateRef.current;
           if (s.tabId) {
             if (s.mode === "dragout") {
-              onDragOutRef.current(s.tabId);
+              onDragOutRef.current(s.tabId, {
+                clientX: ev.clientX,
+                clientY: ev.clientY,
+                screenX: ev.screenX,
+                screenY: ev.screenY,
+              });
             } else if (s.mode === "reorder" && dropIndexRef.current !== null) {
               onReorderRef.current(s.tabId, dropIndexRef.current);
             }
@@ -164,6 +184,13 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
           document.removeEventListener("pointermove", handleMove);
           document.removeEventListener("pointerup", handleUp);
           document.removeEventListener("pointercancel", cleanup);
+          try {
+            if (captureTarget.hasPointerCapture(pointerId)) {
+              captureTarget.releasePointerCapture(pointerId);
+            }
+          } catch {
+            // Best effort cleanup.
+          }
         };
       },
     }),
