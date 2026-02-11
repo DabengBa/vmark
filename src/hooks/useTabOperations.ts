@@ -16,6 +16,7 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { findOrphanedImages, deleteOrphanedImages } from "@/utils/orphanAssetCleanup";
 import { clearDocumentHistory } from "@/hooks/useUnifiedHistory";
+import { createUntitledTab } from "@/utils/newFile";
 
 /**
  * Clean up orphaned images for a document if setting is enabled.
@@ -41,9 +42,18 @@ async function cleanupOrphansIfEnabled(
   }
 }
 
+/** Ensure window always has at least one tab after a close. */
+function ensureWindowHasTab(windowLabel: string): void {
+  const remaining = useTabStore.getState().tabs[windowLabel] ?? [];
+  if (remaining.length === 0) {
+    createUntitledTab(windowLabel);
+  }
+}
+
 /**
  * Close a tab with dirty check. If the document has unsaved changes,
  * prompts the user to save, don't save, or cancel.
+ * If the last tab is closed, a new untitled tab is created automatically.
  *
  * @returns true if tab was closed, false if user cancelled
  */
@@ -63,6 +73,7 @@ export async function closeTabWithDirtyCheck(
     useTabStore.getState().closeTab(windowLabel, tabId);
     useDocumentStore.getState().removeDocument(tabId);
     clearDocumentHistory(tabId);
+    ensureWindowHasTab(windowLabel);
     return true;
   }
 
@@ -93,6 +104,7 @@ export async function closeTabWithDirtyCheck(
   useTabStore.getState().closeTab(windowLabel, tabId);
   useDocumentStore.getState().removeDocument(tabId);
   clearDocumentHistory(tabId);
+  ensureWindowHasTab(windowLabel);
   return true;
 }
 

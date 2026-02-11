@@ -35,7 +35,8 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(message).not.toHaveBeenCalled();
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(0);
+    // Closing the last tab auto-creates a fresh untitled tab
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
     expect(useDocumentStore.getState().getDocument(tabId)).toBeUndefined();
   });
 
@@ -66,7 +67,8 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(0);
+    // Closing the last tab auto-creates a fresh untitled tab
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
   });
 
   it("closes dirty tab when dialog returns custom button label (Don't Save)", async () => {
@@ -80,7 +82,8 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(0);
+    // Closing the last tab auto-creates a fresh untitled tab
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
   });
 
   it("saves and closes dirty tab when user chooses Save and file has path", async () => {
@@ -96,7 +99,8 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).toHaveBeenCalledWith(tabId, "/tmp/dirty.md", "changed", "manual");
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(0);
+    // Closing the last tab auto-creates a fresh untitled tab
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
   });
 
   it("cancels close if user chooses Save but cancels Save dialog", async () => {

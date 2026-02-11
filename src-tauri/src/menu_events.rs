@@ -128,15 +128,15 @@ fn get_focused_document_window(app: &AppHandle) -> Option<tauri::WebviewWindow> 
 }
 
 /// Get any document window (main or doc-*), regardless of focus state.
-/// Used when windows exist but none is focused (e.g., window just created by Reopen).
+/// Prefers "main" for deterministic behavior; falls back to any doc-* window.
 fn get_any_document_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
-    app.webview_windows()
-        .values()
-        .find(|w| {
-            let label = w.label();
-            label == "main" || label.starts_with("doc-")
-        })
-        .cloned()
+    let windows = app.webview_windows();
+    windows.get("main").cloned().or_else(|| {
+        windows
+            .values()
+            .find(|w| w.label().starts_with("doc-"))
+            .cloned()
+    })
 }
 
 /// Emit an event immediately using its payload format
@@ -382,11 +382,14 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     // "clear-recent" can be handled without a window if needed
     // But for consistency, we still emit to a window (frontend handles storage)
 
-    // All other menu events are emitted only to the focused window
-    // Note: window.emit() broadcasts to all windows, so include target label in payload
-    // Frontend filters by checking event.payload === windowLabel
-    if let Some(focused) = get_focused_window(app) {
+    // All other menu events: try focused document window first, fall back to any document window.
+    // On Windows, clicking a menu item can momentarily shift focus away from the webview,
+    // causing is_focused() to return false. The fallback prevents silent event loss.
+    // Uses get_focused_document_window (not get_focused_window) to avoid sending
+    // document events (save, undo, etc.) to the settings window.
+    let target = get_focused_document_window(app).or_else(|| get_any_document_window(app));
+    if let Some(window) = target {
         let event_name = format!("menu:{id}");
-        let _ = focused.emit(&event_name, focused.label());
+        let _ = window.emit(&event_name, window.label());
     }
 }
