@@ -65,8 +65,8 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
   onDragOutRef.current = onDragOut;
   const onReorderRef = useRef(onReorder);
   onReorderRef.current = onReorder;
-  const tabBarRefRef = useRef(tabBarRef);
-  tabBarRefRef.current = tabBarRef;
+  const stableBarRef = useRef(tabBarRef);
+  stableBarRef.current = tabBarRef;
 
   // Detach document listeners and reset state
   const cleanupRef = useRef(() => {});
@@ -100,7 +100,7 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
           const s = stateRef.current;
           if (!s.tabId) return;
 
-          const bar = tabBarRefRef.current.current;
+          const bar = stableBarRef.current.current;
           if (!bar) return;
 
           const dx = ev.clientX - s.startX;
@@ -112,15 +112,17 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder }: UseTabDragOpt
               s.mode = "dragout";
               setIsDragging(true);
             } else if (Math.abs(dx) > REORDER_LOCK_THRESHOLD) {
+              const idx = calcDropIndex(bar, ev.clientX);
+              if (idx < 0) return; // DOM not ready — stay pending
               s.mode = "reorder";
               setIsReordering(true);
-              const idx = calcDropIndex(bar, ev.clientX);
               dropIndexRef.current = idx;
               setDropIndex(idx);
             }
           } else if (s.mode === "reorder") {
             // Update drop position
             const idx = calcDropIndex(bar, ev.clientX);
+            if (idx < 0) return; // DOM disappeared mid-drag — keep last position
             dropIndexRef.current = idx;
             setDropIndex(idx);
 
