@@ -1,0 +1,56 @@
+name: Feature Request
+description: Propose an improvement to VMark.
+title: "[Feature] "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea.
+        Please describe the user problem first, then propose a solution.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before Submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate request.
+          required: true
+        - label: This request describes a single feature or closely related enhancement.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to Solve
+      description: What user pain point does this address?
+      placeholder: "As a user, I want ... because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe your suggested behavior or UI.
+      placeholder: "VMark should ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other options did you evaluate?
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and Impact
+      description: Who benefits, and what parts of the app might be affected?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Mockups, References, or Examples
+      description: Add screenshots, links, or examples from other tools if relevant.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context

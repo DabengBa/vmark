@@ -12,11 +12,26 @@ VMark is a modern, local-first Markdown editor designed for the AI era. It combi
 
 **[Download](https://github.com/xiaolai/vmark/releases)** · **[Documentation](https://vmark.app/guide/)** · **[Features](https://vmark.app/guide/features)**
 
+## Contribution Rules (Early Read)
+
+Before opening issues or pull requests, read:
+
+- **[Contributing Guide](CONTRIBUTING.md)**
+- **[Bug Report Template](.github/ISSUE_TEMPLATE/bug_report.yml)**
+- **[Feature Request Template](.github/ISSUE_TEMPLATE/feature_request.yml)**
+- **[Pull Request Template](.github/pull_request_template.md)**
+
+VMark is a vibe-coded codebase. We enforce three rules to keep quality stable:
+
+1. Detailed bug descriptions before direct code improvement.
+2. 100% test coverage for changed behavior and changed code paths in every PR.
+3. Single-focus PRs only.
+
 ---
 
 ## Why VMark?
 
-### 🤖 AI-Native
+### AI-Native
 
 Built to work seamlessly with AI assistants. Claude, Codex, and Gemini can read your documents, suggest edits, and write content directly — no plugins required.
 
@@ -24,7 +39,7 @@ Built to work seamlessly with AI assistants. Claude, Codex, and Gemini can read 
 - AI suggestions appear inline for your review
 - Accept or reject changes with a keystroke
 
-### 🌏 CJK Done Right
+### CJK Done Right
 
 Finally, a Markdown editor that understands Chinese, Japanese, and Korean text. Smart spacing between CJK and Latin characters, proper punctuation handling, and 19+ formatting rules — all built in.
 
@@ -33,7 +48,7 @@ Finally, a Markdown editor that understands Chinese, Japanese, and Korean text. 
 - Corner bracket quotes for CJK
 - One shortcut to fix everything: `Alt + Cmd + Shift + F`
 
-### ✍️ Two Modes, Zero Friction
+### Two Modes, Zero Friction
 
 Switch instantly between rich text (WYSIWYG) and source mode. See your formatting rendered beautifully, or dive into the Markdown source when you need precision.
 
@@ -41,7 +56,7 @@ Switch instantly between rich text (WYSIWYG) and source mode. See your formattin
 - Source mode powered by CodeMirror 6
 - Toggle with `Cmd + /`
 
-### 🎨 Beautifully Designed
+### Beautifully Designed
 
 Five hand-crafted themes designed for extended writing sessions. Typography that respects your fonts. An interface that stays out of your way.
 
@@ -51,7 +66,7 @@ Five hand-crafted themes designed for extended writing sessions. Typography that
 - **Sepia** — Classic reading feel
 - **Night** — Easy on the eyes
 
-### 🔒 Local-First, Always
+### Local-First, Always
 
 Your documents stay on your machine. No cloud services, no accounts, no tracking. VMark works entirely offline.
 
