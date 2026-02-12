@@ -236,6 +236,8 @@ export class WebSocketBridge implements Bridge {
     if (this.connecting) {
       // Wait for existing connection attempt
       return new Promise((resolve, reject) => {
+        let elapsed = 0;
+        const maxWait = this.timeout; // Derive from configured connection timeout
         const checkConnection = () => {
           if (this.connected) {
             resolve();
