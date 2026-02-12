@@ -7,7 +7,7 @@
  * - move_section: Reorder sections
  */
 
-import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg } from '../server.js';
+import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg, validateByIndex } from '../server.js';
 import type {
   BatchEditResult,
   OperationMode,
@@ -82,6 +82,11 @@ export function registerSectionTools(server: VMarkMcpServer): void {
 
       if (!target || (!target.heading && !target.byIndex && !target.sectionId)) {
         return VMarkMcpServer.errorResult('target must specify heading, byIndex, or sectionId');
+      }
+
+      if (target.byIndex) {
+        const err = validateByIndex(target.byIndex, 'byIndex');
+        if (err) return VMarkMcpServer.errorResult(err);
       }
 
       try {
@@ -190,6 +195,11 @@ export function registerSectionTools(server: VMarkMcpServer): void {
         return VMarkMcpServer.errorResult('heading.level must be between 1 and 6');
       }
 
+      if (after?.byIndex) {
+        const err = validateByIndex(after.byIndex, 'after.byIndex');
+        if (err) return VMarkMcpServer.errorResult(err);
+      }
+
       try {
         const request: BridgeRequest = {
           type: 'section.insert',
@@ -288,6 +298,16 @@ export function registerSectionTools(server: VMarkMcpServer): void {
 
       if (!section || (!section.heading && !section.byIndex && !section.sectionId)) {
         return VMarkMcpServer.errorResult('section must specify heading, byIndex, or sectionId');
+      }
+
+      if (section.byIndex) {
+        const err = validateByIndex(section.byIndex, 'section.byIndex');
+        if (err) return VMarkMcpServer.errorResult(err);
+      }
+
+      if (after?.byIndex) {
+        const err = validateByIndex(after.byIndex, 'after.byIndex');
+        if (err) return VMarkMcpServer.errorResult(err);
       }
 
       try {

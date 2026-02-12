@@ -154,7 +154,7 @@ export class WebSocketBridge implements Bridge {
     this.logger = config.logger ?? nullLogger;
     this.maxRequestsPerSecond = config.maxRequestsPerSecond ?? 100;
     this.queueWhileDisconnected = config.queueWhileDisconnected ?? false;
-    this.maxQueueSize = config.maxQueueSize ?? 100;
+    this.maxQueueSize = Math.max(1, config.maxQueueSize ?? 100);
     this.clientIdentity = config.clientIdentity ?? null;
 
     // Initialize rate limiter
@@ -397,7 +397,12 @@ export class WebSocketBridge implements Bridge {
 
     // Queue if disconnected and queueing is enabled
     if (!this.isConnected()) {
-      if (this.queueWhileDisconnected && this.autoReconnect && !this.intentionalDisconnect) {
+      if (
+        this.queueWhileDisconnected &&
+        this.autoReconnect &&
+        !this.intentionalDisconnect &&
+        this.reconnectAttempts < this.maxReconnectAttempts
+      ) {
         return this.queueRequest(request);
       }
       throw new Error('Not connected to VMark');

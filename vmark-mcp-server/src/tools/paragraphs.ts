@@ -6,7 +6,7 @@
  * - write_paragraph: Modify paragraph content
  */
 
-import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg, getBooleanArg } from '../server.js';
+import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg, getBooleanArg, validateNonNegativeInt } from '../server.js';
 import type {
   ParagraphTarget,
   ParagraphInfo,
@@ -63,6 +63,11 @@ export function registerParagraphTools(server: VMarkMcpServer): void {
 
       if (!target || (target.index === undefined && !target.containing)) {
         return VMarkMcpServer.errorResult('target must specify index or containing');
+      }
+
+      if (target.index !== undefined) {
+        const err = validateNonNegativeInt(target.index, 'target.index');
+        if (err) return VMarkMcpServer.errorResult(err);
       }
 
       try {
@@ -143,6 +148,11 @@ export function registerParagraphTools(server: VMarkMcpServer): void {
 
       if (!target || (target.index === undefined && !target.containing)) {
         return VMarkMcpServer.errorResult('target must specify index or containing');
+      }
+
+      if (target.index !== undefined) {
+        const err = validateNonNegativeInt(target.index, 'target.index');
+        if (err) return VMarkMcpServer.errorResult(err);
       }
 
       if (operation !== 'delete' && !content) {
