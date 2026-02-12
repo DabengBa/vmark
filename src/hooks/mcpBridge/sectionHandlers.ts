@@ -290,9 +290,24 @@ export async function handleSectionInsert(
       insertPos = editor.state.doc.content.size;
     }
 
-    // Build the content to insert
+    // Build clean markdown for suggestion path (parsed by createMarkdownPasteSlice)
     const headingMarkdown = "#".repeat(heading.level) + " " + heading.text;
-    const fullContent = "\n\n" + headingMarkdown + (content ? "\n\n" + content : "") + "\n";
+    const markdownContent = content ? headingMarkdown + "\n\n" + content : headingMarkdown;
+
+    // Build ProseMirror JSON nodes for direct apply path
+    const jsonNodes: Record<string, unknown>[] = [
+      {
+        type: "heading",
+        attrs: { level: heading.level },
+        content: [{ type: "text", text: heading.text }],
+      },
+    ];
+    if (content) {
+      jsonNodes.push({
+        type: "paragraph",
+        content: [{ type: "text", text: content }],
+      });
+    }
 
     // For dryRun, return preview
     if (mode === "dryRun") {
@@ -320,7 +335,7 @@ export async function handleSectionInsert(
         type: "insert",
         from: insertPos,
         to: insertPos,
-        newContent: fullContent,
+        newContent: markdownContent,
       });
 
       await respond({
@@ -334,11 +349,11 @@ export async function handleSectionInsert(
       return;
     }
 
-    // Apply the insert
+    // Apply the insert using ProseMirror JSON nodes (not markdown strings)
     editor.chain()
       .focus()
       .setTextSelection(insertPos)
-      .insertContent(fullContent)
+      .insertContent(jsonNodes)
       .run();
 
     const newRevision = getCurrentRevision();
