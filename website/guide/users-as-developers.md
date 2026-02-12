@@ -1,6 +1,4 @@
-# AI Coding with VMark
-
-## Users as Developers
+# Users as Developers
 
 In the age of AI coding tools, the line between "user" and "developer" is disappearing. If you can describe a bug, you can fix it. If you can imagine a feature, you can build it — with an AI assistant that already understands the codebase.
 
