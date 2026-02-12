@@ -2,48 +2,18 @@
 
 This page documents all MCP tools available when Claude (or other AI assistants) connects to VMark.
 
-## Tool Modes
+VMark exposes **86 tools** across 18 categories — from high-level section editing to low-level AST manipulation. All tools are always available; no configuration needed.
 
-VMark offers two tool modes to optimize the AI assistant experience:
+::: tip Recommended Workflow
+For most writing tasks, you only need a handful of tools:
 
-### Writer Mode (Default)
+**Understand:** `get_document_digest`, `document_search`
+**Read:** `get_section`, `read_paragraph`, `document_get_content`
+**Write:** `update_section`, `insert_section`, `write_paragraph`, `smart_insert`
+**Control:** `editor_undo`, `editor_redo`, `suggestion_accept`, `suggestion_reject`
+**Files:** `workspace_save_document`, `tabs_switch`, `tabs_list`
 
-**18 tools** focused on reading and writing content. Ideal for writing assistance.
-
-Writer mode exposes only the essential tools for content creation:
-
-**Understand document:**
-- `get_document_digest` — Document overview, outline, and word counts
-- `document_search` — Find content in document
-
-**Read content:**
-- `get_section` — Read a section by heading (for structured documents)
-- `read_paragraph` — Read a paragraph by index or content (for flat documents)
-- `document_get_content` — Full document content (fallback)
-
-**Write content:**
-- `update_section` — Modify section content
-- `insert_section` — Add new sections
-- `move_section` — Reorder sections
-- `write_paragraph` — Modify paragraphs (replace, append, prepend, delete)
-- `smart_insert` — Insert at common locations (end, after paragraph/section)
-
-**Control:**
-- `editor_undo` / `editor_redo` — Fix mistakes
-
-**Suggestions:**
-- `suggestion_list` / `suggestion_accept` / `suggestion_reject` — Manage suggestions
-
-**Files:**
-- `workspace_save_document` — Save changes
-- `tabs_switch` / `tabs_list` — Navigate documents
-
-### Full Mode
-
-**All tools** including low-level editor controls. For power users and advanced automation.
-
-::: tip Changing Tool Mode
-Go to **Settings → Integrations → Tool Mode** to switch between Writer and Full modes. Changes take effect immediately when AI clients reconnect.
+The remaining tools provide fine-grained control for advanced automation scenarios.
 :::
 
 ---
@@ -142,6 +112,10 @@ Replace text occurrences in the document.
 - `suggestionIds` - Array of suggestion IDs when edits are staged (auto-approve disabled).
 - `applied` - `true` if immediately applied, `false` if staged as suggestions.
 
+::: tip Prefer `apply_diff`
+For advanced use cases, [`apply_diff`](#apply_diff) offers more control with match policies (`first`, `all`, `nth`, `error_if_multiple`) and dry-run support. `document_replace` is a simpler convenience wrapper.
+:::
+
 ### document_replace_in_source
 
 Replace text at the markdown source level, bypassing ProseMirror node boundaries. Use when `document_replace` returns "No matches found" because the search text spans formatting boundaries (e.g. partially bold text).
@@ -214,7 +188,7 @@ If **Auto-approve edits** is enabled in Settings → Integrations, changes are a
 
 ### selection_delete
 
-Delete the selected text.
+Delete the selected text. Equivalent to calling `selection_replace` with empty text.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -321,7 +295,7 @@ Convert the current block to a specific type.
 
 ### block_toggle
 
-Toggle block type (converts back to paragraph if same type).
+Toggle block type (converts back to paragraph if same type). For deterministic behavior, prefer [`block_set_type`](#block_set_type) which always sets the exact type you specify.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -373,6 +347,10 @@ Decrease indentation of the current list item.
 ## Table Tools
 
 Tools for creating and editing tables.
+
+::: tip Batch Operations
+For multiple table changes at once, use [`table_modify`](#table_modify) instead of calling individual tools. It supports `addRow`, `deleteRow`, `addColumn`, `deleteColumn`, `setHeaderRow`, and `setCellContent` in a single atomic operation.
+:::
 
 ### table_insert
 
@@ -707,7 +685,7 @@ List all tabs in a window.
 
 ### tabs_get_active
 
-Get the active tab information.
+Get the active tab information. Equivalent to calling `tabs_get_info` without a `tabId`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
