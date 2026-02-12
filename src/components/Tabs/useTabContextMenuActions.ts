@@ -9,6 +9,7 @@ import { useDocumentStore, type DocumentState } from "@/stores/documentStore";
 import { closeTabWithDirtyCheck, closeTabsWithDirtyCheck } from "@/hooks/useTabOperations";
 import { saveToPath } from "@/utils/saveToPath";
 import { getRelativePath, isWithinRoot } from "@/utils/paths";
+import { restoreTransferredTab } from "@/components/StatusBar/tabTransferActions";
 import type { TabTransferPayload } from "@/types/tabTransfer";
 
 export interface TabMenuItem {
@@ -117,23 +118,7 @@ export function useTabContextMenuActions({
         action: {
           label: "Undo",
           onClick: () => {
-            void invoke("remove_tab_from_window", {
-              targetWindowLabel: createdWindowLabel,
-              tabId: transferData.tabId,
-            }).then(() => {
-              const restoredTabId = useTabStore.getState().createTransferredTab(windowLabel, {
-                id: transferData.tabId,
-                filePath: transferData.filePath,
-                title: transferData.title,
-                isPinned: false,
-              });
-              useDocumentStore.getState().initDocument(
-                restoredTabId,
-                transferData.content,
-                transferData.filePath,
-                transferData.savedContent
-              );
-            }).catch((error) => {
+            void restoreTransferredTab(windowLabel, createdWindowLabel, transferData).catch((error) => {
               console.error("[TabContextMenu] Undo move-to-new-window failed:", error);
               toast.error("Failed to undo tab move.");
             });

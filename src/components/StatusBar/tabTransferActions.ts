@@ -15,34 +15,29 @@ interface DragOutTransferOptions {
   announce: (message: string) => void;
 }
 
-async function restoreTransferredTab(
+export async function restoreTransferredTab(
   sourceWindowLabel: string,
   targetWindowLabel: string,
-  transferData: TabTransferPayload,
-  logPrefix: string
+  transferData: TabTransferPayload
 ): Promise<void> {
-  try {
-    await invoke("remove_tab_from_window", {
-      targetWindowLabel,
-      tabId: transferData.tabId,
-    });
+  await invoke("remove_tab_from_window", {
+    targetWindowLabel,
+    tabId: transferData.tabId,
+  });
 
-    const restoredTabId = useTabStore.getState().createTransferredTab(sourceWindowLabel, {
-      id: transferData.tabId,
-      filePath: transferData.filePath,
-      title: transferData.title,
-      isPinned: false,
-    });
+  const restoredTabId = useTabStore.getState().createTransferredTab(sourceWindowLabel, {
+    id: transferData.tabId,
+    filePath: transferData.filePath,
+    title: transferData.title,
+    isPinned: false,
+  });
 
-    useDocumentStore.getState().initDocument(
-      restoredTabId,
-      transferData.content,
-      transferData.filePath,
-      transferData.savedContent
-    );
-  } catch (error) {
-    console.error(logPrefix, error);
-  }
+  useDocumentStore.getState().initDocument(
+    restoredTabId,
+    transferData.content,
+    transferData.filePath,
+    transferData.savedContent
+  );
 }
 
 export async function transferTabFromDragOut({
@@ -92,12 +87,9 @@ export async function transferTabFromDragOut({
         action: {
           label: "Undo",
           onClick: () => {
-            void restoreTransferredTab(
-              windowLabel,
-              targetWindowLabel,
-              transferData,
-              "[StatusBar] Undo cross-window move failed:"
-            );
+            void restoreTransferredTab(windowLabel, targetWindowLabel, transferData).catch((error) => {
+              console.error("[StatusBar] Undo cross-window move failed:", error);
+            });
           },
         },
       });
@@ -110,12 +102,9 @@ export async function transferTabFromDragOut({
         action: {
           label: "Undo",
           onClick: () => {
-            void restoreTransferredTab(
-              windowLabel,
-              createdWindowLabel,
-              transferData,
-              "[StatusBar] Undo detach failed:"
-            );
+            void restoreTransferredTab(windowLabel, createdWindowLabel, transferData).catch((error) => {
+              console.error("[StatusBar] Undo detach failed:", error);
+            });
           },
         },
       });
