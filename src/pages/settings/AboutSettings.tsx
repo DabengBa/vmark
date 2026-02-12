@@ -22,13 +22,11 @@ import {
   SkipForward,
   Globe,
   Github,
-  MessageCircle,
 } from "lucide-react";
 import appIcon from "@/assets/app-icon.png";
 
 const WEBSITE_URL = "https://vmark.app";
 const GITHUB_URL = "https://github.com/xiaolai/vmark";
-const DISCUSSIONS_URL = "https://github.com/xiaolai/vmark/discussions";
 
 function VersionInfo() {
   const [version, setVersion] = useState<string>("");
@@ -52,7 +50,6 @@ function Links() {
   const links = [
     { icon: Globe, label: "Website", url: WEBSITE_URL },
     { icon: Github, label: "GitHub", url: GITHUB_URL },
-    { icon: MessageCircle, label: "Discussions", url: DISCUSSIONS_URL },
   ];
 
   return (
