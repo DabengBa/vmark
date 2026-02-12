@@ -1106,6 +1106,50 @@ Insert content at common document locations. A unified tool for intuitive insert
 
 ---
 
+## Genie Tools
+
+AI genies are prompt templates stored as markdown files. These tools let AI assistants discover and invoke them.
+
+### list_genies
+
+List all available AI genies from the global genies directory.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `windowId` | string | No | Window identifier. |
+
+**Returns:** Array of genie entries with `name`, `path`, `source`, and `category`.
+
+### read_genie
+
+Read a specific genie's metadata and template.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | Yes | File path of the genie (from `list_genies`). |
+| `windowId` | string | No | Window identifier. |
+
+**Returns:** Genie metadata (`name`, `description`, `scope`, `category`, `model`) and `template`.
+
+### invoke_genie
+
+Invoke a genie against the current editor content. The genie template is filled with content based on the scope and sent to the active AI provider. The result appears as an AI suggestion.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `geniePath` | string | Yes | File path of the genie to invoke. |
+| `scope` | string | No | Content scope: `selection`, `block`, or `document`. Defaults to `selection`. |
+| `windowId` | string | No | Window identifier. |
+
+::: tip Workflow
+1. Call `list_genies` to discover available genies
+2. Optionally call `read_genie` to inspect a genie's template
+3. Call `invoke_genie` to run the genie — the result will appear as an AI suggestion
+4. Use `suggestion_accept` or `suggestion_reject` to handle the result
+:::
+
+---
+
 ## MCP Resources
 
 In addition to tools, VMark exposes these read-only resources:

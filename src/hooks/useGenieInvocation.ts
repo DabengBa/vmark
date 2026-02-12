@@ -146,6 +146,22 @@ export function useGenieInvocation() {
     };
   }, [cancel]);
 
+  // Listen for MCP bridge genie invocation requests (fired from genieHandlers.ts)
+  const invokeGenieRef = useRef<((genie: GenieDefinition, scopeOverride?: GenieScope) => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        id: string;
+        genie: GenieDefinition;
+        scopeOverride?: GenieScope;
+      };
+      invokeGenieRef.current?.(detail.genie, detail.scopeOverride);
+    };
+    window.addEventListener("mcp:invoke-genie", handler);
+    return () => window.removeEventListener("mcp:invoke-genie", handler);
+  }, []);
+
   const runGenie = useCallback(
     async (filledPrompt: string, extraction: ExtractionResult, model?: string, action: GenieAction = "replace") => {
       const providerState = useAiProviderStore.getState();
@@ -279,6 +295,9 @@ export function useGenieInvocation() {
     },
     [runGenie]
   );
+
+  // Keep ref in sync for MCP bridge listener
+  invokeGenieRef.current = invokeGenie;
 
   const invokeFreeform = useCallback(
     async (userPrompt: string, scope: GenieScope) => {

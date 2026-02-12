@@ -157,6 +157,13 @@ import {
   handleListBatchModify,
 } from "./batchOpHandlers";
 
+// Genie handlers
+import {
+  handleGeniesList,
+  handleGeniesRead,
+  handleGeniesInvoke,
+} from "./genieHandlers";
+
 /**
  * Route MCP request to appropriate handler.
  */
@@ -476,6 +483,17 @@ async function handleRequest(event: McpRequestEvent): Promise<void> {
         break;
       case "list.batchModify":
         await handleListBatchModify(id, args);
+        break;
+
+      // Genie operations
+      case "genies.list":
+        await handleGeniesList(id);
+        break;
+      case "genies.read":
+        await handleGeniesRead(id, args);
+        break;
+      case "genies.invoke":
+        await handleGeniesInvoke(id, args);
         break;
 
       default:

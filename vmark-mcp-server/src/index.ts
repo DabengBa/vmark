@@ -264,6 +264,7 @@ export const TOOL_CATEGORIES = [
       'document_insert_at_position',
       'document_search',
       'document_replace',
+      'document_replace_in_source',
     ],
   },
   {
@@ -318,6 +319,7 @@ export const TOOL_CATEGORIES = [
       'insert_math_inline',
       'insert_math_block',
       'insert_mermaid',
+      'insert_markmap',
       'insert_svg',
       'insert_wiki_link',
       'cjk_punctuation_convert',
@@ -339,6 +341,7 @@ export const TOOL_CATEGORIES = [
       'workspace_close_window',
       'workspace_list_recent_files',
       'workspace_get_info',
+      'workspace_reload_document',
     ],
   },
   {
@@ -352,6 +355,15 @@ export const TOOL_CATEGORIES = [
       'tabs_create',
       'tabs_get_info',
       'tabs_reopen_closed',
+    ],
+  },
+  {
+    name: 'Genie Tools',
+    description: 'Discover and invoke AI genies (prompt templates)',
+    tools: [
+      'list_genies',
+      'read_genie',
+      'invoke_genie',
     ],
   },
   {
