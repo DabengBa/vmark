@@ -16,19 +16,9 @@ import {
 } from "../utils/workspaceStorage";
 import { resolveWorkspaceRootForExternalFile } from "../utils/openPolicy";
 import { isWithinRoot } from "../utils/paths";
+import type { TabTransferPayload } from "@/types/tabTransfer";
 
-/** Transfer data shape returned by claim_tab_transfer. */
-interface TabTransferData {
-  tabId: string;
-  title: string;
-  filePath: string | null;
-  content: string;
-  savedContent: string;
-  isDirty: boolean;
-  workspaceRoot: string | null;
-}
-
-async function applyTabTransferData(label: string, data: TabTransferData): Promise<void> {
+async function applyTabTransferData(label: string, data: TabTransferPayload): Promise<void> {
   // Set up workspace: prefer transferred root, fall back to file's parent
   const workspaceRoot = data.workspaceRoot
     ?? (data.filePath ? resolveWorkspaceRootForExternalFile(data.filePath) : null);
@@ -77,7 +67,7 @@ async function handleTabTransfer(label: string): Promise<boolean> {
   const urlParams = new URLSearchParams(globalThis.location?.search || "");
   if (!urlParams.has("transfer")) return false;
 
-  const data = await invoke<TabTransferData | null>(
+  const data = await invoke<TabTransferPayload | null>(
     "claim_tab_transfer",
     { windowLabel: label }
   );
@@ -286,7 +276,7 @@ export function WindowProvider({ children }: WindowProviderProps) {
     let cancelled = false;
     let unlisten: (() => void) | null = null;
 
-    currentWindow.listen<TabTransferData>("tab:transfer", async (event) => {
+    currentWindow.listen<TabTransferPayload>("tab:transfer", async (event) => {
       if (cancelled) return;
       try {
         await applyTabTransferData(windowLabel, event.payload);
