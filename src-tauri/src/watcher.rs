@@ -46,7 +46,10 @@ fn event_kind_to_string(kind: &notify::EventKind) -> Option<&'static str> {
     }
 }
 
-/// Directory names that should always be ignored by the file watcher.
+/// Directory/file names that should always be ignored by the file watcher.
+/// Only list specific high-frequency noise sources — do NOT blanket-ignore
+/// all dot-directories, since user-visible ones like `.github/`, `.vscode/`,
+/// `.husky/` need external change detection.
 const IGNORED_DIRS: &[&str] = &[
     ".git",
     ".obsidian",
@@ -60,20 +63,14 @@ const IGNORED_DIRS: &[&str] = &[
 
 /// Check whether a filesystem path should be ignored by the watcher.
 ///
-/// Returns true if any path component is in the ignore list or starts with
-/// a dot (hidden directory/file on Unix). This prevents high-frequency
-/// events from tool metadata directories (e.g. Obsidian vaults) from
-/// flooding the frontend.
+/// Returns true if any path component matches the explicit ignore list.
+/// User-visible dot-directories (`.github`, `.vscode`, etc.) are allowed
+/// through so that external changes to those files are detected.
 fn should_ignore_path(path: &Path) -> bool {
     for component in path.components() {
         if let std::path::Component::Normal(name) = component {
             let name_str = name.to_string_lossy();
-            // Skip known noisy directories
             if IGNORED_DIRS.contains(&name_str.as_ref()) {
-                return true;
-            }
-            // Skip hidden directories/files (start with '.')
-            if name_str.starts_with('.') {
                 return true;
             }
         }
@@ -233,9 +230,14 @@ mod tests {
     }
 
     #[test]
-    fn test_ignore_hidden_dirs() {
-        assert!(should_ignore_path(Path::new("/project/.hidden/file.txt")));
-        assert!(should_ignore_path(Path::new("/home/.config/app.toml")));
+    fn test_allow_dot_directories_not_in_ignore_list() {
+        // User-visible dot-directories must NOT be filtered — external change
+        // detection depends on events reaching the frontend.
+        assert!(!should_ignore_path(Path::new("/project/.github/workflows/ci.yml")));
+        assert!(!should_ignore_path(Path::new("/project/.vscode/settings.json")));
+        assert!(!should_ignore_path(Path::new("/home/.config/app.toml")));
+        assert!(!should_ignore_path(Path::new("/project/.husky/pre-commit")));
+        assert!(!should_ignore_path(Path::new("/project/.devcontainer/devcontainer.json")));
     }
 
     #[test]
