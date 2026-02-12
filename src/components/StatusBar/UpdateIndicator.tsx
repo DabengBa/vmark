@@ -4,6 +4,7 @@
  * Shows update status in the StatusBar as icon-only:
  * - Hidden when idle, up-to-date, or available (with auto-download)
  * - Spinning icon when checking (no action)
+ * - Pulsing icon when available (click to open Settings → About)
  * - Pulsing icon when downloading (no action)
  * - Static icon with dot when ready (click to restart)
  * - Error icon when error (click to retry)
@@ -13,6 +14,7 @@ import { RefreshCw, Download, CheckCircle, AlertCircle } from "lucide-react";
 import { useUpdateStore, type UpdateStatus } from "@/stores/updateStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUpdateOperations } from "@/hooks/useUpdateOperations";
+import { openSettingsWindow } from "@/utils/settingsWindow";
 
 /**
  * Get indicator config based on update status
@@ -38,10 +40,10 @@ function getIndicatorConfig(status: UpdateStatus) {
     case "available":
       return {
         icon: Download,
-        title: "Update available",
+        title: "Update available — click to view",
         className: "status-update available",
         showDot: true,
-        clickable: false, // Auto-download will handle it
+        clickable: true,
       };
     case "ready":
       return {
@@ -90,7 +92,7 @@ export function UpdateIndicator() {
   // Build title with additional context
   let title = config.title;
   if (status === "available" && updateInfo) {
-    title = `Update available: v${updateInfo.version}`;
+    title = `Update available: v${updateInfo.version} — click to view`;
   } else if (status === "downloading") {
     title = downloadPercent !== null ? `Downloading: ${downloadPercent}%` : "Downloading update...";
   } else if (status === "ready" && updateInfo) {
@@ -100,7 +102,9 @@ export function UpdateIndicator() {
   const handleClick = () => {
     if (!config.clickable) return;
 
-    if (status === "ready") {
+    if (status === "available") {
+      openSettingsWindow("about");
+    } else if (status === "ready") {
       restartApp();
     } else if (status === "error") {
       checkForUpdates();
