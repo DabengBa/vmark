@@ -1,13 +1,12 @@
 /**
- * Tab Context Menu Styles - macOS System Menu Style
- * Matches FileExplorer/ContextMenu.css design
+ * Tab Context Menu Styles - macOS system menu style
  */
 
 .tab-context-menu {
   position: fixed;
   z-index: 1000;
-  min-width: 160px;
-  max-width: 220px;
+  min-width: 220px;
+  max-width: 280px;
   background: color-mix(in srgb, var(--bg-color) 97%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -29,11 +28,16 @@
 .tab-context-menu-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
   padding: 5px 10px;
+  border: 0;
   border-radius: var(--radius-sm);
+  background: transparent;
   cursor: default;
   color: var(--text-color);
-  transition: none;
+  text-align: left;
   user-select: none;
 }
 
@@ -42,7 +46,31 @@
   color: var(--contrast-text);
 }
 
+.tab-context-menu-item:focus-visible {
+  outline: none;
+  background: var(--accent-bg);
+  color: var(--accent-primary);
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
 .tab-context-menu-item:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.tab-context-menu-item-label {
+  flex: 1;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.tab-context-menu-item-shortcut {
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.tab-context-menu-item:hover:not(:disabled) .tab-context-menu-item-shortcut {
+  color: var(--contrast-text);
 }

@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useTabStore, type Tab } from "@/stores/tabStore";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useDocumentStore } from "@/stores/documentStore";
-import { closeTabWithDirtyCheck, closeTabsWithDirtyCheck } from "@/hooks/useTabOperations";
-import { saveToPath } from "@/utils/saveToPath";
+import { useShortcutsStore, formatKeyForDisplay } from "@/stores/shortcutsStore";
+import { useTabStore, type Tab } from "@/stores/tabStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { isImeKeyEvent } from "@/utils/imeGuard";
+import { getRevealInFileManagerLabel } from "@/utils/pathUtils";
+import { useTabContextMenuActions } from "./useTabContextMenuActions";
 import "./TabContextMenu.css";
 
 export interface ContextMenuPosition {
@@ -18,34 +27,107 @@ interface TabContextMenuProps {
   onClose: () => void;
 }
 
-interface MenuItem {
-  label: string;
-  action: () => void;
-  disabled?: boolean;
-  separator?: boolean;
+function findNextFocusable(
+  focusableIndices: number[],
+  focusedIndex: number,
+  direction: 1 | -1
+): number {
+  if (focusableIndices.length === 0) return -1;
+  const currentPos = focusableIndices.indexOf(focusedIndex);
+  const startPos = currentPos === -1
+    ? (direction === 1 ? 0 : focusableIndices.length - 1)
+    : (currentPos + direction + focusableIndices.length) % focusableIndices.length;
+  return focusableIndices[startPos] ?? -1;
 }
 
-export function TabContextMenu({
-  tab,
-  position,
-  windowLabel,
-  onClose,
-}: TabContextMenuProps) {
+export function TabContextMenu({ tab, position, windowLabel, onClose }: TabContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const positionRef = useRef(position);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+
   const tabs = useTabStore((state) => state.tabs[windowLabel] ?? []);
   const doc = useDocumentStore((state) => state.documents[tab.id]);
+  const workspaceRoot = useWorkspaceStore((state) => state.rootPath);
+  const closeShortcut = useShortcutsStore((state) => state.getShortcut("closeFile"));
 
-  // Close on click outside
+  const revealLabel = useMemo(() => getRevealInFileManagerLabel(), []);
+  const closeShortcutLabel = useMemo(() => formatKeyForDisplay(closeShortcut), [closeShortcut]);
+  const filePath = tab.filePath ?? doc?.filePath ?? null;
+
+  const menuItems = useTabContextMenuActions({
+    tab,
+    tabs,
+    doc,
+    filePath,
+    windowLabel,
+    workspaceRoot,
+    revealLabel,
+    closeShortcutLabel,
+    onClose,
+  });
+
+  const focusableIndices = useMemo(
+    () => menuItems
+      .map((item, index) => (!item.separator && !item.disabled ? index : -1))
+      .filter((index) => index !== -1),
+    [menuItems]
+  );
+
+  const applyMenuPosition = useCallback(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+
+    const rect = menu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let adjustedX = positionRef.current.x;
+    let adjustedY = positionRef.current.y;
+
+    if (adjustedX + rect.width > viewportWidth - 10) {
+      adjustedX = Math.max(10, viewportWidth - rect.width - 10);
+    }
+    if (adjustedY + rect.height > viewportHeight - 10) {
+      adjustedY = Math.max(10, viewportHeight - rect.height - 10);
+    }
+
+    menu.style.left = `${adjustedX}px`;
+    menu.style.top = `${adjustedY}px`;
+  }, []);
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    positionRef.current = position;
+    applyMenuPosition();
+  }, [applyMenuPosition, position]);
+
+  useEffect(() => {
+    const handleViewportChange = () => applyMenuPosition();
+    const visualViewport = window.visualViewport;
+
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    visualViewport?.addEventListener("resize", handleViewportChange);
+    visualViewport?.addEventListener("scroll", handleViewportChange);
+
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+      visualViewport?.removeEventListener("resize", handleViewportChange);
+      visualViewport?.removeEventListener("scroll", handleViewportChange);
+    };
+  }, [applyMenuPosition]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (isImeKeyEvent(e)) return;
-      if (e.key === "Escape") {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (isImeKeyEvent(event)) return;
+      if (event.key === "Escape") {
         onClose();
       }
     };
@@ -59,150 +141,95 @@ export function TabContextMenu({
     };
   }, [onClose]);
 
-  // Position adjustment to keep menu in viewport
   useEffect(() => {
-    if (!menuRef.current) return;
+    setFocusedIndex(focusableIndices[0] ?? -1);
+  }, [focusableIndices]);
 
-    const menu = menuRef.current;
-    const rect = menu.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+  useEffect(() => {
+    if (focusedIndex < 0) return;
+    itemRefs.current[focusedIndex]?.focus();
+  }, [focusedIndex]);
 
-    let adjustedX = position.x;
-    let adjustedY = position.y;
+  const handleMenuKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (isImeKeyEvent(event.nativeEvent)) return;
 
-    // Adjust horizontal position
-    if (position.x + rect.width > viewportWidth - 10) {
-      adjustedX = viewportWidth - rect.width - 10;
-    }
-
-    // Adjust vertical position - show above if would overflow bottom
-    if (position.y + rect.height > viewportHeight - 10) {
-      adjustedY = position.y - rect.height - 5;
-      // If still overflows top, pin to top with margin
-      if (adjustedY < 10) {
-        adjustedY = 10;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setFocusedIndex((current) => findNextFocusable(focusableIndices, current, 1));
+        return;
       }
-    }
 
-    menu.style.left = `${adjustedX}px`;
-    menu.style.top = `${adjustedY}px`;
-  }, [position]);
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setFocusedIndex((current) => findNextFocusable(focusableIndices, current, -1));
+        return;
+      }
 
-  const handleClose = useCallback(async () => {
-    await closeTabWithDirtyCheck(windowLabel, tab.id);
-    onClose();
-  }, [windowLabel, tab.id, onClose]);
+      if (event.key === "Home") {
+        event.preventDefault();
+        setFocusedIndex(focusableIndices[0] ?? -1);
+        return;
+      }
 
-  const handleCloseOthers = useCallback(async () => {
-    const tabsToClose = tabs.filter((t) => t.id !== tab.id && !t.isPinned);
-    const tabIds = tabsToClose.map((t) => t.id);
-    await closeTabsWithDirtyCheck(windowLabel, tabIds);
-    onClose();
-  }, [tabs, tab.id, windowLabel, onClose]);
+      if (event.key === "End") {
+        event.preventDefault();
+        setFocusedIndex(focusableIndices[focusableIndices.length - 1] ?? -1);
+        return;
+      }
 
-  const handleCloseToRight = useCallback(async () => {
-    const tabIndex = tabs.findIndex((t) => t.id === tab.id);
-    const tabsToClose = tabs.filter((t, i) => i > tabIndex && !t.isPinned);
-    const tabIds = tabsToClose.map((t) => t.id);
-    await closeTabsWithDirtyCheck(windowLabel, tabIds);
-    onClose();
-  }, [tabs, tab.id, windowLabel, onClose]);
+      if (event.key === "Tab") {
+        onClose();
+        return;
+      }
 
-  const handleCloseAll = useCallback(async () => {
-    const tabsToClose = tabs.filter((t) => !t.isPinned);
-    const tabIds = tabsToClose.map((t) => t.id);
-    await closeTabsWithDirtyCheck(windowLabel, tabIds);
-    onClose();
-  }, [tabs, windowLabel, onClose]);
-
-  const handlePin = useCallback(() => {
-    useTabStore.getState().togglePin(windowLabel, tab.id);
-    onClose();
-  }, [windowLabel, tab.id, onClose]);
-
-  // Restore missing file to original location
-  const handleRestoreToDisk = useCallback(async () => {
-    if (!doc?.filePath) return;
-    const saved = await saveToPath(tab.id, doc.filePath, doc.content, "manual");
-    if (saved) {
-      useDocumentStore.getState().clearMissing(tab.id);
-    }
-    onClose();
-  }, [tab.id, doc?.filePath, doc?.content, onClose]);
-
-  // Copy file path to clipboard
-  const handleCopyPath = useCallback(async () => {
-    if (!doc?.filePath) return;
-    await navigator.clipboard.writeText(doc.filePath);
-    onClose();
-  }, [doc?.filePath, onClose]);
-
-  const tabIndex = tabs.findIndex((t) => t.id === tab.id);
-  const hasTabsToRight = tabs.slice(tabIndex + 1).some((t) => !t.isPinned);
-  const hasOtherTabs = tabs.filter((t) => t.id !== tab.id && !t.isPinned).length > 0;
-
-  // Build menu items dynamically based on state
-  const menuItems: MenuItem[] = [
-    {
-      label: tab.isPinned ? "Unpin" : "Pin",
-      action: handlePin,
+      if ((event.key === "Enter" || event.key === " ") && focusedIndex >= 0) {
+        const item = menuItems[focusedIndex];
+        if (!item || item.separator || item.disabled) return;
+        event.preventDefault();
+        void item.action();
+      }
     },
-    {
-      label: "Copy Path",
-      action: handleCopyPath,
-      disabled: !doc?.filePath,
-    },
-    // Show "Restore to Disk" when file is missing
-    ...(doc?.isMissing && doc.filePath
-      ? [
-          {
-            label: "Restore to Disk",
-            action: handleRestoreToDisk,
-          },
-        ]
-      : []),
-    { label: "", action: () => {}, separator: true },
-    {
-      label: "Close",
-      action: handleClose,
-      disabled: tab.isPinned,
-    },
-    {
-      label: "Close Others",
-      action: handleCloseOthers,
-      disabled: !hasOtherTabs,
-    },
-    {
-      label: "Close to the Right",
-      action: handleCloseToRight,
-      disabled: !hasTabsToRight,
-    },
-    {
-      label: "Close All",
-      action: handleCloseAll,
-      disabled: tabs.every((t) => t.isPinned),
-    },
-  ];
+    [focusableIndices, focusedIndex, menuItems, onClose]
+  );
 
   return (
     <div
       ref={menuRef}
       className="tab-context-menu"
       style={{ left: position.x, top: position.y }}
+      role="menu"
+      aria-label="Tab actions"
+      onKeyDown={handleMenuKeyDown}
     >
       {menuItems.map((item, index) =>
         item.separator ? (
-          <div key={`separator-${index}`} className="tab-context-menu-separator" />
+          <div key={item.id} className="tab-context-menu-separator" />
         ) : (
           <button
-            key={item.label}
+            key={item.id}
+            ref={(node) => {
+              itemRefs.current[index] = node;
+            }}
             type="button"
+            role="menuitem"
             className="tab-context-menu-item"
-            onClick={item.action}
+            onClick={() => {
+              void item.action();
+            }}
+            onFocus={() => {
+              setFocusedIndex(index);
+            }}
+            onMouseEnter={() => {
+              if (!item.disabled) {
+                setFocusedIndex(index);
+              }
+            }}
             disabled={item.disabled}
+            tabIndex={focusedIndex === index ? 0 : -1}
           >
-            {item.label}
+            <span className="tab-context-menu-item-label">{item.label}</span>
+            {item.shortcut && <span className="tab-context-menu-item-shortcut">{item.shortcut}</span>}
           </button>
         )
       )}
