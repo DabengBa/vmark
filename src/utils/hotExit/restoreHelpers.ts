@@ -14,6 +14,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { hotExitLog, hotExitWarn } from '@/utils/debug';
 import { useTabStore } from '@/stores/tabStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -65,7 +66,7 @@ function toStoreCursorInfo(cursorInfo: CursorInfo | null | undefined): StoreCurs
     !Number.isFinite(cursorInfo.offset_in_word) ||
     !Number.isFinite(cursorInfo.percent_in_line)
   ) {
-    console.warn('[HotExit] Invalid cursor info, skipping restore');
+    hotExitWarn('Invalid cursor info, skipping restore');
     return null;
   }
 
@@ -116,11 +117,11 @@ export async function pullWindowStateWithRetry(windowLabel: string, retries = MA
 
       // State not found - wait and retry (might not be stored yet)
       if (attempt < retries) {
-        console.log(`[HotExit] Window '${windowLabel}' state not ready, retry ${attempt}/${retries}`);
+        hotExitLog(`Window '${windowLabel}' state not ready, retry ${attempt}/${retries}`);
         await sleep(RETRY_DELAY_MS);
       }
     } catch (error) {
-      console.error(`[HotExit] Failed to pull state for '${windowLabel}' (attempt ${attempt}):`, error);
+      hotExitWarn(`Failed to pull state for '${windowLabel}' (attempt ${attempt}):`, error);
       if (attempt < retries) {
         await sleep(RETRY_DELAY_MS);
       }
@@ -326,7 +327,7 @@ export function restoreUnifiedHistory(
     },
   }));
 
-  console.log(
-    `[HotExit] Restored unified history for tab '${tabId}': ${undoStack.length} undo, ${redoStack.length} redo checkpoints`
+  hotExitLog(
+    `Restored unified history for tab '${tabId}': ${undoStack.length} undo, ${redoStack.length} redo checkpoints`
   );
 }

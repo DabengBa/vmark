@@ -344,15 +344,15 @@ describe("sanitizeHtmlPreview", () => {
 });
 
 describe("sanitizeSvg", () => {
-  describe("allowed SVG elements", () => {
-    it("allows basic SVG structure", () => {
+  describe("valid SVG elements — must be preserved", () => {
+    it("allows basic SVG structure with rect", () => {
       const input = '<svg><rect x="0" y="0" width="100" height="100"/></svg>';
       const result = sanitizeSvg(input);
       expect(result).toContain("<svg>");
       expect(result).toContain("<rect");
     });
 
-    it("allows common SVG elements", () => {
+    it("allows path, circle, and text elements", () => {
       const input = '<svg><circle cx="50" cy="50" r="40"/><path d="M10 10"/><text>Hello</text></svg>';
       const result = sanitizeSvg(input);
       expect(result).toContain("<circle");
@@ -360,33 +360,129 @@ describe("sanitizeSvg", () => {
       expect(result).toContain("<text>");
     });
 
-    it("allows foreignObject for HTML embedding", () => {
+    it("allows g (group) element", () => {
+      const input = '<svg><g transform="translate(10,10)"><rect width="50" height="50"/></g></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<g");
+      expect(result).toContain("transform=");
+    });
+
+    it("allows defs and use elements", () => {
+      const input = '<svg><defs><rect id="r" width="10" height="10"/></defs><use href="#r"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<defs>");
+      expect(result).toContain("<use");
+    });
+
+    it("allows foreignObject for HTML embedding (Mermaid diagrams)", () => {
       const input = '<svg><foreignObject><div>HTML</div></foreignObject></svg>';
       const result = sanitizeSvg(input);
       expect(result).toContain("<foreignObject>");
     });
+
+    it("preserves valid fill, stroke, and transform attributes", () => {
+      const input = '<svg><rect fill="#ff0000" stroke="#000" transform="rotate(45)"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain('fill="#ff0000"');
+      expect(result).toContain('stroke="#000"');
+      expect(result).toContain("transform=");
+    });
+
+    it("preserves CSS classes on SVG elements", () => {
+      const input = '<svg><rect class="node-shape" width="100" height="50"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain('class="node-shape"');
+    });
+
+    it("preserves non-malicious inline styles (Mermaid uses these)", () => {
+      const input = '<svg><text style="font-size: 14px; fill: #333;">Label</text></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("style=");
+      expect(result).toContain("Label");
+    });
+
+    it("preserves viewBox and xmlns attributes", () => {
+      const input = '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("viewBox=");
+      expect(result).toContain("xmlns=");
+    });
+
+    it("preserves marker-end and marker-start attributes", () => {
+      const input = '<svg><line x1="0" y1="0" x2="50" y2="50" marker-end="url(#arrow)"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("marker-end=");
+    });
+
+    it("preserves a typical Mermaid flowchart SVG", () => {
+      const input = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+        <g class="nodes">
+          <rect x="10" y="10" width="120" height="40" rx="5" ry="5" fill="#f9f" stroke="#333"/>
+          <foreignObject x="10" y="10" width="120" height="40">
+            <div style="display: flex; align-items: center; justify-content: center; line-height: 1.2;">
+              <span>Start</span>
+            </div>
+          </foreignObject>
+        </g>
+        <path d="M130 30 L200 30" stroke="#333" marker-end="url(#arrowhead)"/>
+      </svg>`;
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<rect");
+      expect(result).toContain("<foreignObject");
+      expect(result).toContain("<path");
+      expect(result).toContain("Start");
+      expect(result).toContain("marker-end=");
+    });
   });
 
-  describe("XSS prevention in SVG", () => {
+  describe("XSS prevention — script injection", () => {
     it("removes script tags from SVG", () => {
       const input = '<svg><script>alert(1)</script></svg>';
       const result = sanitizeSvg(input);
       expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert");
     });
 
-    it("removes onerror handler", () => {
+    it("removes script tags with type attribute", () => {
+      const input = '<svg><script type="text/ecmascript">alert(1)</script></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+    });
+
+    it("removes script tags in mixed case", () => {
+      const inputs = [
+        '<svg><SCRIPT>alert(1)</SCRIPT></svg>',
+        '<svg><Script>alert(1)</Script></svg>',
+        '<svg><scRiPt>alert(1)</scRiPt></svg>',
+      ];
+      for (const input of inputs) {
+        const result = sanitizeSvg(input);
+        expect(result.toLowerCase()).not.toContain("<script");
+      }
+    });
+
+    it("removes script tags nested inside g elements", () => {
+      const input = '<svg><g><script>alert(1)</script><rect width="10" height="10"/></g></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+      expect(result).toContain("<rect");
+    });
+  });
+
+  describe("XSS prevention — event handlers", () => {
+    it("removes onerror handler from image", () => {
       const input = '<svg><image xlink:href="x" onerror="alert(1)"/></svg>';
       const result = sanitizeSvg(input);
       expect(result).not.toContain("onerror");
     });
 
-    it("removes onload handler", () => {
+    it("removes onload handler from svg root", () => {
       const input = '<svg onload="alert(1)"></svg>';
       const result = sanitizeSvg(input);
       expect(result).not.toContain("onload");
     });
 
-    it("removes onclick handler", () => {
+    it("removes onclick handler from rect", () => {
       const input = '<svg><rect onclick="alert(1)"/></svg>';
       const result = sanitizeSvg(input);
       expect(result).not.toContain("onclick");
@@ -408,6 +504,272 @@ describe("sanitizeSvg", () => {
       const input = '<svg><rect onblur="alert(1)"/></svg>';
       const result = sanitizeSvg(input);
       expect(result).not.toContain("onblur");
+    });
+
+    it("removes event handlers in mixed case", () => {
+      const input = '<svg><rect ONCLICK="alert(1)" OnMouseOver="alert(2)"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result.toLowerCase()).not.toContain("onclick");
+      expect(result.toLowerCase()).not.toContain("onmouseover");
+    });
+
+    it("removes event handlers on text elements", () => {
+      const input = '<svg><text onclick="alert(1)">Click me</text></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onclick");
+      expect(result).toContain("Click me");
+    });
+
+    it("removes event handlers on foreignObject children", () => {
+      const input = '<svg><foreignObject><div onclick="alert(1)">Content</div></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onclick");
+      expect(result).toContain("Content");
+    });
+  });
+
+  describe("XSS prevention — foreignObject with scripts", () => {
+    it("removes script tags inside foreignObject", () => {
+      const input = '<svg><foreignObject><script>alert(1)</script></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+    });
+
+    it("removes script tags inside nested HTML in foreignObject", () => {
+      const input = '<svg><foreignObject><div><script>alert(1)</script>Safe text</div></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+      expect(result).toContain("Safe text");
+    });
+
+    it("removes event handlers on HTML elements inside foreignObject", () => {
+      const input = '<svg><foreignObject><div onmouseover="alert(1)"><span onclick="alert(2)">Text</span></div></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onmouseover");
+      expect(result).not.toContain("onclick");
+      expect(result).toContain("Text");
+    });
+
+    it("removes iframe inside foreignObject", () => {
+      const input = '<svg><foreignObject><iframe src="https://evil.com"></iframe></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<iframe");
+    });
+  });
+
+  describe("XSS prevention — javascript: URLs", () => {
+    it("removes javascript: in href attribute", () => {
+      const input = '<svg><a href="javascript:alert(1)"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("javascript:");
+    });
+
+    it("removes javascript: in xlink:href attribute", () => {
+      const input = '<svg><a xlink:href="javascript:alert(1)"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("javascript:");
+    });
+
+    it("removes javascript: URL with HTML entity encoding (&#106;avascript:)", () => {
+      const input = '<svg><a href="&#106;avascript:alert(1)"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("alert(1)");
+    });
+
+    it("removes javascript: URL with hex entity encoding (&#x6A;avascript:)", () => {
+      const input = '<svg><a href="&#x6A;avascript:alert(1)"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("alert(1)");
+    });
+
+    it("removes javascript: URL with tab/newline obfuscation", () => {
+      const input = '<svg><a href="java\tscript:alert(1)"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      // DOMPurify should strip the dangerous href
+      expect(result).not.toContain("alert(1)");
+    });
+  });
+
+  describe("XSS prevention — data: URLs", () => {
+    it("removes data:text/html URLs in href", () => {
+      const input = '<svg><a href="data:text/html,<script>alert(1)</script>"><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("data:text/html");
+    });
+
+    it("removes data:text/html URLs with base64 encoding", () => {
+      const input = '<svg><a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="><text>Click</text></a></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("data:text/html");
+    });
+  });
+
+  describe("XSS prevention — malicious CSS in style attributes", () => {
+    it("removes expression() in style attributes (IE vector)", () => {
+      const input = '<svg><rect style="width: expression(alert(1))"/></svg>';
+      const result = sanitizeSvg(input);
+      // DOMPurify or the browser should neutralize expression()
+      expect(result).not.toContain("expression(");
+    });
+
+    it("removes url(javascript:) in style attributes", () => {
+      const input = '<svg><rect style="background: url(javascript:alert(1))"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("javascript:");
+    });
+
+    it("removes -moz-binding in style (Firefox XBL vector)", () => {
+      const input = '<svg><rect style="-moz-binding: url(evil.xml#xss)"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("-moz-binding");
+    });
+  });
+
+  describe("XSS prevention — nested SVGs with malicious content", () => {
+    it("removes script tags from nested SVG", () => {
+      const input = '<svg><svg><script>alert(1)</script></svg></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+    });
+
+    it("removes event handlers from nested SVG elements", () => {
+      const input = '<svg><svg onload="alert(1)"><rect onclick="alert(2)"/></svg></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onload");
+      expect(result).not.toContain("onclick");
+    });
+
+    it("preserves valid nested SVG content while stripping malicious parts", () => {
+      const input = '<svg><svg><rect width="10" height="10" fill="red"/><script>alert(1)</script></svg></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<rect");
+      expect(result).toContain('fill="red"');
+      expect(result).not.toContain("<script");
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles empty string input", () => {
+      const result = sanitizeSvg("");
+      expect(result).toBe("");
+    });
+
+    it("handles non-SVG HTML input (strips non-SVG-profile tags)", () => {
+      // With svg+html profiles, some HTML tags are kept, but scripts are still removed
+      const input = "<div><p>Hello</p></div>";
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("<script");
+    });
+
+    it("handles malformed/incomplete SVG tags", () => {
+      const input = "<svg><rect width='100'";
+      const result = sanitizeSvg(input);
+      // Should not throw; DOMPurify handles malformed HTML gracefully
+      expect(typeof result).toBe("string");
+    });
+
+    it("handles SVG with unclosed tags", () => {
+      const input = "<svg><g><rect width='50' height='50'>";
+      const result = sanitizeSvg(input);
+      expect(typeof result).toBe("string");
+    });
+
+    it("handles extremely large SVG without hanging", () => {
+      // Generate a large SVG with many elements (10,000 rects)
+      const rects = Array.from({ length: 10_000 }, (_, i) =>
+        `<rect x="${i}" y="0" width="1" height="1"/>`,
+      ).join("");
+      const input = `<svg>${rects}</svg>`;
+
+      const start = performance.now();
+      const result = sanitizeSvg(input);
+      const elapsed = performance.now() - start;
+
+      expect(result).toContain("<rect");
+      // Should complete in reasonable time (under 5 seconds)
+      expect(elapsed).toBeLessThan(5000);
+    });
+
+    it("handles SVG with CDATA sections", () => {
+      const input = '<svg><style><![CDATA[ .cls { fill: red; } ]]></style><rect class="cls" width="10" height="10"/></svg>';
+      const result = sanitizeSvg(input);
+      // Should not throw; content should be processed
+      expect(typeof result).toBe("string");
+      expect(result).toContain("<rect");
+    });
+
+    it("handles SVG with XML processing instructions", () => {
+      const input = '<?xml version="1.0"?><svg><rect width="10" height="10"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<rect");
+    });
+
+    it("handles SVG with unicode/CJK text content", () => {
+      const input = '<svg><text>你好世界 🎨 مرحبا</text></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("你好世界");
+      expect(result).toContain("🎨");
+      expect(result).toContain("مرحبا");
+    });
+
+    it("handles SVG with only whitespace", () => {
+      const result = sanitizeSvg("   \n\t  ");
+      expect(result.trim()).toBe("");
+    });
+
+    it("handles SVG with comments", () => {
+      const input = '<svg><!-- comment --><rect width="10" height="10"/></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).toContain("<rect");
+    });
+  });
+
+  describe("combined attack vectors", () => {
+    it("strips script while preserving valid Mermaid diagram structure", () => {
+      const input = `<svg viewBox="0 0 500 300">
+        <g class="nodes">
+          <rect x="10" y="10" width="100" height="40" fill="#f0f0f0" stroke="#333"/>
+          <foreignObject x="10" y="10" width="100" height="40">
+            <div style="text-align: center;">Node A</div>
+          </foreignObject>
+        </g>
+        <script>document.cookie</script>
+        <path d="M110 30 L200 30" stroke="#333"/>
+      </svg>`;
+      const result = sanitizeSvg(input);
+      expect(result).toContain("Node A");
+      expect(result).toContain("<rect");
+      expect(result).toContain("<path");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("document.cookie");
+    });
+
+    it("strips multiple attack vectors in a single SVG", () => {
+      const input = `<svg onload="alert(1)">
+        <rect onclick="alert(2)" width="10" height="10"/>
+        <script>alert(3)</script>
+        <a href="javascript:alert(4)"><text>Link</text></a>
+        <image onerror="alert(5)"/>
+        <text onfocus="alert(6)">Text</text>
+      </svg>`;
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onload");
+      expect(result).not.toContain("onclick");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("javascript:");
+      expect(result).not.toContain("onerror");
+      expect(result).not.toContain("onfocus");
+      // Valid content should survive
+      expect(result).toContain("<rect");
+      expect(result).toContain("Text");
+    });
+
+    it("handles mutation XSS attempt with SVG and foreignObject", () => {
+      // Mutation XSS: content that is safe as parsed but dangerous when re-serialized
+      const input = '<svg><foreignObject><math><mtext><table><mglyph><style><!--</style><img src=x onerror=alert(1)></table></mtext></math></foreignObject></svg>';
+      const result = sanitizeSvg(input);
+      expect(result).not.toContain("onerror");
+      expect(result).not.toContain("alert(1)");
     });
   });
 });

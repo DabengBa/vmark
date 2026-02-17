@@ -18,6 +18,7 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
+import { hotExitLog, hotExitWarn } from '@/utils/debug';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { HOT_EXIT_EVENTS } from './types';
 import { pullWindowStateWithRetry, restoreWindowState } from './restoreHelpers';
@@ -54,7 +55,7 @@ export async function restoreMainWindowState(): Promise<void> {
     const windowState = await pullWindowStateWithRetry(windowLabel);
 
     if (!windowState) {
-      hotExitLog('No state found for main window after retries');
+      hotExitWarn('No state found for main window after retries');
       void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
         error: `No restore state found for window '${windowLabel}'`,
       }).catch((e) => hotExitWarn('Failed to emit restore failed:', e));
@@ -73,7 +74,7 @@ export async function restoreMainWindowState(): Promise<void> {
       await emit(HOT_EXIT_EVENTS.RESTORE_COMPLETE, {});
     }
   } catch (error) {
-    hotExitLog('Main window restore failed:', error);
+    hotExitWarn('Main window restore failed:', error);
     void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
       error: error instanceof Error ? error.message : String(error),
     }).catch((e) => hotExitWarn('Failed to emit restore failed:', e));
@@ -114,7 +115,7 @@ export function useHotExitRestore() {
           // If restore was explicitly requested but no state found, emit failure
           // (This prevents checkAndRestoreSession from waiting until timeout)
           if (isRequestedRestore && isMainWindow) {
-            hotExitLog('Restore was requested but no state available');
+            hotExitWarn('Restore was requested but no state available');
             void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
               error: `No restore state found for window '${windowLabel}'`,
             }).catch((e) => hotExitWarn('Failed to emit restore failed:', e));
@@ -134,7 +135,7 @@ export function useHotExitRestore() {
           await emit(HOT_EXIT_EVENTS.RESTORE_COMPLETE, {});
         }
       } catch (error) {
-        hotExitLog(`Window '${windowLabel}' restore failed:`, error);
+        hotExitWarn(`Window '${windowLabel}' restore failed:`, error);
         void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
           error: error instanceof Error ? error.message : String(error),
         }).catch((e) => hotExitWarn('Failed to emit restore failed:', e));
