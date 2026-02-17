@@ -16,42 +16,9 @@
  * @module utils/wordSegmentation
  */
 
-// Intl.Segmenter type declaration (ES2022)
-// Global augmentation for Intl.Segmenter which is not in older TS lib
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Intl {
-    interface SegmentData {
-      segment: string;
-      index: number;
-      isWordLike?: boolean;
-    }
+// Intl.Segmenter is available in ES2022 lib (configured in tsconfig.json)
 
-    interface Segments extends Iterable<SegmentData> {
-      containing(index: number): SegmentData | undefined;
-    }
-
-    interface Segmenter {
-      segment(input: string): Segments;
-    }
-
-    interface SegmenterOptions {
-      localeMatcher?: "lookup" | "best fit";
-      granularity?: "grapheme" | "word" | "sentence";
-    }
-
-    const Segmenter: {
-      new (locale?: string | string[], options?: SegmenterOptions): Segmenter;
-      prototype: Segmenter;
-      supportedLocalesOf(
-        locales: string | string[],
-        options?: { localeMatcher?: "lookup" | "best fit" }
-      ): string[];
-    };
-  }
-}
-
-type SegmenterType = { segment: (text: string) => Iterable<Intl.SegmentData> };
+type SegmenterType = Intl.Segmenter;
 
 // Cached segmenter instance (created once, reused)
 let cachedSegmenter: SegmenterType | null = null;

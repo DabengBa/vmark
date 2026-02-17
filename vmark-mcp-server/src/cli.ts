@@ -104,8 +104,8 @@ import { WebSocketBridge, ClientIdentity } from './bridge/websocket.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z, ZodTypeAny } from 'zod';
-import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
+import { getParentProcessName } from './utils/parentProcess.js';
 import { join } from 'path';
 import { homedir, platform } from 'os';
 
@@ -214,37 +214,6 @@ function parseArgs(): { port: number | undefined } {
   const port = cliPort ?? readPortFromFile();
 
   return { port };
-}
-
-/**
- * Get parent process name (cross-platform).
- *
- * - macOS/Linux: `ps -p <ppid> -o comm=`
- * - Windows: PowerShell `Get-Process` (wmic is deprecated on modern Windows)
- */
-function getParentProcessName(): string | undefined {
-  try {
-    const ppid = process.ppid;
-    if (!ppid) return undefined;
-
-    if (process.platform === 'darwin' || process.platform === 'linux') {
-      const result = execFileSync('ps', ['-p', String(ppid), '-o', 'comm='], {
-        encoding: 'utf8',
-        timeout: 500,
-      }).trim();
-      return result || undefined;
-    } else if (process.platform === 'win32') {
-      // Use PowerShell — wmic is deprecated on Windows 11+
-      const result = execFileSync('powershell', [
-        '-NoProfile', '-Command',
-        `(Get-Process -Id ${ppid}).ProcessName`,
-      ], { encoding: 'utf8', timeout: 500 }).trim();
-      return result || undefined;
-    }
-  } catch {
-    // Ignore errors — parent process detection is best-effort
-  }
-  return undefined;
 }
 
 /**

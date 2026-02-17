@@ -296,11 +296,23 @@ function stripNonWhitelistedIframes(html: string): string {
  * on for correct text sizing — causing text to clip inside node boxes.
  */
 export function sanitizeSvg(svg: string): string {
-  return DOMPurify.sanitize(svg, {
+  // Use a separate DOMPurify instance for SVG to avoid hook leaks
+  const purify = DOMPurify();
+
+  // Hook: sanitize dangerous CSS patterns in style attributes
+  // DOMPurify does not filter CSS property values for SVG profiles,
+  // so we strip expression(), javascript:, -moz-binding, and url(javascript:)
+  purify.addHook("uponSanitizeAttribute", (_node, data) => {
+    if (data.attrName === "style" && data.attrValue) {
+      data.attrValue = sanitizeSvgStyleValue(data.attrValue);
+    }
+  });
+
+  const result = purify.sanitize(svg, {
     USE_PROFILES: { svg: true, svgFilters: true, html: true },
-    ADD_TAGS: ["foreignObject"],
+    ADD_TAGS: ["foreignObject", "use"],
     // Explicitly add style and common SVG attributes that might be needed
-    ADD_ATTR: ["style", "fill", "stroke", "class", "transform", "d", "cx", "cy", "r", "rx", "ry", "x", "y", "width", "height", "viewBox", "xmlns", "marker-end", "marker-start"],
+    ADD_ATTR: ["style", "fill", "stroke", "class", "transform", "d", "cx", "cy", "r", "rx", "ry", "x", "y", "width", "height", "viewBox", "xmlns", "marker-end", "marker-start", "href"],
     FORBID_TAGS: ["script"],
     FORBID_ATTR: [
       "onerror",
@@ -313,6 +325,27 @@ export function sanitizeSvg(svg: string): string {
     // Allow HTML elements inside SVG foreignObject (mermaid's htmlLabels)
     HTML_INTEGRATION_POINTS: { foreignobject: true },
   });
+
+  purify.removeAllHooks();
+  return result;
+}
+
+/**
+ * Strip dangerous CSS patterns from SVG style attribute values.
+ * Blocks expression(), -moz-binding, javascript: URLs, and similar vectors.
+ */
+function sanitizeSvgStyleValue(style: string): string {
+  const lowered = style.toLowerCase();
+  if (
+    lowered.includes("expression(") ||
+    lowered.includes("javascript:") ||
+    lowered.includes("-moz-binding") ||
+    lowered.includes("behavior:")
+  ) {
+    // Strip the entire style — partial removal is error-prone
+    return "";
+  }
+  return style;
 }
 
 /**

@@ -249,7 +249,7 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
       },
       migrate: (persisted, version) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let data = persisted as any;
+        const data = persisted as any;
         if (version < 2) {
           // v1 → v2: strip dead `enabled` field from REST providers
           if (Array.isArray(data.restProviders)) {

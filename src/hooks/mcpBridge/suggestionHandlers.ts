@@ -323,7 +323,7 @@ export async function handleDocumentReplaceInSourceWithSuggestion(
     // Try exact match first, then fall back to normalized matching.
     // Round-trip serialization can introduce subtle whitespace differences
     // (e.g. trailing spaces, line break normalization, entity encoding).
-    let parts = markdown.split(search);
+    const parts = markdown.split(search);
     let totalMatches = parts.length - 1;
     let usedNormalized = false;
 
