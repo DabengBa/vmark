@@ -3,10 +3,15 @@ import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
 import { message, save } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { saveToPath } from "@/utils/saveToPath";
 
 vi.mock("@/utils/saveToPath", () => ({
   saveToPath: vi.fn(),
+}));
+
+vi.mock("@/hooks/workspaceSession", () => ({
+  persistWorkspaceSession: vi.fn().mockResolvedValue(undefined),
 }));
 
 const WINDOW_LABEL = "main";
@@ -35,8 +40,9 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(message).not.toHaveBeenCalled();
-    // Closing the last tab auto-creates a fresh untitled tab
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
+    // Closing the last tab closes the window
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
     expect(useDocumentStore.getState().getDocument(tabId)).toBeUndefined();
   });
 
@@ -67,8 +73,9 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    // Closing the last tab auto-creates a fresh untitled tab
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
+    // Closing the last tab closes the window
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
 
   it("closes dirty tab when dialog returns custom button label (Don't Save)", async () => {
@@ -82,8 +89,9 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    // Closing the last tab auto-creates a fresh untitled tab
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
+    // Closing the last tab closes the window
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
 
   it("saves and closes dirty tab when user chooses Save and file has path", async () => {
@@ -99,8 +107,9 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).toHaveBeenCalledWith(tabId, "/tmp/dirty.md", "changed", "manual");
-    // Closing the last tab auto-creates a fresh untitled tab
-    expect(useTabStore.getState().tabs[WINDOW_LABEL]?.length ?? 0).toBe(1);
+    // Closing the last tab closes the window
+    expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
 
   it("cancels close if user chooses Save but cancels Save dialog", async () => {
