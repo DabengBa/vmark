@@ -7,13 +7,14 @@
  * Key decisions:
  *   - Lives in hooks/ (not utils/) because it has Tauri dialog + store side effects
  *   - Orphan image cleanup runs only on explicitly closed tabs (not discarded)
- *   - Creates a fresh untitled tab when closing the last tab in a window
+ *   - Closes the window when the last tab is closed (macOS standard behavior)
  *   - Pure close decision logic delegated to utils/closeDecision.ts
  *   - Re-entry guard (closingTabIds) prevents duplicate save prompts when
  *     Cmd+W fires both keydown and menu:close concurrently
  *
  * @coordinates-with closeSave.ts — promptSaveForDirtyDocument dialog
- * @coordinates-with tabStore.ts — removeTab, addTab mutations
+ * @coordinates-with tabStore.ts — removeTab mutations
+ * @coordinates-with workspaceSession.ts — persists session before closing window
  * @coordinates-with useUnifiedHistory.ts — clearDocumentHistory on close
  * @module hooks/useTabOperations
  */
@@ -24,7 +25,8 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { findOrphanedImages, deleteOrphanedImages } from "@/utils/orphanAssetCleanup";
 import { clearDocumentHistory } from "@/hooks/useUnifiedHistory";
-import { createUntitledTab } from "@/utils/newFile";
+import { invoke } from "@tauri-apps/api/core";
+import { persistWorkspaceSession } from "@/hooks/workspaceSession";
 
 /**
  * Clean up orphaned images for a document if setting is enabled.
@@ -50,11 +52,13 @@ async function cleanupOrphansIfEnabled(
   }
 }
 
-/** Ensure window always has at least one tab after a close. */
-function ensureWindowHasTab(windowLabel: string): void {
+/** Close the window if no tabs remain (last-tab-closed → close window). */
+async function closeWindowIfEmpty(windowLabel: string): Promise<void> {
   const remaining = useTabStore.getState().tabs[windowLabel] ?? [];
   if (remaining.length === 0) {
-    createUntitledTab(windowLabel);
+    await persistWorkspaceSession(windowLabel);
+    useTabStore.getState().removeWindow(windowLabel);
+    await invoke("close_window", { label: windowLabel });
   }
 }
 
@@ -67,7 +71,7 @@ const closingTabIds = new Set<string>();
 /**
  * Close a tab with dirty check. If the document has unsaved changes,
  * prompts the user to save, don't save, or cancel.
- * If the last tab is closed, a new untitled tab is created automatically.
+ * If the last tab is closed, the window is closed (macOS standard behavior).
  *
  * Re-entrant calls for the same tabId are treated as no-ops (returns true).
  *
@@ -94,7 +98,7 @@ export async function closeTabWithDirtyCheck(
       useTabStore.getState().closeTab(windowLabel, tabId);
       useDocumentStore.getState().removeDocument(tabId);
       clearDocumentHistory(tabId);
-      ensureWindowHasTab(windowLabel);
+      await closeWindowIfEmpty(windowLabel);
       return true;
     }
 
@@ -125,7 +129,7 @@ export async function closeTabWithDirtyCheck(
     useTabStore.getState().closeTab(windowLabel, tabId);
     useDocumentStore.getState().removeDocument(tabId);
     clearDocumentHistory(tabId);
-    ensureWindowHasTab(windowLabel);
+    await closeWindowIfEmpty(windowLabel);
     return true;
   } finally {
     closingTabIds.delete(tabId);

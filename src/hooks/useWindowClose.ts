@@ -10,7 +10,7 @@
  *   persist workspace session → allow close or cancel
  *
  * Pipeline (menu close): Cmd+W menu accelerator → menu:close event →
- *   closeTabWithDirtyCheck → ensureWindowHasTab (creates untitled if last)
+ *   closeTabWithDirtyCheck → closeWindowIfEmpty (closes window if last)
  *
  * Key decisions:
  *   - Prevents default close to run async save prompts first
@@ -156,11 +156,10 @@ export function useWindowClose() {
       closeLog(windowLabel, "setting up event listeners");
 
       // Listen to menu:close (Cmd+W menu accelerator).
-      // Close the active tab — NOT the window. ensureWindowHasTab (inside
-      // closeTabWithDirtyCheck) creates a new untitled when the last tab is
-      // closed, keeping the window open.  useTabShortcuts also handles Cmd+W
-      // via keydown; the second invocation is a safe no-op because the tab is
-      // already removed by the time it runs.
+      // Close the active tab. closeWindowIfEmpty (inside closeTabWithDirtyCheck)
+      // closes the window when the last tab is closed (macOS standard behavior).
+      // useTabShortcuts also handles Cmd+W via keydown; the second invocation
+      // is a safe no-op because the tab is already removed by the time it runs.
       const unlistenMenu = await currentWindow.listen<string>("menu:close", async (event) => {
         const targetLabel = event.payload;
         closeLog(windowLabel, "menu:close received, target:", targetLabel);
