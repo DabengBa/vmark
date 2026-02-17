@@ -523,6 +523,62 @@ describe("useTabDragOut", () => {
     expect(tablist.scrollLeft).toBe(10);
   });
 
+  it.each([
+    {
+      name: "close button itself",
+      createTarget: (tabEl: HTMLElement) => {
+        const btn = document.createElement("button");
+        btn.setAttribute("data-tab-close", "");
+        tabEl.appendChild(btn);
+        return btn;
+      },
+    },
+    {
+      name: "SVG child inside close button",
+      createTarget: (tabEl: HTMLElement) => {
+        const btn = document.createElement("button");
+        btn.setAttribute("data-tab-close", "");
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        btn.appendChild(svg);
+        tabEl.appendChild(btn);
+        return svg;
+      },
+    },
+  ])(
+    "skips drag initiation when pointerdown target is $name",
+    ({ createTarget }) => {
+      const bar = createTabBar({
+        barTop: 0,
+        barHeight: 40,
+        tabRects: [{ left: 0, width: 120 }],
+      });
+      const tabBarRef = createRef<HTMLElement>();
+      tabBarRef.current = bar;
+
+      const onDragOut = vi.fn();
+      const onReorder = vi.fn();
+      const { result } = renderHook(() =>
+        useTabDragOut({ tabBarRef, onDragOut, onReorder })
+      );
+
+      const tabEl = bar.querySelector("[role='tab']")!;
+      const target = createTarget(tabEl as HTMLElement);
+
+      const event = {
+        ...createPointerDownEvent({ clientX: 110, clientY: 20 }),
+        target,
+      } as unknown as ReactPointerEvent;
+
+      act(() => {
+        result.current.getTabDragHandlers("tab-1", false).onPointerDown(event);
+      });
+
+      // Drag should NOT have been initiated — mode stays idle
+      expect(result.current.dragMode).toBe("idle");
+      expect(result.current.dragTabId).toBeNull();
+    }
+  );
+
   it("auto-scrolls tablist near right edge in reorder mode", () => {
     const bar = createTabBar({
       barTop: 0,

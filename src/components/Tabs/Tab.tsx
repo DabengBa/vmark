@@ -149,6 +149,7 @@ export const Tab = memo(function Tab({
           <button
             type="button"
             className="tab-close"
+            data-tab-close
             onClick={handleClose}
             aria-label={`Close ${tab.title}`}
           >

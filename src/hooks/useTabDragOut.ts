@@ -191,6 +191,12 @@ export function useTabDragOut({ tabBarRef, onDragOut, onReorder, onDragMove }: U
         // Only primary button; skip pinned tabs
         if (e.button !== 0 || isPinned) return;
 
+        // Skip drag initiation when clicking the close button (or its children).
+        // Pointer capture would steal the pointerup from the button, preventing
+        // the click event from firing and making the tab un-closable via X.
+        const target = e.target;
+        if (target instanceof Element && target.closest("[data-tab-close]")) return;
+
         const captureTarget = e.currentTarget as HTMLElement;
         const pointerId = e.pointerId;
         try {
