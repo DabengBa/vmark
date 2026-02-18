@@ -31,7 +31,7 @@ import { getReplaceableTab, findExistingTabForPath } from "@/hooks/useReplaceabl
 import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { isWithinRoot } from "@/utils/paths";
-import { waitForRestoreComplete } from "@/utils/hotExit/hotExitCoordination";
+import { waitForRestoreComplete, RESTORE_WAIT_TIMEOUT_MS } from "@/utils/hotExit/hotExitCoordination";
 
 interface OpenFilePayload {
   path: string;
@@ -203,7 +203,7 @@ export function useFinderFileOpen(): void {
         unlisten = await listen<OpenFilePayload>("app:open-file", handleOpenFile);
 
         // CRITICAL: Wait for hot exit restore to complete before processing pending files
-        const restoreCompleted = await waitForRestoreComplete(15000);
+        const restoreCompleted = await waitForRestoreComplete(RESTORE_WAIT_TIMEOUT_MS);
         if (!restoreCompleted) {
           console.warn("[FinderFileOpen] Hot exit restore timed out, proceeding anyway");
         }

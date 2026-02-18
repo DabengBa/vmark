@@ -6,10 +6,12 @@
  *   restored but config missing" race condition.
  *
  * Pipeline: App mount → needsBootstrap() check → invoke("read_workspace_config")
- *   → openWorkspace(rootPath, config) → restore lastOpenTabs from config
+ *   → waitForRestoreComplete() → skip already-open tabs → restore lastOpenTabs
  *
  * @coordinates-with workspaceStore.ts — checks/updates workspace state
  * @coordinates-with workspaceBootstrap.ts — pure needsBootstrap() helper
+ * @coordinates-with hotExitCoordination.ts — waits for hot exit restore before creating tabs
+ * @coordinates-with useReplaceableTab.ts — findExistingTabForPath to skip duplicates
  * @module hooks/useWorkspaceBootstrap
  */
 import { useEffect, useRef } from "react";
@@ -21,6 +23,8 @@ import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { needsBootstrap } from "@/utils/workspaceBootstrap";
 import { detectLinebreaks } from "@/utils/linebreakDetection";
+import { waitForRestoreComplete, RESTORE_WAIT_TIMEOUT_MS } from "@/utils/hotExit/hotExitCoordination";
+import { findExistingTabForPath } from "@/hooks/useReplaceableTab";
 
 /**
  * Hook that bootstraps workspace config on startup.
@@ -52,11 +56,24 @@ export function useWorkspaceBootstrap() {
 
         useWorkspaceStore.getState().bootstrapConfig(config);
 
+        // Wait for hot exit restore to complete before creating tabs.
+        // This prevents race conditions where both systems create tabs concurrently.
+        // On timeout, the findExistingTabForPath guard below still prevents duplicates.
+        const restored = await waitForRestoreComplete(RESTORE_WAIT_TIMEOUT_MS);
+        if (!restored && import.meta.env.DEV) {
+          console.warn("[WorkspaceBootstrap] Hot exit restore timed out, proceeding with dedup guard");
+        }
+
         // Restore tabs from lastOpenTabs if available
         if (config?.lastOpenTabs && config.lastOpenTabs.length > 0) {
           const windowLabel = getCurrentWebviewWindow().label;
 
           for (const filePath of config.lastOpenTabs) {
+            // Skip files already restored by hot exit
+            if (findExistingTabForPath(windowLabel, filePath)) {
+              continue;
+            }
+
             try {
               const content = await readTextFile(filePath);
               const tabId = useTabStore.getState().createTab(windowLabel, filePath);

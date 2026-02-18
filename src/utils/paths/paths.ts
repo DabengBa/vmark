@@ -31,6 +31,16 @@ export function normalizePath(path: string): string {
   // Convert backslashes to forward slashes
   let normalized = path.replace(/\\/g, "/");
 
+  // Lowercase Windows drive letter (e.g. "C:/" → "c:/")
+  // Safe for POSIX paths — they start with "/" not a letter + ":"
+  // Note: Only the drive letter is lowercased. Full case-insensitive
+  // matching (Windows/macOS) is NOT done here because it would break
+  // Linux (case-sensitive). The drive letter is the most common
+  // real-world discrepancy on Windows.
+  if (/^[A-Z]:\//.test(normalized)) {
+    normalized = normalized[0].toLowerCase() + normalized.slice(1);
+  }
+
   // Remove trailing slashes (but not the root slash)
   while (normalized.length > 1 && normalized.endsWith("/")) {
     normalized = normalized.slice(0, -1);
