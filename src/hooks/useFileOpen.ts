@@ -98,7 +98,7 @@ export async function handleOpen(windowLabel: string): Promise<void> {
 
     perfStart("openDialog");
     const path = await open({
-      filters: [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }],
+      filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd", "txt"] }],
     });
     perfEnd("openDialog");
 

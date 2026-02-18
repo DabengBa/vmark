@@ -107,6 +107,7 @@ describe("workspaceStore", () => {
         excludeFolders: ["custom"],
         lastOpenTabs: ["/file.md"],
         showHiddenFiles: true,
+        showAllFiles: false,
       });
 
       const state = useWorkspaceStore.getState();
@@ -129,6 +130,7 @@ describe("workspaceStore", () => {
         excludeFolders: [],
         lastOpenTabs: [],
         showHiddenFiles: false,
+        showAllFiles: false,
         identity: existingIdentity,
       });
 
@@ -153,7 +155,7 @@ describe("workspaceStore", () => {
   describe("bootstrapConfig", () => {
     it("does nothing if no rootPath", () => {
       const store = useWorkspaceStore.getState();
-      store.bootstrapConfig({ version: 1, excludeFolders: [], lastOpenTabs: [], showHiddenFiles: true });
+      store.bootstrapConfig({ version: 1, excludeFolders: [], lastOpenTabs: [], showHiddenFiles: true, showAllFiles: false });
 
       const state = useWorkspaceStore.getState();
       expect(state.config).toBeNull();
@@ -167,7 +169,7 @@ describe("workspaceStore", () => {
       });
 
       const store = useWorkspaceStore.getState();
-      store.bootstrapConfig({ version: 1, excludeFolders: [], lastOpenTabs: [], showHiddenFiles: true });
+      store.bootstrapConfig({ version: 1, excludeFolders: [], lastOpenTabs: [], showHiddenFiles: true, showAllFiles: false });
 
       const state = useWorkspaceStore.getState();
       expect(state.config).toBeNull();
@@ -181,7 +183,7 @@ describe("workspaceStore", () => {
       });
 
       const store = useWorkspaceStore.getState();
-      store.bootstrapConfig({ version: 1, excludeFolders: ["custom"], lastOpenTabs: [], showHiddenFiles: true });
+      store.bootstrapConfig({ version: 1, excludeFolders: ["custom"], lastOpenTabs: [], showHiddenFiles: true, showAllFiles: false });
 
       const state = useWorkspaceStore.getState();
       expect(state.config?.excludeFolders).toEqual(["custom"]);
@@ -347,6 +349,7 @@ describe("workspaceStore", () => {
         excludeFolders: [],
         lastOpenTabs: [],
         showHiddenFiles: false,
+        showAllFiles: false,
         // No identity
       });
 

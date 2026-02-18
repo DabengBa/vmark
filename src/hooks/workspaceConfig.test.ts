@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore, type WorkspaceConfig } from "@/stores/workspaceStore";
-import { updateWorkspaceConfig, toggleShowHiddenFiles } from "@/hooks/workspaceConfig";
+import { updateWorkspaceConfig, toggleShowHiddenFiles, toggleShowAllFiles } from "@/hooks/workspaceConfig";
 
 function resetWorkspace() {
   useWorkspaceStore.setState({
@@ -28,6 +28,7 @@ describe("workspaceConfig", () => {
       excludeFolders: [".git"],
       lastOpenTabs: [],
       showHiddenFiles: false,
+      showAllFiles: false,
     };
 
     useWorkspaceStore.setState({
@@ -48,12 +49,40 @@ describe("workspaceConfig", () => {
     expect(useWorkspaceStore.getState().config?.showHiddenFiles).toBe(true);
   });
 
+  it("toggles all files", async () => {
+    const config: WorkspaceConfig = {
+      version: 1,
+      excludeFolders: [".git"],
+      lastOpenTabs: [],
+      showHiddenFiles: false,
+      showAllFiles: false,
+    };
+
+    useWorkspaceStore.setState({
+      rootPath: "/project",
+      config,
+      isWorkspaceMode: true,
+    });
+
+    await toggleShowAllFiles();
+
+    expect(invoke).toHaveBeenCalledWith("write_workspace_config", {
+      rootPath: "/project",
+      config: {
+        ...config,
+        showAllFiles: true,
+      },
+    });
+    expect(useWorkspaceStore.getState().config?.showAllFiles).toBe(true);
+  });
+
   it("toggles hidden files", async () => {
     const config: WorkspaceConfig = {
       version: 1,
       excludeFolders: [".git"],
       lastOpenTabs: [],
       showHiddenFiles: false,
+      showAllFiles: false,
     };
 
     useWorkspaceStore.setState({

@@ -38,3 +38,9 @@ export async function toggleShowHiddenFiles(): Promise<void> {
   const currentValue = config?.showHiddenFiles ?? false;
   await updateWorkspaceConfig({ showHiddenFiles: !currentValue });
 }
+
+export async function toggleShowAllFiles(): Promise<void> {
+  const config = useWorkspaceStore.getState().config;
+  const currentValue = config?.showAllFiles ?? false;
+  await updateWorkspaceConfig({ showAllFiles: !currentValue });
+}

@@ -248,6 +248,17 @@ export function useExplorerOperations() {
     await emit("open-file", { path });
   }, []);
 
+  const openWithDefaultApp = useCallback(async (path: string): Promise<void> => {
+    try {
+      const { openPath } = await import("@tauri-apps/plugin-opener");
+      await openPath(path);
+    } catch (error) {
+      console.error("[Explorer] Failed to open with default app:", error);
+      const name = await basename(path);
+      toast.error(`Failed to open "${name}" with default app`);
+    }
+  }, []);
+
   const duplicateFile = useCallback(
     async (path: string): Promise<string | null> => {
       const name = await basename(path);
@@ -311,6 +322,7 @@ export function useExplorerOperations() {
     deleteItem,
     moveItem,
     openFile,
+    openWithDefaultApp,
     duplicateFile,
     copyPath,
     revealInFinder,

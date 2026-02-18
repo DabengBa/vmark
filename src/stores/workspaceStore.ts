@@ -41,6 +41,7 @@ export interface WorkspaceConfig {
   excludeFolders: string[];
   lastOpenTabs: string[]; // File paths for session restore
   showHiddenFiles: boolean;
+  showAllFiles: boolean; // Show non-markdown files in the file explorer
   ai?: Record<string, unknown>; // Future AI settings
   identity?: WorkspaceIdentity; // Workspace identity and trust info
 }
@@ -83,6 +84,7 @@ const DEFAULT_CONFIG: WorkspaceConfig = {
   excludeFolders: DEFAULT_EXCLUDED_FOLDERS,
   lastOpenTabs: [],
   showHiddenFiles: false,
+  showAllFiles: false,
 };
 
 export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()(

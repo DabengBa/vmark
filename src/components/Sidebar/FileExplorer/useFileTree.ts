@@ -6,8 +6,9 @@
  * created, renamed, or deleted.
  *
  * Key decisions:
- *   - Only includes markdown files (via mdFilter) — other file types are hidden
- *     to keep the explorer focused on editable content.
+ *   - By default only includes markdown files (via mdFilter). When showAllFiles
+ *     is enabled, all file types are shown — non-markdown files keep their full
+ *     extension and open with the system default app.
  *   - Request ID pattern (requestIdRef) prevents stale async responses from
  *     overwriting fresher tree data.
  *   - Watch events are scoped by watchId (window label) to prevent cross-window
@@ -65,7 +66,9 @@ async function loadDirectoryRecursive(
       } else {
         nodes.push({
           id: fullPath,
-          name: stripMarkdownExtension(name),
+          name: (options.showAllFiles && !isMarkdownFileName(name))
+            ? name
+            : stripMarkdownExtension(name),
           isFolder: false,
         });
       }
@@ -92,6 +95,7 @@ const mdFilter = (name: string, isFolder: boolean): boolean => {
 interface UseFileTreeOptions {
   excludeFolders?: string[];
   showHidden?: boolean;
+  showAllFiles?: boolean;
   /** Window label used as watchId for scoped file system events */
   watchId?: string;
 }
@@ -100,7 +104,7 @@ export function useFileTree(
   rootPath: string | null,
   options: UseFileTreeOptions = {}
 ) {
-  const { excludeFolders = [], showHidden = false, watchId = "main" } = options;
+  const { excludeFolders = [], showHidden = false, showAllFiles = false, watchId = "main" } = options;
   const [tree, setTree] = useState<FileNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
@@ -122,6 +126,7 @@ export function useFileTree(
         filter: mdFilter,
         excludeFolders,
         showHidden,
+        showAllFiles,
       };
       const nodes = await loadDirectoryRecursive(rootPath, loadOptions);
       if (currentRequestId === requestIdRef.current) {
@@ -138,7 +143,7 @@ export function useFileTree(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- excludeFoldersKey is stable serialization
-  }, [rootPath, excludeFoldersKey, showHidden]);
+  }, [rootPath, excludeFoldersKey, showHidden, showAllFiles]);
 
   // Load tree and setup watcher when rootPath changes
   useEffect(() => {
