@@ -12,20 +12,25 @@ VMark is a modern, local-first Markdown editor designed for the AI era. It combi
 
 **[Download](https://github.com/xiaolai/vmark/releases)** · **[Documentation](https://vmark.app/guide/)** · **[Features](https://vmark.app/guide/features)**
 
-## Contribution Rules (Early Read)
+## Contributing: Issues Only, No PRs
 
-Before opening issues or pull requests, read:
+VMark is a **vibe-coded** codebase — written almost entirely by AI. The human maintainer guides the AI but does not review code line-by-line in the traditional sense. This has a practical consequence:
 
-- **[Contributing Guide](CONTRIBUTING.md)**
-- **[Bug Report Template](.github/ISSUE_TEMPLATE/bug_report.yml)**
-- **[Feature Request Template](.github/ISSUE_TEMPLATE/feature_request.yml)**
-- **[Pull Request Template](.github/pull_request_template.md)**
+**We cannot safely merge pull requests from other contributors.** When one person's AI-generated code meets another person's AI-generated code, neither human can fully vouch for what's inside. The risk of subtle regressions is too high.
 
-VMark is a vibe-coded codebase. We enforce three rules to keep quality stable:
+**What we welcome:**
 
-1. Detailed bug descriptions before direct code improvement.
-2. 100% test coverage for changed behavior and changed code paths in every PR.
-3. Single-focus PRs only.
+- **Issues** — Bug reports, feature requests, and suggestions are very welcome. The more detailed, the better. Feel free to use AI to write comprehensive, well-structured issues.
+- **Discussions** — Architecture ideas, UX feedback, workflow suggestions.
+
+**What happens next:**
+
+When you file an issue, AI fixes the codebase under the maintainer's supervision — with full context of the project's conventions, test suite, and architecture. This keeps the codebase consistent and well-tested.
+
+**Templates:**
+
+- **[Bug Report](.github/ISSUE_TEMPLATE/bug_report.yml)**
+- **[Feature Request](.github/ISSUE_TEMPLATE/feature_request.yml)**
 
 ---
 
