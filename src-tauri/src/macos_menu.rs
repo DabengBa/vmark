@@ -245,6 +245,7 @@ const MENU_ICONS: &[(&str, &str)] = &[
     // ── Help menu ──
     ("VMark Help", "questionmark.circle"),
     ("Keyboard Shortcuts", "keyboard"),
+    ("Shell Command: Install 'vmark' in PATH...", "terminal"),
     ("Report an Issue...", "exclamationmark.bubble"),
     // ── Genies menu (structural items) ──
     ("Search Genies\u{2026}", "sparkles"),
