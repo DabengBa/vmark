@@ -67,6 +67,7 @@ export default withMermaid(defineConfig({
                 { text: 'Subscription vs API Pricing', link: '/guide/users-as-developers/subscription-vs-api' },
                 { text: 'English Prompts Work Better', link: '/guide/users-as-developers/prompt-refinement' },
                 { text: 'Cross-Model Verification', link: '/guide/users-as-developers/cross-model-verification' },
+                { text: 'Why Issues, Not PRs', link: '/guide/users-as-developers/why-issues-not-prs' },
               ]
             },
           ]
