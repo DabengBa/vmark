@@ -234,11 +234,17 @@ describe("openFileInNewTabCore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // getTabsByWindow returns [] before createTab, then [{id}] after — simulates new tab
+    const mockGetTabsByWindow = vi.fn()
+      .mockReturnValueOnce([])                                    // before createTab
+      .mockReturnValueOnce([{ id: "new-tab-id" }]);              // after createTab
+
     vi.mocked(useTabStore.getState).mockReturnValue({
       createTab: mockCreateTab,
       setActiveTab: mockSetActiveTab,
       closeTab: mockCloseTab,
       detachTab: mockDetachTab,
+      getTabsByWindow: mockGetTabsByWindow,
     } as unknown as ReturnType<typeof useTabStore.getState>);
 
     mockReadTextFile.mockResolvedValue("# Hello World");
