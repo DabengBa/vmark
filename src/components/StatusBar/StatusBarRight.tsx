@@ -1,8 +1,8 @@
 /**
  * StatusBarRight
  *
- * Purpose: Right-hand section of the status bar — word/char count, AI spinner,
- * MCP connection status, update indicator, auto-save/divergent/missing warnings,
+ * Purpose: Right-hand section of the status bar — word/char count, update indicator,
+ * auto-save/divergent/missing warnings, AI spinner, MCP connection status,
  * terminal toggle, and editor mode toggle.
  *
  * Key decisions:
@@ -106,20 +106,6 @@ export function StatusBarRight({
       <span className="status-item">{wordCount} words</span>
       <span className="status-item">{charCount} chars</span>
 
-      {aiRunning && (
-        <span className="status-ai-running" title="AI genie is working...">
-          <Sparkles size={12} />
-        </span>
-      )}
-
-      <button
-        className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
-        onClick={openMcpSettings}
-        title={formatMcpTooltip(mcpRunning, mcpLoading, mcpError, mcpClients)}
-      >
-        <Satellite size={12} />
-      </button>
-
       <UpdateIndicator />
 
       {showAutoSavePaused && (
@@ -148,6 +134,20 @@ export function StatusBarRight({
           {autoSaveTime}
         </span>
       )}
+
+      {aiRunning && (
+        <span className="status-ai-running" title="AI genie is working...">
+          <Sparkles size={12} />
+        </span>
+      )}
+
+      <button
+        className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
+        onClick={openMcpSettings}
+        title={formatMcpTooltip(mcpRunning, mcpLoading, mcpError, mcpClients)}
+      >
+        <Satellite size={12} />
+      </button>
 
       <button
         className={`status-terminal ${terminalVisible ? "active" : ""}`}
