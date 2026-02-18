@@ -6,8 +6,8 @@
  * @module utils/dropPaths
  */
 
-/** Supported markdown file extensions (lowercase) */
-export const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".txt"] as const;
+/** Supported markdown file extensions (lowercase) — must match tauri.conf.json fileAssociations */
+export const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdown", ".mkd", ".txt"] as const;
 
 /**
  * Check if a filename matches markdown extensions (case-insensitive).

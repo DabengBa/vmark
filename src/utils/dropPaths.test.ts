@@ -10,6 +10,8 @@ describe("MARKDOWN_EXTENSIONS", () => {
   it("includes common markdown extensions", () => {
     expect(MARKDOWN_EXTENSIONS).toContain(".md");
     expect(MARKDOWN_EXTENSIONS).toContain(".markdown");
+    expect(MARKDOWN_EXTENSIONS).toContain(".mdown");
+    expect(MARKDOWN_EXTENSIONS).toContain(".mkd");
     expect(MARKDOWN_EXTENSIONS).toContain(".txt");
   });
 });
@@ -32,6 +34,11 @@ describe("filterMarkdownPaths", () => {
   it("filters .markdown files", () => {
     const paths = ["/docs/notes.markdown", "/docs/data.json"];
     expect(filterMarkdownPaths(paths)).toEqual(["/docs/notes.markdown"]);
+  });
+
+  it("filters .mdown and .mkd files", () => {
+    const paths = ["/docs/notes.mdown", "/docs/draft.mkd", "/docs/image.png"];
+    expect(filterMarkdownPaths(paths)).toEqual(["/docs/notes.mdown", "/docs/draft.mkd"]);
   });
 
   it("filters .txt files", () => {
@@ -87,6 +94,8 @@ describe("isMarkdownFileName", () => {
   it("matches markdown extensions case-insensitively", () => {
     expect(isMarkdownFileName("readme.md")).toBe(true);
     expect(isMarkdownFileName("notes.MARKDOWN")).toBe(true);
+    expect(isMarkdownFileName("draft.mdown")).toBe(true);
+    expect(isMarkdownFileName("draft.MKD")).toBe(true);
     expect(isMarkdownFileName("todo.TXT")).toBe(true);
     expect(isMarkdownFileName("image.png")).toBe(false);
   });
@@ -96,6 +105,8 @@ describe("stripMarkdownExtension", () => {
   it("strips known markdown extensions", () => {
     expect(stripMarkdownExtension("readme.md")).toBe("readme");
     expect(stripMarkdownExtension("notes.MARKDOWN")).toBe("notes");
+    expect(stripMarkdownExtension("draft.mdown")).toBe("draft");
+    expect(stripMarkdownExtension("draft.MKD")).toBe("draft");
     expect(stripMarkdownExtension("todo.txt")).toBe("todo");
   });
 
