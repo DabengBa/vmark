@@ -37,8 +37,20 @@ export async function openFileInNewTabCore(
   path: string
 ): Promise<void> {
   perfStart("createTab");
+  // Detect dedup by comparing tab count before/after createTab.
+  // Ideally createTab would return { tabId, created } but changing its
+  // return type is a wider refactor — this count-based check is a safe
+  // interim guard since createTab is synchronous.
+  const tabCountBefore = useTabStore.getState().getTabsByWindow(windowLabel).length;
   const tabId = useTabStore.getState().createTab(windowLabel, path);
+  const isExistingTab = useTabStore.getState().getTabsByWindow(windowLabel).length === tabCountBefore;
   perfEnd("createTab");
+
+  // createTab deduped to an existing tab — just activate, don't overwrite content
+  if (isExistingTab) {
+    perfMark("openFileInNewTab:deduped");
+    return;
+  }
 
   try {
     perfStart("readTextFile");

@@ -27,7 +27,7 @@
 
 import { create } from "zustand";
 import { toast } from "sonner";
-import { getFileName } from "@/utils/paths";
+import { getFileName, normalizePath } from "@/utils/paths";
 import { stripMarkdownExtension } from "@/utils/dropPaths";
 
 // Tab representation
@@ -407,13 +407,15 @@ export const useTabStore = create<TabState & TabActions>((set, get) => ({
 
   findTabByPath: (windowLabel, filePath) => {
     const windowTabs = get().tabs[windowLabel] || [];
-    return windowTabs.find((t) => t.filePath === filePath) || null;
+    const normalized = normalizePath(filePath);
+    return windowTabs.find((t) => t.filePath && normalizePath(t.filePath) === normalized) || null;
   },
 
   findTabByFilePath: (filePath) => {
     const state = get();
+    const normalized = normalizePath(filePath);
     for (const [windowLabel, windowTabs] of Object.entries(state.tabs)) {
-      const tab = windowTabs.find((t) => t.filePath === filePath);
+      const tab = windowTabs.find((t) => t.filePath && normalizePath(t.filePath) === normalized);
       if (tab) return { tab, windowLabel };
     }
     return null;
