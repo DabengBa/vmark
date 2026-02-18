@@ -261,7 +261,7 @@ describe("resolveWorkspaceRootForExternalFile", () => {
 
   it("handles Windows-style paths", () => {
     const result = resolveWorkspaceRootForExternalFile("C:\\Users\\test\\file.md");
-    expect(result).toBe("C:/Users/test");
+    expect(result).toBe("c:/Users/test");
   });
 
   it("returns null for Windows root-level file", () => {
@@ -442,7 +442,7 @@ describe("resolvePostSaveWorkspaceAction", () => {
 
       expect(result).toEqual({
         action: "open_workspace",
-        workspaceRoot: "C:/Users/test/project",
+        workspaceRoot: "c:/Users/test/project",
       });
     });
 

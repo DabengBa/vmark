@@ -8,6 +8,9 @@
  * @module utils/hotExit/hotExitCoordination
  */
 
+/** Standard timeout for startup hooks waiting on hot exit restore (ms). */
+export const RESTORE_WAIT_TIMEOUT_MS = 15_000;
+
 // Global state for restore coordination
 let restoreInProgress = false;
 const pendingWaiters: Array<() => void> = [];

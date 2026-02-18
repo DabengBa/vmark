@@ -18,7 +18,7 @@ describe("paths", () => {
   describe("normalizePath", () => {
     it("converts backslashes to forward slashes", () => {
       expect(normalizePath("C:\\Users\\test\\file.md")).toBe(
-        "C:/Users/test/file.md"
+        "c:/Users/test/file.md"
       );
     });
 
@@ -31,11 +31,30 @@ describe("paths", () => {
     });
 
     it("handles Windows paths with trailing backslash", () => {
-      expect(normalizePath("C:\\Users\\test\\")).toBe("C:/Users/test");
+      expect(normalizePath("C:\\Users\\test\\")).toBe("c:/Users/test");
     });
 
     it("handles empty string", () => {
       expect(normalizePath("")).toBe("");
+    });
+
+    it("lowercases Windows drive letter", () => {
+      expect(normalizePath("C:\\Users\\test\\file.md")).toBe(
+        "c:/Users/test/file.md"
+      );
+      expect(normalizePath("D:/Projects/file.md")).toBe(
+        "d:/Projects/file.md"
+      );
+    });
+
+    it("preserves already-lowercase drive letter", () => {
+      expect(normalizePath("c:/Users/test/file.md")).toBe(
+        "c:/Users/test/file.md"
+      );
+    });
+
+    it("does not alter POSIX absolute paths", () => {
+      expect(normalizePath("/Users/test/file.md")).toBe("/Users/test/file.md");
     });
   });
 
@@ -69,7 +88,7 @@ describe("paths", () => {
 
     it("gets parent from Windows path", () => {
       expect(getParentDir("C:\\Users\\test\\document.md")).toBe(
-        "C:/Users/test"
+        "c:/Users/test"
       );
     });
 
@@ -157,7 +176,7 @@ describe("paths", () => {
 
     it("splits Windows path into segments", () => {
       expect(pathSegments("C:\\Users\\test\\file.md")).toEqual([
-        "C:",
+        "c:",
         "Users",
         "test",
         "file.md",
