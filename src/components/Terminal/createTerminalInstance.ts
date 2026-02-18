@@ -96,6 +96,8 @@ export interface TerminalInstance {
 export interface TerminalInstanceSettings {
   fontSize: number;
   lineHeight: number;
+  cursorStyle: "block" | "underline" | "bar";
+  cursorBlink: boolean;
   useWebGL: boolean;
 }
 
@@ -126,8 +128,8 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
     fontFamily: resolveMonoFont(),
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
-    cursorStyle: "underline",
-    cursorBlink: true,
+    cursorStyle: settings.cursorStyle,
+    cursorBlink: settings.cursorBlink,
     allowProposedApi: true,
     scrollback: 5000,
     overviewRuler: { width: 2 },

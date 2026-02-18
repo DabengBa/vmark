@@ -210,6 +210,8 @@ export function useTerminalSessions(
       const termSettings = useSettingsStore.getState().terminal;
       const fontSize = termSettings?.fontSize ?? 13;
       const lineHeight = termSettings?.lineHeight ?? 1.2;
+      const cursorStyle = termSettings?.cursorStyle ?? "bar";
+      const cursorBlink = termSettings?.cursorBlink ?? true;
       const useWebGL = termSettings?.useWebGL ?? true;
 
       // Create a shared ptyRef that we'll update as the pty changes
@@ -217,7 +219,7 @@ export function useTerminalSessions(
 
       const instance = createTerminalInstance({
         parentEl: parent,
-        settings: { fontSize, lineHeight, useWebGL },
+        settings: { fontSize, lineHeight, cursorStyle, cursorBlink, useWebGL },
         ptyRef: ptyRefForKeys,
         onSearch: () => callbacksRef.current?.onSearch?.(),
       });
@@ -453,19 +455,30 @@ export function useTerminalSessions(
     });
   }, []);
 
-  // Sync font size across all sessions when terminal settings change
+  // Sync terminal settings (font, cursor) across all sessions when changed
   useEffect(() => {
     const getTermSettings = () => useSettingsStore.getState().terminal;
     let prev = getTermSettings();
     return useSettingsStore.subscribe((state) => {
       const curr = state.terminal;
       if (!curr || !prev) { prev = curr; return; }
-      if (curr.fontSize === prev.fontSize && curr.lineHeight === prev.lineHeight) return;
+      const fontChanged = curr.fontSize !== prev.fontSize || curr.lineHeight !== prev.lineHeight;
+      const cursorChanged = curr.cursorStyle !== prev.cursorStyle || curr.cursorBlink !== prev.cursorBlink;
+      if (!fontChanged && !cursorChanged) return;
       prev = curr;
       for (const [, entry] of sessionsRef.current) {
-        entry.instance.term.options.fontSize = curr.fontSize;
-        entry.instance.term.options.lineHeight = curr.lineHeight;
-        try { entry.instance.fitAddon.fit(); } catch { /* ignore */ }
+        const opts = entry.instance.term.options;
+        if (fontChanged) {
+          opts.fontSize = curr.fontSize;
+          opts.lineHeight = curr.lineHeight;
+        }
+        if (cursorChanged) {
+          opts.cursorStyle = curr.cursorStyle;
+          opts.cursorBlink = curr.cursorBlink;
+        }
+        if (fontChanged) {
+          try { entry.instance.fitAddon.fit(); } catch { /* ignore */ }
+        }
       }
     });
   }, []);
