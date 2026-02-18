@@ -2,14 +2,15 @@
  * File Explorer Shortcuts Hook
  *
  * Purpose: Keyboard shortcut handler for file explorer actions —
- *   currently handles toggling hidden file visibility in workspace mode.
+ *   handles toggling hidden file visibility and all-files visibility
+ *   in workspace mode.
  *
  * Key decisions:
  *   - Only active in workspace mode (no file explorer without a workspace)
  *   - Skips when focus is in INPUT or TEXTAREA to avoid conflicts
  *   - IME events filtered out
  *
- * @coordinates-with workspaceConfig.ts — toggleShowHiddenFiles persists to config
+ * @coordinates-with workspaceConfig.ts — toggleShowHiddenFiles/toggleShowAllFiles persist to config
  * @coordinates-with shortcutsStore.ts — reads configurable shortcut bindings
  * @module hooks/useFileExplorerShortcuts
  */
@@ -19,7 +20,7 @@ import { useShortcutsStore } from "@/stores/shortcutsStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { matchesShortcutEvent } from "@/utils/shortcutMatch";
 import { isImeKeyEvent } from "@/utils/imeGuard";
-import { toggleShowHiddenFiles } from "@/hooks/workspaceConfig";
+import { toggleShowHiddenFiles, toggleShowAllFiles } from "@/hooks/workspaceConfig";
 
 export function useFileExplorerShortcuts() {
   useEffect(() => {
@@ -34,10 +35,19 @@ export function useFileExplorerShortcuts() {
       const { isWorkspaceMode, config } = useWorkspaceStore.getState();
       if (!isWorkspaceMode || !config) return;
 
-      const shortcut = useShortcutsStore.getState().getShortcut("toggleHiddenFiles");
-      if (matchesShortcutEvent(event, shortcut)) {
+      const shortcuts = useShortcutsStore.getState();
+
+      const hiddenShortcut = shortcuts.getShortcut("toggleHiddenFiles");
+      if (matchesShortcutEvent(event, hiddenShortcut)) {
         event.preventDefault();
         void toggleShowHiddenFiles();
+        return;
+      }
+
+      const allFilesShortcut = shortcuts.getShortcut("toggleAllFiles");
+      if (allFilesShortcut && matchesShortcutEvent(event, allFilesShortcut)) {
+        event.preventDefault();
+        void toggleShowAllFiles();
       }
     };
 

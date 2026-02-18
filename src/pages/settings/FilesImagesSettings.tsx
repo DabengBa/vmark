@@ -22,6 +22,9 @@ export function FilesImagesSettings() {
   const showHiddenFiles = useWorkspaceStore(
     (state) => state.config?.showHiddenFiles ?? false
   );
+  const showAllFiles = useWorkspaceStore(
+    (state) => state.config?.showAllFiles ?? false
+  );
 
   const general = useSettingsStore((state) => state.general);
   const updateGeneralSetting = useSettingsStore((state) => state.updateGeneralSetting);
@@ -44,6 +47,19 @@ export function FilesImagesSettings() {
             checked={showHiddenFiles}
             onChange={(value) => {
               void updateWorkspaceConfig({ showHiddenFiles: value });
+            }}
+            disabled={!isWorkspaceMode}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Show all files"
+          description="Show non-markdown files in the file explorer (opens with system default app)"
+          disabled={!isWorkspaceMode}
+        >
+          <Toggle
+            checked={showAllFiles}
+            onChange={(value) => {
+              void updateWorkspaceConfig({ showAllFiles: value });
             }}
             disabled={!isWorkspaceMode}
           />

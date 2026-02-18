@@ -32,6 +32,7 @@ describe("persistWorkspaceSession", () => {
       excludeFolders: [".git"],
       lastOpenTabs: [],
       showHiddenFiles: false,
+      showAllFiles: false,
     };
 
     useWorkspaceStore.setState({
@@ -62,6 +63,7 @@ describe("persistWorkspaceSession", () => {
       excludeFolders: [".git"],
       lastOpenTabs: [],
       showHiddenFiles: false,
+      showAllFiles: false,
     };
 
     useWorkspaceStore.setState({

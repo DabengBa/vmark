@@ -2,8 +2,9 @@
  * FileExplorer
  *
  * Purpose: Workspace file tree panel using react-arborist for virtualized tree rendering.
- * Only available in workspace mode — shows markdown files with drag-and-drop, rename,
- * delete, and context menu operations.
+ * Only available in workspace mode — shows markdown files (and optionally all files via
+ * showAllFiles config) with drag-and-drop, rename, delete, and context menu operations.
+ * Non-markdown files open with the system default app.
  *
  * User interactions:
  *   - Double-click or Enter to open a file in a tab
@@ -38,6 +39,7 @@ import { useObservedHeight } from "./useObservedHeight";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useWindowLabel } from "@/contexts/WindowContext";
 import { getFileName, getParentDir } from "@/utils/paths";
+import { isMarkdownFileName } from "@/utils/dropPaths";
 import type { FileNode as FileNodeType } from "./types";
 import "./FileExplorer.css";
 
@@ -72,6 +74,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   const showHiddenFiles = useWorkspaceStore(
     (s) => s.config?.showHiddenFiles ?? false
   );
+  const showAllFiles = useWorkspaceStore(
+    (s) => s.config?.showAllFiles ?? false
+  );
   const windowLabel = useWindowLabel();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -91,6 +96,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   const { tree, isLoading, refresh } = useFileTree(rootPath, {
     excludeFolders,
     showHidden: showHiddenFiles,
+    showAllFiles,
     watchId: windowLabel,
   });
   const {
@@ -100,6 +106,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
     deleteItem,
     moveItem,
     openFile,
+    openWithDefaultApp,
     duplicateFile,
     copyPath,
     revealInFinder,
@@ -149,6 +156,19 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
     []
   );
 
+  // Shared: open markdown in VMark, others with system default app
+  const openFileByType = useCallback(
+    (path: string) => {
+      const fileName = getFileName(path);
+      if (fileName && isMarkdownFileName(fileName)) {
+        openFile(path);
+      } else {
+        void openWithDefaultApp(path);
+      }
+    },
+    [openFile, openWithDefaultApp]
+  );
+
   // Handle context menu actions
   const handleContextMenuAction = useCallback(
     async (action: string) => {
@@ -157,7 +177,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
       switch (action) {
         case "open":
           if (targetPath && !targetIsFolder) {
-            openFile(targetPath);
+            openFileByType(targetPath);
           }
           break;
 
@@ -216,17 +236,17 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleNewFile/handleNewFolder use getState() pattern
-    [contextMenu, openFile, duplicateFile, moveItem, deleteItem, copyPath, revealInFinder]
+    [contextMenu, openFileByType, duplicateFile, moveItem, deleteItem, copyPath, revealInFinder]
   );
 
   // Handle file activation (double-click or Enter)
   const handleActivate = useCallback(
     (node: { data: FileNodeType }) => {
       if (!node.data.isFolder) {
-        openFile(node.data.id);
+        openFileByType(node.data.id);
       }
     },
-    [openFile]
+    [openFileByType]
   );
 
   // Handle rename

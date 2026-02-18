@@ -7,6 +7,7 @@ const mdFilter = (name: string, isFolder: boolean) =>
 
 const baseOptions: FileTreeFilterOptions = {
   showHidden: false,
+  showAllFiles: false,
   excludeFolders: [],
   filter: mdFilter,
 };
@@ -52,5 +53,37 @@ describe("shouldIncludeEntry", () => {
       isHidden: false,
     };
     expect(shouldIncludeEntry(entry, baseOptions)).toBe(false);
+  });
+
+  it("includes non-markdown files when showAllFiles is true", () => {
+    const entry: DirectoryEntry = {
+      name: "image.png",
+      path: "/root/image.png",
+      isDirectory: false,
+      isHidden: false,
+    };
+    expect(shouldIncludeEntry(entry, { ...baseOptions, showAllFiles: true })).toBe(true);
+  });
+
+  it("still excludes hidden entries when showAllFiles is true but showHidden is false", () => {
+    const entry: DirectoryEntry = {
+      name: ".env",
+      path: "/root/.env",
+      isDirectory: false,
+      isHidden: true,
+    };
+    expect(shouldIncludeEntry(entry, { ...baseOptions, showAllFiles: true })).toBe(false);
+  });
+
+  it("still excludes excluded folders when showAllFiles is true", () => {
+    const entry: DirectoryEntry = {
+      name: "node_modules",
+      path: "/root/node_modules",
+      isDirectory: true,
+      isHidden: false,
+    };
+    expect(
+      shouldIncludeEntry(entry, { ...baseOptions, showAllFiles: true, excludeFolders: ["node_modules"] })
+    ).toBe(false);
   });
 });

@@ -40,6 +40,7 @@ describe("workspaceBootstrap", () => {
           excludeFolders: [".git"],
           lastOpenTabs: [],
           showHiddenFiles: false,
+          showAllFiles: false,
         },
         isWorkspaceMode: true,
       };
