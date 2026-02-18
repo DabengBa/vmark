@@ -36,6 +36,8 @@ mod tab_transfer;
 mod macos_menu;
 #[cfg(target_os = "macos")]
 mod dock_recent;
+#[cfg(target_os = "macos")]
+mod cli_install;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -195,6 +197,12 @@ pub fn run() {
             write_temp_html,
             #[cfg(target_os = "macos")]
             register_dock_recent,
+            #[cfg(target_os = "macos")]
+            cli_install::cli_install_status,
+            #[cfg(target_os = "macos")]
+            cli_install::cli_install,
+            #[cfg(target_os = "macos")]
+            cli_install::cli_uninstall,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;

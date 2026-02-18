@@ -496,6 +496,8 @@ pub(crate) fn create_menu_with_shortcuts(
             &MenuItem::with_id(app, "vmark-help", "VMark Help", true, None::<&str>)?,
             &MenuItem::with_id(app, "keyboard-shortcuts", "Keyboard Shortcuts", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "install-cli", "Shell Command: Install 'vmark' in PATH...", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "report-issue", "Report an Issue...", true, None::<&str>)?,
         ],
     )?;
