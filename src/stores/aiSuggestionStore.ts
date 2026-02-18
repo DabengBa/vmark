@@ -293,7 +293,7 @@ export const useAiSuggestionStore = create<AiSuggestionState & AiSuggestionActio
 // Clear suggestions on tab switch to prevent stale suggestions mutating wrong document.
 // Initialized lazily by initSuggestionTabWatcher() to avoid circular imports.
 let _tabWatcherInitialized = false;
-let _prevActiveTabId: string | null = null;
+let _prevActiveTabIds: Record<string, string | null> = {};
 
 /**
  * Reset module-level singletons and store state.
@@ -322,6 +322,6 @@ export function initSuggestionTabWatcher(
         useAiSuggestionStore.getState().clearForTab(prevTabId);
       }
     }
-    _prevActiveTabId = currentTabId;
+    _prevActiveTabIds = { ...state.activeTabId };
   });
 }

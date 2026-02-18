@@ -478,6 +478,7 @@
    Stays within ProseMirror content area (respects --editor-width). */
 .tiptap-editor .table-scroll-wrapper {
   overflow-x: auto;
+  overscroll-behavior-x: contain; /* Prevent scroll chaining to parent */
   margin: 0 0 var(--editor-block-spacing, 1em) 0;
 }
 
