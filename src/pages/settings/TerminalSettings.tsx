@@ -4,7 +4,7 @@
  * Panel position, panel size, font size, line height, and other terminal options.
  */
 
-import { useSettingsStore, type TerminalPosition } from "@/stores/settingsStore";
+import { useSettingsStore, type TerminalPosition, type TerminalCursorStyle } from "@/stores/settingsStore";
 import { SettingRow, SettingsGroup, Select, Toggle } from "./components";
 
 const positionOptions = [
@@ -38,6 +38,12 @@ const fontSizeOptions = [
   { value: "18", label: "18px" },
   { value: "20", label: "20px" },
   { value: "24", label: "24px" },
+];
+
+const cursorStyleOptions = [
+  { value: "bar", label: "Bar │" },
+  { value: "block", label: "Block █" },
+  { value: "underline", label: "Underline ▁" },
 ];
 
 const lineHeightOptions = [
@@ -100,6 +106,21 @@ export function TerminalSettings() {
             value={String(terminal.lineHeight)}
             options={lineHeightOptions}
             onChange={(v) => updateTerminalSetting("lineHeight", Number(v))}
+          />
+        </SettingRow>
+
+        <SettingRow label="Cursor Style" description="Shape of the terminal cursor">
+          <Select
+            value={terminal.cursorStyle}
+            options={cursorStyleOptions}
+            onChange={(v) => updateTerminalSetting("cursorStyle", v as TerminalCursorStyle)}
+          />
+        </SettingRow>
+
+        <SettingRow label="Cursor Blink" description="Whether the terminal cursor blinks">
+          <Toggle
+            checked={terminal.cursorBlink}
+            onChange={(v) => updateTerminalSetting("cursorBlink", v)}
           />
         </SettingRow>
 

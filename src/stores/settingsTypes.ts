@@ -181,10 +181,13 @@ export interface McpServerSettings {
 }
 
 export type TerminalPosition = "auto" | "bottom" | "right";
+export type TerminalCursorStyle = "block" | "underline" | "bar";
 
 export interface TerminalSettings {
   fontSize: number;    // Default: 13 (range: 10–24)
   lineHeight: number;  // Default: 1.4 (range: 1.0–2.0)
+  cursorStyle: TerminalCursorStyle; // Default: "bar"
+  cursorBlink: boolean; // Default: true
   copyOnSelect: boolean; // Default: false — auto-copy selected text to clipboard
   useWebGL: boolean;   // Default: true — use WebGL renderer (disable to troubleshoot IME issues)
   position: TerminalPosition; // Default: "auto" — auto-reposition based on window aspect ratio

@@ -56,6 +56,7 @@ export type {
   CopyFormat,
   McpServerSettings,
   TerminalPosition,
+  TerminalCursorStyle,
   TerminalSettings,
   AdvancedSettingsState,
   MarkdownSettings,
@@ -212,6 +213,8 @@ const initialState: SettingsState = {
   terminal: {
     fontSize: 13,
     lineHeight: 1.2,
+    cursorStyle: "bar",
+    cursorBlink: true,
     copyOnSelect: false,
     useWebGL: true,
     position: "auto",
