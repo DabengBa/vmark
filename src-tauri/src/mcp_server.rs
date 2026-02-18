@@ -139,7 +139,7 @@ pub async fn mcp_bridge_stop(app: AppHandle) -> Result<McpServerStatus, String> 
 #[command]
 pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStatus, String> {
     // Check if local sidecar is already running
-    let current_port = {
+    {
         let guard = MCP_SERVER.lock().map_err(|e| e.to_string())?;
         if guard.is_some() {
             let port = BRIDGE_PORT.lock().map_err(|e| e.to_string())?.unwrap_or(port);
@@ -149,8 +149,7 @@ pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStat
                 local_sidecar: true,
             });
         }
-        *BRIDGE_PORT.lock().map_err(|e| e.to_string())?
-    };
+    }
 
     // Prevent concurrent spawn attempts (TOCTOU guard)
     if SIDECAR_SPAWNING
