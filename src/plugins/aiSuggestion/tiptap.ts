@@ -29,6 +29,7 @@ import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
 import { cleanMarkdownForClipboard } from "@/plugins/markdownCopy/tiptap";
 import type { AiSuggestion } from "./types";
 import { AI_SUGGESTION_EVENTS } from "./types";
+import "./ai-suggestion.css";
 
 const aiSuggestionPluginKey = new PluginKey("aiSuggestion");
 
@@ -165,8 +166,9 @@ function createButtons(suggestion: AiSuggestion): HTMLSpanElement {
 /**
  * Check if a DOM event targets a suggestion button.
  * Used by widget decorations to tell ProseMirror not to handle button clicks.
+ * @exported for testing
  */
-function isButtonEvent(event: Event): boolean {
+export function isButtonEvent(event: Event): boolean {
   const target = event.target;
   if (!(target instanceof Element)) return false;
   return target.closest(".ai-suggestion-btn") !== null;
@@ -174,16 +176,18 @@ function isButtonEvent(event: Event): boolean {
 
 /**
  * Get decoration class for delete/replace original text.
+ * @exported for testing
  */
-function getDecorationClass(suggestion: AiSuggestion, isFocused: boolean): string {
+export function getDecorationClass(suggestion: AiSuggestion, isFocused: boolean): string {
   const baseClass = `ai-suggestion ai-suggestion-${suggestion.type}`;
   return isFocused ? `${baseClass} ai-suggestion-focused` : baseClass;
 }
 
 /**
  * Check if suggestion positions are valid within document bounds.
+ * @exported for testing
  */
-function isValidPosition(suggestion: AiSuggestion, docSize: number): boolean {
+export function isValidPosition(suggestion: AiSuggestion, docSize: number): boolean {
   return suggestion.from >= 0 && suggestion.to <= docSize && suggestion.from <= suggestion.to;
 }
 

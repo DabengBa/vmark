@@ -8,6 +8,7 @@ import type { Decoration } from "@tiptap/pm/view";
 import type { Node, Mark, ResolvedPos } from "@tiptap/pm/model";
 import { findWordBoundaries } from "@/utils/wordSegmentation";
 import { addWidgetDecoration } from "./utils";
+import "./syntax-reveal.css";
 
 // Mark type to syntax mapping
 const MARK_SYNTAX: Record<string, { open: string; close: string }> = {

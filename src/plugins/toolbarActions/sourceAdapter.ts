@@ -24,7 +24,8 @@ import { canRunActionInMultiSelection } from "./multiSelectionPolicy";
 import type { SourceToolbarContext } from "./types";
 import { applyMultiSelectionBlockquoteAction, applyMultiSelectionHeading, applyMultiSelectionListAction } from "./sourceMultiSelection";
 import { insertText, applyInlineFormat, clearFormattingSelections } from "./sourceAdapterHelpers";
-import { insertLinkSync, insertWikiSyntax, insertSourceBookmarkLink, insertInlineMath } from "./sourceAdapterLinks";
+import { insertLinkSync, insertWikiSyntax, insertSourceBookmarkLink } from "./sourceAdapterLinks";
+import { insertInlineMath } from "./sourceMathActions";
 import { handleTableAction } from "./sourceTableActions";
 import { handleFormatCJK, handleFormatCJKFile, handleRemoveTrailingSpaces, handleCollapseBlankLines, handleLineEndings } from "./sourceCjkActions";
 import {

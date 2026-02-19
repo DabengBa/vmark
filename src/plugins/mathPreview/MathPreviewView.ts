@@ -15,6 +15,7 @@ import {
   type AnchorRect,
 } from "@/utils/popupPosition";
 import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
+import "./math-preview.css";
 
 export class MathPreviewView {
   private container: HTMLElement;

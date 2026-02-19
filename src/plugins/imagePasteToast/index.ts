@@ -4,4 +4,5 @@
  * Provides a confirmation toast when pasting text that looks like an image URL/path.
  */
 
+import "./image-paste-toast.css";
 export { ImagePasteToastView, initImagePasteToast, destroyImagePasteToast } from "./ImagePasteToastView";

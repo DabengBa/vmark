@@ -30,6 +30,7 @@ import { useMediaPopupStore } from "@/stores/mediaPopupStore";
 import { getWindowLabel } from "@/hooks/useWindowFocus";
 import { isRelativePath, isAbsolutePath, isExternalUrl, validateImagePath } from "./security";
 import { decodeMarkdownUrl } from "@/utils/markdownUrl";
+import { imageViewWarn } from "@/utils/debug";
 
 /**
  * Normalize path for convertFileSrc on Windows.
@@ -73,7 +74,7 @@ async function resolveImageSrc(src: string): Promise<string> {
   if (isRelativePath(decodedSrc)) {
     // Validate path to prevent traversal attacks
     if (!validateImagePath(decodedSrc)) {
-      console.warn("[ImageView] Rejected invalid image path:", decodedSrc);
+      imageViewWarn("Rejected invalid image path:", decodedSrc);
       return "";
     }
 

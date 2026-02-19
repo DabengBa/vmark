@@ -174,7 +174,8 @@ describe("imageView security", () => {
     it("logs warning for rejected paths", () => {
       sanitizeImagePath("../malicious.txt");
       expect(warnSpy).toHaveBeenCalledWith(
-        "[ImageView] Rejected suspicious image path:",
+        "[ImageView]",
+        "Rejected suspicious image path:",
         "../malicious.txt"
       );
     });

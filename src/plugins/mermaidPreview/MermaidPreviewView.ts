@@ -4,13 +4,12 @@
  * Floating preview for mermaid diagram editing in Source mode.
  * Shows rendered diagram while user edits source.
  * Supports dragging, resizing, and zoom.
+ *
+ * @coordinates-with mermaidPreviewDOM.ts — DOM construction
+ * @coordinates-with mermaidPreviewRender.ts — diagram rendering dispatch
  */
 
-import { renderMermaid } from "@/plugins/mermaid";
-import { renderMarkmapToElement } from "@/plugins/markmap";
 import { cleanupDescendants } from "@/plugins/shared/diagramCleanup";
-import { renderSvgBlock } from "@/plugins/svg/svgRender";
-import { sanitizeSvg } from "@/utils/sanitize";
 import {
   calculatePopupPosition,
   getBoundaryRects,
@@ -18,6 +17,8 @@ import {
   type AnchorRect,
 } from "@/utils/popupPosition";
 import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
+import { buildContainer } from "./mermaidPreviewDOM";
+import { renderPreview } from "./mermaidPreviewRender";
 
 const PREVIEW_DEBOUNCE_MS = 200;
 const ZOOM_STEP = 10;
@@ -68,7 +69,7 @@ export class MermaidPreviewView {
   private boundResizeUp: (() => void) | null = null;
 
   constructor() {
-    this.container = this.buildContainer();
+    this.container = buildContainer();
     this.header = this.container.querySelector(".mermaid-preview-header") as HTMLElement;
     this.zoomDisplay = this.container.querySelector(".mermaid-preview-zoom-value") as HTMLElement;
     this.preview = this.container.querySelector(".mermaid-preview-content") as HTMLElement;
@@ -77,68 +78,6 @@ export class MermaidPreviewView {
     this.setupDragHandlers();
     this.setupResizeHandlers();
     this.setupZoomHandlers();
-  }
-
-  private buildContainer(): HTMLElement {
-    const container = document.createElement("div");
-    container.className = "mermaid-preview-popup";
-    container.style.display = "none";
-
-    // Header with drag handle and zoom controls
-    const header = document.createElement("div");
-    header.className = "mermaid-preview-header";
-
-    const title = document.createElement("span");
-    title.className = "mermaid-preview-title";
-    title.textContent = "Preview";
-
-    // Zoom controls: − 100% +
-    const zoomControls = document.createElement("div");
-    zoomControls.className = "mermaid-preview-zoom";
-
-    const zoomOut = document.createElement("button");
-    zoomOut.className = "mermaid-preview-zoom-btn";
-    zoomOut.dataset.action = "out";
-    zoomOut.title = "Zoom out";
-    zoomOut.textContent = "−";
-
-    const zoomValue = document.createElement("span");
-    zoomValue.className = "mermaid-preview-zoom-value";
-    zoomValue.textContent = "100%";
-
-    const zoomIn = document.createElement("button");
-    zoomIn.className = "mermaid-preview-zoom-btn";
-    zoomIn.dataset.action = "in";
-    zoomIn.title = "Zoom in";
-    zoomIn.textContent = "+";
-
-    zoomControls.appendChild(zoomOut);
-    zoomControls.appendChild(zoomValue);
-    zoomControls.appendChild(zoomIn);
-
-    header.appendChild(title);
-    header.appendChild(zoomControls);
-
-    const preview = document.createElement("div");
-    preview.className = "mermaid-preview-content";
-
-    const error = document.createElement("div");
-    error.className = "mermaid-preview-error";
-
-    // Resize handles for corners and edges
-    const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
-    handles.forEach((pos) => {
-      const handle = document.createElement("div");
-      handle.className = `mermaid-preview-resize mermaid-preview-resize-${pos}`;
-      handle.dataset.corner = pos;
-      container.appendChild(handle);
-    });
-
-    container.appendChild(header);
-    container.appendChild(preview);
-    container.appendChild(error);
-
-    return container;
   }
 
   private setupDragHandlers() {
@@ -333,7 +272,7 @@ export class MermaidPreviewView {
     this.visible = true;
 
     this.updatePosition(anchorRect);
-    this.renderPreview(content);
+    this.doRender(content);
   }
 
   updatePosition(anchorRect: AnchorRect) {
@@ -366,13 +305,13 @@ export class MermaidPreviewView {
   updateContent(content: string, language?: string) {
     if (language) this.currentLanguage = language;
 
-    // SVG rendering is synchronous — update immediately
+    // SVG rendering is synchronous -- update immediately
     if (this.currentLanguage === "svg") {
       if (this.debounceTimer) {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = null;
       }
-      this.renderPreview(content);
+      this.doRender(content);
       return;
     }
 
@@ -381,7 +320,7 @@ export class MermaidPreviewView {
       clearTimeout(this.debounceTimer);
     }
     this.debounceTimer = setTimeout(() => {
-      this.renderPreview(content);
+      this.doRender(content);
     }, PREVIEW_DEBOUNCE_MS);
   }
 
@@ -401,91 +340,15 @@ export class MermaidPreviewView {
     return this.visible;
   }
 
-  private renderPreview(content: string) {
-    const trimmed = content.trim();
-    this.error.textContent = "";
-    this.preview.classList.remove("mermaid-preview-error-state");
-
-    if (!trimmed) {
-      this.preview.innerHTML = "";
-      this.preview.classList.add("mermaid-preview-empty");
-      return;
-    }
-
-    this.preview.classList.remove("mermaid-preview-empty");
-
-    // SVG blocks: synchronous render, no loading state
-    if (this.currentLanguage === "svg") {
-      const rendered = renderSvgBlock(trimmed);
-      if (rendered) {
-        this.preview.innerHTML = sanitizeSvg(rendered);
-        this.error.textContent = "";
-        this.applyZoom();
-      } else {
-        this.preview.innerHTML = "";
-        this.preview.classList.add("mermaid-preview-error-state");
-        this.error.textContent = "Invalid SVG";
-      }
-      return;
-    }
-
-    // Markmap blocks: live SVG render
-    if (this.currentLanguage === "markmap") {
-      cleanupDescendants(this.preview);
-      this.preview.innerHTML = "";
-      const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svgEl.style.width = "100%";
-      svgEl.style.height = "100%";
-      this.preview.appendChild(svgEl);
-
-      const currentToken = ++this.renderToken;
-      renderMarkmapToElement(svgEl, trimmed)
-        .then((instance) => {
-          if (currentToken !== this.renderToken) {
-            // Stale render — next render's cleanupDescendants will handle it
-            return;
-          }
-          if (!instance) {
-            this.preview.innerHTML = "";
-            this.preview.classList.add("mermaid-preview-error-state");
-            this.error.textContent = "Invalid markmap syntax";
-          } else {
-            this.error.textContent = "";
-          }
-        })
-        .catch(() => {
-          if (currentToken !== this.renderToken) return;
-          this.preview.innerHTML = "";
-          this.preview.classList.add("mermaid-preview-error-state");
-          this.error.textContent = "Preview failed";
-        });
-      return;
-    }
-
-    // Mermaid blocks: async render with loading state
-    const currentToken = ++this.renderToken;
-    this.preview.innerHTML = '<div class="mermaid-preview-loading">Rendering...</div>';
-
-    renderMermaid(trimmed)
-      .then((svg) => {
-        if (currentToken !== this.renderToken) return;
-
-        if (svg) {
-          this.preview.innerHTML = sanitizeSvg(svg);
-          this.error.textContent = "";
-          this.applyZoom();
-        } else {
-          this.preview.innerHTML = "";
-          this.preview.classList.add("mermaid-preview-error-state");
-          this.error.textContent = "Invalid mermaid syntax";
-        }
-      })
-      .catch(() => {
-        if (currentToken !== this.renderToken) return;
-        this.preview.innerHTML = "";
-        this.preview.classList.add("mermaid-preview-error-state");
-        this.error.textContent = "Preview failed";
-      });
+  /** Delegate rendering to the extracted render function. */
+  private doRender(content: string) {
+    this.renderToken = renderPreview(content, {
+      preview: this.preview,
+      error: this.error,
+      currentLanguage: this.currentLanguage,
+      renderToken: this.renderToken,
+      applyZoom: () => this.applyZoom(),
+    });
   }
 
   destroy() {

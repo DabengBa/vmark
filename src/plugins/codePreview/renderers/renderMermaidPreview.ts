@@ -10,7 +10,7 @@
 
 import type { EditorView } from "@tiptap/pm/view";
 import { Decoration } from "@tiptap/pm/view";
-import { renderMermaid } from "../../mermaid";
+import { renderMermaid } from "@/plugins/mermaid";
 import { setupMermaidPanZoom } from "@/plugins/mermaid/mermaidPanZoom";
 import { setupMermaidExport } from "@/plugins/mermaid/mermaidExport";
 import { sanitizeSvg } from "@/utils/sanitize";

@@ -16,6 +16,8 @@ import type { Transformer } from "markmap-lib";
 import type { Markmap, IMarkmapOptions } from "markmap-view";
 import type { INode } from "markmap-common";
 import { registerCleanup } from "@/plugins/shared/diagramCleanup";
+import { diagramWarn } from "@/utils/debug";
+import "./markmap.css";
 
 // Lazy-loaded module references
 let transformerInstance: Transformer | null = null;
@@ -123,7 +125,7 @@ export async function renderMarkmapToElement(
       },
     };
   } catch (error) {
-    console.warn("[Markmap] Failed to render mindmap:", error);
+    diagramWarn("Failed to render mindmap:", error);
     return null;
   }
 }
@@ -182,7 +184,7 @@ export async function renderMarkmapToSvgString(
     mm.destroy();
     return svgString;
   } catch (error) {
-    console.warn("[Markmap] Failed to render for export:", error);
+    diagramWarn("Failed to render for export:", error);
     return null;
   } finally {
     container.remove();
@@ -210,7 +212,7 @@ export async function updateMarkmapTheme(isDark: boolean): Promise<boolean> {
       mm.fit();
     } catch (error) {
       // Keep the instance so future theme changes can retry
-      console.warn("[Markmap] Failed to update theme for instance:", error);
+      diagramWarn("Failed to update theme for instance:", error);
     }
   }
 

@@ -45,6 +45,7 @@ import { updateLatexLivePreview, createLatexPreviewWidget } from "./renderers/re
 import { updateMermaidLivePreview, createMermaidPreviewWidget } from "./renderers/renderMermaidPreview";
 import { updateMarkmapLivePreview, createMarkmapPreviewWidget } from "./renderers/renderMarkmapPreview";
 import { updateSvgLivePreview, createSvgPreviewWidget } from "./renderers/renderSvgPreview";
+import "./code-preview.css";
 
 const codePreviewPluginKey = new PluginKey("codePreview");
 const PREVIEW_ONLY_LANGUAGES = new Set(["latex", "mermaid", "markmap", "svg", "$$math$$"]);

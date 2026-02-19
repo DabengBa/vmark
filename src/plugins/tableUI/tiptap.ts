@@ -30,6 +30,7 @@ import { addRowAbove, addRowBelow, isInTable } from "./tableActions.tiptap";
 import { escapeTableUp, escapeTableDown } from "./tableEscape";
 import { getActiveTableElement } from "./tableDom";
 import { guardProseMirrorCommand } from "@/utils/imeGuard";
+import "./table-ui.css";
 
 interface TableUIPluginState {
   contextMenu: TiptapTableContextMenu | null;

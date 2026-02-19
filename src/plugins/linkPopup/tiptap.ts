@@ -15,6 +15,7 @@ import { useLinkPopupStore } from "@/stores/linkPopupStore";
 import { useLinkCreatePopupStore } from "@/stores/linkCreatePopupStore";
 import { findHeadingById } from "@/utils/headingSlug";
 import { LinkPopupView } from "./LinkPopupView";
+import "./link-popup.css";
 
 const linkPopupPluginKey = new PluginKey("linkPopup");
 

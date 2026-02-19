@@ -18,6 +18,7 @@ import { findWordAtCursor } from "@/plugins/syntaxReveal/marks";
 import { useLinkPopupStore } from "@/stores/linkPopupStore";
 import { useWikiLinkPopupStore } from "@/stores/wikiLinkPopupStore";
 import { readClipboardUrl } from "@/utils/clipboardUrl";
+import { wysiwygAdapterWarn } from "@/utils/debug";
 import { isViewConnected } from "./wysiwygAdapterUtils";
 import type { WysiwygToolbarContext } from "./types";
 
@@ -81,7 +82,7 @@ async function trySmartLinkInsertion(view: EditorView, inLink: boolean): Promise
 
   // Verify view is still connected after async clipboard read
   if (!isViewConnected(view)) {
-    console.warn("[wysiwygAdapter] View disconnected after clipboard read");
+    wysiwygAdapterWarn("View disconnected after clipboard read");
     return false;
   }
 
@@ -148,7 +149,7 @@ export function openLinkEditor(context: WysiwygToolbarContext): boolean {
 
     // Verify view is still connected before fallback
     if (!isViewConnected(view)) {
-      console.warn("[wysiwygAdapter] View disconnected, skipping link popup");
+      wysiwygAdapterWarn("View disconnected, skipping link popup");
       return;
     }
 

@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { MathInlineNodeView } from "./MathInlineNodeView";
+import "./latex.css";
 
 /**
  * Inline math extension for Tiptap.

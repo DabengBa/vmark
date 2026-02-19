@@ -134,3 +134,99 @@ export const recentWarn = isDev
 export const shortcutsWarn = isDev
   ? (...args: unknown[]) => console.warn("[Shortcuts]", ...args)
   : () => {};
+
+/**
+ * Debug logger for Image Handler operations.
+ * Only logs in development mode.
+ */
+export const imageHandlerWarn = isDev
+  ? (...args: unknown[]) => console.warn("[imageHandler]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Smart Paste operations.
+ * Only logs in development mode.
+ */
+export const smartPasteWarn = isDev
+  ? (...args: unknown[]) => console.warn("[smartPaste]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Footnote Popup warnings.
+ * Only logs in development mode.
+ */
+export const footnotePopupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[FootnotePopup]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Link/Wiki Link Popup warnings.
+ * Only logs in development mode.
+ */
+export const linkPopupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[LinkPopup]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Media Popup warnings.
+ * Only logs in development mode.
+ */
+export const mediaPopupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[MediaPopup]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for WYSIWYG Adapter warnings.
+ * Only logs in development mode.
+ */
+export const wysiwygAdapterWarn = isDev
+  ? (...args: unknown[]) => console.warn("[wysiwygAdapter]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Mermaid/Markmap/SVG diagram warnings.
+ * Only logs in development mode.
+ */
+export const diagramWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Diagram]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for HTML/Markdown paste warnings.
+ * Only logs in development mode.
+ */
+export const pasteWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Paste]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Image View security warnings.
+ * Only logs in development mode.
+ */
+export const imageViewWarn = isDev
+  ? (...args: unknown[]) => console.warn("[ImageView]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Source mode popup warnings.
+ * Only logs in development mode.
+ */
+export const sourcePopupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[SourcePopup]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Action Registry warnings.
+ * Only logs in development mode.
+ */
+export const actionRegistryWarn = isDev
+  ? (...args: unknown[]) => console.warn("[ActionRegistry]", ...args)
+  : () => {};
+
+/**
+ * Debug logger for Markdown Copy warnings.
+ * Only logs in development mode.
+ */
+export const markdownCopyWarn = isDev
+  ? (...args: unknown[]) => console.warn("[markdownCopy]", ...args)
+  : () => {};

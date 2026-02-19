@@ -2,7 +2,7 @@
  * Editor
  *
  * Purpose: Top-level editor container that switches between WYSIWYG (TiptapEditor) and Source
- * (CodeMirror) editing modes. Acts as the CSS import hub for all editor-related plugin styles.
+ * (CodeMirror) editing modes.
  *
  * User interactions: Mode switching is driven by editorStore.sourceMode; the user toggles
  * via the status bar button or keyboard shortcut.
@@ -12,8 +12,6 @@
  *     across mode switches — at the cost of double memory usage.
  *   - `editorKey` includes both tabId and documentId to force remount on tab switch AND
  *     content reload within the same tab.
- *   - CSS imports are centralized here rather than in individual plugin files to control
- *     cascade order and avoid duplicate imports.
  *
  * @coordinates-with SourceEditor.tsx, TiptapEditor.tsx — mounts one or both based on mode
  * @coordinates-with stores/editorStore.ts — reads sourceMode for mode switching
@@ -29,33 +27,7 @@ import { HeadingPicker } from "./HeadingPicker";
 import { DropZoneIndicator } from "./DropZoneIndicator";
 import "./editor.css";
 import "./heading-picker.css";
-import "@/plugins/linkPopup/link-popup.css";
-import "@/plugins/sourceImagePopup/source-image-popup.css";
-import "@/plugins/sourceLinkPopup/source-link-popup.css";
-import "@/plugins/sourceWikiLinkPopup/source-wiki-link-popup.css";
-import "@/plugins/sourceFootnotePopup/source-footnote-popup.css";
-import "@/plugins/mathPopup/math-popup.css";
-import "@/plugins/wikiLinkPopup/wiki-link-popup.css";
-import "@/plugins/footnotePopup/footnote-popup.css";
 import "@/styles/popup-shared.css";
-import "@/plugins/alertBlock/alert-block.css";
-import "@/plugins/detailsBlock/details-block.css";
-import "@/plugins/focusMode/focus-mode.css";
-import "@/plugins/typewriterMode/typewriter-mode.css";
-import "@/plugins/search/search.css";
-import "@/plugins/aiSuggestion/ai-suggestion.css";
-import "@/plugins/codePreview/code-preview.css";
-import "@/plugins/latex/latex.css";
-import "@/plugins/mathPreview/math-preview.css";
-import "@/plugins/mermaid/mermaid.css";
-import "@/plugins/markmap/markmap.css";
-import "@/plugins/tableUI/table-ui.css";
-import "@/plugins/subSuperscript/sub-super.css";
-import "@/plugins/highlight/highlight.css";
-import "@/plugins/underline/underline.css";
-import "@/plugins/markdownArtifacts/markdown-artifacts.css";
-import "@/plugins/imagePasteToast/image-paste-toast.css";
-import "@/plugins/cjkLetterSpacing/cjk-letter-spacing.css";
 // Note: katex.min.css is imported in main.tsx for consistent dev/prod cascade order
 
 export function Editor() {

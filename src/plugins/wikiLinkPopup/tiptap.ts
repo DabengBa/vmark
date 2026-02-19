@@ -20,6 +20,8 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { useWikiLinkPopupStore } from "@/stores/wikiLinkPopupStore";
 import { WikiLinkPopupView } from "./WikiLinkPopupView";
+import { linkPopupWarn } from "@/utils/debug";
+import "./wiki-link-popup.css";
 
 const wikiLinkPopupPluginKey = new PluginKey("wikiLinkPopup");
 
@@ -121,9 +123,7 @@ class WikiLinkPopupPluginView {
         nodePos
       );
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.debug("[WikiLinkPopup] Failed to show popup:", error);
-      }
+      linkPopupWarn("Failed to show popup:", error);
     }
   }
 

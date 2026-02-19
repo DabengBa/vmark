@@ -25,6 +25,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { NodeView, ViewMutationRecord } from "@tiptap/pm/view";
 import type { Editor } from "@tiptap/core";
 import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
+import "./code-block-line-numbers.css";
 
 const lowlight = createLowlight(common);
 

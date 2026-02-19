@@ -10,6 +10,8 @@
  * @module plugins/codemirror
  */
 
+import "./source-table.css";
+import "./source-blocks.css";
 export { sourceEditorTheme, codeHighlightStyle } from "./theme";
 export { createBrHidingPlugin } from "./brHidingPlugin";
 export { createListBlankLinePlugin } from "./listBlankLinePlugin";

@@ -23,6 +23,7 @@
 
 import "./media-popup.css";
 import type { EditorView } from "@tiptap/pm/view";
+import { mediaPopupWarn } from "@/utils/debug";
 import { useMediaPopupStore, type MediaNodeType } from "@/stores/mediaPopupStore";
 import {
   calculatePopupPosition,
@@ -181,7 +182,7 @@ export class MediaPopupView {
     // Mount to editor container — popups must be inside editor container, not document.body
     this.host = getPopupHostForDom(this.editorView.dom);
     if (!this.host) {
-      console.warn("[MediaPopup] No editor container found for popup host");
+      mediaPopupWarn("No editor container found for popup host");
       return;
     }
     if (this.container.parentElement !== this.host) {
@@ -309,7 +310,7 @@ export class MediaPopupView {
       const targetType = mediaNodeType === "block_image" ? "image" : "block_image";
       const newNodeType = editorState.schema.nodes[targetType];
       if (!newNodeType) {
-        console.warn(`[MediaPopup] ${targetType} schema not available`);
+        mediaPopupWarn(`${targetType} schema not available`);
         return;
       }
 

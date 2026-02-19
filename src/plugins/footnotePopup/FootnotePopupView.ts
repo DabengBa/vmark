@@ -18,6 +18,7 @@
  */
 
 import { useFootnotePopupStore } from "@/stores/footnotePopupStore";
+import { footnotePopupWarn } from "@/utils/debug";
 import {
   calculatePopupPosition,
   getBoundaryRects,
@@ -268,13 +269,13 @@ export class FootnotePopupView {
 
       // Verify node is still a footnote_definition with matching label
       if (!node || node.type.name !== "footnote_definition") {
-        console.warn("[FootnotePopup] Definition node not found at position, may have moved");
+        footnotePopupWarn("Definition node not found at position, may have moved");
         this.closeAndFocus();
         return;
       }
 
       if (node.attrs.label !== label) {
-        console.warn("[FootnotePopup] Definition label mismatch, document may have changed");
+        footnotePopupWarn("Definition label mismatch, document may have changed");
         this.closeAndFocus();
         return;
       }
@@ -327,7 +328,7 @@ export class FootnotePopupView {
       // Get node sizes before deletion
       const refNode = editorState.doc.nodeAt(referencePos);
       if (!refNode || refNode.type.name !== "footnote_reference") {
-        console.warn("[FootnotePopup] Reference node not found at position");
+        footnotePopupWarn("Reference node not found at position");
         this.closeAndFocus();
         return;
       }

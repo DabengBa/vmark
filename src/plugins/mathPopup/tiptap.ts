@@ -13,6 +13,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { MathPopupView } from "./MathPopupView";
+import "./math-popup.css";
 
 const mathPopupPluginKey = new PluginKey("mathPopup");
 

@@ -27,6 +27,7 @@ import type {
 import menuIdsData from "@shared/menu-ids.json";
 import { MENU_TO_ACTION } from "./menuMapping";
 import { ACTION_DEFINITIONS } from "./actionDefinitions";
+import { actionRegistryWarn } from "@/utils/debug";
 
 // Re-export for consumers that import from this module
 export { MENU_TO_ACTION } from "./menuMapping";
@@ -88,8 +89,8 @@ if (import.meta.env.DEV) {
   );
 
   if (missingInRegistry.length > 0) {
-    console.warn(
-      "[ActionRegistry] Menu IDs from Rust missing from MENU_TO_ACTION:",
+    actionRegistryWarn(
+      "Menu IDs from Rust missing from MENU_TO_ACTION:",
       missingInRegistry
     );
   }

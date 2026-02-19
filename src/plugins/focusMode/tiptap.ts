@@ -20,6 +20,7 @@ import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { useEditorStore } from "@/stores/editorStore";
 import { runOrQueueProseMirrorAction } from "@/utils/imeGuard";
+import "./focus-mode.css";
 
 const focusPluginKey = new PluginKey("focusMode");
 

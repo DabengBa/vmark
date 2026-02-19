@@ -19,6 +19,7 @@ import { useWikiLinkPopupStore } from "@/stores/wikiLinkPopupStore";
 import { expandedToggleMark } from "@/plugins/editorPlugins/expandedToggleMark";
 import { findMarkRange, findWordAtCursor } from "@/plugins/syntaxReveal/marks";
 import { readClipboardUrl } from "@/utils/clipboardUrl";
+import { linkPopupWarn } from "@/utils/debug";
 
 /**
  * Apply a link mark with a specific href to a range.
@@ -285,9 +286,7 @@ export function handleWikiLinkShortcut(view: EditorView): boolean {
           );
         } catch (err) {
           // coords fail when view is not attached or node position is invalid
-          if (import.meta.env.DEV) {
-            console.debug("[WikiLink shortcut] Failed to open popup:", err);
-          }
+          linkPopupWarn("Failed to open popup:", err);
         }
         break;
       }

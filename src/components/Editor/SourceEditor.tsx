@@ -40,9 +40,6 @@ import {
 } from "@/utils/cursorSync/codemirror";
 import { useSourceCursorContextStore } from "@/stores/sourceCursorContextStore";
 import { useActiveEditorStore } from "@/stores/activeEditorStore";
-import "@/plugins/codemirror/source-table.css";
-import "@/plugins/codemirror/source-blocks.css";
-import "@/plugins/mermaidPreview/mermaid-preview.css";
 import { buildSourceShortcutKeymap } from "@/plugins/codemirror/sourceShortcuts";
 import { runOrQueueCodeMirrorAction } from "@/utils/imeGuard";
 import { computeSourceCursorContext } from "@/plugins/sourceContextDetection/cursorContext";

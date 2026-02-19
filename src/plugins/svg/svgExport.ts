@@ -9,6 +9,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { sanitizeSvg } from "@/utils/sanitize";
 import { svgToPngBytes } from "@/utils/svgToPng";
+import { diagramWarn } from "@/utils/debug";
 import {
   setupDiagramExport,
   LIGHT_BG,
@@ -28,7 +29,7 @@ export function setupSvgExport(
     try {
       pngData = await svgToPngBytes(sanitized, 2, bgColor);
     } catch (e) {
-      console.warn("[svg-export] SVG→PNG conversion failed", e);
+      diagramWarn("SVG→PNG conversion failed", e);
       return;
     }
 
@@ -41,7 +42,7 @@ export function setupSvgExport(
     try {
       await writeFile(filePath, pngData);
     } catch (e) {
-      console.warn("[svg-export] failed to write file", e);
+      diagramWarn("failed to write file", e);
     }
   });
 }
