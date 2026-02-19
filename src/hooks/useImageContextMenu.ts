@@ -23,6 +23,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { useImageContextMenuStore } from "@/stores/imageContextMenuStore";
 import { copyImageToAssets } from "@/hooks/useImageOperations";
 import { useDocumentFilePath } from "@/hooks/useDocumentState";
+import { imageContextMenuWarn } from "@/utils/debug";
 
 type GetEditorView = () => EditorView | null;
 
@@ -61,7 +62,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
       const view = getEditorView();
 
       if (!view) {
-        console.warn("[ImageContextMenu] No editor view available");
+        imageContextMenuWarn("No editor view available");
         return;
       }
 
@@ -101,7 +102,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
             const node = state.doc.nodeAt(imageNodePos);
 
             if (!node || (node.type.name !== "image" && node.type.name !== "block_image")) {
-              console.warn("[ImageContextMenu] No image node at position");
+              imageContextMenuWarn("No image node at position");
               return;
             }
 
@@ -125,7 +126,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
           const node = state.doc.nodeAt(imageNodePos);
 
           if (!node || (node.type.name !== "image" && node.type.name !== "block_image")) {
-            console.warn("[ImageContextMenu] No image node at position");
+            imageContextMenuWarn("No image node at position");
             return;
           }
 

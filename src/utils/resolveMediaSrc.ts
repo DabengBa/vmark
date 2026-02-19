@@ -28,6 +28,7 @@ import {
   isRelativePath,
   validateImagePath,
 } from "@/plugins/imageView/security";
+import { imageViewWarn } from "@/utils/debug";
 import { decodeMarkdownUrl } from "@/utils/markdownUrl";
 
 /**
@@ -79,13 +80,13 @@ export async function resolveMediaSrc(
 
   // Reject paths with directory traversal regardless of prefix
   if (decodedSrc.includes("..")) {
-    console.warn(`${logPrefix} Rejected path with directory traversal:`, decodedSrc);
+    imageViewWarn(`${logPrefix} Rejected path with directory traversal:`, decodedSrc);
     return "";
   }
 
   if (isRelativePath(decodedSrc)) {
     if (!validateImagePath(decodedSrc)) {
-      console.warn(`${logPrefix} Rejected invalid media path:`, decodedSrc);
+      imageViewWarn(`${logPrefix} Rejected invalid media path:`, decodedSrc);
       return "";
     }
 

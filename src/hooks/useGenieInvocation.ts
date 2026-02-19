@@ -38,6 +38,7 @@ import { useTabStore } from "@/stores/tabStore";
 import { getExpandedSourcePeekRange, serializeSourcePeekRange } from "@/utils/sourcePeek";
 import { extractSurroundingContext } from "@/utils/extractContext";
 import { serializeMarkdown } from "@/utils/markdownPipeline";
+import { genieWarn } from "@/utils/debug";
 
 // ============================================================================
 // Content Extraction
@@ -293,7 +294,7 @@ export function useGenieInvocation() {
       const contextRadius = genie.metadata.context ?? 0;
       const extracted = extractContent(scope, contextRadius);
       if (!extracted) {
-        console.warn("No content to extract for scope:", scope);
+        genieWarn("No content to extract for scope:", scope);
         return;
       }
 
@@ -335,7 +336,7 @@ export function useGenieInvocation() {
       const contextRadius = scope !== "document" ? 1 : 0;
       const extracted = extractContent(scope, contextRadius);
       if (!extracted) {
-        console.warn("No content to extract for scope:", scope);
+        genieWarn("No content to extract for scope:", scope);
         return;
       }
 

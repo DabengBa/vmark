@@ -8,6 +8,7 @@
  */
 
 import { useSettingsStore } from "@/stores/settingsStore";
+import { imageResizeLog } from "@/utils/debug";
 
 /**
  * Get the effective max dimension from settings.
@@ -182,8 +183,8 @@ export async function resizeImageIfNeeded(imageData: Uint8Array): Promise<Resize
     newHeight = maxDimension;
   }
 
-  console.log(
-    `[ImageResize] Resized from ${width}×${height} to ${newWidth}×${newHeight}`
+  imageResizeLog(
+    `Resized from ${width}×${height} to ${newWidth}×${newHeight}`
   );
 
   return {

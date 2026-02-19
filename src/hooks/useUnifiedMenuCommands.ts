@@ -49,6 +49,7 @@ import { performUnifiedUndo, performUnifiedRedo } from "@/hooks/useUnifiedHistor
 import { shouldBlockMenuAction } from "@/utils/focusGuard";
 import { runOrQueueCodeMirrorAction } from "@/utils/imeGuard";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
+import { menuDispatcherLog, menuDispatcherWarn } from "@/utils/debug";
 
 /**
  * Map action IDs to the internal adapter action names.
@@ -99,7 +100,7 @@ function dispatchToWysiwygImpl(
 
   const view = editor.view;
   if (!view) {
-    console.debug(`[UnifiedMenuDispatcher] WYSIWYG editor view not available for ${actionId}`);
+    menuDispatcherLog(`WYSIWYG editor view not available for ${actionId}`);
     return false;
   }
 
@@ -167,15 +168,15 @@ function dispatchToWysiwyg(
   const retry = () => {
     retryCount++;
     if (dispatchToWysiwygImpl(actionId, params)) {
-      console.debug(`[UnifiedMenuDispatcher] ${actionId} succeeded after ${retryCount} retry(ies)`);
+      menuDispatcherLog(`${actionId} succeeded after ${retryCount} retry(ies)`);
       return;
     }
 
     if (retryCount < MAX_EDITOR_RETRIES) {
       setTimeout(retry, RETRY_DELAY_MS);
     } else {
-      console.debug(
-        `[UnifiedMenuDispatcher] WYSIWYG editor not available for ${actionId} after ${retryCount} retries`
+      menuDispatcherLog(
+        `WYSIWYG editor not available for ${actionId} after ${retryCount} retries`
       );
     }
   };
@@ -252,15 +253,15 @@ function dispatchToSource(
   const retry = () => {
     retryCount++;
     if (dispatchToSourceImpl(actionId, params)) {
-      console.debug(`[UnifiedMenuDispatcher] ${actionId} (source) succeeded after ${retryCount} retry(ies)`);
+      menuDispatcherLog(`${actionId} (source) succeeded after ${retryCount} retry(ies)`);
       return;
     }
 
     if (retryCount < MAX_EDITOR_RETRIES) {
       setTimeout(retry, RETRY_DELAY_MS);
     } else {
-      console.debug(
-        `[UnifiedMenuDispatcher] Source view not available for ${actionId} after ${retryCount} retries`
+      menuDispatcherLog(
+        `Source view not available for ${actionId} after ${retryCount} retries`
       );
     }
   };
@@ -316,7 +317,7 @@ export function useUnifiedMenuCommands(): void {
           // Get action definition for capability check
           const actionDef = ACTION_DEFINITIONS[actionId];
           if (!actionDef) {
-            console.warn(`[UnifiedMenuDispatcher] Unknown action: ${actionId}`);
+            menuDispatcherWarn(`Unknown action: ${actionId}`);
             return;
           }
 
@@ -325,14 +326,14 @@ export function useUnifiedMenuCommands(): void {
 
           // Capability check
           if (isSourceMode && !actionDef.supports.source) {
-            console.debug(
-              `[UnifiedMenuDispatcher] Action ${actionId} not supported in source mode`
+            menuDispatcherLog(
+              `Action ${actionId} not supported in source mode`
             );
             return;
           }
           if (!isSourceMode && !actionDef.supports.wysiwyg) {
-            console.debug(
-              `[UnifiedMenuDispatcher] Action ${actionId} not supported in WYSIWYG mode`
+            menuDispatcherLog(
+              `Action ${actionId} not supported in WYSIWYG mode`
             );
             return;
           }

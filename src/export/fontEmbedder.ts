@@ -5,6 +5,8 @@
  * Ensures consistent typography across different machines.
  */
 
+import { exportWarn } from "@/utils/debug";
+
 export interface FontConfig {
   /** Font family name */
   family: string;
@@ -95,7 +97,7 @@ export async function downloadFont(url: string): Promise<Uint8Array | null> {
     const buffer = await response.arrayBuffer();
     return new Uint8Array(buffer);
   } catch (error) {
-    console.warn("[FontEmbedder] Failed to download font:", url, error);
+    exportWarn("Failed to download font:", url, error);
     return null;
   }
 }

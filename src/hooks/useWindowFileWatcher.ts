@@ -25,6 +25,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { getDirectory } from "@/utils/pathUtils";
+import { watcherWarn } from "@/utils/debug";
 export function useWindowFileWatcher(): void {
   const windowLabel = useWindowLabel();
   const isWorkspaceMode = useWorkspaceStore((state) => state.isWorkspaceMode);
@@ -50,20 +51,20 @@ export function useWindowFileWatcher(): void {
   useEffect(() => {
     if (!watchPath) {
       invoke("stop_watching", { watchId: windowLabel }).catch((err) => {
-        console.warn("[Watcher] Failed to stop watcher:", err);
+        watcherWarn("Failed to stop watcher:", err);
       });
       return;
     }
 
     invoke("start_watching", { watchId: windowLabel, path: watchPath }).catch(
       (err) => {
-        console.warn("[Watcher] Failed to start watcher:", err);
+        watcherWarn("Failed to start watcher:", err);
       }
     );
 
     return () => {
       invoke("stop_watching", { watchId: windowLabel }).catch((err) => {
-        console.warn("[Watcher] Failed to stop watcher on cleanup:", err);
+        watcherWarn("Failed to stop watcher on cleanup:", err);
       });
     };
   }, [windowLabel, watchPath]);

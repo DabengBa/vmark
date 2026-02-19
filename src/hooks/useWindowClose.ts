@@ -37,6 +37,7 @@ import {
 } from "@/hooks/closeSave";
 import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
 import { persistWorkspaceSession } from "@/hooks/workspaceSession";
+import { windowCloseWarn } from "@/utils/debug";
 
 // Dev-only logging for debugging window close issues
 // Logs to console and Rust debug_log
@@ -207,7 +208,7 @@ export function useWindowClose() {
           if (!closed) {
             invoke("cancel_quit").catch((e) => {
               if (import.meta.env.DEV) {
-                console.warn("[WindowClose] cancel_quit failed:", e);
+                windowCloseWarn("cancel_quit failed:", e);
               }
             });
           }

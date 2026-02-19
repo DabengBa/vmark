@@ -30,6 +30,7 @@ import { joinPath } from "@/utils/pathUtils";
 import { getSaveFileName } from "@/utils/exportNaming";
 import { isWithinRoot, getParentDir } from "@/utils/paths";
 import { saveAllDocuments, type CloseSaveContext } from "@/hooks/closeSave";
+import { fileOpsLog, fileOpsWarn } from "@/utils/debug";
 
 /**
  * Save dialog with timeout and filter fallback for macOS Tahoe compatibility.
@@ -66,7 +67,7 @@ export async function saveDialogWithFallback(
 
   // Attempt 1: with filters (normal)
   try {
-    console.log("[FileOps] Save dialog attempt 1: with filters");
+    fileOpsLog("Save dialog attempt 1: with filters");
     const path = await withTimeout(
       save({
         defaultPath,
@@ -76,11 +77,11 @@ export async function saveDialogWithFallback(
     );
     return path;
   } catch (firstError) {
-    console.warn("[FileOps] Save dialog attempt 1 failed:", firstError);
+    fileOpsWarn("Save dialog attempt 1 failed:", firstError);
 
     // If it timed out, retry without filters to bypass deprecated setAllowedFileTypes
     if (firstError instanceof Error && firstError.message.includes("timed out")) {
-      console.log("[FileOps] Save dialog attempt 2: without filters (Tahoe workaround)");
+      fileOpsLog("Save dialog attempt 2: without filters (Tahoe workaround)");
       try {
         const path = await withTimeout(
           save({ defaultPath }),
@@ -152,23 +153,23 @@ async function buildDefaultSavePath(
  * Handle Save (Cmd+S) — save current document, prompting for path if untitled.
  */
 export async function handleSave(windowLabel: string): Promise<void> {
-  console.log("[FileOps] handleSave called for window:", windowLabel);
+  fileOpsLog("handleSave called for window:", windowLabel);
   flushActiveWysiwygNow();
 
   const guardResult = await withReentryGuard(windowLabel, "save", async () => {
     const tabId = useTabStore.getState().activeTabId[windowLabel];
     if (!tabId) {
-      console.warn("[FileOps] No active tab for save in window:", windowLabel);
+      fileOpsWarn("No active tab for save in window:", windowLabel);
       return;
     }
 
     const doc = useDocumentStore.getState().getDocument(tabId);
     if (!doc) {
-      console.warn("[FileOps] No document found for tab:", tabId);
+      fileOpsWarn("No document found for tab:", tabId);
       return;
     }
 
-    console.log("[FileOps] Save target:", {
+    fileOpsLog("Save target:", {
       tabId,
       filePath: doc.filePath ?? "(untitled)",
       isMissing: doc.isMissing,
@@ -187,14 +188,14 @@ export async function handleSave(windowLabel: string): Promise<void> {
 
     // If file is missing, force Save As flow instead of normal save
     if (saveAction === "save_as_required" || !doc.filePath) {
-      console.log("[FileOps] Entering Save As flow (untitled or missing file)");
+      fileOpsLog("Entering Save As flow (untitled or missing file)");
       const defaultPath = await buildDefaultSavePath(windowLabel, tabId, doc.content, null);
-      console.log("[FileOps] Opening save dialog with defaultPath:", defaultPath);
+      fileOpsLog("Opening save dialog with defaultPath:", defaultPath);
 
       let path: string | null;
       try {
         path = await saveDialogWithFallback(defaultPath);
-        console.log("[FileOps] Save dialog returned:", path ?? "(cancelled)");
+        fileOpsLog("Save dialog returned:", path ?? "(cancelled)");
       } catch (error) {
         console.error("[FileOps] Save dialog threw:", error);
         toast.error(
@@ -238,7 +239,7 @@ export async function handleSave(windowLabel: string): Promise<void> {
     }
   });
   if (guardResult === undefined) {
-    console.warn("[FileOps] Save blocked by re-entry guard (another save in progress)");
+    fileOpsWarn("Save blocked by re-entry guard (another save in progress)");
   }
 }
 

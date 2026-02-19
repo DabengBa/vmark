@@ -34,6 +34,7 @@ import {
   normalizeLineEndings,
 } from "@/utils/linebreaks";
 import { registerPendingSave, clearPendingSave } from "@/utils/pendingSaves";
+import { historyWarn } from "@/utils/debug";
 
 export async function saveToPath(
   tabId: string,
@@ -96,7 +97,7 @@ export async function saveToPath(
     try {
       await createSnapshot(path, output, saveType, buildHistorySettings(general));
     } catch (historyError) {
-      console.warn("[History] Failed to create snapshot:", historyError);
+      historyWarn("Failed to create snapshot:", historyError);
       // Don't fail the save operation if history fails
     }
   }

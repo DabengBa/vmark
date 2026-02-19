@@ -22,6 +22,7 @@ import { safeUnlistenAll } from "@/utils/safeUnlisten";
 
 import { handleSave, handleSaveAs, handleMoveTo, handleSaveAllQuit } from "./useFileSave";
 import { handleOpen, handleOpenFile, handleNew } from "./useFileOpen";
+import { fileOpsLog } from "@/utils/debug";
 
 /**
  * Set up all file operation menu listeners and keyboard shortcuts.
@@ -59,7 +60,7 @@ export function useFileShortcuts(windowLabel: string): void {
       unlistenRefs.current.push(unlistenOpen);
 
       const unlistenSave = await currentWindow.listen<string>("menu:save", async (event) => {
-        console.log("[FileOps] menu:save event received, payload:", event.payload);
+        fileOpsLog("menu:save event received, payload:", event.payload);
         if (event.payload !== windowLabel) return;
         await handleSave(windowLabel);
       });
@@ -125,7 +126,7 @@ export function useFileShortcuts(windowLabel: string): void {
       // Save (Cmd+S)
       const saveKey = shortcuts.getShortcut("save");
       if (matchesShortcutEvent(e, saveKey)) {
-        console.log("[FileOps] Cmd+S keyboard shortcut matched");
+        fileOpsLog("Cmd+S keyboard shortcut matched");
         e.preventDefault();
         handleSave(windowLabel);
         return;

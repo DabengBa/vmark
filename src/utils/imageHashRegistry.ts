@@ -8,6 +8,7 @@
 import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { dirname, join } from "@tauri-apps/api/path";
 import { ASSETS_FOLDER } from "@/utils/imageUtils";
+import { imageHashWarn } from "@/utils/debug";
 
 const REGISTRY_FILENAME = "image-hashes.json";
 const REGISTRY_VERSION = 1;
@@ -50,13 +51,13 @@ export async function loadHashRegistry(
       typeof data.version !== "number" ||
       typeof data.hashes !== "object"
     ) {
-      console.warn("[ImageHashRegistry] Invalid registry format, resetting");
+      imageHashWarn("Invalid registry format, resetting");
       return { version: REGISTRY_VERSION, hashes: {} };
     }
 
     return data;
   } catch (error) {
-    console.warn("[ImageHashRegistry] Failed to load registry:", error);
+    imageHashWarn("Failed to load registry:", error);
     return { version: REGISTRY_VERSION, hashes: {} };
   }
 }

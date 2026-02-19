@@ -32,6 +32,7 @@ import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { isWithinRoot } from "@/utils/paths";
 import { waitForRestoreComplete, RESTORE_WAIT_TIMEOUT_MS } from "@/utils/hotExit/hotExitCoordination";
+import { finderFileOpenWarn } from "@/utils/debug";
 
 interface OpenFilePayload {
   path: string;
@@ -205,7 +206,7 @@ export function useFinderFileOpen(): void {
         // CRITICAL: Wait for hot exit restore to complete before processing pending files
         const restoreCompleted = await waitForRestoreComplete(RESTORE_WAIT_TIMEOUT_MS);
         if (!restoreCompleted) {
-          console.warn("[FinderFileOpen] Hot exit restore timed out, proceeding anyway");
+          finderFileOpenWarn("Hot exit restore timed out, proceeding anyway");
         }
 
         // Drain queued events BEFORE marking restore complete to preserve order.

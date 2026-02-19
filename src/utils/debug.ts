@@ -238,3 +238,79 @@ export const markdownCopyWarn = isDev
 export const wikiLinkPopupWarn = isDev
   ? (...args: unknown[]) => console.warn("[WikiLinkPopup]", ...args)
   : () => {};
+
+export const historyWarn = isDev
+  ? (...args: unknown[]) => console.warn("[History]", ...args)
+  : () => {};
+
+export const windowCloseLog = isDev
+  ? (...args: unknown[]) => console.log("[WindowClose]", ...args)
+  : () => {};
+
+export const windowCloseWarn = isDev
+  ? (...args: unknown[]) => console.warn("[WindowClose]", ...args)
+  : () => {};
+
+export const menuDispatcherLog = isDev
+  ? (...args: unknown[]) => console.debug("[UnifiedMenuDispatcher]", ...args)
+  : () => {};
+
+export const menuDispatcherWarn = isDev
+  ? (...args: unknown[]) => console.warn("[UnifiedMenuDispatcher]", ...args)
+  : () => {};
+
+export const watcherWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Watcher]", ...args)
+  : () => {};
+
+export const exportWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Export]", ...args)
+  : () => {};
+
+export const mcpBridgeLog = isDev
+  ? (...args: unknown[]) => console.debug("[MCP Bridge]", ...args)
+  : () => {};
+
+export const mdPipelineWarn = isDev
+  ? (...args: unknown[]) => console.warn("[MarkdownPipeline]", ...args)
+  : () => {};
+
+export const workspaceWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Workspace]", ...args)
+  : () => {};
+
+export const titleBarWarn = isDev
+  ? (...args: unknown[]) => console.warn("[TitleBar]", ...args)
+  : () => {};
+
+export const genieWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Genie]", ...args)
+  : () => {};
+
+export const imageContextMenuWarn = isDev
+  ? (...args: unknown[]) => console.warn("[ImageContextMenu]", ...args)
+  : () => {};
+
+export const orphanCleanupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[OrphanCleanup]", ...args)
+  : () => {};
+
+export const confirmQuitWarn = isDev
+  ? (...args: unknown[]) => console.warn("[ConfirmQuit]", ...args)
+  : () => {};
+
+export const finderFileOpenWarn = isDev
+  ? (...args: unknown[]) => console.warn("[FinderFileOpen]", ...args)
+  : () => {};
+
+export const imageHashWarn = isDev
+  ? (...args: unknown[]) => console.warn("[ImageHashRegistry]", ...args)
+  : () => {};
+
+export const imageResizeLog = isDev
+  ? (...args: unknown[]) => console.log("[ImageResize]", ...args)
+  : () => {};
+
+export const workspaceStorageWarn = isDev
+  ? (...args: unknown[]) => console.warn("[WorkspaceStorage]", ...args)
+  : () => {};

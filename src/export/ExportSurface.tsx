@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 
 import { EditorContent, useEditor } from "@tiptap/react";
 import { parseMarkdown } from "@/utils/markdownPipeline";
 import { createExportExtensions } from "./createExportExtensions";
+import { exportWarn } from "@/utils/debug";
 import "./exportStyles.css";
 
 export interface ExportSurfaceProps {
@@ -133,7 +134,7 @@ export const ExportSurface = forwardRef<ExportSurfaceRef, ExportSurfaceProps>(
           stabilityCheckRef.current = window.setTimeout(check, 100);
         } else {
           // Timeout - call onReady anyway with warning
-          console.warn("[ExportSurface] Stability timeout reached, proceeding anyway");
+          exportWarn("Stability timeout reached, proceeding anyway");
           if (!onReadyCalledRef.current) {
             onReadyCalledRef.current = true;
             onReady?.();
