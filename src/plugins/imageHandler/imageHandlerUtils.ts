@@ -2,7 +2,8 @@
  * Image Handler Utilities
  *
  * Purpose: Shared utility functions for image handler operations —
- * path conversion, validation, view checking, and toast positioning.
+ * path conversion, validation, view checking, toast positioning,
+ * image file detection, and filename generation.
  *
  * @coordinates-with plugins/imageHandler/tiptap.ts — extension entry point
  * @coordinates-with plugins/imageHandler/imageHandlerInsert.ts — image insertion
@@ -15,6 +16,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { getWindowLabel } from "@/hooks/useWindowFocus";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
+import { hasImageExtension } from "@/utils/imagePathDetection";
 import { imageHandlerWarn } from "@/utils/debug";
 
 /**
@@ -119,4 +121,37 @@ export function getToastAnchorRect(view: EditorView): { top: number; left: numbe
       right: window.innerWidth / 2,
     };
   }
+}
+
+/**
+ * Check if a file is an image based on MIME type or extension.
+ */
+export function isImageFile(file: File): boolean {
+  if (file.type.startsWith("image/")) {
+    return true;
+  }
+  return hasImageExtension(file.name);
+}
+
+/**
+ * Generate unique filename for clipboard images.
+ */
+export function generateClipboardImageFilename(originalName: string): string {
+  const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 6);
+  return `clipboard-${timestamp}-${random}.${ext}`;
+}
+
+/**
+ * Generate unique filename for dropped images.
+ */
+export function generateDroppedImageFilename(originalName: string): string {
+  const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
+  const baseName = originalName.includes(".")
+    ? originalName.slice(0, originalName.lastIndexOf("."))
+    : originalName;
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 6);
+  return `${baseName}-${timestamp}-${random}.${ext}`;
 }

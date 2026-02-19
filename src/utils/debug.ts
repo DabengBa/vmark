@@ -230,3 +230,11 @@ export const actionRegistryWarn = isDev
 export const markdownCopyWarn = isDev
   ? (...args: unknown[]) => console.warn("[markdownCopy]", ...args)
   : () => {};
+
+/**
+ * Debug logger for Wiki Link Popup warnings.
+ * Only logs in development mode.
+ */
+export const wikiLinkPopupWarn = isDev
+  ? (...args: unknown[]) => console.warn("[WikiLinkPopup]", ...args)
+  : () => {};

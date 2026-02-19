@@ -16,6 +16,8 @@ export interface RenderContext {
   error: HTMLElement;
   currentLanguage: string;
   renderToken: number;
+  /** Returns the live render token from the owner, for async staleness checks. */
+  getCurrentToken: () => number;
   applyZoom: () => void;
 }
 
@@ -63,7 +65,7 @@ export function renderPreview(content: string, ctx: RenderContext): number {
     const currentToken = ++ctx.renderToken;
     renderMarkmapToElement(svgEl, trimmed)
       .then((instance) => {
-        if (currentToken !== ctx.renderToken) return;
+        if (currentToken !== ctx.getCurrentToken()) return;
         if (!instance) {
           ctx.preview.innerHTML = "";
           ctx.preview.classList.add("mermaid-preview-error-state");
@@ -73,7 +75,7 @@ export function renderPreview(content: string, ctx: RenderContext): number {
         }
       })
       .catch(() => {
-        if (currentToken !== ctx.renderToken) return;
+        if (currentToken !== ctx.getCurrentToken()) return;
         ctx.preview.innerHTML = "";
         ctx.preview.classList.add("mermaid-preview-error-state");
         ctx.error.textContent = "Preview failed";
@@ -87,7 +89,7 @@ export function renderPreview(content: string, ctx: RenderContext): number {
 
   renderMermaid(trimmed)
     .then((svg) => {
-      if (currentToken !== ctx.renderToken) return;
+      if (currentToken !== ctx.getCurrentToken()) return;
 
       if (svg) {
         ctx.preview.innerHTML = sanitizeSvg(svg);
@@ -100,7 +102,7 @@ export function renderPreview(content: string, ctx: RenderContext): number {
       }
     })
     .catch(() => {
-      if (currentToken !== ctx.renderToken) return;
+      if (currentToken !== ctx.getCurrentToken()) return;
       ctx.preview.innerHTML = "";
       ctx.preview.classList.add("mermaid-preview-error-state");
       ctx.error.textContent = "Preview failed";

@@ -4,8 +4,7 @@
  * Purpose: Handles all image-related paste, drop, and file events in WYSIWYG mode —
  * clipboard images, file drops, file:// URLs, and multi-image paste from Finder.
  *
- * Pipeline: paste/drop event -> detect image content -> copy to assets folder
- *         -> generate relative path -> insert block_image or inline image markdown
+ * Pipeline: paste/drop event -> detect image content -> delegate to utils/insert/toast modules
  *
  * Key decisions:
  *   - Highest priority in the paste chain (runs before smartPaste, markdownPaste, etc.)
@@ -13,7 +12,7 @@
  *   - Multiple images (e.g., multi-select from Finder) are handled via parseMultiplePaths
  *   - Uses reentryGuard to prevent double-processing of clipboard events
  *   - Supports both inline images (in paragraph context) and block images (at block boundary)
- *   - file:// URLs are converted to filesystem paths with cross-platform support
+ *   - Utility functions (isImageFile, filename generation, path conversion) live in imageHandlerUtils.ts
  *
  * @coordinates-with hooks/useImageOperations.ts — copyImageToAssets, saveImageToAssets
  * @coordinates-with utils/imagePathDetection.ts — image format and path detection
@@ -31,7 +30,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { saveImageToAssets, insertBlockImageNode } from "@/hooks/useImageOperations";
 import { getWindowLabel } from "@/hooks/useWindowFocus";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { detectMultipleImagePaths, hasImageExtension } from "@/utils/imagePathDetection";
+import { detectMultipleImagePaths } from "@/utils/imagePathDetection";
 import { parseMultiplePaths } from "@/utils/multiImageParsing";
 import { withReentryGuard } from "@/utils/reentryGuard";
 import { imageHandlerWarn } from "@/utils/debug";
@@ -40,22 +39,15 @@ import { tryTextImagePaste } from "./imageHandlerToast";
 import {
   fileUrlToPath,
   isViewConnected,
+  isImageFile,
+  generateClipboardImageFilename,
+  generateDroppedImageFilename,
   getActiveFilePathForCurrentWindow,
   showUnsavedDocWarning,
 } from "./imageHandlerUtils";
 
 const imageHandlerPluginKey = new PluginKey("imageHandler");
 const CLIPBOARD_IMAGE_GUARD = "clipboard-image";
-
-/**
- * Generate unique filename for clipboard images.
- */
-function generateClipboardImageFilename(originalName: string): string {
-  const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 6);
-  return `clipboard-${timestamp}-${random}.${ext}`;
-}
 
 async function processClipboardImage(view: EditorView, item: DataTransferItem): Promise<void> {
   const windowLabel = getWindowLabel();
@@ -89,31 +81,6 @@ async function processClipboardImage(view: EditorView, item: DataTransferItem): 
 }
 
 const DROP_IMAGE_GUARD = "drop-image";
-
-/**
- * Check if a file is an image based on MIME type or extension.
- */
-function isImageFile(file: File): boolean {
-  // Check MIME type first
-  if (file.type.startsWith("image/")) {
-    return true;
-  }
-  // Fall back to extension check
-  return hasImageExtension(file.name);
-}
-
-/**
- * Generate unique filename for dropped images.
- */
-function generateDroppedImageFilename(originalName: string): string {
-  const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
-  const baseName = originalName.includes(".")
-    ? originalName.slice(0, originalName.lastIndexOf("."))
-    : originalName;
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 6);
-  return `${baseName}-${timestamp}-${random}.${ext}`;
-}
 
 /**
  * Process dropped image files.
