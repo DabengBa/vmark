@@ -4,6 +4,8 @@
  * Validates image paths to prevent path traversal attacks.
  */
 
+import { imageViewWarn } from "@/utils/debug";
+
 /**
  * Check if a path is relative (starts with ./ or assets/).
  */
@@ -56,7 +58,7 @@ export function validateImagePath(src: string): boolean {
  */
 export function sanitizeImagePath(src: string): string | null {
   if (!validateImagePath(src)) {
-    console.warn("[ImageView] Rejected suspicious image path:", src);
+    imageViewWarn("Rejected suspicious image path:", src);
     return null;
   }
   return src;

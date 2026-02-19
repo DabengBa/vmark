@@ -20,6 +20,7 @@ import type { EditorState } from "@tiptap/pm/state";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
+import "./details-block.css";
 
 const detailsClickPluginKey = new PluginKey("detailsClick");
 const DETAILS_INPUT_PATTERN = /^(?:<details>|:::details)\s*$/i;

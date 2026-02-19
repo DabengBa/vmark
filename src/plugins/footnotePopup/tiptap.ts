@@ -28,6 +28,7 @@ import { useFootnotePopupStore } from "@/stores/footnotePopupStore";
 import { FootnotePopupView } from "./FootnotePopupView";
 import { createCleanupAndRenumberTransaction, createRenumberTransaction, getDefinitionInfo, getReferenceLabels } from "./tiptapCleanup";
 import { findFootnoteDefinition, findFootnoteReference, getFootnoteDefFromTarget, getFootnoteRefFromTarget, scrollToPosition } from "./tiptapDomUtils";
+import "./footnote-popup.css";
 
 export const footnotePopupPluginKey = new PluginKey("footnotePopup");
 

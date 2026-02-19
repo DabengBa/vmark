@@ -25,6 +25,7 @@ import { htmlToMarkdown, isSubstantialHtml } from "@/utils/htmlToMarkdown";
 import { createMarkdownPasteTransaction } from "@/plugins/markdownPaste/tiptap";
 import { useSettingsStore, type PasteMode } from "@/stores/settingsStore";
 import { isViewSelectionInCode, isViewMultiSelection } from "@/utils/pasteUtils";
+import { pasteWarn } from "@/utils/debug";
 
 const htmlPastePluginKey = new PluginKey("htmlPaste");
 
@@ -68,7 +69,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
 
   // HTML is too large, fall back to plain text
   if (html.length > MAX_HTML_SIZE) {
-    console.warn("[htmlPaste] HTML too large, falling back to plain text");
+    pasteWarn("HTML too large, falling back to plain text");
     if (text) {
       event.preventDefault();
       const { from, to } = view.state.selection;
@@ -118,7 +119,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   });
 
   if (!tr) {
-    console.warn("[htmlPaste] Failed to create transaction from markdown");
+    pasteWarn("Failed to create transaction from markdown");
     return false;
   }
 

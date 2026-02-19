@@ -20,6 +20,7 @@ import { readClipboardImagePath } from "@/utils/clipboardImagePath";
 import { withReentryGuard } from "@/utils/reentryGuard";
 import { DEFAULT_MERMAID_DIAGRAM } from "@/plugins/mermaid/constants";
 import { DEFAULT_MARKMAP_CONTENT } from "@/plugins/markmap/constants";
+import { wysiwygAdapterWarn } from "@/utils/debug";
 import { isViewConnected, getActiveFilePath } from "./wysiwygAdapterUtils";
 import type { WysiwygToolbarContext } from "./types";
 
@@ -61,7 +62,7 @@ async function trySmartImageInsertion(view: EditorView): Promise<boolean> {
 
   // Verify view is still connected after async clipboard read
   if (!isViewConnected(view)) {
-    console.warn("[wysiwygAdapter] View disconnected after clipboard read");
+    wysiwygAdapterWarn("View disconnected after clipboard read");
     return false;
   }
 
@@ -109,7 +110,7 @@ async function trySmartImageInsertion(view: EditorView): Promise<boolean> {
 
   // Re-verify view is still connected after async copy
   if (!isViewConnected(view)) {
-    console.warn("[wysiwygAdapter] View disconnected after image copy");
+    wysiwygAdapterWarn("View disconnected after image copy");
     return false;
   }
 

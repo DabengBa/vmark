@@ -21,6 +21,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { useSettingsStore } from "@/stores/settingsStore";
+import "./cjk-letter-spacing.css";
 
 export interface CJKLetterSpacingOptions {
   /**

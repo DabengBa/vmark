@@ -11,6 +11,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useWikiLinkPopupStore } from "@/stores/wikiLinkPopupStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { runOrQueueCodeMirrorAction } from "@/utils/imeGuard";
+import { sourcePopupWarn } from "@/utils/debug";
 
 /**
  * Build wiki link markdown syntax.
@@ -108,7 +109,7 @@ export async function openWikiLink(): Promise<void> {
   const filePath = resolveWikiLinkPath(target, rootPath);
 
   if (!filePath) {
-    console.warn("[SourceWikiLinkPopup] Cannot resolve wiki link target:", target);
+    sourcePopupWarn("Cannot resolve wiki link target:", target);
     return;
   }
 

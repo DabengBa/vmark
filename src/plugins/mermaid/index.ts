@@ -6,6 +6,9 @@
  * Lazy-loads mermaid library (~2MB) only when first diagram is rendered.
  */
 
+import "./mermaid.css";
+import { diagramWarn } from "@/utils/debug";
+
 // Lazy-loaded mermaid instance
 let mermaidModule: typeof import("mermaid") | null = null;
 let mermaidLoadPromise: Promise<typeof import("mermaid")> | null = null;
@@ -196,7 +199,7 @@ export async function renderMermaid(
   } catch (error) {
     // Clean up even on error - Mermaid leaves error displays in the body
     cleanupMermaidContainer(diagramId);
-    console.warn("[Mermaid] Failed to render diagram:", error);
+    diagramWarn("Failed to render diagram:", error);
     return null;
   }
 }

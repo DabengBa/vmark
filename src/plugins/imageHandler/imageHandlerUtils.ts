@@ -1,0 +1,122 @@
+/**
+ * Image Handler Utilities
+ *
+ * Purpose: Shared utility functions for image handler operations —
+ * path conversion, validation, view checking, and toast positioning.
+ *
+ * @coordinates-with plugins/imageHandler/tiptap.ts — extension entry point
+ * @coordinates-with plugins/imageHandler/imageHandlerInsert.ts — image insertion
+ * @coordinates-with plugins/imageHandler/imageHandlerToast.ts — toast UI
+ * @module plugins/imageHandler/imageHandlerUtils
+ */
+
+import type { EditorView } from "@tiptap/pm/view";
+import { message } from "@tauri-apps/plugin-dialog";
+import { getWindowLabel } from "@/hooks/useWindowFocus";
+import { useDocumentStore } from "@/stores/documentStore";
+import { useTabStore } from "@/stores/tabStore";
+import { imageHandlerWarn } from "@/utils/debug";
+
+/**
+ * Convert a file:// URL to a filesystem path.
+ * Handles both Unix and Windows file URL formats:
+ * - Unix: file:///Users/name/file.png -> /Users/name/file.png
+ * - Windows: file:///C:/Users/name/file.png -> C:/Users/name/file.png
+ */
+export function fileUrlToPath(url: string): string {
+  // Remove file:// prefix
+  let path = url.replace(/^file:\/\//, "");
+  // URL decode
+  path = decodeURIComponent(path);
+  // On Windows, file URLs have format file:///C:/path, resulting in /C:/path
+  // Remove the leading slash if followed by a drive letter
+  if (/^\/[A-Za-z]:/.test(path)) {
+    path = path.slice(1);
+  }
+  return path;
+}
+
+/**
+ * Show warning that document must be saved first.
+ */
+export async function showUnsavedDocWarning(): Promise<void> {
+  await message(
+    "Please save the document first before inserting images. " +
+      "Images are stored relative to the document location.",
+    { title: "Unsaved Document", kind: "warning" }
+  );
+}
+
+/**
+ * Check if editor view is still valid and connected.
+ */
+export function isViewConnected(view: EditorView): boolean {
+  try {
+    return view.dom?.isConnected ?? false;
+  } catch {
+    return false;
+  }
+}
+
+export function getActiveFilePathForCurrentWindow(): string | null {
+  try {
+    const windowLabel = getWindowLabel();
+    const tabId = useTabStore.getState().activeTabId[windowLabel] ?? null;
+    if (!tabId) return null;
+    return useDocumentStore.getState().getDocument(tabId)?.filePath ?? null;
+  } catch (error) {
+    imageHandlerWarn("Failed to get active file path:", error);
+    return null;
+  }
+}
+
+/**
+ * Validate a local image path exists (async file check).
+ */
+export async function validateLocalPath(path: string): Promise<boolean> {
+  try {
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    return await exists(path);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Expand home path (~/) to absolute path.
+ */
+export async function expandHomePath(path: string): Promise<string | null> {
+  if (!path.startsWith("~/")) return path;
+
+  try {
+    const { homeDir, join } = await import("@tauri-apps/api/path");
+    const home = await homeDir();
+    return join(home, path.slice(2));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get anchor rect for toast positioning based on current selection.
+ */
+export function getToastAnchorRect(view: EditorView): { top: number; left: number; bottom: number; right: number } {
+  const { from } = view.state.selection;
+  try {
+    const coords = view.coordsAtPos(from);
+    return {
+      top: coords.top,
+      left: coords.left,
+      bottom: coords.bottom,
+      right: coords.right,
+    };
+  } catch {
+    // Fallback to viewport center if position lookup fails
+    return {
+      top: window.innerHeight / 2 - 20,
+      left: window.innerWidth / 2,
+      bottom: window.innerHeight / 2,
+      right: window.innerWidth / 2,
+    };
+  }
+}

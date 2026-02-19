@@ -11,14 +11,14 @@
  *   - Distinguishes inline vs block math for appropriate preview positioning
  *
  * @coordinates-with mathPreview/MathPreviewView.ts — shared math preview rendering singleton
- * @coordinates-with toolbarActions/sourceAdapterLinks.ts — findInlineMathAtCursor, findBlockMathAtCursor
+ * @coordinates-with toolbarActions/sourceMathActions.ts — findInlineMathAtCursor, findBlockMathAtCursor
  * @module plugins/codemirror/sourceMathPreview
  */
 
 import { EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { getMathPreviewView } from "@/plugins/mathPreview/MathPreviewView";
-import { findInlineMathAtCursor, findBlockMathAtCursor } from "@/plugins/toolbarActions/sourceAdapterLinks";
+import { findInlineMathAtCursor, findBlockMathAtCursor } from "@/plugins/toolbarActions/sourceMathActions";
 
 class SourceMathPreviewPlugin {
   private view: EditorView;

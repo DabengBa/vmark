@@ -18,6 +18,7 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { useEditorStore } from "@/stores/editorStore";
+import "./typewriter-mode.css";
 
 const typewriterPluginKey = new PluginKey("typewriterMode");
 

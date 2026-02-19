@@ -17,6 +17,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { Fragment, Slice, type Schema, type Node as PMNode, type NodeType } from "@tiptap/pm/model";
 import { serializeMarkdown } from "@/utils/markdownPipeline";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { markdownCopyWarn } from "@/utils/debug";
 
 const markdownCopyPluginKey = new PluginKey("markdownCopy");
 
@@ -103,9 +104,7 @@ function serializeSliceAsMarkdown(schema: Schema, slice: Slice): string | null {
     const md = serializeMarkdown(schema, doc);
     return cleanTextForClipboard(cleanMarkdownForClipboard(md));
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[markdownCopy] Serialization failed:", error);
-    }
+    markdownCopyWarn("Serialization failed:", error);
     return null;
   }
 }

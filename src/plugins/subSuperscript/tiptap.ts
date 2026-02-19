@@ -1,4 +1,5 @@
 import { Mark, mergeAttributes } from "@tiptap/core";
+import "./sub-super.css";
 
 export const subscriptExtension = Mark.create({
   name: "subscript",

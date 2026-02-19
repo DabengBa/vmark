@@ -52,8 +52,6 @@ import { useTiptapTableCommands } from "@/hooks/useTiptapTableCommands";
 import { useImageDragDrop } from "@/hooks/useImageDragDrop";
 import { handleTableScrollToSelection } from "@/plugins/tableScroll/scrollGuard";
 import { ImageContextMenu } from "./ImageContextMenu";
-import "@/plugins/codeBlockLineNumbers/code-block-line-numbers.css";
-import "@/plugins/sourcePeekInline/source-peek-inline.css";
 
 /**
  * Delay before enabling cursor tracking after editor creation.

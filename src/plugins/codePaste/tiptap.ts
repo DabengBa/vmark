@@ -26,6 +26,7 @@ import { shouldPasteAsCodeBlock } from "@/utils/codeDetection";
 import { isMarkdownPasteCandidate } from "@/utils/markdownPasteDetection";
 import { useSettingsStore, type PasteMode } from "@/stores/settingsStore";
 import { isViewSelectionInCodeBlock, isViewMultiSelection } from "@/utils/pasteUtils";
+import { pasteWarn } from "@/utils/debug";
 
 const codePastePluginKey = new PluginKey("codePaste");
 
@@ -100,7 +101,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   const codeBlockType = state.schema.nodes.codeBlock;
 
   if (!codeBlockType) {
-    console.warn("[codePaste] codeBlock node type not found");
+    pasteWarn("codeBlock node type not found");
     return false;
   }
 

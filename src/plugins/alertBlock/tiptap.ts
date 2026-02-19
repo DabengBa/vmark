@@ -18,6 +18,7 @@ import { Node } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
+import "./alert-block.css";
 
 export const ALERT_TYPES = ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];

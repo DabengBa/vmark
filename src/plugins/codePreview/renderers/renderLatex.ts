@@ -10,7 +10,7 @@
 
 import type { EditorView } from "@tiptap/pm/view";
 import { Decoration } from "@tiptap/pm/view";
-import { renderLatex } from "../../latex";
+import { renderLatex } from "@/plugins/latex";
 import { sanitizeKatex } from "@/utils/sanitize";
 import { parseLatexError } from "@/plugins/latex/latexErrorParser";
 import {

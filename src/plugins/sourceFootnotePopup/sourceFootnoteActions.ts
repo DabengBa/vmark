@@ -8,6 +8,7 @@ import type { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { useFootnotePopupStore } from "@/stores/footnotePopupStore";
 import { runOrQueueCodeMirrorAction } from "@/utils/imeGuard";
+import { sourcePopupWarn } from "@/utils/debug";
 
 const FOOTNOTE_DEF_REGEX = /^\[\^([^\]]+)\]:\s*(.*)$/;
 
@@ -75,7 +76,7 @@ export function saveFootnoteContent(view: EditorView): void {
     const definition =
       findFootnoteDefinitionAtPos(view, definitionPos) ?? findFootnoteDefinition(view, label);
     if (!definition) {
-      console.warn("[SourceFootnote] Definition not found for save");
+      sourcePopupWarn("Definition not found for save");
       return;
     }
 
@@ -100,7 +101,7 @@ export function gotoFootnoteTarget(view: EditorView, openedOnReference: boolean)
   runOrQueueCodeMirrorAction(view, () => {
     const targetPos = openedOnReference ? definitionPos : referencePos;
     if (targetPos === null) {
-      console.warn("[SourceFootnote] Target position not found");
+      sourcePopupWarn("Target position not found");
       return;
     }
 

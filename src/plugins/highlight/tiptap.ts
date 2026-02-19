@@ -1,4 +1,5 @@
 import { Mark, mergeAttributes } from "@tiptap/core";
+import "./highlight.css";
 
 export const highlightExtension = Mark.create({
   name: "highlight",

@@ -9,6 +9,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { renderMarkmapToSvgString } from "./index";
 import { svgToPngBytes } from "@/utils/svgToPng";
+import { diagramWarn } from "@/utils/debug";
 import {
   setupDiagramExport,
   LIGHT_BG,
@@ -23,7 +24,7 @@ export function setupMarkmapExport(
   return setupDiagramExport(container, async (theme) => {
     const svg = await renderMarkmapToSvgString(markmapSource, theme);
     if (!svg) {
-      console.warn("[markmap-export] render returned no SVG");
+      diagramWarn("render returned no SVG");
       return;
     }
 
@@ -33,7 +34,7 @@ export function setupMarkmapExport(
     try {
       pngData = await svgToPngBytes(svg, 2, bgColor);
     } catch (e) {
-      console.warn("[markmap-export] SVG->PNG conversion failed", e);
+      diagramWarn("SVG->PNG conversion failed", e);
       return;
     }
 
@@ -46,7 +47,7 @@ export function setupMarkmapExport(
     try {
       await writeFile(filePath, pngData);
     } catch (e) {
-      console.warn("[markmap-export] failed to write file", e);
+      diagramWarn("failed to write file", e);
     }
   });
 }

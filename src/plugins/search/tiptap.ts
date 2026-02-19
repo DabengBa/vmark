@@ -24,6 +24,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { useSearchStore } from "@/stores/searchStore";
 import { runOrQueueProseMirrorAction } from "@/utils/imeGuard";
+import "./search.css";
 
 const searchPluginKey = new PluginKey("search");
 
