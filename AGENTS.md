@@ -107,7 +107,7 @@ Shared instructions for all AI agents (Claude, Codex, etc.).
 
   - When responding to GitHub issues, reply in the same language the reporter used.
 
-  - **Do not close issues** unless they are completely irrelevant to the project (spam, wrong repo, etc.). Let the reporter verify the fix and close the issue themselves.
+  - **Never close issues** — leave them open even after a fix is merged. Users and contributors use open issues as reference material. Only close issues that are spam or filed against the wrong repo.
 
 - Key architectural patterns:
 
