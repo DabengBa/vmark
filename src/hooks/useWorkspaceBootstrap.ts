@@ -25,6 +25,7 @@ import { needsBootstrap } from "@/utils/workspaceBootstrap";
 import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { waitForRestoreComplete, RESTORE_WAIT_TIMEOUT_MS } from "@/utils/hotExit/hotExitCoordination";
 import { findExistingTabForPath } from "@/hooks/useReplaceableTab";
+import { workspaceWarn } from "@/utils/debug";
 
 /**
  * Hook that bootstraps workspace config on startup.
@@ -60,8 +61,8 @@ export function useWorkspaceBootstrap() {
         // This prevents race conditions where both systems create tabs concurrently.
         // On timeout, the findExistingTabForPath guard below still prevents duplicates.
         const restored = await waitForRestoreComplete(RESTORE_WAIT_TIMEOUT_MS);
-        if (!restored && import.meta.env.DEV) {
-          console.warn("[WorkspaceBootstrap] Hot exit restore timed out, proceeding with dedup guard");
+        if (!restored) {
+          workspaceWarn("Hot exit restore timed out, proceeding with dedup guard");
         }
 
         // Restore tabs from lastOpenTabs if available
@@ -81,17 +82,13 @@ export function useWorkspaceBootstrap() {
               useDocumentStore.getState().setLineMetadata(tabId, detectLinebreaks(content));
             } catch {
               // File may have been moved/deleted - skip it
-              if (import.meta.env.DEV) {
-                console.warn(`[WorkspaceBootstrap] Could not restore tab: ${filePath}`);
-              }
+              workspaceWarn(`Could not restore tab: ${filePath}`);
             }
           }
         }
       } catch (error) {
         // If we can't read the config, use defaults
-        if (import.meta.env.DEV) {
-          console.warn("[WorkspaceBootstrap] Failed to load workspace config:", error);
-        }
+        workspaceWarn("Failed to load workspace config:", error);
         useWorkspaceStore.getState().bootstrapConfig(null);
       }
     };

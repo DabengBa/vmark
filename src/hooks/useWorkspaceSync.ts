@@ -13,6 +13,7 @@
 import { useEffect } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { getWorkspaceStorageKey, getCurrentWindowLabel } from "@/utils/workspaceStorage";
+import { workspaceWarn } from "@/utils/debug";
 
 /**
  * Listens for cross-window workspace storage changes and rehydrates the store.
@@ -26,7 +27,7 @@ export function useWorkspaceSync() {
       try {
         useWorkspaceStore.persist.rehydrate();
       } catch (e) {
-        console.warn("[WorkspaceSync] Rehydration failed:", e);
+        workspaceWarn("Rehydration failed:", e);
       }
     };
 

@@ -13,6 +13,7 @@ import { createRoot } from "react-dom/client";
 import React from "react";
 
 import { ExportSurface, type ExportSurfaceRef } from "./ExportSurface";
+import { exportWarn } from "@/utils/debug";
 import { exportHtml } from "./htmlExport";
 import { waitForAssets } from "./waitForAssets";
 import { captureThemeCSS } from "./themeSnapshot";
@@ -196,7 +197,7 @@ export async function exportToHtml(
     }
 
     if (result.warnings.length > 0) {
-      console.warn("[Export] Warnings:", result.warnings);
+      exportWarn("Warnings:", result.warnings);
       const count = result.warnings.length;
       toast.warning(
         count === 1

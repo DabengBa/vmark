@@ -38,6 +38,7 @@ import type {
   Underline,
   FootnoteReference,
 } from "./types";
+import { mdPipelineWarn } from "@/utils/debug";
 
 /**
  * Convert a text node with marks to nested MDAST inline nodes.
@@ -104,9 +105,7 @@ export function wrapWithMark(content: PhrasingContent[], mark: Mark): PhrasingCo
 
     default:
       // Unknown mark - return content as-is
-      if (import.meta.env.DEV) {
-        console.warn(`[PMToMdast] Unknown mark type: ${markName}`);
-      }
+      mdPipelineWarn(`Unknown mark type: ${markName}`);
       return content;
   }
 }

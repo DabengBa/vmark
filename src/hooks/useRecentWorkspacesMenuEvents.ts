@@ -28,6 +28,7 @@ import { withReentryGuard } from "@/utils/reentryGuard";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
+import { workspaceWarn } from "@/utils/debug";
 
 export function useRecentWorkspacesMenuEvents(): void {
   const unlistenRefs = useRef<UnlistenFn[]>([]);
@@ -130,7 +131,7 @@ export function useRecentWorkspacesMenuEvents(): void {
                   useDocumentStore.getState().initDocument(tabId, content, filePath);
                   useDocumentStore.getState().setLineMetadata(tabId, detectLinebreaks(content));
                 } catch {
-                  console.warn(`[Workspace] Could not restore tab: ${filePath}`);
+                  workspaceWarn(`Could not restore tab: ${filePath}`);
                 }
               }
             }

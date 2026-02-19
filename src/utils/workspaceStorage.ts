@@ -17,6 +17,7 @@
  * @module utils/workspaceStorage
  */
 import type { StateStorage } from "zustand/middleware";
+import { workspaceStorageWarn } from "@/utils/debug";
 
 /** Base key prefix for workspace storage */
 const STORAGE_KEY_PREFIX = "vmark-workspace";
@@ -82,7 +83,7 @@ export function migrateWorkspaceStorage(): void {
     localStorage.setItem(mainKey, legacyData);
   } catch (error) {
     // Log but don't throw - migration failure shouldn't crash the app
-    console.warn("[WorkspaceStorage] Migration failed:", error);
+    workspaceStorageWarn("Migration failed:", error);
   }
 }
 

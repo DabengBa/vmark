@@ -13,6 +13,7 @@ import { useWindowLabel } from "@/contexts/WindowContext";
 import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { runOrphanCleanup } from "@/utils/orphanAssetCleanup";
+import { orphanCleanupWarn } from "@/utils/debug";
 
 /**
  * Hook that returns a cleanup function for the active document's orphaned images.
@@ -24,13 +25,13 @@ export function useOrphanCleanup() {
     // Get active document
     const tabId = useTabStore.getState().activeTabId[windowLabel];
     if (!tabId) {
-      console.warn("[OrphanCleanup] No active tab");
+      orphanCleanupWarn("No active tab");
       return -1;
     }
 
     const doc = useDocumentStore.getState().getDocument(tabId);
     if (!doc) {
-      console.warn("[OrphanCleanup] No document found");
+      orphanCleanupWarn("No document found");
       return -1;
     }
 

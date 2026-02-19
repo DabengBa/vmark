@@ -29,6 +29,7 @@ import type { McpRequestEvent, McpRequestEventRaw } from "./types";
 import { respond } from "./utils";
 import { useEditorStore } from "@/stores/editorStore";
 import { isBlockedInSourceMode, SOURCE_MODE_ERROR } from "./sourceModeGuard";
+import { mcpBridgeLog } from "@/utils/debug";
 
 // Document handlers (read-only operations)
 import {
@@ -519,9 +520,7 @@ export function useMcpBridge(): void {
       // Parse args_json to avoid Tauri IPC double-encoding issues
       const raw = event.payload;
 
-      if (import.meta.env.DEV) {
-        console.debug("[MCP Bridge] Event received:", raw.type, raw.id);
-      }
+      mcpBridgeLog("Event received:", raw.type, raw.id);
 
       // Try both snake_case and camelCase (Tauri might convert)
       const argsJsonStr = raw.args_json ?? raw.argsJson ?? "{}";

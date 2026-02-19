@@ -22,14 +22,13 @@ import { serializeMarkdown } from "@/utils/markdownPipeline";
 import type { McpResponse } from "./types";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
+import { mcpBridgeLog } from "@/utils/debug";
 
 /**
  * Send response back to the MCP bridge.
  */
 export async function respond(response: McpResponse): Promise<void> {
-  if (import.meta.env.DEV) {
-    console.debug("[MCP Bridge] Sending response:", response.id, response.success);
-  }
+  mcpBridgeLog("Sending response:", response.id, response.success);
   try {
     await invoke("mcp_bridge_respond", { payload: response });
   } catch (error) {

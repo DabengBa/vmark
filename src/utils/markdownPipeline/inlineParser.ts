@@ -22,6 +22,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import { remarkCustomInline } from "./plugins/customInline";
+import { mdPipelineWarn } from "@/utils/debug";
 
 /**
  * Parse inline markdown text to MDAST inline content.
@@ -69,7 +70,7 @@ export function parseInlineMarkdown(text: string): Content[] {
     return children;
   } catch (error) {
     // If parsing fails, return as plain text
-    console.warn("[InlineParser] Failed to parse inline markdown:", error);
+    mdPipelineWarn("Failed to parse inline markdown:", error);
     return [{ type: "text", value: text } as Content];
   }
 }

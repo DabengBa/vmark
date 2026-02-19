@@ -79,6 +79,7 @@ import {
   type MdastToPmContext,
 } from "./mdastBlockConverters";
 import { generateSlug, makeUniqueSlug } from "@/utils/headingSlug";
+import { mdPipelineWarn } from "@/utils/debug";
 
 /**
  * Convert MDAST root to ProseMirror document.
@@ -246,9 +247,7 @@ class MdastToPMConverter {
 
       default:
         // Unknown node type - skip with warning in dev
-        if (import.meta.env.DEV) {
-          console.warn(`[MdastToPM] Unknown node type: ${nodeType}`);
-        }
+        mdPipelineWarn(`[MdastToPM] Unknown node type: ${nodeType}`);
         return null;
     }
   }

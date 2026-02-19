@@ -22,6 +22,7 @@ import { useState, useCallback, useRef } from "react";
 import { rename, exists } from "@tauri-apps/plugin-fs";
 import { join, basename } from "@tauri-apps/api/path";
 import { useDocumentActions } from "@/hooks/useDocumentState";
+import { titleBarWarn } from "@/utils/debug";
 
 export function useTitleBarRename() {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -48,7 +49,7 @@ export function useTitleBarRename() {
 
         // Check if target exists
         if (await exists(newPath)) {
-          console.warn("[TitleBar] Target file already exists:", newPath);
+          titleBarWarn("Target file already exists:", newPath);
           return false;
         }
 

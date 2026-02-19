@@ -25,6 +25,7 @@ import { persistWorkspaceSession } from "@/hooks/workspaceSession";
 import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
+import { workspaceWarn } from "@/utils/debug";
 
 /**
  * Hook to handle workspace-related menu events
@@ -102,7 +103,7 @@ export function useWorkspaceMenuEvents() {
                 useDocumentStore.getState().setLineMetadata(tabId, detectLinebreaks(content));
               } catch {
                 // File may have been moved/deleted - skip it
-                console.warn(`[Workspace] Could not restore tab: ${filePath}`);
+                workspaceWarn(`Could not restore tab: ${filePath}`);
               }
             }
           }

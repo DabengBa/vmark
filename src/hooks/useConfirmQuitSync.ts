@@ -16,14 +16,13 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { confirmQuitWarn } from "@/utils/debug";
 export function useConfirmQuitSync() {
   const confirmQuit = useSettingsStore((state) => state.general.confirmQuit);
 
   useEffect(() => {
     invoke("set_confirm_quit", { enabled: confirmQuit }).catch((err: unknown) => {
-      if (import.meta.env.DEV) {
-        console.warn("[useConfirmQuitSync] Failed to sync:", err);
-      }
+      confirmQuitWarn("Failed to sync:", err);
     });
   }, [confirmQuit]);
 }

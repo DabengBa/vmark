@@ -8,6 +8,7 @@
 import { readFile, copyFile, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { join, dirname, basename } from "@tauri-apps/api/path";
 import { uint8ArrayToBase64 } from "./fontEmbedder";
+import { exportWarn } from "@/utils/debug";
 
 export interface ResourceInfo {
   /** Original src value from HTML */
@@ -111,7 +112,7 @@ export async function resolveRelativePath(
       // pathname is /path/to/file.png (includes leading slash)
       return decodeURIComponent(url.pathname);
     } catch (error) {
-      console.warn("[ResourceResolver] Failed to parse asset URL:", src, error);
+      exportWarn("Failed to parse asset URL:", src, error);
       return src;
     }
   }
@@ -131,7 +132,7 @@ export async function fileToDataUri(filePath: string): Promise<string | null> {
     const base64 = uint8ArrayToBase64(data);
     return `data:${mimeType};base64,${base64}`;
   } catch (error) {
-    console.warn("[ResourceResolver] Failed to read file for data URI:", filePath, error);
+    exportWarn("Failed to read file for data URI:", filePath, error);
     return null;
   }
 }
@@ -194,7 +195,7 @@ export async function resolveResources(
         await mkdir(imagesDir, { recursive: true });
       }
     } catch (e) {
-      console.warn("[ResourceResolver] Failed to create images directory:", e);
+      exportWarn("Failed to create images directory:", e);
     }
   }
 
@@ -257,7 +258,7 @@ export async function resolveResources(
           info.exportSrc = relativePath;
           modifiedHtml = modifiedHtml.split(src).join(relativePath);
         } catch (e) {
-          console.warn(`[ResourceResolver] Failed to copy ${resolvedPath}:`, e);
+          exportWarn(`Failed to copy ${resolvedPath}:`, e);
         }
       }
 
@@ -273,7 +274,7 @@ export async function resolveResources(
       resources.push(info);
       resolved.push(info);
     } catch (e) {
-      console.warn(`[ResourceResolver] Failed to resolve ${src}:`, e);
+      exportWarn(`Failed to resolve ${src}:`, e);
       info.found = false;
       resources.push(info);
       missing.push(info);
