@@ -42,6 +42,9 @@ import {
   validateLocalPath,
   expandHomePath,
   isViewConnected,
+  isImageFile,
+  generateClipboardImageFilename,
+  generateDroppedImageFilename,
 } from "../imageHandlerUtils";
 
 // ============================================================
@@ -189,22 +192,10 @@ describe("isViewConnected", () => {
 });
 
 // ============================================================
-// isImageFile — MIME type + extension fallback (private, tested via module)
+// isImageFile — MIME type + extension fallback
 // ============================================================
 
-// isImageFile is not exported from tiptap.ts, so we re-implement the logic
-// inline to test it. The actual function delegates to hasImageExtension.
-// We test the detection pattern directly.
-describe("isImageFile detection pattern", () => {
-  // Helper that mimics isImageFile logic, using the mock from the top-level vi.mock
-  function isImageFile(file: { type: string; name: string }): boolean {
-    if (file.type.startsWith("image/")) return true;
-    // Inline the same extension check as the mock above
-    const exts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".tiff", ".avif"];
-    const clean = file.name.toLowerCase().split("?")[0].split("#")[0];
-    return exts.some((ext) => clean.endsWith(ext));
-  }
-
+describe("isImageFile", () => {
   it.each([
     // MIME type detection
     { type: "image/png", name: "test.png", expected: true },
@@ -220,7 +211,8 @@ describe("isImageFile detection pattern", () => {
     { type: "application/pdf", name: "doc.pdf", expected: false },
     { type: "", name: "file.zip", expected: false },
   ])("$name (type=$type) -> $expected", ({ type, name, expected }) => {
-    expect(isImageFile({ type, name })).toBe(expected);
+    const file = new File([""], name, { type });
+    expect(isImageFile(file)).toBe(expected);
   });
 });
 
@@ -229,17 +221,6 @@ describe("isImageFile detection pattern", () => {
 // ============================================================
 
 describe("generateDroppedImageFilename", () => {
-  // The function is private in tiptap.ts. We re-implement for testing.
-  function generateDroppedImageFilename(originalName: string): string {
-    const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
-    const baseName = originalName.includes(".")
-      ? originalName.slice(0, originalName.lastIndexOf("."))
-      : originalName;
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).slice(2, 6);
-    return `${baseName}-${timestamp}-${random}.${ext}`;
-  }
-
   it("preserves original extension", () => {
     const result = generateDroppedImageFilename("photo.jpg");
     expect(result).toMatch(/^photo-\d+-[a-z0-9]{4}\.jpg$/);
@@ -272,14 +253,6 @@ describe("generateDroppedImageFilename", () => {
 // ============================================================
 
 describe("generateClipboardImageFilename", () => {
-  // Re-implement for testing (private in tiptap.ts)
-  function generateClipboardImageFilename(originalName: string): string {
-    const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).slice(2, 6);
-    return `clipboard-${timestamp}-${random}.${ext}`;
-  }
-
   it("generates clipboard-prefixed filename", () => {
     const result = generateClipboardImageFilename("image.png");
     expect(result).toMatch(/^clipboard-\d+-[a-z0-9]{4}\.png$/);

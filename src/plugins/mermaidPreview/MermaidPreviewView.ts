@@ -255,11 +255,6 @@ export class MermaidPreviewView {
     svg.style.height = `${baseHeight * scale}px`;
   }
 
-  /** Check if preview position has been customized by dragging */
-  hasCustomPosition() {
-    return this.hasDragged;
-  }
-
   show(content: string, anchorRect: AnchorRect, editorDom?: HTMLElement, language?: string) {
     this.currentLanguage = language ?? "mermaid";
     this.editorDom = editorDom ?? null;
@@ -347,6 +342,7 @@ export class MermaidPreviewView {
       error: this.error,
       currentLanguage: this.currentLanguage,
       renderToken: this.renderToken,
+      getCurrentToken: () => this.renderToken,
       applyZoom: () => this.applyZoom(),
     });
   }

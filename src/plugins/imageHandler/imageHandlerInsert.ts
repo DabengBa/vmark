@@ -26,6 +26,53 @@ import {
 } from "./imageHandlerUtils";
 
 /**
+ * Resolve a single image detection to its final path.
+ * Handles home path expansion and optional copy-to-assets.
+ * Returns null if resolution fails (caller should abort).
+ */
+async function resolveImagePath(
+  detection: ImagePathResult,
+  filePath: string | null,
+  copyToAssets: boolean
+): Promise<string | null> {
+  if (detection.needsCopy && copyToAssets) {
+    if (!filePath) {
+      await showUnsavedDocWarning();
+      return null;
+    }
+    try {
+      let sourcePath = detection.path;
+      if (detection.type === "homePath") {
+        const expanded = await expandHomePath(detection.path);
+        if (!expanded) {
+          await message("Failed to resolve home directory path.", { kind: "error" });
+          return null;
+        }
+        sourcePath = expanded;
+      }
+      return await copyImageToAssets(sourcePath, filePath);
+    } catch (error) {
+      console.error("Failed to copy image to assets:", error);
+      await message("Failed to copy image to assets folder.", { kind: "error" });
+      return null;
+    }
+  }
+
+  if (detection.needsCopy && !copyToAssets) {
+    if (detection.type === "homePath") {
+      const expanded = await expandHomePath(detection.path);
+      if (!expanded) {
+        await message("Failed to resolve home directory path.", { kind: "error" });
+        return null;
+      }
+      return expanded;
+    }
+  }
+
+  return detection.path;
+}
+
+/**
  * Insert image from text path (after user confirmation).
  * Takes captured selection to handle async timing.
  * Uses captured selection text as alt text if available.
@@ -46,45 +93,8 @@ export async function insertImageFromPath(
   const filePath = getActiveFilePathForCurrentWindow();
   const copyToAssets = useSettingsStore.getState().image.copyToAssets;
 
-  let imagePath = detection.path;
-
-  if (detection.needsCopy && copyToAssets) {
-    // Copy to assets folder (default behavior)
-    if (!filePath) {
-      await showUnsavedDocWarning();
-      return;
-    }
-
-    try {
-      // For home paths, expand first
-      let sourcePath = detection.path;
-      if (detection.type === "homePath") {
-        const expanded = await expandHomePath(detection.path);
-        if (!expanded) {
-          await message("Failed to resolve home directory path.", { kind: "error" });
-          return;
-        }
-        sourcePath = expanded;
-      }
-
-      imagePath = await copyImageToAssets(sourcePath, filePath);
-    } catch (error) {
-      console.error("Failed to copy image to assets:", error);
-      await message("Failed to copy image to assets folder.", { kind: "error" });
-      return;
-    }
-  } else if (detection.needsCopy && !copyToAssets) {
-    // Use original path without copying
-    if (detection.type === "homePath") {
-      const expanded = await expandHomePath(detection.path);
-      if (!expanded) {
-        await message("Failed to resolve home directory path.", { kind: "error" });
-        return;
-      }
-      imagePath = expanded;
-    }
-    // For absolute paths, use as-is
-  }
+  const imagePath = await resolveImagePath(detection, filePath, copyToAssets);
+  if (imagePath === null) return;
 
   // Re-verify view is still connected after async operations
   if (!isViewConnected(view)) {
@@ -133,50 +143,12 @@ export async function insertMultipleImages(
   const filePath = getActiveFilePathForCurrentWindow();
   const copyToAssets = useSettingsStore.getState().image.copyToAssets;
 
-  // First, process all images and collect final paths
+  // Process all images and collect final paths
   const imagePaths: string[] = [];
   for (const detection of results) {
-    let imagePath = detection.path;
-
-    if (detection.needsCopy && copyToAssets) {
-      // Copy to assets folder (default behavior)
-      if (!filePath) {
-        await showUnsavedDocWarning();
-        return;
-      }
-
-      try {
-        // For home paths, expand first
-        let sourcePath = detection.path;
-        if (detection.type === "homePath") {
-          const expanded = await expandHomePath(detection.path);
-          if (!expanded) {
-            await message("Failed to resolve home directory path.", { kind: "error" });
-            return;
-          }
-          sourcePath = expanded;
-        }
-
-        imagePath = await copyImageToAssets(sourcePath, filePath);
-      } catch (error) {
-        console.error("Failed to copy image to assets:", error);
-        await message("Failed to copy image to assets folder.", { kind: "error" });
-        return;
-      }
-    } else if (detection.needsCopy && !copyToAssets) {
-      // Use original path without copying
-      if (detection.type === "homePath") {
-        const expanded = await expandHomePath(detection.path);
-        if (!expanded) {
-          await message("Failed to resolve home directory path.", { kind: "error" });
-          return;
-        }
-        imagePath = expanded;
-      }
-      // For absolute paths, use as-is
-    }
-
-    imagePaths.push(imagePath);
+    const resolved = await resolveImagePath(detection, filePath, copyToAssets);
+    if (resolved === null) return;
+    imagePaths.push(resolved);
   }
 
   // Re-verify view is still connected after async operations

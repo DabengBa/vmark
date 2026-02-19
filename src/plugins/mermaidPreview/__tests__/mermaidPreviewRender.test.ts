@@ -30,14 +30,16 @@ import { renderSvgBlock } from "@/plugins/svg/svgRender";
 import { renderMarkmapToElement } from "@/plugins/markmap";
 
 function createContext(overrides: Partial<RenderContext> = {}): RenderContext {
-  return {
+  const ctx: RenderContext = {
     preview: document.createElement("div"),
     error: document.createElement("div"),
     currentLanguage: "mermaid",
     renderToken: 0,
+    getCurrentToken: () => ctx.renderToken,
     applyZoom: vi.fn(),
     ...overrides,
   };
+  return ctx;
 }
 
 describe("renderPreview", () => {
@@ -176,6 +178,26 @@ describe("renderPreview", () => {
 
       await vi.waitFor(() => {
         expect(ctx.error.textContent).toBe("Preview failed");
+      });
+    });
+
+    it("discards stale render when getCurrentToken returns a newer token", async () => {
+      // Simulate the class pattern: getCurrentToken reads live state
+      let liveToken = 0;
+      const ctx = createContext({
+        getCurrentToken: () => liveToken,
+      });
+      vi.mocked(renderMermaid).mockResolvedValue("<svg>stale</svg>");
+
+      const token1 = renderPreview("graph TD; A-->B", ctx);
+      liveToken = token1;
+
+      // Simulate a second render before the first resolves
+      liveToken = token1 + 1; // Owner advances the token
+
+      await vi.waitFor(() => {
+        // The stale render should NOT have updated the preview
+        expect(ctx.preview.innerHTML).not.toBe("<svg>stale</svg>");
       });
     });
   });

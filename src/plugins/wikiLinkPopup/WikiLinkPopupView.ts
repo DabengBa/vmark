@@ -11,7 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useWikiLinkPopupStore } from "@/stores/wikiLinkPopupStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { linkPopupWarn } from "@/utils/debug";
+import { wikiLinkPopupWarn } from "@/utils/debug";
 import {
   calculatePopupPosition,
   getBoundaryRects,
@@ -304,7 +304,7 @@ export class WikiLinkPopupView {
     const filePath = resolveWikiLinkPath(target, rootPath);
 
     if (!filePath) {
-      linkPopupWarn("Cannot resolve wiki link target:", target);
+      wikiLinkPopupWarn("Cannot resolve wiki link target:", target);
       return;
     }
 

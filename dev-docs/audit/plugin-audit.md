@@ -15,7 +15,7 @@
 | Dead plugins | 0 |
 | Plugins with tests | 67 (97%) |
 | Plugins without tests | 2 (3%) |
-| Convention violations | 185 total findings — **148 resolved** |
+| Convention violations | 185 total findings — **148 resolved** + 10 production audit fixes |
 
 **Key findings:**
 1. No dead plugins — every directory is imported and used.
@@ -204,21 +204,29 @@ Both `codePreview/renderers/` files now use `@/plugins/latex` and `@/plugins/mer
 
 ## 4. Phase 4 — Deep Code Quality Audit
 
-**Status**: Not yet performed.
+**Status**: Mini audit (6 dimensions) completed via Codex on split files, tests, and logging changes.
 
-This phase will send each plugin to Codex for a full 6-dimension audit:
-logic bugs, duplication, dead code, refactoring debt, shortcuts, and comments.
+**Audit findings: 39 total — all production issues fixed.**
 
-Priority order for deep audit (by risk):
-1. imageHandler (now split into 4 files, has tests)
-2. aiSuggestion (522 LOC, now has tests)
-3. codemirror cluster (5,991 LOC)
-4. toolbarActions (4,797 LOC)
-5. sourceContextDetection (4,078 LOC)
-6. multiCursor (2,190 LOC)
-7. footnotePopup (1,209 LOC)
-8. codePreview (1,112 LOC)
-9. remaining plugins in LOC order
+### Production fixes applied
+
+| File | Severity | Issue | Fix |
+|------|----------|-------|-----|
+| mermaidPreviewRender.ts | High | Async staleness guard broken — `ctx.renderToken` is a snapshot, not live state | Added `getCurrentToken()` callback to `RenderContext`; async checks now read live token |
+| wikiLinkPopup/tiptap.ts | Medium | Logger prefix `[LinkPopup]` instead of `[WikiLinkPopup]` | Added `wikiLinkPopupWarn` logger; replaced in both tiptap.ts and WikiLinkPopupView.ts |
+| editorPlugins/linkCommands.ts | Medium | Wiki link handler used `linkPopupWarn` (wrong prefix) | Switched to `wikiLinkPopupWarn` for wiki link context |
+| imageHandlerInsert.ts | Low | Duplicated path-resolution logic in `insertImageFromPath` and `insertMultipleImages` | Extracted `resolveImagePath()` helper |
+| MermaidPreviewView.ts | Low | Unused `hasCustomPosition()` method | Removed |
+| imageHandler/tiptap.ts | Low | Private utility functions not testable | Moved `isImageFile`, `generateClipboardImageFilename`, `generateDroppedImageFilename` to imageHandlerUtils.ts as exports |
+
+### Test quality improvements
+
+- Fixed "always-pass oracle" in imageHandler tests — tests now import real exported functions instead of re-implementing private logic
+- Added staleness guard test for mermaidPreviewRender
+
+### Remaining test findings (29 — monitoring)
+
+Low-priority test improvements (edge case coverage, mock patterns) deferred to ongoing development.
 
 ---
 
@@ -240,5 +248,7 @@ Priority order for deep audit (by risk):
 
 ### Long-term (quality)
 - [ ] Split remaining 25 files in 300-500 line range (as they grow or are modified)
-- [ ] Run Phase 4 deep audit on all plugins
+- [x] Run Phase 4 deep audit on split files/tests/logging (mini 6-dim via Codex)
+- [ ] Run Phase 4 deep audit on remaining plugins (codemirror cluster, toolbarActions, etc.)
 - [ ] Add `index.ts` barrel export to `syntaxReveal/`
+- [ ] Address 29 remaining test quality findings (edge cases, mock patterns)
