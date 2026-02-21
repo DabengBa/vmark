@@ -20,65 +20,65 @@ Research supports this approach from multiple angles. Multi-agent debate — whe
 In practice, the second model finds issues like:
 
 - **Logic errors** the first model introduced confidently
-- **Edge cases** the first model didn’t consider (null, empty, Unicode, concurrent access)
+- **Edge cases** the first model didn't consider (null, empty, Unicode, concurrent access)
 - **Dead code** left behind after refactoring
-- **Security patterns** that one model’s training didn’t flag (path traversal, injection)
+- **Security patterns** that one model's training didn't flag (path traversal, injection)
 - **Convention violations** that the writing model rationalized away
 - **Copy-paste bugs** where the model duplicated code with subtle errors
 
-This is the same principle behind human code review — a second pair of eyes catches things the author can’t see — except both “reviewer” and “author” are tireless and can process entire codebases in seconds.
+This is the same principle behind human code review — a second pair of eyes catches things the author can't see — except both "reviewer" and "author" are tireless and can process entire codebases in seconds.
 
 ## How It Works in VMark
 
-### The MCP Bridge
+### The Codex Toolkit Plugin
 
-VMark’s `.mcp.json` registers Codex as an [MCP server](https://modelcontextprotocol.io/) that Claude Code loads at session start:
-
-```json
-{
-  "mcpServers": {
-    "codex": {
-      "command": "codex",
-      "args": ["mcp-server"]
-    }
-  }
-}
-```
-
-This gives Claude access to a `mcp__codex__codex` tool — a channel to send prompts to Codex and receive structured responses. Codex runs in a **sandboxed, read-only context**: it can read the codebase but cannot modify files. All changes are made by Claude.
+VMark uses the `codex-toolkit@xiaolai` Claude Code plugin, which bundles Codex as an MCP server. When the plugin is enabled, Claude Code automatically gets access to a `codex` MCP tool — a channel to send prompts to Codex and receive structured responses. Codex runs in a **sandboxed, read-only context**: it can read the codebase but cannot modify files. All changes are made by Claude.
 
 ### Setup
 
-Install Codex CLI globally and authenticate:
+1. Install Codex CLI globally and authenticate:
 
 ```bash
 npm install -g @openai/codex
 codex login                   # Log in with ChatGPT subscription (recommended)
 ```
 
-Verify it’s available:
+2. Install and enable the codex-toolkit plugin in Claude Code:
+
+```bash
+claude plugin install codex-toolkit@xiaolai --scope project
+```
+
+3. Verify Codex is available:
 
 ```bash
 codex --version
 ```
 
-That’s it. The `.mcp.json` file is already in the repo — Claude Code picks it up automatically.
+That's it. The plugin registers the Codex MCP server automatically — no manual `.mcp.json` entry needed.
 
 ::: tip Subscription vs API
 Use `codex login` (ChatGPT subscription) instead of `OPENAI_API_KEY` for dramatically lower costs. See [Subscription vs API Pricing](/guide/users-as-developers/subscription-vs-api).
 :::
 
 ::: tip PATH for macOS GUI Apps
-macOS GUI apps have a minimal PATH. If `codex --version` works in your terminal but Claude Code can’t find it, add the Codex binary location to your shell profile (`~/.zshrc` or `~/.bashrc`).
+macOS GUI apps have a minimal PATH. If `codex --version` works in your terminal but Claude Code can't find it, add the Codex binary location to your shell profile (`~/.zshrc` or `~/.bashrc`).
+:::
+
+::: tip Project Configuration
+Run `/codex-toolkit:init` to generate a `.codex-toolkit.md` config file with project-specific defaults (audit focus, effort level, skip patterns).
 :::
 
 ## Slash Commands
 
-VMark ships pre-built slash commands that orchestrate Claude + Codex workflows. You don’t need to manage the interaction manually — just invoke the command and the models coordinate automatically.
+The `codex-toolkit` plugin provides pre-built slash commands that orchestrate Claude + Codex workflows. You don't need to manage the interaction manually — just invoke the command and the models coordinate automatically.
 
-### `/codex-audit` — Full 9-Dimension Audit
+### `/codex-toolkit:audit` — Code Audit
 
-The most comprehensive audit. Claude delegates to Codex to analyze changed files across nine dimensions:
+The primary audit command. Supports two modes:
+
+- **Mini (default)** — Fast 5-dimension check: logic, duplication, dead code, refactoring debt, shortcuts
+- **Full (`--full`)** — Thorough 9-dimension audit adding security, performance, compliance, deps, docs
 
 | Dimension | What It Checks |
 |-----------|---------------|
@@ -95,43 +95,31 @@ The most comprehensive audit. Claude delegates to Codex to analyze changed files
 Usage:
 
 ```
-/codex-audit                  # Audit uncommitted changes
-/codex-audit commit -3        # Audit last 3 commits
-/codex-audit --full           # Audit entire codebase
-/codex-audit src/stores/      # Audit a specific directory
+/codex-toolkit:audit                  # Mini audit on uncommitted changes
+/codex-toolkit:audit --full           # Full 9-dimension audit
+/codex-toolkit:audit commit -3        # Audit last 3 commits
+/codex-toolkit:audit src/stores/      # Audit a specific directory
 ```
 
 The output is a structured report with severity ratings (Critical / High / Medium / Low) and suggested fixes for every finding.
 
-### `/codex-audit-mini` — Fast 5-Dimension Check
-
-A lighter audit for small changes. Covers logic, duplication, dead code, refactoring debt, and shortcuts:
-
-```
-/codex-audit-mini             # Quick check on uncommitted changes
-/codex-audit-mini staged      # Check staged changes only
-```
-
-Use this during development for fast feedback. Use `/codex-audit` for thorough reviews before PRs.
-
-### `/codex-verify` — Verify Previous Fixes
+### `/codex-toolkit:verify` — Verify Previous Fixes
 
 After fixing audit findings, have Codex confirm the fixes are correct:
 
 ```
-/codex-verify                 # Verify fixes from last audit
-/codex-verify path/to/report  # Verify against a saved report
+/codex-toolkit:verify                 # Verify fixes from last audit
 ```
 
 Codex re-reads each file at the reported locations and marks each issue as fixed, not fixed, or partially fixed. It also spots-checks for new issues introduced by the fixes.
 
-### `/audit-fix` — The Full Loop
+### `/codex-toolkit:audit-fix` — The Full Loop
 
 The most powerful command. It chains audit → fix → verify in a loop:
 
 ```
-/audit-fix                    # Loop on uncommitted changes
-/audit-fix commit -1          # Loop on last commit
+/codex-toolkit:audit-fix              # Loop on uncommitted changes
+/codex-toolkit:audit-fix commit -1    # Loop on last commit
 ```
 
 Here's what happens:
@@ -150,9 +138,41 @@ flowchart TD
 
 The loop exits when Codex reports zero findings across all severities, or after 3 iterations (at which point remaining issues are reported to you).
 
+### `/codex-toolkit:implement` — Autonomous Implementation
+
+Send a plan to Codex for full autonomous implementation:
+
+```
+/codex-toolkit:implement              # Implement from a plan
+```
+
+### `/codex-toolkit:bug-analyze` — Root Cause Analysis
+
+Root cause analysis for user-described bugs:
+
+```
+/codex-toolkit:bug-analyze            # Analyze a bug
+```
+
+### `/codex-toolkit:review-plan` — Plan Review
+
+Send a plan to Codex for architectural review:
+
+```
+/codex-toolkit:review-plan            # Review a plan for consistency and risk
+```
+
+### `/codex-toolkit:continue` — Continue a Session
+
+Continue a previous Codex session to iterate on findings:
+
+```
+/codex-toolkit:continue               # Continue where you left off
+```
+
 ### `/fix-issue` — End-to-End Issue Resolver
 
-This command runs the full pipeline for a GitHub issue:
+This project-specific command runs the full pipeline for a GitHub issue:
 
 ```
 /fix-issue #123               # Fix a single issue
@@ -170,17 +190,9 @@ The pipeline:
 
 The cross-model audit is built into step 5 — every fix goes through adversarial review before the PR is created.
 
-### `/codex-commit` — Smart Commit Messages
-
-Not an audit command, but uses the same bridge. Claude analyzes your changes and generates structured commit messages:
-
-```
-/codex-commit                 # Commit with intelligent message
-```
-
 ## Specialized Agents and Planning
 
-Beyond audit commands, VMark’s AI setup includes higher-level orchestration:
+Beyond audit commands, VMark's AI setup includes higher-level orchestration:
 
 ### `/feature-workflow` — Agent-Driven Development
 
@@ -242,7 +254,7 @@ All commands gracefully degrade if Codex MCP is unavailable (not installed, netw
 1. The command pings Codex first (`Respond with 'ok'`)
 2. If no response: **manual audit** kicks in automatically
 3. Claude reads each file directly and performs the same dimensional analysis
-4. The audit still happens — it’s just single-model instead of cross-model
+4. The audit still happens — it's just single-model instead of cross-model
 
 You never need to worry about commands failing because Codex is down. They always produce a result.
 
