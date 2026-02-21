@@ -14,7 +14,7 @@ VMark is a modern, local-first Markdown editor designed for the AI era. It combi
 
 ## Contributing: Issues Only, No PRs
 
-VMark is a **vibe-coded** codebase — written almost entirely by AI. The human maintainer guides the AI but does not review code line-by-line in the traditional sense. This has a practical consequence:
+VMark is a **vibe-coded** codebase — written **entirely** by AI. The human maintainer guides the AI but does not review code line-by-line in the traditional sense. This has a practical consequence:
 
 **We cannot safely merge pull requests from other contributors.** When one person's AI-generated code meets another person's AI-generated code, neither human can fully vouch for what's inside. The risk of subtle regressions is too high.
 
