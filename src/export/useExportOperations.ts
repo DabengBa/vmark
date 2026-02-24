@@ -1,13 +1,12 @@
 /**
  * Export Operations
  *
- * Print: Opens a self-contained HTML file in the system browser for printing.
+ * Print: Injects @media print styles and calls window.print() on the main webview.
  * HTML Export: Uses ExportSurface for visual-parity rendering.
  */
 
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 import React from "react";
@@ -215,101 +214,141 @@ export async function exportToHtml(
   }
 }
 
-/**
- * Rewrite asset:// URLs to file:// so the system browser can load local images.
- *
- * In the Tauri webview, images are served via `asset://localhost/path` or
- * `https://asset.localhost/path`. Browsers can't resolve these, but they can
- * load `file:///path` from a locally-opened HTML file.
- */
-function rewriteAssetUrls(html: string): string {
-  return html
-    .replace(/asset:\/\/localhost/g, "file://")
-    .replace(/https:\/\/asset\.localhost/g, "file://");
+export interface ExportToPdfOptions {
+  /** Markdown content */
+  markdown: string;
+  /** Default file name (document title) */
+  defaultName?: string;
+  /** Source file path for resource resolution */
+  sourceFilePath?: string | null;
 }
 
 /**
- * Print document by opening a self-contained HTML file in the system browser.
- *
- * WKWebView has an internal rendering height cap (~16 384 px at 2× Retina)
- * that truncates long documents when using the native print dialog.
- * Browsers (Safari, Chrome) have a correct CSS pagination engine, so we:
- *  1. Render the markdown via ExportSurface (same as HTML export)
- *  2. Build a styled, self-contained HTML page
- *  3. Write it to a temp file
- *  4. Open it in the default browser, which auto-triggers `window.print()`
- *
- * @param markdown - The markdown content
+ * Print via native macOS print dialog (Rust-side WKWebView).
+ * On non-macOS platforms, print is not supported (menu item hidden).
  */
-export async function exportToPdf(markdown: string): Promise<void> {
-  // Check for empty content
+export async function exportToPdf(options: ExportToPdfOptions): Promise<void> {
+  const { markdown } = options;
+
   const trimmedContent = markdown.trim();
   if (!trimmedContent) {
-    toast.error("No content to print!");
+    toast.error("No content to export!");
+    return;
+  }
+
+  const isMacOS = navigator.platform.includes("Mac");
+  if (!isMacOS) {
+    toast.error("Print requires macOS.");
+    return;
+  }
+
+  await exportToPdfBrowser(markdown);
+}
+
+/**
+ * Export PDF: opens a preview dialog with Paged.js pagination, then exports
+ * via WKWebView's native createPDF API (macOS only).
+ */
+export async function exportToPdfNative(options: ExportToPdfOptions): Promise<void> {
+  const { markdown, defaultName, sourceFilePath } = options;
+
+  const trimmedContent = markdown.trim();
+  if (!trimmedContent) {
+    toast.error("No content to export!");
+    return;
+  }
+
+  const isMacOS = navigator.platform.includes("Mac");
+
+  if (!isMacOS) {
+    toast.error("Native PDF export requires macOS. Use Print instead.");
     return;
   }
 
   try {
-    // 1. Render markdown to HTML via ExportSurface (always light theme for print)
-    const html = await renderMarkdownToHtml(markdown, true);
+    // Render markdown to HTML (always light theme)
+    const renderedHtml = await renderMarkdownToHtml(markdown, true);
 
-    // 2. Capture CSS
+    // Resolve images to data URIs for self-contained HTML
+    const { resolveResources, getDocumentBaseDir } = await import(
+      "./resourceResolver"
+    );
+    const baseDir = sourceFilePath
+      ? await getDocumentBaseDir(sourceFilePath)
+      : "/";
+    const { html: resolvedHtml } = await resolveResources(renderedHtml, {
+      baseDir,
+      mode: "single",
+    });
+
+    // Open PDF export in native window
+    const { openPdfExportWindow } = await import("@/utils/pdfExportWindow");
+    await openPdfExportWindow({
+      renderedHtml: resolvedHtml,
+      defaultName,
+    });
+  } catch (error) {
+    console.error("[PDF] Failed to open PDF dialog:", error);
+    toast.error("Failed to prepare PDF export");
+  }
+}
+
+/**
+ * Print via native macOS print dialog (Rust-side WKWebView).
+ *
+ * The app's WKWebView can't paginate properly with window.print() because
+ * printOperationWithPrintInfo uses the webview's frame size. Instead, we
+ * invoke a Rust command that creates a separate off-screen WKWebView,
+ * loads the rendered HTML, and shows the native print dialog — same
+ * approach as PDF export but with the print panel visible.
+ */
+async function exportToPdfBrowser(_markdown: string): Promise<void> {
+  try {
+    // Read HTML directly from the live editor DOM for instant print.
+    // This bypasses ExportSurface (used by Export PDF) for speed — trade-off
+    // is that local images use asset:// URLs which the off-screen WKWebView
+    // can resolve via file URL access. For visual-parity export, use Export PDF.
+    const editorEl = document.querySelector(".ProseMirror");
+    if (!editorEl) {
+      toast.error("No editor content to print");
+      return;
+    }
+
+    const html = editorEl.innerHTML;
     const themeCSS = captureThemeCSS();
-    const { getEditorContentCSS } = await import("./htmlExport");
+    const { getEditorContentCSS } = await import("./htmlExportStyles");
     const contentCSS = getEditorContentCSS();
+    const { getKatexCSS, getForceLightThemeCSS, getSharedContentCSS } = await import("./pdfHtmlTemplate");
 
-    // 3. Rewrite asset:// URLs to file:// for browser access
-    const resolvedHtml = rewriteAssetUrls(html);
-
-    // 4. Build self-contained HTML with auto-print
+    // Build a self-contained HTML document for the print WKWebView
+    // Always force light theme — dark backgrounds waste ink and look wrong on paper
     const fullHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Print</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
   <style>
-/* Theme Variables */
+${getKatexCSS()}
 ${themeCSS}
-
-/* Content Styles */
+${getForceLightThemeCSS()}
 ${contentCSS}
 
-/* Print-specific overrides */
-@media print {
-  @page { margin: 1.5cm; }
-  body { background: white; }
-  .export-surface { max-width: none; padding: 0; }
-  .export-surface-editor .table-scroll-wrapper { overflow-x: visible; }
-  .export-surface-editor .table-scroll-wrapper table { width: 100% !important; table-layout: fixed; }
-  .export-surface-editor td, .export-surface-editor th { overflow-wrap: break-word; word-break: break-word; }
-  .export-surface-editor td img { max-width: 100%; height: auto; }
-}
+@page { margin: 1.5cm; }
+body { background: white; color: #1a1a1a; margin: 0; padding: 2em; }
+${getSharedContentCSS()}
   </style>
 </head>
 <body>
   <div class="export-surface">
     <div class="export-surface-editor">
-${resolvedHtml}
+${html}
     </div>
   </div>
-  <script>
-    window.addEventListener('load', function() {
-      setTimeout(function() { window.print(); }, 300);
-    });
-  </script>
 </body>
 </html>`;
 
-    // 5. Write to temp file via Rust
-    const filePath: string = await invoke("write_temp_html", { html: fullHtml });
-
-    // 6. Open in system browser
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(`file://${filePath}`);
-
-    toast.success("Opened in browser for printing");
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("print_document", { html: fullHtml });
   } catch (error) {
     console.error("[Print] Failed to print:", error);
     toast.error("Failed to open print dialog");

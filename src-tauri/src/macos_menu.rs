@@ -104,6 +104,7 @@ const MENU_ICONS: &[(&str, &str)] = &[
     // Export
     ("HTML...", "doc.richtext"),
     ("Print...", "printer"),
+    ("PDF...", "arrow.up.doc"),
     ("Copy as HTML", "doc.text"),
     // History
     ("View History...", "clock"),

@@ -38,6 +38,8 @@ mod macos_menu;
 mod dock_recent;
 #[cfg(target_os = "macos")]
 mod cli_install;
+#[cfg(target_os = "macos")]
+mod pdf_export;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -73,14 +75,23 @@ fn debug_log(message: String) {
     eprintln!("[Frontend] {}", message);
 }
 
-/// Write HTML content to a temp file for browser-based printing.
-/// Returns the file path so the frontend can open it via plugin-opener.
+/// Write HTML content to a temp file for browser-based printing and PDF export.
+/// Returns the file path so the frontend can open it via plugin-opener or read it back.
+///
+/// Uses the Tauri app data directory so the path falls within the FS plugin's
+/// allowed scope (needed for PDF export window to read the file via `readTextFile`).
 #[tauri::command]
-fn write_temp_html(html: String) -> Result<String, String> {
+fn write_temp_html(app: tauri::AppHandle, html: String) -> Result<String, String> {
     use std::io::Write;
-    let dir = std::env::temp_dir().join("vmark-print");
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let dir = app_data.join("temp");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = dir.join("print.html");
+    let unique_id = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let filename = format!("print-{}-{}.html", std::process::id(), unique_id);
+    let path = dir.join(filename);
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
     file.write_all(html.as_bytes()).map_err(|e| e.to_string())?;
     Ok(path.to_string_lossy().into_owned())
@@ -121,7 +132,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
-                .with_denylist(&["settings"])
+                .with_denylist(&["settings", "pdf-export"])
                 // Exclude VISIBLE from state restoration to prevent flash.
                 // Windows start hidden (visible: false) and are shown only
                 // after frontend emits "ready" event in mark_window_ready().
@@ -203,6 +214,10 @@ pub fn run() {
             cli_install::cli_install,
             #[cfg(target_os = "macos")]
             cli_install::cli_uninstall,
+            #[cfg(target_os = "macos")]
+            pdf_export::commands::export_pdf,
+            #[cfg(target_os = "macos")]
+            pdf_export::commands::print_document,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;

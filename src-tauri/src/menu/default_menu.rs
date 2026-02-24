@@ -79,8 +79,8 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "Export",
         true,
         &[
-            &MenuItem::with_id(app, "export-html", "HTML...", true, Some("Alt+CmdOrCtrl+E"))?,
-            &MenuItem::with_id(app, "export-pdf", "Print...", true, Some("CmdOrCtrl+P"))?,
+            &MenuItem::with_id(app, "export-html", "HTML...", true, None::<&str>)?,
+            &MenuItem::with_id(app, "export-pdf-native", "PDF...", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, Some("CmdOrCtrl+Shift+C"))?,
         ],
@@ -118,6 +118,7 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &MenuItem::with_id(app, "move-to", "Move to...", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &export_submenu,
+            &MenuItem::with_id(app, "export-pdf", "Print...", true, Some("CmdOrCtrl+P"))?,
             &PredefinedMenuItem::separator(app)?,
             &history_submenu,
         ],

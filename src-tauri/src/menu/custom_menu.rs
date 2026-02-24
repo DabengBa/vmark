@@ -83,8 +83,8 @@ pub(crate) fn create_menu_with_shortcuts(
         "Export",
         true,
         &[
-            &MenuItem::with_id(app, "export-html", "HTML...", true, get_accel("export-html", "Alt+CmdOrCtrl+E"))?,
-            &MenuItem::with_id(app, "export-pdf", "Print...", true, get_accel("export-pdf", "CmdOrCtrl+P"))?,
+            &MenuItem::with_id(app, "export-html", "HTML...", true, get_accel("export-html", ""))?,
+            &MenuItem::with_id(app, "export-pdf-native", "PDF...", true, get_accel("export-pdf-native", ""))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, get_accel("copy-html", "CmdOrCtrl+Shift+C"))?,
         ],
@@ -122,6 +122,7 @@ pub(crate) fn create_menu_with_shortcuts(
             &MenuItem::with_id(app, "move-to", "Move to...", true, get_accel("move-to", ""))?,
             &PredefinedMenuItem::separator(app)?,
             &export_submenu,
+            &MenuItem::with_id(app, "export-pdf", "Print...", true, get_accel("export-pdf", "CmdOrCtrl+P"))?,
             &PredefinedMenuItem::separator(app)?,
             &history_submenu,
         ],
