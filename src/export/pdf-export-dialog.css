@@ -85,6 +85,7 @@
   border: none;
   background: white;
   display: block;
+  overflow: hidden;
 }
 
 .pdf-export-preview-loading {
