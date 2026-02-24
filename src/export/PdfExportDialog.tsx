@@ -155,10 +155,8 @@ export function PdfExportContent({
   // Listen for Paged.js completion messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (
-        e.data?.type === "pagedjs-complete" &&
-        e.source === iframeRef.current?.contentWindow
-      ) {
+      if (e.source !== iframeRef.current?.contentWindow) return;
+      if (e.data?.type === "pagedjs-complete") {
         setLoading(false);
         setPreviewError(false);
         if (typeof e.data.pageCount === "number") {
@@ -167,6 +165,10 @@ export function PdfExportContent({
         if (typeof e.data.contentHeight === "number") {
           setContentHeight(e.data.contentHeight);
         }
+      } else if (e.data?.type === "pagedjs-error") {
+        setLoading(false);
+        setPreviewError(true);
+        console.error("[PDF Preview] Paged.js error:", e.data.message);
       }
     };
     window.addEventListener("message", handler);

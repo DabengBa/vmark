@@ -131,30 +131,216 @@ fn build_page_texts(
 /// Returns 0 (first page) if not found anywhere.
 fn find_heading_page(page_texts: &[String], heading_text: &str, start_page: usize) -> usize {
     let needle = heading_text.trim();
+    if needle.is_empty() {
+        return start_page.min(page_texts.len().saturating_sub(1));
+    }
 
-    // Search forward from start_page first (handles duplicate headings)
-    for (i, text) in page_texts.iter().enumerate().skip(start_page) {
-        if text.contains(needle) {
-            return i;
-        }
+    // Try line-based matching first (heading text should appear as a distinct line
+    // or standalone phrase), then fall back to substring contains.
+    // This reduces false positives where "Error" matches "Error Handling Framework".
+
+    // Pass 1: Line-level match (most precise) — check if any line in the page
+    // starts with or equals the heading text. Requires a word boundary after
+    // the prefix to avoid "Chapter 1" matching "Chapter 10".
+    if let Some(idx) = search_pages_with(page_texts, start_page, |text| {
+        text.lines().any(|line| {
+            let trimmed = line.trim();
+            if trimmed == needle {
+                return true;
+            }
+            if let Some(rest) = trimmed.strip_prefix(needle) {
+                // Require non-alphanumeric boundary after the needle
+                rest.starts_with(|c: char| !c.is_alphanumeric())
+            } else {
+                false
+            }
+        })
+    }) {
+        return idx;
     }
-    // Fallback: search from beginning (heading might be on an earlier page)
-    for (i, text) in page_texts.iter().enumerate().take(start_page) {
-        if text.contains(needle) {
-            return i;
-        }
+
+    // Pass 2: Substring with word boundary (handles run-together text from PDF extraction)
+    if let Some(idx) = search_pages_with(page_texts, start_page, |text| {
+        contains_with_boundary(text, needle)
+    }) {
+        return idx;
     }
-    // Last resort: case-insensitive search from start_page
+
+    // Pass 3: Case-insensitive substring with word boundary
     let lower = needle.to_lowercase();
-    for (i, text) in page_texts.iter().enumerate().skip(start_page) {
-        if text.to_lowercase().contains(&lower) {
-            return i;
-        }
+    if let Some(idx) = search_pages_with(page_texts, start_page, |text| {
+        contains_with_boundary(&text.to_lowercase(), &lower)
+    }) {
+        return idx;
     }
-    for (i, text) in page_texts.iter().enumerate().take(start_page) {
-        if text.to_lowercase().contains(&lower) {
-            return i;
-        }
+
+    // Pass 4: Plain substring (last resort — accepts partial matches)
+    if let Some(idx) = search_pages_with(page_texts, start_page, |text| {
+        text.contains(needle)
+    }) {
+        return idx;
     }
+
     0
+}
+
+/// Search pages starting from `start_page`, wrapping around to the beginning.
+/// Returns the first page index where `predicate` returns true.
+fn search_pages_with<F>(page_texts: &[String], start_page: usize, predicate: F) -> Option<usize>
+where
+    F: Fn(&str) -> bool,
+{
+    // Search forward from start_page
+    for (i, text) in page_texts.iter().enumerate().skip(start_page) {
+        if predicate(text) {
+            return Some(i);
+        }
+    }
+    // Wrap around: search from beginning up to start_page
+    for (i, text) in page_texts.iter().enumerate().take(start_page) {
+        if predicate(text) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+/// Check if `haystack` contains `needle` with a non-alphanumeric boundary
+/// (or string boundary) on both sides. Prevents "Chapter 1" matching "Chapter 10".
+fn contains_with_boundary(haystack: &str, needle: &str) -> bool {
+    let bytes = haystack.as_bytes();
+    let nlen = needle.len();
+    let mut start = 0;
+    while let Some(pos) = haystack[start..].find(needle) {
+        let abs = start + pos;
+        let before_ok = abs == 0
+            || !haystack[..abs]
+                .chars()
+                .next_back()
+                .map_or(false, |c| c.is_alphanumeric());
+        let after_ok = abs + nlen >= bytes.len()
+            || !haystack[abs + nlen..]
+                .chars()
+                .next()
+                .map_or(false, |c| c.is_alphanumeric());
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pages(texts: &[&str]) -> Vec<String> {
+        texts.iter().map(|s| s.to_string()).collect()
+    }
+
+    // --- search_pages_with ---
+
+    #[test]
+    fn search_pages_with_finds_forward() {
+        let p = pages(&["alpha", "beta", "gamma"]);
+        assert_eq!(search_pages_with(&p, 0, |t| t.contains("beta")), Some(1));
+    }
+
+    #[test]
+    fn search_pages_with_wraps_around() {
+        let p = pages(&["alpha", "beta", "gamma"]);
+        assert_eq!(search_pages_with(&p, 2, |t| t.contains("alpha")), Some(0));
+    }
+
+    #[test]
+    fn search_pages_with_returns_none_when_not_found() {
+        let p = pages(&["alpha", "beta"]);
+        assert_eq!(search_pages_with(&p, 0, |t| t.contains("zzz")), None);
+    }
+
+    #[test]
+    fn search_pages_with_empty_pages() {
+        let p: Vec<String> = vec![];
+        assert_eq!(search_pages_with(&p, 0, |_| true), None);
+    }
+
+    // --- find_heading_page ---
+
+    #[test]
+    fn find_heading_exact_line_match() {
+        let p = pages(&["Intro\nSome text", "Chapter 1\nMore text", "Chapter 2"]);
+        assert_eq!(find_heading_page(&p, "Chapter 1", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_line_starts_with() {
+        // Line "Chapter 1 — Overview" starts with "Chapter 1"
+        let p = pages(&["Intro", "Chapter 1 — Overview\nBody", "End"]);
+        assert_eq!(find_heading_page(&p, "Chapter 1", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_substring_fallback() {
+        // No line starts with needle, but page contains it as substring
+        let p = pages(&["Intro", "SeeChapter 1Here", "End"]);
+        assert_eq!(find_heading_page(&p, "Chapter 1", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_case_insensitive_fallback() {
+        let p = pages(&["intro", "chapter one", "CHAPTER ONE details"]);
+        assert_eq!(find_heading_page(&p, "Chapter One", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_forward_from_start_page() {
+        // Two pages have "Section" but we start searching from page 1
+        let p = pages(&["Section\nfirst", "Section\nsecond", "Other"]);
+        assert_eq!(find_heading_page(&p, "Section", 1), 1);
+    }
+
+    #[test]
+    fn find_heading_wraps_to_find_earlier_page() {
+        let p = pages(&["Target here", "Other", "Other2"]);
+        assert_eq!(find_heading_page(&p, "Target", 2), 0);
+    }
+
+    #[test]
+    fn find_heading_returns_zero_when_not_found() {
+        let p = pages(&["Page A", "Page B"]);
+        assert_eq!(find_heading_page(&p, "Nonexistent", 0), 0);
+    }
+
+    #[test]
+    fn find_heading_empty_text_returns_start_page() {
+        let p = pages(&["A", "B", "C"]);
+        assert_eq!(find_heading_page(&p, "", 1), 1);
+    }
+
+    #[test]
+    fn find_heading_empty_text_clamps_to_last_page() {
+        let p = pages(&["A", "B"]);
+        assert_eq!(find_heading_page(&p, "  ", 5), 1);
+    }
+
+    #[test]
+    fn find_heading_trims_whitespace() {
+        let p = pages(&["Intro", "  Chapter 2  \nBody"]);
+        assert_eq!(find_heading_page(&p, "  Chapter 2  ", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_prefix_collision_rejected() {
+        // "Chapter 1" must NOT match a line that says "Chapter 10"
+        let p = pages(&["Chapter 10\nSome text", "Chapter 1\nOther text"]);
+        assert_eq!(find_heading_page(&p, "Chapter 1", 0), 1);
+    }
+
+    #[test]
+    fn find_heading_prefix_with_boundary_accepted() {
+        // "Chapter 1" SHOULD match "Chapter 1 — Overview" (space boundary)
+        let p = pages(&["Chapter 1 — Overview\nBody"]);
+        assert_eq!(find_heading_page(&p, "Chapter 1", 0), 0);
+    }
 }

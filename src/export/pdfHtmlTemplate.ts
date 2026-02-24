@@ -269,8 +269,8 @@ ${pageCSS}
 ${contentCSS}
 
 body {
-  background: white;
-  color: #1a1a1a;
+  background: var(--bg-color);
+  color: var(--text-color);
   margin: 0;
   padding: 0;
 }
@@ -335,7 +335,7 @@ ${contentCSS}
 /* PDF-specific overrides */
 body {
   background: transparent;
-  color: #1a1a1a;
+  color: var(--text-color);
   margin: 0;
   padding: 0;
 }
@@ -369,6 +369,10 @@ ${content}
 ${pagedPolyfillRaw}
   </script>
   <script>
+// Sandboxed iframes (allow-scripts without allow-same-origin) have origin "null" (string).
+// "null" is truthy so origin || "*" would send to literal "null" — use "*" in that case.
+var msgTarget = (window.origin && window.origin !== "null") ? window.origin : "*";
+
 // Completion signal — notifies parent iframe that Paged.js rendering is done
 class CompletionHandler extends Paged.Handler {
   afterRendered(pages) {
@@ -382,7 +386,7 @@ class CompletionHandler extends Paged.Handler {
             pageCount: pages.length,
             contentHeight: document.body.scrollHeight,
           },
-          "*"
+          msgTarget
         );
       }
     } catch (e) {
@@ -391,6 +395,21 @@ class CompletionHandler extends Paged.Handler {
   }
 }
 Paged.registerHandlers(CompletionHandler);
+
+// Error handler — notify parent if Paged.js fails to render
+// Only fires for uncaught runtime errors (not resource load errors which use "error" on elements)
+window.addEventListener("error", function(e) {
+  // Skip resource load errors (images, scripts) — only catch runtime JS errors
+  if (e.target !== window) return;
+  try {
+    if (window.parent !== window) {
+      window.parent.postMessage(
+        { type: "pagedjs-error", message: e.message || "Paged.js rendering failed" },
+        msgTarget
+      );
+    }
+  } catch (_) {}
+});
   </script>
 </body>
 </html>`;

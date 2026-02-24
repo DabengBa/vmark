@@ -19,6 +19,7 @@ import { captureThemeCSS } from "./themeSnapshot";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { joinPath } from "@/utils/pathUtils";
 import { showError, FileErrors } from "@/utils/errorDialog";
+import { isMacPlatform } from "@/utils/shortcutMatch";
 
 /** Timeout for waiting on assets (fonts, images, math, diagrams) */
 const ASSET_WAIT_TIMEOUT = 10000;
@@ -236,8 +237,7 @@ export async function exportToPdf(options: ExportToPdfOptions): Promise<void> {
     return;
   }
 
-  const isMacOS = navigator.platform.includes("Mac");
-  if (!isMacOS) {
+  if (!isMacPlatform()) {
     toast.error("Print requires macOS.");
     return;
   }
@@ -258,9 +258,7 @@ export async function exportToPdfNative(options: ExportToPdfOptions): Promise<vo
     return;
   }
 
-  const isMacOS = navigator.platform.includes("Mac");
-
-  if (!isMacOS) {
+  if (!isMacPlatform()) {
     toast.error("Native PDF export requires macOS. Use Print instead.");
     return;
   }
@@ -301,6 +299,12 @@ export async function exportToPdfNative(options: ExportToPdfOptions): Promise<vo
  * invoke a Rust command that creates a separate off-screen WKWebView,
  * loads the rendered HTML, and shows the native print dialog — same
  * approach as PDF export but with the print panel visible.
+ *
+ * Note: This reads HTML directly from the live editor DOM (`.ProseMirror`)
+ * for speed, rather than re-rendering via ExportSurface like Export PDF does.
+ * The `_markdown` param is unused — kept for interface consistency with
+ * `exportToPdf`. The trade-off is slightly different output between Print
+ * and Export PDF (live DOM may include editor UI artifacts).
  */
 async function exportToPdfBrowser(_markdown: string): Promise<void> {
   try {
@@ -334,7 +338,7 @@ ${getForceLightThemeCSS()}
 ${contentCSS}
 
 @page { margin: 1.5cm; }
-body { background: white; color: #1a1a1a; margin: 0; padding: 2em; }
+body { background: var(--bg-color); color: var(--text-color); margin: 0; padding: 2em; }
 ${getSharedContentCSS()}
   </style>
 </head>
