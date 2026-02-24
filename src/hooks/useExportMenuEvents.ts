@@ -72,7 +72,7 @@ export function useExportMenuEvents(): void {
       if (cancelled) { unlistenExportHtml(); return; }
       unlistenRefs.current.push(unlistenExportHtml);
 
-      // Print/PDF via print dialog
+      // Export PDF via Paged.js + WKWebView (macOS) or browser print (other)
       const unlistenExportPdf = await currentWindow.listen<string>("menu:export-pdf", async (event) => {
         if (event.payload !== windowLabel) return;
         flushActiveWysiwygNow();
@@ -80,9 +80,14 @@ export function useExportMenuEvents(): void {
         await withReentryGuard(windowLabel, "export", async () => {
           const doc = getActiveDocument(windowLabel);
           if (!doc) return;
+          const defaultName = getExportFolderName(doc.content, doc.filePath);
           try {
             const { exportToPdf } = await import("@/export");
-            await exportToPdf(doc.content);
+            await exportToPdf({
+              markdown: doc.content,
+              defaultName,
+              sourceFilePath: doc.filePath,
+            });
           } catch (error) {
             console.error("[Menu] Failed to export PDF:", error);
           }

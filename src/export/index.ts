@@ -66,4 +66,4 @@ export {
   copyAsHtml,
   getRenderedHtml,
 } from "./useExportOperations";
-export type { ExportToHtmlOptions } from "./useExportOperations";
+export type { ExportToHtmlOptions, ExportToPdfOptions } from "./useExportOperations";
