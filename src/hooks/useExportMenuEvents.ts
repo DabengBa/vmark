@@ -5,7 +5,7 @@
  *   copy-as-HTML to clipboard.
  *
  * Pipeline: Rust menu event → Tauri listen() → flush WYSIWYG content →
- *   render ExportSurface (for visual parity) → save to disk or clipboard
+ *   render ExportSurface (for visual parity) → save to disk / clipboard / open PDF dialog
  *
  * Key decisions:
  *   - Export module dynamically imported to avoid loading exportStyles.css at startup
