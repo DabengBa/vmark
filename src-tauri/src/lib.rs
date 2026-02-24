@@ -38,6 +38,8 @@ mod macos_menu;
 mod dock_recent;
 #[cfg(target_os = "macos")]
 mod cli_install;
+#[cfg(target_os = "macos")]
+mod pdf_export;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -203,6 +205,8 @@ pub fn run() {
             cli_install::cli_install,
             #[cfg(target_os = "macos")]
             cli_install::cli_uninstall,
+            #[cfg(target_os = "macos")]
+            pdf_export::commands::export_pdf,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;

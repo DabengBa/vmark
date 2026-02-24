@@ -228,40 +228,80 @@ function rewriteAssetUrls(html: string): string {
     .replace(/https:\/\/asset\.localhost/g, "file://");
 }
 
+export interface ExportToPdfOptions {
+  /** Markdown content */
+  markdown: string;
+  /** Default file name (document title) */
+  defaultName?: string;
+  /** Source file path for resource resolution */
+  sourceFilePath?: string | null;
+}
+
 /**
- * Print document by opening a self-contained HTML file in the system browser.
+ * Export document to PDF.
  *
- * WKWebView has an internal rendering height cap (~16 384 px at 2× Retina)
- * that truncates long documents when using the native print dialog.
- * Browsers (Safari, Chrome) have a correct CSS pagination engine, so we:
- *  1. Render the markdown via ExportSurface (same as HTML export)
- *  2. Build a styled, self-contained HTML page
- *  3. Write it to a temp file
- *  4. Open it in the default browser, which auto-triggers `window.print()`
+ * On macOS: opens a preview dialog with Paged.js pagination, then exports
+ * via WKWebView's native createPDF API.
  *
- * @param markdown - The markdown content
+ * On other platforms: falls back to opening in the system browser with
+ * `window.print()`.
  */
-export async function exportToPdf(markdown: string): Promise<void> {
-  // Check for empty content
+export async function exportToPdf(options: ExportToPdfOptions): Promise<void> {
+  const { markdown, defaultName, sourceFilePath } = options;
+
   const trimmedContent = markdown.trim();
   if (!trimmedContent) {
-    toast.error("No content to print!");
+    toast.error("No content to export!");
     return;
   }
 
-  try {
-    // 1. Render markdown to HTML via ExportSurface (always light theme for print)
-    const html = await renderMarkdownToHtml(markdown, true);
+  const isMacOS = navigator.platform.includes("Mac");
 
-    // 2. Capture CSS
+  if (isMacOS) {
+    try {
+      // Render markdown to HTML (always light theme)
+      const renderedHtml = await renderMarkdownToHtml(markdown, true);
+
+      // Resolve images to data URIs for self-contained HTML
+      const { resolveResources, getDocumentBaseDir } = await import(
+        "./resourceResolver"
+      );
+      const baseDir = sourceFilePath
+        ? await getDocumentBaseDir(sourceFilePath)
+        : "/";
+      const { html: resolvedHtml } = await resolveResources(renderedHtml, {
+        baseDir,
+        mode: "single",
+      });
+
+      // Open PDF export dialog
+      const { showPdfExportDialog } = await import("./PdfExportDialog");
+      showPdfExportDialog({
+        markdown,
+        renderedHtml: resolvedHtml,
+        defaultName,
+        sourceFilePath,
+      });
+    } catch (error) {
+      console.error("[PDF] Failed to open PDF dialog:", error);
+      toast.error("Failed to prepare PDF export");
+    }
+  } else {
+    await exportToPdfBrowser(markdown);
+  }
+}
+
+/**
+ * Fallback: open in system browser for printing (non-macOS).
+ */
+async function exportToPdfBrowser(markdown: string): Promise<void> {
+  try {
+    const html = await renderMarkdownToHtml(markdown, true);
     const themeCSS = captureThemeCSS();
     const { getEditorContentCSS } = await import("./htmlExport");
     const contentCSS = getEditorContentCSS();
-
-    // 3. Rewrite asset:// URLs to file:// for browser access
     const resolvedHtml = rewriteAssetUrls(html);
 
-    // 4. Build self-contained HTML with auto-print
     const fullHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -302,13 +342,11 @@ ${resolvedHtml}
 </body>
 </html>`;
 
-    // 5. Write to temp file via Rust
-    const filePath: string = await invoke("write_temp_html", { html: fullHtml });
-
-    // 6. Open in system browser
+    const filePath: string = await invoke("write_temp_html", {
+      html: fullHtml,
+    });
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(`file://${filePath}`);
-
     toast.success("Opened in browser for printing");
   } catch (error) {
     console.error("[Print] Failed to print:", error);

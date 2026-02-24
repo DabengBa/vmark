@@ -815,6 +815,18 @@ checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
 name = "dispatch2"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a0d569e003ff27784e0e14e4a594048698e0c0f0b66cabcb51511be55a7caa0"
+dependencies = [
+ "bitflags 2.10.0",
+ "block2 0.6.2",
+ "libc",
+ "objc2 0.6.3",
+]
+
+[[package]]
+name = "dispatch2"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89a09f22a6c6069a18470eb92d2298acf25463f14256d24778e1230d789a2aec"
@@ -2668,7 +2680,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.10.0",
- "dispatch2",
+ "block2 0.6.2",
+ "dispatch2 0.3.0",
+ "libc",
  "objc2 0.6.3",
 ]
 
@@ -2679,7 +2693,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.10.0",
- "dispatch2",
+ "dispatch2 0.3.0",
  "objc2 0.6.3",
  "objc2-core-foundation",
  "objc2-io-surface",
@@ -3851,7 +3865,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a15ad77d9e70a92437d8f74c35d99b4e4691128df018833e99f90bcd36152672"
 dependencies = [
  "block2 0.6.2",
- "dispatch2",
+ "dispatch2 0.3.0",
  "glib-sys",
  "gobject-sys",
  "gtk-sys",
@@ -5695,13 +5709,17 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vmark"
 version = "0.5.3"
 dependencies = [
+ "block2 0.6.2",
  "chrono",
  "dirs 5.0.1",
+ "dispatch2 0.2.0",
  "futures-util",
  "notify",
  "objc2 0.6.3",
  "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.2",
+ "objc2-web-kit 0.3.2",
  "reqwest",
  "serde",
  "serde_json",
