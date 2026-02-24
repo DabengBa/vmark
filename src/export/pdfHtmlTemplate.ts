@@ -205,10 +205,27 @@ ${contentCSS}
 
 /* PDF-specific overrides */
 body {
-  background: white;
+  background: #e8e8e8;
   color: #1a1a1a;
   margin: 0;
   padding: 0;
+}
+/* No horizontal scroll; hide vertical scrollbar but keep programmatic scroll */
+html, body {
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Separate pages visually in preview (does not affect exported PDF) */
+.pagedjs_page {
+  background: white;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .export-surface {
