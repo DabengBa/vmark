@@ -62,8 +62,8 @@ pub async fn run_ai_prompt(
                 &window,
                 &request_id,
                 "claude",
-                vec!["--print".into(), "--output-format".into(), "text".into()],
-                Some(prompt),
+                vec!["-p".into(), prompt, "--output-format".into(), "text".into()],
+                None,
                 cli_path,
             )
             .await
