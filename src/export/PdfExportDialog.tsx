@@ -53,11 +53,11 @@ const MARGIN_OPTIONS = [
 ];
 
 const FONT_SIZE_OPTIONS = [
-  { value: "14", label: "14px" },
-  { value: "16", label: "16px" },
-  { value: "18", label: "18px" },
-  { value: "20", label: "20px" },
-  { value: "22", label: "22px" },
+  { value: "10", label: "10pt" },
+  { value: "11", label: "11pt" },
+  { value: "12", label: "12pt" },
+  { value: "13", label: "13pt" },
+  { value: "14", label: "14pt" },
 ];
 
 const LINE_HEIGHT_OPTIONS = [
@@ -107,7 +107,7 @@ function PdfExportDialog({
   defaultName,
   onClose,
 }: PdfExportDialogProps) {
-  // Default from user's current editor settings
+  // Font choices inherited from user's editor settings
   const appearance = useSettingsStore.getState().appearance;
 
   const [options, setOptions] = useState<PdfOptions>({
@@ -118,11 +118,9 @@ function PdfExportDialog({
     showHeader: true,
     showFooter: false,
     title: defaultName?.replace(/\.[^.]+$/, "") ?? "Document",
-    fontSize: appearance.fontSize,
-    lineHeight: appearance.lineHeight,
-    cjkLetterSpacing: appearance.cjkLetterSpacing === "0"
-      ? "0"
-      : `${appearance.cjkLetterSpacing}em`,
+    fontSize: 11,
+    lineHeight: 1.6,
+    cjkLetterSpacing: "0.05em",
     latinFont: appearance.latinFont,
     cjkFont: appearance.cjkFont,
   });
