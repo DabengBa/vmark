@@ -93,9 +93,13 @@ export function Select<T extends string>({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as T)}
-      className={`px-2 py-1 rounded border border-[var(--border-color)]
+      className={`appearance-none px-2 pt-[2px] pb-0 pr-6 rounded border border-[var(--border-color)]
                  bg-[var(--bg-primary)] text-sm text-[var(--text-primary)]
+                 bg-[length:16px_16px] bg-[position:right_4px_center] bg-no-repeat
                  ${disabled ? "cursor-not-allowed" : ""}`}
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E")`,
+      }}
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>

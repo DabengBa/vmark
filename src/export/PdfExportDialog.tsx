@@ -1,18 +1,19 @@
 /**
- * PDF Export Dialog
+ * PDF Export Content
  *
- * Full-screen modal with settings panel (left) and live preview (right).
+ * Settings panel (left) and live preview (right) for PDF export.
  * Uses Paged.js for paginated preview in an iframe. Preview is always
  * light/white theme. Dialog chrome respects user's theme.
+ *
+ * Rendered as a native Tauri window via PdfExportPage.tsx.
  *
  * @module export/PdfExportDialog
  * @coordinates-with pdfHtmlTemplate.ts — builds the HTML for preview and export
  * @coordinates-with pdf_export/commands.rs — Rust backend for final PDF generation
+ * @coordinates-with PdfExportPage.tsx — page wrapper that hosts this component
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
-import { createRoot } from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
@@ -21,16 +22,32 @@ import { buildPdfHtml, type PdfOptions } from "./pdfHtmlTemplate";
 import { captureThemeCSS } from "./themeSnapshot";
 import { getEditorContentCSS } from "./htmlExportStyles";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { FileText, Type, Layers } from "lucide-react";
 import {
-  SettingsGroup,
   SettingRow,
   Select,
   Toggle,
   Button,
-  CloseButton,
 } from "@/pages/settings/components";
 
 import "./pdf-export-dialog.css";
+
+/** Compact settings group with icon for PDF export sidebar */
+function PdfSettingsGroup({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="pdf-settings-group">
+      <div className="pdf-settings-group-icon">{icon}</div>
+      <div className="pdf-settings-group-items">{children}</div>
+    </div>
+  );
+}
 
 // --- Page dimensions (px at 96dpi) ---
 
@@ -106,21 +123,19 @@ const CJK_FONT_OPTIONS = [
 
 // --- Types ---
 
-interface PdfExportDialogProps {
-  markdown: string;
+interface PdfExportContentProps {
   renderedHtml: string;
   defaultName?: string;
-  sourceFilePath?: string | null;
   onClose: () => void;
 }
 
 // --- Component ---
 
-function PdfExportDialog({
+export function PdfExportContent({
   renderedHtml,
   defaultName,
   onClose,
-}: PdfExportDialogProps) {
+}: PdfExportContentProps) {
   // Font choices inherited from user's editor settings
   const appearance = useSettingsStore.getState().appearance;
 
@@ -139,8 +154,6 @@ function PdfExportDialog({
     cjkFont: appearance.cjkFont,
   });
 
-  const [pageCount, setPageCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -209,8 +222,6 @@ function PdfExportDialog({
         e.data?.type === "pagedjs-complete" &&
         e.source === iframeRef.current?.contentWindow
       ) {
-        setPageCount(e.data.pageCount ?? 0);
-        setCurrentPage(1);
         setLoading(false);
         setPreviewError(false);
       }
@@ -231,27 +242,6 @@ function PdfExportDialog({
     }, 30000);
     return () => clearTimeout(timer);
   }, [loading]);
-
-  // Escape key closes dialog (blocked during export)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !exporting) onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose, exporting]);
-
-  // Navigate to a specific page in the preview
-  const goToPage = useCallback((page: number) => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentDocument) return;
-    const pages = iframe.contentDocument.querySelectorAll(".pagedjs_page");
-    const target = pages[page - 1];
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      setCurrentPage(page);
-    }
-  }, []);
 
   // Export to PDF
   const handleExport = useCallback(async () => {
@@ -286,214 +276,156 @@ function PdfExportDialog({
     [],
   );
 
-  return createPortal(
-    <div className="pdf-export-overlay" onClick={exporting ? undefined : onClose}>
-      <div className="pdf-export-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="pdf-export-header">
-          <h2>Export PDF</h2>
-          <CloseButton onClick={onClose} />
-        </div>
+  return (
+    <div className="pdf-export-body">
+      {/* Settings sidebar — full height */}
+      <div className="pdf-export-sidebar">
+        {/* Drag region — outside scroll area so Tauri can intercept drag */}
+        <div data-tauri-drag-region className="pdf-export-drag-region" />
+        {/* Scrollable settings */}
+        <div className="pdf-export-sidebar-content">
+        <PdfSettingsGroup icon={<FileText className="w-3.5 h-3.5" />} title="Page">
+          <SettingRow label="Size">
+            <Select
+              value={options.pageSize}
+              options={PAGE_SIZE_OPTIONS}
+              onChange={(v) => set("pageSize", v)}
+            />
+          </SettingRow>
+          <SettingRow label="Orientation">
+            <Select
+              value={options.orientation}
+              options={ORIENTATION_OPTIONS}
+              onChange={(v) => set("orientation", v)}
+            />
+          </SettingRow>
+          <SettingRow label="Margins">
+            <Select
+              value={options.margins}
+              options={MARGIN_OPTIONS}
+              onChange={(v) => set("margins", v)}
+            />
+          </SettingRow>
+        </PdfSettingsGroup>
 
-        {/* Body */}
-        <div className="pdf-export-body">
-          {/* Settings sidebar */}
-          <div className="pdf-export-sidebar">
-            <SettingsGroup title="Page" className="mb-4">
-              <SettingRow label="Size">
-                <Select
-                  value={options.pageSize}
-                  options={PAGE_SIZE_OPTIONS}
-                  onChange={(v) => set("pageSize", v)}
-                />
-              </SettingRow>
-              <SettingRow label="Orientation">
-                <Select
-                  value={options.orientation}
-                  options={ORIENTATION_OPTIONS}
-                  onChange={(v) => set("orientation", v)}
-                />
-              </SettingRow>
-              <SettingRow label="Margins">
-                <Select
-                  value={options.margins}
-                  options={MARGIN_OPTIONS}
-                  onChange={(v) => set("margins", v)}
-                />
-              </SettingRow>
-            </SettingsGroup>
+        <PdfSettingsGroup icon={<Type className="w-3.5 h-3.5" />} title="Typography">
+          <SettingRow label="Font Size">
+            <Select
+              value={String(options.fontSize)}
+              options={FONT_SIZE_OPTIONS}
+              onChange={(v) => set("fontSize", Number(v))}
+            />
+          </SettingRow>
+          <SettingRow label="Line Height">
+            <Select
+              value={String(options.lineHeight)}
+              options={LINE_HEIGHT_OPTIONS}
+              onChange={(v) => set("lineHeight", Number(v))}
+            />
+          </SettingRow>
+          <SettingRow label="CJK Spacing">
+            <Select
+              value={options.cjkLetterSpacing.replace("em", "")}
+              options={CJK_SPACING_OPTIONS}
+              onChange={(v) =>
+                set("cjkLetterSpacing", v === "0" ? "0" : `${v}em`)
+              }
+            />
+          </SettingRow>
+          <SettingRow label="Latin Font">
+            <Select
+              value={options.latinFont}
+              options={LATIN_FONT_OPTIONS}
+              onChange={(v) => set("latinFont", v)}
+            />
+          </SettingRow>
+          <SettingRow label="CJK Font">
+            <Select
+              value={options.cjkFont}
+              options={CJK_FONT_OPTIONS}
+              onChange={(v) => set("cjkFont", v)}
+            />
+          </SettingRow>
+        </PdfSettingsGroup>
 
-            <SettingsGroup title="Typography" className="mb-4">
-              <SettingRow label="Font Size">
-                <Select
-                  value={String(options.fontSize)}
-                  options={FONT_SIZE_OPTIONS}
-                  onChange={(v) => set("fontSize", Number(v))}
-                />
-              </SettingRow>
-              <SettingRow label="Line Height">
-                <Select
-                  value={String(options.lineHeight)}
-                  options={LINE_HEIGHT_OPTIONS}
-                  onChange={(v) => set("lineHeight", Number(v))}
-                />
-              </SettingRow>
-              <SettingRow label="CJK Spacing">
-                <Select
-                  value={options.cjkLetterSpacing.replace("em", "")}
-                  options={CJK_SPACING_OPTIONS}
-                  onChange={(v) =>
-                    set("cjkLetterSpacing", v === "0" ? "0" : `${v}em`)
-                  }
-                />
-              </SettingRow>
-              <SettingRow label="Latin Font">
-                <Select
-                  value={options.latinFont}
-                  options={LATIN_FONT_OPTIONS}
-                  onChange={(v) => set("latinFont", v)}
-                />
-              </SettingRow>
-              <SettingRow label="CJK Font">
-                <Select
-                  value={options.cjkFont}
-                  options={CJK_FONT_OPTIONS}
-                  onChange={(v) => set("cjkFont", v)}
-                />
-              </SettingRow>
-            </SettingsGroup>
+        <PdfSettingsGroup icon={<Layers className="w-3.5 h-3.5" />} title="Elements">
+          <SettingRow label="Page Numbers">
+            <Toggle
+              checked={options.showPageNumbers}
+              onChange={(v) => set("showPageNumbers", v)}
+            />
+          </SettingRow>
+          <SettingRow label="Header">
+            <Toggle
+              checked={options.showHeader}
+              onChange={(v) => set("showHeader", v)}
+            />
+          </SettingRow>
+          <SettingRow label="Date">
+            <Toggle
+              checked={options.showFooter}
+              onChange={(v) => set("showFooter", v)}
+            />
+          </SettingRow>
+        </PdfSettingsGroup>
 
-            <SettingsGroup title="Elements" className="mb-4">
-              <SettingRow label="Page Numbers">
-                <Toggle
-                  checked={options.showPageNumbers}
-                  onChange={(v) => set("showPageNumbers", v)}
-                />
-              </SettingRow>
-              <SettingRow label="Header">
-                <Toggle
-                  checked={options.showHeader}
-                  onChange={(v) => set("showHeader", v)}
-                />
-              </SettingRow>
-              <SettingRow label="Footer">
-                <Toggle
-                  checked={options.showFooter}
-                  onChange={(v) => set("showFooter", v)}
-                />
-              </SettingRow>
-            </SettingsGroup>
+        </div>{/* end .pdf-export-sidebar-content */}
+      </div>
+
+      {/* Preview — full height */}
+      <div className="pdf-export-preview-wrapper">
+        {/* Drag region — outside overflow area so Tauri can intercept drag */}
+        <div data-tauri-drag-region className="pdf-export-drag-region" />
+        {/* Preview content */}
+        <div className="pdf-export-preview" ref={previewContainerRef}>
+        {loading && (
+          <div className="pdf-export-preview-loading">
+            Rendering preview...
           </div>
-
-          {/* Preview */}
-          <div className="pdf-export-preview" ref={previewContainerRef}>
-            {loading && (
-              <div className="pdf-export-preview-loading">
-                Rendering preview...
-              </div>
-            )}
-            {previewError && (
-              <div className="pdf-export-preview-loading">
-                Preview failed to render. You can still export.
-              </div>
-            )}
-            <div
-              className="pdf-export-page-frame"
-              style={{
-                width: pageDims.w,
-                height: pageDims.h,
-                transform: `scale(${previewScale})`,
-              }}
-            >
-              <iframe
-                ref={iframeRef}
-                title="PDF Preview"
-                sandbox="allow-scripts"
-              />
-            </div>
-            {pageCount > 0 && (
-              <div className="pdf-export-page-nav">
-                <button
-                  disabled={currentPage <= 1}
-                  onClick={() => goToPage(currentPage - 1)}
-                >
-                  &#9664;
-                </button>
-                <span>
-                  Page {currentPage} of {pageCount}
-                </span>
-                <button
-                  disabled={currentPage >= pageCount}
-                  onClick={() => goToPage(currentPage + 1)}
-                >
-                  &#9654;
-                </button>
-              </div>
-            )}
+        )}
+        {previewError && (
+          <div className="pdf-export-preview-loading">
+            Preview failed to render. You can still export.
+          </div>
+        )}
+        {/* Scaled container — sized to the visual (scaled) dimensions
+             so the layout doesn't overflow. The inner frame stays at full
+             page resolution for crisp rendering. */}
+        <div
+          className="pdf-export-page-sizer"
+          style={{
+            width: pageDims.w * previewScale,
+            height: pageDims.h * previewScale,
+          }}
+        >
+          <div
+            className="pdf-export-page-frame"
+            style={{
+              width: pageDims.w,
+              height: pageDims.h,
+              transform: `scale(${previewScale})`,
+            }}
+          >
+            <iframe
+              ref={iframeRef}
+              title="PDF Preview"
+              sandbox="allow-scripts"
+            />
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="pdf-export-footer">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
+        </div>{/* end .pdf-export-preview */}
+        {/* Export action */}
+        <div className="pdf-export-action-bar">
           <Button
             variant="primary"
+            size="sm"
             onClick={handleExport}
             disabled={exporting}
           >
-            {exporting ? "Exporting..." : "Export"}
+            {exporting ? "Exporting..." : "Export PDF"}
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-// --- Public API ---
-
-/** Prevents opening multiple PDF export dialogs simultaneously. */
-let dialogOpen = false;
-
-/** Check if the PDF export dialog is currently open. */
-export function isPdfDialogOpen(): boolean {
-  return dialogOpen;
-}
-
-/** Imperative function to show the PDF export dialog. */
-export function showPdfExportDialog(props: {
-  markdown: string;
-  renderedHtml: string;
-  defaultName?: string;
-  sourceFilePath?: string | null;
-}): void {
-  if (dialogOpen) return;
-  dialogOpen = true;
-
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-
-  let closed = false;
-  const cleanup = () => {
-    if (closed) return;
-    closed = true;
-    dialogOpen = false;
-    root.unmount();
-    if (container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-  };
-
-  const root = createRoot(container);
-  root.render(
-    <PdfExportDialog
-      markdown={props.markdown}
-      renderedHtml={props.renderedHtml}
-      defaultName={props.defaultName}
-      sourceFilePath={props.sourceFilePath}
-      onClose={cleanup}
-    />,
+      </div>{/* end .pdf-export-preview-wrapper */}
+    </div>
   );
 }

@@ -205,7 +205,7 @@ ${contentCSS}
 
 /* PDF-specific overrides */
 body {
-  background: #e8e8e8;
+  background: transparent;
   color: #1a1a1a;
   margin: 0;
   padding: 0;
