@@ -123,7 +123,7 @@ fn check_ready_or_queue(label: &str, event: PendingMenuEvent) -> bool {
 fn has_document_windows(app: &AppHandle) -> bool {
     app.webview_windows()
         .values()
-        .any(|w| w.label() != "settings")
+        .any(|w| w.label() != "settings" && w.label() != "pdf-export")
 }
 
 /// Get the focused window, if any

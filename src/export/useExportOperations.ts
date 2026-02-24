@@ -289,13 +289,11 @@ export async function exportToPdfNative(options: ExportToPdfOptions): Promise<vo
       mode: "single",
     });
 
-    // Open PDF export dialog
-    const { showPdfExportDialog } = await import("./PdfExportDialog");
-    showPdfExportDialog({
-      markdown,
+    // Open PDF export in native window
+    const { openPdfExportWindow } = await import("@/utils/pdfExportWindow");
+    await openPdfExportWindow({
       renderedHtml: resolvedHtml,
       defaultName,
-      sourceFilePath,
     });
   } catch (error) {
     console.error("[PDF] Failed to open PDF dialog:", error);
