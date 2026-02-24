@@ -34,6 +34,121 @@ fn emit_progress(app: &AppHandle, stage: &'static str) {
     let _ = app.emit_to("pdf-export", "pdf-export-progress", PdfProgress { stage });
 }
 
+// ============================================================================
+// Shared WKWebView Setup
+// ============================================================================
+
+/// A hidden NSWindow + WKWebView pair used for off-screen rendering.
+struct OffscreenWebView {
+    window: objc2::rc::Retained<objc2_app_kit::NSWindow>,
+    webview: objc2::rc::Retained<objc2_web_kit::WKWebView>,
+}
+
+/// Create a hidden NSWindow + WKWebView for off-screen HTML rendering.
+///
+/// WKWebView's printOperationWithPrintInfo requires a window for
+/// runOperationModalForWindow to work correctly.
+fn create_offscreen_webview(
+    mtm: objc2::MainThreadMarker,
+) -> OffscreenWebView {
+    use objc2_app_kit::{NSBackingStoreType, NSWindow, NSWindowStyleMask};
+    use objc2_core_foundation::CGRect;
+    use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
+
+    let frame = CGRect::new(
+        objc2_core_foundation::CGPoint::new(0.0, 0.0),
+        objc2_core_foundation::CGSize::new(800.0, 600.0),
+    );
+    let window = unsafe {
+        NSWindow::initWithContentRect_styleMask_backing_defer(
+            NSWindow::alloc(mtm),
+            frame,
+            NSWindowStyleMask::Borderless,
+            NSBackingStoreType::Buffered,
+            true,
+        )
+    };
+    let config = unsafe { WKWebViewConfiguration::new(mtm) };
+    let webview = unsafe {
+        WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config)
+    };
+    window.setContentView(Some(&webview));
+
+    OffscreenWebView { window, webview }
+}
+
+/// Load HTML from a file URL and wait for the load to complete.
+///
+/// Returns Err if the load times out (10 seconds).
+fn load_html_and_wait(
+    webview: &objc2_web_kit::WKWebView,
+    html_path: &str,
+    read_access_dir: &str,
+) -> Result<(), String> {
+    use objc2_foundation::NSURL;
+
+    let file_url = NSURL::fileURLWithPath(&NSString::from_str(html_path));
+    let dir_url = NSURL::fileURLWithPath(&NSString::from_str(read_access_dir));
+    unsafe { webview.loadFileURL_allowingReadAccessToURL(&file_url, &dir_url) };
+
+    let load_start = std::time::Instant::now();
+    let mut loaded = false;
+    for i in 0..200 {
+        run_loop_tick(0.05);
+
+        let is_loading: bool = unsafe { objc2::msg_send![webview, isLoading] };
+        if !is_loading && i > 2 {
+            eprintln!(
+                "[PDF] loaded at tick {} ({:.2}s)",
+                i,
+                load_start.elapsed().as_secs_f64()
+            );
+            loaded = true;
+            break;
+        }
+        if i % 20 == 0 {
+            eprintln!("[PDF] tick {}: isLoading={}", i, is_loading);
+        }
+    }
+
+    if !loaded {
+        eprintln!(
+            "[PDF] load TIMEOUT after {:.2}s",
+            load_start.elapsed().as_secs_f64()
+        );
+        return Err("HTML load timeout (10s)".to_string());
+    }
+
+    // Extra settle time for CSS parsing, layout, font loading
+    run_loop_tick(0.2);
+    Ok(())
+}
+
+/// Configure NSPrintInfo with zero margins and fit-to-page pagination.
+///
+/// Returns a copy of the shared print info to avoid mutating global state.
+fn configure_print_info() -> objc2::rc::Retained<objc2_app_kit::NSPrintInfo> {
+    use objc2_app_kit::{NSPrintInfo, NSPrintingPaginationMode};
+    use objc2_foundation::NSCopying;
+
+    let print_info = NSPrintInfo::sharedPrintInfo().copy();
+    print_info.setHorizontalPagination(NSPrintingPaginationMode::Fit);
+    print_info.setVerticalPagination(NSPrintingPaginationMode::Automatic);
+
+    // Set margins to 0 — let @page CSS rules control margins.
+    // WebKit's print pipeline applies @page margins internally.
+    print_info.setTopMargin(0.0);
+    print_info.setBottomMargin(0.0);
+    print_info.setLeftMargin(0.0);
+    print_info.setRightMargin(0.0);
+
+    print_info
+}
+
+// ============================================================================
+// PDF Export
+// ============================================================================
+
 /// Render HTML to PDF via off-screen WKWebView.
 ///
 /// Writes HTML to a temp file, then dispatches to the main thread via
@@ -49,7 +164,11 @@ pub async fn render_pdf(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let temp_html = temp_dir.join(format!("vmark-pdf-export-{}-{}.html", std::process::id(), unique_id));
+    let temp_html = temp_dir.join(format!(
+        "vmark-pdf-export-{}-{}.html",
+        std::process::id(),
+        unique_id
+    ));
     std::fs::write(&temp_html, &html)
         .map_err(|e| format!("Failed to write temp HTML: {}", e))?;
 
@@ -103,12 +222,6 @@ fn render_pdf_on_main_thread(
     output_path: &str,
 ) -> Result<(), String> {
     use objc2::MainThreadMarker;
-    use objc2_app_kit::{
-        NSBackingStoreType, NSWindow, NSWindowStyleMask,
-    };
-    use objc2_core_foundation::CGRect;
-    use objc2_foundation::NSURL;
-    use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
 
     let mtm =
         MainThreadMarker::new().ok_or("PDF export must run on the main thread")?;
@@ -116,76 +229,15 @@ fn render_pdf_on_main_thread(
     emit_progress(app, "loading");
     eprintln!("[PDF] creating hidden window + WKWebView...");
 
-    // Create a hidden NSWindow to host the WKWebView.
-    // WKWebView's printOperationWithPrintInfo requires a window for
-    // runOperationModalForWindow to work correctly.
-    let frame = CGRect::new(
-        objc2_core_foundation::CGPoint::new(0.0, 0.0),
-        objc2_core_foundation::CGSize::new(800.0, 600.0),
-    );
-    let window = unsafe {
-        NSWindow::initWithContentRect_styleMask_backing_defer(
-            NSWindow::alloc(mtm),
-            frame,
-            NSWindowStyleMask::Borderless,
-            NSBackingStoreType::Buffered,
-            true, // defer
-        )
-    };
+    let ov = create_offscreen_webview(mtm);
 
-    let config = unsafe { WKWebViewConfiguration::new(mtm) };
-    let webview = unsafe {
-        WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config)
-    };
-
-    // Attach WKWebView to the window (required for print operations)
-    window.setContentView(Some(&webview));
-
-    // Load from file URL
     eprintln!("[PDF] loading file: {}", html_path);
-    let file_url = NSURL::fileURLWithPath(&NSString::from_str(html_path));
-    let dir_url = NSURL::fileURLWithPath(&NSString::from_str(read_access_dir));
-    unsafe { webview.loadFileURL_allowingReadAccessToURL(&file_url, &dir_url) };
+    load_html_and_wait(&ov.webview, html_path, read_access_dir)?;
 
-    // Wait for HTML to load
-    eprintln!("[PDF] waiting for load...");
-    let load_start = std::time::Instant::now();
-    let mut loaded = false;
-    for i in 0..200 {
-        run_loop_tick(0.05);
-
-        let is_loading: bool = unsafe { objc2::msg_send![&webview, isLoading] };
-        if !is_loading && i > 2 {
-            eprintln!(
-                "[PDF] loaded at tick {} ({:.2}s)",
-                i,
-                load_start.elapsed().as_secs_f64()
-            );
-            loaded = true;
-            break;
-        }
-        if i % 20 == 0 {
-            eprintln!("[PDF] tick {}: isLoading={}", i, is_loading);
-        }
-    }
-
-    if !loaded {
-        eprintln!("[PDF] load TIMEOUT after {:.2}s", load_start.elapsed().as_secs_f64());
-        return Err("HTML load timeout (10s)".to_string());
-    }
-
-    // Extra settle time for rendering
-    run_loop_tick(0.2);
-
-    eprintln!(
-        "[PDF] load phase done ({:.2}s), creating PDF via print operation...",
-        load_start.elapsed().as_secs_f64()
-    );
-
-    // Create PDF via print operation (paginated, respects @page CSS)
+    eprintln!("[PDF] creating PDF via print operation...");
     emit_progress(app, "rendering");
     let pdf_start = std::time::Instant::now();
-    let result = print_to_pdf(&webview, &window, output_path);
+    let result = print_to_pdf(&ov.webview, &ov.window, output_path);
     eprintln!(
         "[PDF] print operation done in {:.2}s",
         pdf_start.elapsed().as_secs_f64()
@@ -206,27 +258,12 @@ fn print_to_pdf(
     window: &objc2_app_kit::NSWindow,
     output_path: &str,
 ) -> Result<(), String> {
-    use objc2_app_kit::{
-        NSPrintInfo, NSPrintJobSavingURL, NSPrintSaveJob,
-        NSPrintingPaginationMode,
-    };
-    use objc2_foundation::{NSCopying, NSURL};
+    use objc2_app_kit::{NSPrintJobSavingURL, NSPrintSaveJob};
+    use objc2_foundation::NSURL;
 
     eprintln!("[PDF] configuring NSPrintInfo...");
 
-    // Copy shared print info to avoid mutating global state between operations
-    let print_info = NSPrintInfo::sharedPrintInfo().copy();
-
-    // Configure pagination
-    print_info.setHorizontalPagination(NSPrintingPaginationMode::Fit);
-    print_info.setVerticalPagination(NSPrintingPaginationMode::Automatic);
-
-    // Set margins to 0 — let @page CSS rules control margins.
-    // WebKit's print pipeline applies @page margins internally.
-    print_info.setTopMargin(0.0);
-    print_info.setBottomMargin(0.0);
-    print_info.setLeftMargin(0.0);
-    print_info.setRightMargin(0.0);
+    let print_info = configure_print_info();
 
     // Configure save-to-PDF disposition
     unsafe {
@@ -234,11 +271,11 @@ fn print_to_pdf(
     }
 
     // Set the output file URL in the print info dictionary.
-    // Use msg_send! because the typed setObject_forKey expects ProtocolObject<NSCopying>.
     let output_url = NSURL::fileURLWithPath(&NSString::from_str(output_path));
     unsafe {
         let dict = print_info.dictionary();
-        let _: () = objc2::msg_send![&*dict, setObject: &*output_url, forKey: NSPrintJobSavingURL];
+        let _: () =
+            objc2::msg_send![&*dict, setObject: &*output_url, forKey: NSPrintJobSavingURL];
     }
 
     // Remove any stale file to avoid false-positive success detection
@@ -246,7 +283,6 @@ fn print_to_pdf(
 
     eprintln!("[PDF] creating print operation...");
 
-    // Get print operation from WKWebView
     let print_op = unsafe { webview.printOperationWithPrintInfo(&print_info) };
 
     // Hide print panel and progress panel (save silently)
@@ -257,38 +293,54 @@ fn print_to_pdf(
 
     // Run the print operation modally for the hidden window.
     // This is required for WKWebView — plain runOperation() produces blank PDFs.
-    // The modal variant properly processes WebKit's internal print rendering.
-    //
-    // We pass nil delegate/selector/contextInfo since we spin NSRunLoop
-    // synchronously and check the file output afterwards.
     unsafe {
         print_op.runOperationModalForWindow_delegate_didRunSelector_contextInfo(
             window,
-            None,                    // delegate
-            None,                    // didRunSelector
-            std::ptr::null_mut(),    // contextInfo
+            None,
+            None,
+            std::ptr::null_mut(),
         );
     }
 
-    // Spin run loop to let the print operation complete
+    // Wait for the PDF file to be fully written.
+    // We check file existence AND wait for the file size to stabilize
+    // to avoid returning while the file is still being flushed.
     let start = std::time::Instant::now();
+    let mut last_size: u64 = 0;
+    let mut stable_ticks: u32 = 0;
     for i in 0..600 {
         run_loop_tick(0.1);
 
-        // Check if the PDF file has been written
-        if i > 5 && std::path::Path::new(output_path).exists() {
-            // Verify file has content (not just created empty)
+        if i > 5 {
             if let Ok(metadata) = std::fs::metadata(output_path) {
-                if metadata.len() > 0 {
-                    eprintln!(
-                        "[PDF] PDF file detected at tick {} ({:.2}s), size: {} bytes",
-                        i,
-                        start.elapsed().as_secs_f64(),
-                        metadata.len()
-                    );
-                    // Give a bit more time for file to be fully flushed
-                    run_loop_tick(0.2);
-                    return Ok(());
+                let size = metadata.len();
+                if size > 0 {
+                    if size == last_size {
+                        stable_ticks += 1;
+                    } else {
+                        stable_ticks = 0;
+                        last_size = size;
+                    }
+                    // File size stable for 5 consecutive ticks (500ms) — done
+                    if stable_ticks >= 5 {
+                        // Final recheck after one more pause to guard against slow flushes
+                        run_loop_tick(0.2);
+                        let final_size = std::fs::metadata(output_path)
+                            .map(|m| m.len())
+                            .unwrap_or(0);
+                        if final_size == size {
+                            eprintln!(
+                                "[PDF] PDF file stable at tick {} ({:.2}s), size: {} bytes",
+                                i,
+                                start.elapsed().as_secs_f64(),
+                                size
+                            );
+                            return Ok(());
+                        }
+                        // Size changed during recheck — reset and keep waiting
+                        stable_ticks = 0;
+                        last_size = final_size;
+                    }
                 }
             }
         }
@@ -324,6 +376,10 @@ fn print_to_pdf(
     Err("Print operation timeout (60s)".to_string())
 }
 
+// ============================================================================
+// Native Print Dialog
+// ============================================================================
+
 /// Print HTML via native macOS print dialog.
 ///
 /// Same pipeline as render_pdf but shows the print panel instead of
@@ -334,7 +390,11 @@ pub async fn print_document(app: AppHandle, html: String) -> Result<(), String> 
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let temp_html = temp_dir.join(format!("vmark-print-{}-{}.html", std::process::id(), unique_id));
+    let temp_html = temp_dir.join(format!(
+        "vmark-print-{}-{}.html",
+        std::process::id(),
+        unique_id
+    ));
     std::fs::write(&temp_html, &html)
         .map_err(|e| format!("Failed to write temp HTML: {}", e))?;
 
@@ -344,10 +404,9 @@ pub async fn print_document(app: AppHandle, html: String) -> Result<(), String> 
     let temp_html_str = temp_html.to_string_lossy().to_string();
     let temp_dir_str = temp_dir.to_string_lossy().to_string();
 
-    let app_clone = app.clone();
     app.run_on_main_thread(move || {
         let result =
-            print_on_main_thread(&app_clone, &temp_html_str, &temp_dir_str);
+            print_on_main_thread(&temp_html_str, &temp_dir_str);
         let _ = std::fs::remove_file(&temp_html_str);
         if let Some(sender) = tx_clone.lock().unwrap().take() {
             let _ = sender.send(result);
@@ -360,83 +419,37 @@ pub async fn print_document(app: AppHandle, html: String) -> Result<(), String> 
 }
 
 /// Main-thread native print logic.
+///
+/// Shows the native macOS print dialog as a sheet on the app's key window.
+/// The dialog is modal — this function blocks until the user confirms or cancels.
+///
+/// Note: We cannot reliably detect print cancellation from NSPrintOperation
+/// when used with WKWebView (no delegate callback fires). We always return Ok
+/// and let the print system handle errors via the macOS print infrastructure.
 fn print_on_main_thread(
-    _app: &AppHandle,
     html_path: &str,
     read_access_dir: &str,
 ) -> Result<(), String> {
     use objc2::MainThreadMarker;
-    use objc2_app_kit::{
-        NSApplication, NSBackingStoreType, NSPrintInfo, NSPrintingPaginationMode, NSWindow,
-        NSWindowStyleMask,
-    };
-    use objc2_core_foundation::CGRect;
-    use objc2_foundation::NSURL;
-    use objc2_web_kit::{WKWebView, WKWebViewConfiguration};
+    use objc2_app_kit::NSApplication;
 
     let mtm = MainThreadMarker::new().ok_or("Print must run on the main thread")?;
 
-    // Hidden window + WKWebView to render the HTML
-    let frame = CGRect::new(
-        objc2_core_foundation::CGPoint::new(0.0, 0.0),
-        objc2_core_foundation::CGSize::new(800.0, 600.0),
-    );
-    let hidden_window = unsafe {
-        NSWindow::initWithContentRect_styleMask_backing_defer(
-            NSWindow::alloc(mtm),
-            frame,
-            NSWindowStyleMask::Borderless,
-            NSBackingStoreType::Buffered,
-            true,
-        )
-    };
-    let config = unsafe { WKWebViewConfiguration::new(mtm) };
-    let webview = unsafe {
-        WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config)
-    };
-    hidden_window.setContentView(Some(&webview));
+    let ov = create_offscreen_webview(mtm);
 
-    // Load HTML from file URL
-    let file_url = NSURL::fileURLWithPath(&NSString::from_str(html_path));
-    let dir_url = NSURL::fileURLWithPath(&NSString::from_str(read_access_dir));
-    unsafe { webview.loadFileURL_allowingReadAccessToURL(&file_url, &dir_url) };
+    load_html_and_wait(&ov.webview, html_path, read_access_dir)?;
 
-    // Wait for load (with timeout)
-    let mut print_loaded = false;
-    for i in 0..200 {
-        run_loop_tick(0.05);
-        let is_loading: bool = unsafe { objc2::msg_send![&webview, isLoading] };
-        if !is_loading && i > 2 {
-            print_loaded = true;
-            break;
-        }
-    }
-    if !print_loaded {
-        return Err("Print HTML load timeout (10s)".to_string());
-    }
-    run_loop_tick(0.2);
+    let print_info = configure_print_info();
 
-    // Copy shared print info to avoid mutating global state
-    let print_info = {
-        use objc2_foundation::NSCopying;
-        NSPrintInfo::sharedPrintInfo().copy()
-    };
-    print_info.setHorizontalPagination(NSPrintingPaginationMode::Fit);
-    print_info.setVerticalPagination(NSPrintingPaginationMode::Automatic);
-    print_info.setTopMargin(0.0);
-    print_info.setBottomMargin(0.0);
-    print_info.setLeftMargin(0.0);
-    print_info.setRightMargin(0.0);
-
-    // Get print operation — show the print panel (unlike PDF export)
-    let print_op = unsafe { webview.printOperationWithPrintInfo(&print_info) };
+    // Show the print panel (unlike PDF export which hides it)
+    let print_op = unsafe { ov.webview.printOperationWithPrintInfo(&print_info) };
     print_op.setShowsPrintPanel(true);
     print_op.setShowsProgressPanel(true);
 
     // Attach the print dialog to the app's key window (the focused document window)
     // so the sheet appears on the main window and can be interacted with normally.
     let ns_app = NSApplication::sharedApplication(mtm);
-    let parent_window = ns_app.keyWindow().unwrap_or(hidden_window.clone());
+    let parent_window = ns_app.keyWindow().unwrap_or(ov.window.clone());
 
     // Run modal — shows native macOS print dialog as a sheet on the main window
     unsafe {
@@ -448,7 +461,9 @@ fn print_on_main_thread(
         );
     }
 
-    // Spin run loop to let the dialog and print operation complete
+    // Spin run loop to let the dialog and print operation complete.
+    // The modal dialog blocks user interaction until dismissed, then the
+    // print spooling happens asynchronously in the macOS print subsystem.
     for _ in 0..20 {
         run_loop_tick(0.1);
     }

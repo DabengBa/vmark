@@ -80,21 +80,57 @@ fn debug_log(message: String) {
 ///
 /// Uses the Tauri app data directory so the path falls within the FS plugin's
 /// allowed scope (needed for PDF export window to read the file via `readTextFile`).
+///
+/// Cleans up stale temp files (older than 1 hour) on each call to prevent
+/// accumulation from previous export/print sessions.
 #[tauri::command]
 fn write_temp_html(app: tauri::AppHandle, html: String) -> Result<String, String> {
     use std::io::Write;
+
+    // Reject obviously oversized input (>50 MB)
+    if html.len() > 50 * 1024 * 1024 {
+        return Err("HTML content too large (>50 MB)".to_string());
+    }
+
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let dir = app_data.join("temp");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    // Clean up stale temp files (older than 1 hour)
+    cleanup_stale_temp_files(&dir);
+
     let unique_id = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let filename = format!("print-{}-{}.html", std::process::id(), unique_id);
+    let filename = format!("vmark-export-{}-{}.html", std::process::id(), unique_id);
     let path = dir.join(filename);
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
     file.write_all(html.as_bytes()).map_err(|e| e.to_string())?;
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// Remove temp HTML files older than 1 hour to prevent accumulation.
+fn cleanup_stale_temp_files(dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let cutoff = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !name.starts_with("vmark-") && !name.starts_with("print-") {
+            continue;
+        }
+        if !name.ends_with(".html") {
+            continue;
+        }
+        if let Ok(meta) = path.metadata() {
+            if let Ok(modified) = meta.modified() {
+                if modified < cutoff {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
+    }
 }
 
 /// Atomic file write using temp file + rename.

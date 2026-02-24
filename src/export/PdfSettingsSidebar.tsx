@@ -303,8 +303,8 @@ export function PdfSettingsSidebar({ options, onOptionChange: set, onExport, exp
           </PdfSettingsGroup>
         </CollapsibleSection>
 
-        {/* Headers & Footers — collapsible */}
-        <CollapsibleSection title="Headers & Footers">
+        {/* Headers & Footers — collapsible (preview only: WebKit native print ignores @page margin boxes) */}
+        <CollapsibleSection title="Headers & Footers (Preview Only)">
           <PdfSettingsGroup icon={<Layers className="w-3.5 h-3.5" />}>
             <SettingRow label="Title">
               <input
