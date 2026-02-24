@@ -355,8 +355,8 @@ ${resolvedHtml}
     const filePath: string = await invoke("write_temp_html", {
       html: fullHtml,
     });
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(`file://${filePath}`);
+    const { openPath } = await import("@tauri-apps/plugin-opener");
+    await openPath(filePath);
     toast.success("Opened in browser for printing");
   } catch (error) {
     console.error("[Print] Failed to print:", error);
