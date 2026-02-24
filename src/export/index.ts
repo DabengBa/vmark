@@ -63,7 +63,8 @@ export type { HtmlExportOptions, HtmlExportResult } from "./htmlExport";
 export {
   exportToHtml,
   exportToPdf,
+  exportToPdfNative,
   copyAsHtml,
   getRenderedHtml,
 } from "./useExportOperations";
-export type { ExportToHtmlOptions } from "./useExportOperations";
+export type { ExportToHtmlOptions, ExportToPdfOptions } from "./useExportOperations";

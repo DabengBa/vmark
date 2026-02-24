@@ -175,8 +175,9 @@ If you prefer keeping system functions on F-keys, you can customize VMark shortc
 | Save All and Quit | `Alt + Mod + Shift + Q` |
 | Move to | Menu only |
 | Close | `Mod + W` |
-| Export HTML | `Alt + Mod + E` |
+| Export HTML | Menu only |
 | Print | `Mod + P` |
+| Export PDF | — |
 | Settings | `Mod + ,` |
 
 ## Clipboard

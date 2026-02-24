@@ -5,7 +5,7 @@
  *   copy-as-HTML to clipboard.
  *
  * Pipeline: Rust menu event → Tauri listen() → flush WYSIWYG content →
- *   render ExportSurface (for visual parity) → save to disk or clipboard
+ *   render ExportSurface (for visual parity) → save to disk / clipboard / open PDF dialog
  *
  * Key decisions:
  *   - Export module dynamically imported to avoid loading exportStyles.css at startup
@@ -72,8 +72,8 @@ export function useExportMenuEvents(): void {
       if (cancelled) { unlistenExportHtml(); return; }
       unlistenRefs.current.push(unlistenExportHtml);
 
-      // Print/PDF via print dialog
-      const unlistenExportPdf = await currentWindow.listen<string>("menu:export-pdf", async (event) => {
+      // Print: browser-based print flow (Cmd+P)
+      const unlistenPrint = await currentWindow.listen<string>("menu:export-pdf", async (event) => {
         if (event.payload !== windowLabel) return;
         flushActiveWysiwygNow();
 
@@ -82,14 +82,38 @@ export function useExportMenuEvents(): void {
           if (!doc) return;
           try {
             const { exportToPdf } = await import("@/export");
-            await exportToPdf(doc.content);
+            await exportToPdf({ markdown: doc.content });
+          } catch (error) {
+            console.error("[Menu] Failed to print:", error);
+          }
+        });
+      });
+      if (cancelled) { unlistenPrint(); return; }
+      unlistenRefs.current.push(unlistenPrint);
+
+      // Export PDF: native Paged.js + WKWebView dialog (macOS)
+      const unlistenExportPdfNative = await currentWindow.listen<string>("menu:export-pdf-native", async (event) => {
+        if (event.payload !== windowLabel) return;
+        flushActiveWysiwygNow();
+
+        await withReentryGuard(windowLabel, "export", async () => {
+          const doc = getActiveDocument(windowLabel);
+          if (!doc) return;
+          const defaultName = getExportFolderName(doc.content, doc.filePath);
+          try {
+            const { exportToPdfNative } = await import("@/export");
+            await exportToPdfNative({
+              markdown: doc.content,
+              defaultName,
+              sourceFilePath: doc.filePath,
+            });
           } catch (error) {
             console.error("[Menu] Failed to export PDF:", error);
           }
         });
       });
-      if (cancelled) { unlistenExportPdf(); return; }
-      unlistenRefs.current.push(unlistenExportPdf);
+      if (cancelled) { unlistenExportPdfNative(); return; }
+      unlistenRefs.current.push(unlistenExportPdfNative);
 
       const unlistenCopyHtml = await currentWindow.listen<string>("menu:copy-html", async (event) => {
         if (event.payload !== windowLabel) return;
