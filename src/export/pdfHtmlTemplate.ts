@@ -114,7 +114,7 @@ function buildTypographyCSS(options: PdfOptions): string {
 
   return `
 :root {
-  --editor-font-size: ${options.fontSize}px;
+  --editor-font-size: ${options.fontSize}pt;
   --editor-line-height: ${options.lineHeight};
   --cjk-letter-spacing: ${options.cjkLetterSpacing};
   --font-sans: ${fontStack};
