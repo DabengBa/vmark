@@ -1,5 +1,4 @@
 ---
-name: expand
 description: Develop idea into fuller prose
 scope: selection
 category: creative

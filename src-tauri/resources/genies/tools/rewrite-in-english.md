@@ -1,5 +1,4 @@
 ---
-name: rewrite-in-english
 description: Rewrite text in English
 scope: selection
 category: tools

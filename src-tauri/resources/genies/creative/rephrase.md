@@ -1,5 +1,4 @@
 ---
-name: rephrase
 description: Say the same thing differently
 scope: selection
 category: creative
