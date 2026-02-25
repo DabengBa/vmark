@@ -7,7 +7,8 @@
  * Key decisions:
  *   - Lives in hooks/ (not utils/) because it has Tauri dialog + store side effects
  *   - Orphan image cleanup runs only on explicitly closed tabs (not discarded)
- *   - Closes the window when the last tab is closed (macOS standard behavior)
+ *   - On macOS, closes the window when the last tab is closed (standard behavior)
+ *   - On Windows/Linux, creates a new untitled tab instead of closing the window
  *   - Pure close decision logic delegated to utils/closeDecision.ts
  *   - Re-entry guard (closingTabIds) prevents duplicate save prompts when
  *     Cmd+W fires both keydown and menu:close concurrently
@@ -27,6 +28,8 @@ import { findOrphanedImages, deleteOrphanedImages } from "@/utils/orphanAssetCle
 import { clearDocumentHistory } from "@/hooks/useUnifiedHistory";
 import { invoke } from "@tauri-apps/api/core";
 import { persistWorkspaceSession } from "@/hooks/workspaceSession";
+import { createUntitledTab } from "@/utils/newFile";
+import { isMacPlatform } from "@/utils/shortcutMatch";
 
 /**
  * Clean up orphaned images for a document if setting is enabled.
@@ -52,13 +55,21 @@ async function cleanupOrphansIfEnabled(
   }
 }
 
-/** Close the window if no tabs remain (last-tab-closed → close window). */
+/**
+ * Handle empty window after last tab is closed.
+ * macOS: close the window (standard macOS behavior — app stays in dock).
+ * Windows/Linux: create a new untitled tab (users expect the window to persist).
+ */
 async function closeWindowIfEmpty(windowLabel: string): Promise<void> {
   const remaining = useTabStore.getState().tabs[windowLabel] ?? [];
   if (remaining.length === 0) {
-    await persistWorkspaceSession(windowLabel);
-    useTabStore.getState().removeWindow(windowLabel);
-    await invoke("close_window", { label: windowLabel });
+    if (isMacPlatform()) {
+      await persistWorkspaceSession(windowLabel);
+      useTabStore.getState().removeWindow(windowLabel);
+      await invoke("close_window", { label: windowLabel });
+    } else {
+      createUntitledTab(windowLabel);
+    }
   }
 }
 
