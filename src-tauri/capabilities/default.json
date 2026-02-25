@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for all windows. SECURITY NOTE: Filesystem permissions use broad path patterns because VMark is a document editor that must access user-chosen files anywhere on disk. This is intentional and required for: (1) Opening/saving markdown files from any location, (2) Managing ./assets/images/ folders relative to documents, (3) Version history storage in ~/.vmark/history/, (4) File explorer sidebar navigation, (5) Opening files from external drives/volumes. Path traversal attacks are mitigated at the application layer via validateImagePath() in src/plugins/imageView/security.ts. Cross-platform paths: macOS=/Volumes, Linux=/mnt+/media, Windows=C:-Z: drives.",
+  "description": "Capability for all windows. SECURITY NOTE: Filesystem permissions use broad path patterns because VMark is a document editor that must access user-chosen files anywhere on disk. This is intentional and required for: (1) Opening/saving markdown files from any location, (2) Managing ./assets/images/ folders relative to documents, (3) Version history storage in ~/.vmark/history/, (4) File explorer sidebar navigation, (5) Opening files from external drives/volumes. Path traversal attacks are mitigated at the application layer via validateImagePath() in src/plugins/imageView/security.ts. Windows drive letter patterns are in a separate windows.json capability file because backslash-glob patterns (C:\\**) are invalid on Unix platforms.",
   "windows": ["main", "settings", "pdf-export", "doc-*"],
   "permissions": [
     "core:default",
@@ -40,11 +40,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -53,11 +49,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -66,11 +58,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -79,11 +67,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -92,11 +76,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -105,11 +85,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -118,11 +94,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -131,11 +103,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -144,11 +112,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     },
     {
@@ -157,11 +121,7 @@
         { "path": "$HOME/**" },
         { "path": "/Volumes/**" },
         { "path": "/mnt/**" },
-        { "path": "/media/**" },
-        { "path": "C:\\**" },
-        { "path": "D:\\**" },
-        { "path": "E:\\**" },
-        { "path": "F:\\**" }
+        { "path": "/media/**" }
       ]
     }
   ]
