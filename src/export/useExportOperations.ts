@@ -47,14 +47,17 @@ async function renderMarkdownToHtml(
     document.body.appendChild(container);
 
     const surfaceRef = React.createRef<ExportSurfaceRef>();
+    let root: ReturnType<typeof createRoot> | null = null;
 
     const cleanup = () => {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-      root.unmount();
-      document.body.removeChild(container);
+      root?.unmount();
+      if (container.parentNode) {
+        document.body.removeChild(container);
+      }
     };
 
     const complete = (html: string) => {
@@ -93,16 +96,22 @@ async function renderMarkdownToHtml(
     };
 
     // Render ExportSurface
-    const root = createRoot(container);
-    root.render(
-      React.createElement(ExportSurface, {
-        ref: surfaceRef,
-        markdown,
-        lightTheme,
-        onReady: handleReady,
-        onError: handleError,
-      })
-    );
+    try {
+      root = createRoot(container);
+      root.render(
+        React.createElement(ExportSurface, {
+          ref: surfaceRef,
+          markdown,
+          lightTheme,
+          onReady: handleReady,
+          onError: handleError,
+        })
+      );
+    } catch (error) {
+      cleanup();
+      reject(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
 
     // Timeout fallback
     timeoutId = setTimeout(() => {
@@ -111,7 +120,7 @@ async function renderMarkdownToHtml(
       if (html) {
         complete(html);
       } else {
-        fail(new Error("Export rendering timeout"));
+        fail(new Error("Export rendering timed out — the editor failed to initialize"));
       }
     }, RENDER_TIMEOUT);
   });
@@ -210,7 +219,8 @@ export async function exportToHtml(
     return true;
   } catch (error) {
     console.error("[Export] Failed to export HTML:", error);
-    await showError(FileErrors.exportFailed("HTML"));
+    const detail = error instanceof Error ? error.message : String(error);
+    await showError(FileErrors.exportFailed("HTML"), detail);
     return false;
   }
 }
