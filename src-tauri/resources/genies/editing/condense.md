@@ -1,5 +1,4 @@
 ---
-name: condense
 description: Make text more concise
 scope: selection
 category: editing

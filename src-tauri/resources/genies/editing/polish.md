@@ -1,5 +1,4 @@
 ---
-name: polish
 description: Improve clarity and flow
 scope: selection
 category: editing

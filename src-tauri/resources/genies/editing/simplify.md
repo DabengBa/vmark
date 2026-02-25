@@ -1,5 +1,4 @@
 ---
-name: simplify
 description: Use simpler language
 scope: selection
 category: editing

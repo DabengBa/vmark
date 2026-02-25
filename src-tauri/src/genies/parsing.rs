@@ -7,18 +7,33 @@ use super::types::{GenieContent, GenieMetadata};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Derive a display name from a file path's stem, stripping control characters.
+fn name_from_path(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect()
+}
+
+/// Parse genie content and extract metadata.
+///
+/// `path` must be an absolute or canonical filesystem path — the filename stem
+/// is used as the display name. Callers (`read_genie`, `scan_genies_dir`) always
+/// provide paths from filesystem enumeration or `fs::canonicalize`.
 pub(crate) fn parse_genie(content: &str, path: &str) -> Result<GenieContent, String> {
     // Strip UTF-8 BOM if present
     let content = content.trim_start_matches('\u{FEFF}');
     let trimmed = content.trim_start();
 
-    if !trimmed.starts_with("---") {
+    // Require opening fence to be exactly "---" on its own line (not "----" or "--- extra")
+    let has_frontmatter = trimmed.starts_with("---")
+        && trimmed[3..].starts_with(|c: char| c == '\n' || c == '\r');
+    if !has_frontmatter {
         // No frontmatter — use filename as name
-        let name = Path::new(path)
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
+        let name = name_from_path(path);
         return Ok(GenieContent {
             metadata: GenieMetadata {
                 name,
@@ -57,16 +72,9 @@ pub(crate) fn parse_genie(content: &str, path: &str) -> Result<GenieContent, Str
         }
     }
 
-    let name = fields
-        .get("name")
-        .cloned()
-        .unwrap_or_else(|| {
-            Path::new(path)
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        });
+    // Always derive name from filename — renaming the file changes the display name.
+    // Frontmatter `name:` is intentionally ignored for this field.
+    let name = name_from_path(path);
 
     Ok(GenieContent {
         metadata: GenieMetadata {

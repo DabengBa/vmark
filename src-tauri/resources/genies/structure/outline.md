@@ -1,5 +1,4 @@
 ---
-name: outline
 description: Generate an outline
 scope: document
 category: structure
