@@ -5,6 +5,7 @@ import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
 import { message, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { saveToPath } from "@/utils/saveToPath";
+import { isMacPlatform } from "@/utils/shortcutMatch";
 
 vi.mock("@/utils/saveToPath", () => ({
   saveToPath: vi.fn(),
@@ -13,6 +14,11 @@ vi.mock("@/utils/saveToPath", () => ({
 vi.mock("@/hooks/workspaceSession", () => ({
   persistWorkspaceSession: vi.fn().mockResolvedValue(undefined),
 }));
+
+vi.mock("@/utils/shortcutMatch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/utils/shortcutMatch")>();
+  return { ...actual, isMacPlatform: vi.fn(() => true) };
+});
 
 const WINDOW_LABEL = "main";
 
@@ -30,6 +36,7 @@ describe("closeTabWithDirtyCheck", () => {
   beforeEach(() => {
     resetStores();
     vi.clearAllMocks();
+    vi.mocked(isMacPlatform).mockReturnValue(true);
   });
 
   it("closes clean tab without prompting", async () => {
@@ -40,7 +47,7 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(message).not.toHaveBeenCalled();
-    // Closing the last tab closes the window
+    // Closing the last tab closes the window on macOS
     expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
     expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
     expect(useDocumentStore.getState().getDocument(tabId)).toBeUndefined();
@@ -73,7 +80,7 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    // Closing the last tab closes the window
+    // Closing the last tab closes the window on macOS
     expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
     expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
@@ -89,7 +96,7 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).not.toHaveBeenCalled();
-    // Closing the last tab closes the window
+    // Closing the last tab closes the window on macOS
     expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
     expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
@@ -107,7 +114,7 @@ describe("closeTabWithDirtyCheck", () => {
 
     expect(result).toBe(true);
     expect(saveToPath).toHaveBeenCalledWith(tabId, "/tmp/dirty.md", "changed", "manual");
-    // Closing the last tab closes the window
+    // Closing the last tab closes the window on macOS
     expect(useTabStore.getState().tabs[WINDOW_LABEL]).toBeUndefined();
     expect(invoke).toHaveBeenCalledWith("close_window", { label: WINDOW_LABEL });
   });
@@ -150,5 +157,22 @@ describe("closeTabWithDirtyCheck", () => {
     // Resolve the dialog so call1 completes
     resolveDialog("No");
     expect(await call1).toBe(true);
+  });
+
+  it("creates untitled tab instead of closing window on non-macOS", async () => {
+    vi.mocked(isMacPlatform).mockReturnValue(false);
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/test.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/test.md");
+
+    const result = await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(result).toBe(true);
+    // Window should NOT be closed on non-macOS
+    expect(invoke).not.toHaveBeenCalledWith("close_window", expect.anything());
+    // A new untitled tab should have been created
+    const tabs = useTabStore.getState().tabs[WINDOW_LABEL] ?? [];
+    expect(tabs.length).toBe(1);
+    expect(tabs[0].filePath).toBeNull();
   });
 });
