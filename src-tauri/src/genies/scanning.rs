@@ -1,7 +1,7 @@
 //! Genie directory scanning.
 //!
 //! Recursively scans directories for `.md` genie files, extracting names
-//! and categories from subdirectory structure and frontmatter.
+//! from filenames and categories from subdirectory structure.
 
 use super::types::{GenieEntry, GenieMenuEntry};
 use std::collections::HashMap;
@@ -34,11 +34,13 @@ pub(crate) fn scan_genies_dir(
         if ft.is_dir() {
             scan_genies_dir(&path, base, source, entries);
         } else if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
-            let name = path
+            let name: String = path
                 .file_stem()
                 .unwrap_or_default()
                 .to_string_lossy()
-                .to_string();
+                .chars()
+                .filter(|c| !c.is_control())
+                .collect();
 
             // Category from subdirectory relative to base
             let category = path
@@ -69,7 +71,7 @@ pub(crate) fn scan_genies_dir(
     }
 }
 
-/// Scan a directory and return genie entries with titles resolved from frontmatter.
+/// Scan a directory and return genie entries with titles derived from filenames.
 pub fn scan_genies_with_titles(dir: &Path) -> Vec<GenieMenuEntry> {
     let mut entries = Vec::new();
     scan_genies_recursive(dir, dir, &mut entries);
@@ -102,10 +104,9 @@ fn scan_genies_recursive(dir: &Path, base: &Path, entries: &mut Vec<GenieMenuEnt
                 .to_string_lossy()
                 .to_string();
 
-            let title = match fs::read_to_string(&path) {
-                Ok(content) => extract_frontmatter_name(&content).unwrap_or(filename_stem),
-                Err(_) => filename_stem,
-            };
+            // Always use filename as menu title — renaming the file changes the display.
+            // Strip control characters to prevent misleading UI labels.
+            let title: String = filename_stem.chars().filter(|c| !c.is_control()).collect();
 
             let category = path
                 .parent()
@@ -122,27 +123,3 @@ fn scan_genies_recursive(dir: &Path, base: &Path, entries: &mut Vec<GenieMenuEnt
     }
 }
 
-/// Extract the `name:` value from YAML frontmatter without a full parse.
-pub(crate) fn extract_frontmatter_name(content: &str) -> Option<String> {
-    let content = content.trim_start_matches('\u{FEFF}');
-    let trimmed = content.trim_start();
-    if !trimmed.starts_with("---") {
-        return None;
-    }
-    let after_first = &trimmed[3..];
-    let closing = after_first.find("\n---")?;
-    let frontmatter = &after_first[..closing];
-
-    for line in frontmatter.lines() {
-        let line = line.trim();
-        if let Some((key, value)) = line.split_once(':') {
-            if key.trim().eq_ignore_ascii_case("name") {
-                let name = value.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
-                if !name.is_empty() {
-                    return Some(name);
-                }
-            }
-        }
-    }
-    None
-}

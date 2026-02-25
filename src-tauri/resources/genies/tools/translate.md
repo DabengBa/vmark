@@ -1,5 +1,4 @@
 ---
-name: translate
 description: Translate to English
 scope: selection
 category: tools

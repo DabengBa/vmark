@@ -140,7 +140,6 @@ Every genie file has two parts: **frontmatter** (metadata) and **template** (the
 
 ```markdown
 ---
-name: polish
 description: Improve clarity and flow
 scope: selection
 category: editing
@@ -154,17 +153,20 @@ Return only the improved text — no explanations.
 {{content}}
 ```
 
+The filename `polish.md` becomes the display name "Polish" in the picker.
+
 ### Frontmatter Fields
 
 | Field | Required | Values | Default |
 |-------|----------|--------|---------|
-| `name` | Yes | Any string | File name (without `.md`) |
 | `description` | No | Short description shown in picker | Empty |
 | `scope` | No | `selection`, `block`, `document` | `selection` |
 | `category` | No | Category name for grouping | Subdirectory name |
 | `action` | No | `replace`, `insert` | `replace` |
 | `context` | No | `1`, `2` | `0` (none) |
 | `model` | No | Model identifier to override provider default | Provider default |
+
+**Genie name** — The display name is always derived from the **filename** (without `.md`). For example, `fix-grammar.md` appears as "Fix Grammar" in the picker. Rename the file to change the display name.
 
 ### The `{{content}}` Placeholder
 
@@ -237,7 +239,6 @@ Use `insert` for: continuing writing, generating summaries below content, adding
 
 ```markdown
 ---
-name: continue
 description: Continue writing from here
 scope: block
 action: insert
@@ -257,7 +258,6 @@ Override the default model for a specific genie. Useful when you want a cheaper 
 
 ```markdown
 ---
-name: quick-fix
 description: Quick grammar fix (uses fast model)
 scope: selection
 model: claude-haiku-4-5-20251001
@@ -316,7 +316,6 @@ You can use Markdown formatting in your prompt templates. This helps when you wa
 
 ```markdown
 ---
-name: pros-cons
 description: Generate a pros/cons analysis
 scope: selection
 action: insert
@@ -344,7 +343,6 @@ One genie, one job. Don't combine multiple tasks into a single genie — create 
 ```markdown
 <!-- Good — one clear job -->
 ---
-name: active-voice
 description: Convert to active voice
 scope: selection
 ---
@@ -362,7 +360,6 @@ Return only the rewritten text.
 
 ```markdown
 ---
-name: abstract
 description: Generate an academic abstract
 scope: document
 action: insert
@@ -379,7 +376,6 @@ results, conclusion.
 
 ```markdown
 ---
-name: blog-hook
 description: Write an engaging opening paragraph
 scope: document
 action: insert
@@ -396,7 +392,6 @@ scene. Keep it under 3 sentences.
 
 ```markdown
 ---
-name: explain-code
 description: Add a plain-English explanation above code
 scope: selection
 action: insert
@@ -413,7 +408,6 @@ in your response.
 
 ```markdown
 ---
-name: professional-tone
 description: Rewrite in professional tone
 scope: selection
 ---
@@ -431,7 +425,6 @@ Return only the rewritten text — no explanations.
 
 ```markdown
 ---
-name: to-chinese
 description: Translate to Simplified Chinese
 scope: selection
 ---
@@ -449,7 +442,6 @@ Return only the translated text — no explanations.
 
 ```markdown
 ---
-name: fit-context
 description: Rewrite to match surrounding tone and style
 scope: selection
 context: 1
@@ -471,7 +463,6 @@ Return only the rewritten text — no explanations.
 
 ```markdown
 ---
-name: fact-check
 description: Flag claims that need verification
 scope: selection
 action: insert

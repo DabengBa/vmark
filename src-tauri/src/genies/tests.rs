@@ -1,7 +1,7 @@
 //! Tests for the genies module.
 
 use super::parsing::parse_genie;
-use super::scanning::{extract_frontmatter_name, scan_genies_dir};
+use super::scanning::{scan_genies_dir, scan_genies_with_titles};
 use super::types::GenieEntry;
 use std::collections::HashMap;
 use std::fs;
@@ -20,6 +20,7 @@ You are an expert editor. Improve the following text:
 {{content}}"#;
 
     let result = parse_genie(content, "improve-writing.md").unwrap();
+    // Name always comes from filename, not frontmatter
     assert_eq!(result.metadata.name, "improve-writing");
     assert_eq!(result.metadata.description, "Improve clarity and flow");
     assert_eq!(result.metadata.scope, "selection");
@@ -53,7 +54,7 @@ fn test_parse_genie_no_context_field() {
 fn test_parse_genie_with_action_insert() {
     let content = "---\nname: continue\nscope: block\naction: insert\n---\n\nContinue writing.\n\n{{content}}";
     let result = parse_genie(content, "continue.md").unwrap();
-    assert_eq!(result.metadata.name, "continue");
+    assert_eq!(result.metadata.name, "continue"); // from filename
     assert_eq!(result.metadata.scope, "block");
     assert_eq!(result.metadata.action.as_deref(), Some("insert"));
 }
@@ -117,25 +118,64 @@ fn test_no_collision_same_name_different_category() {
 }
 
 #[test]
-fn test_read_genie_uses_canonical_path() {
-    // Validates that read_genie reads from the canonicalized path.
-    // The function canonicalizes, validates prefix, then reads from canonicalized path.
-    // This is tested via the parse_genie function which is the tail of read_genie.
-    let content = "---\nname: canonical-test\nscope: document\n---\nSafe content";
-    let result = parse_genie(content, "canonical-test.md").unwrap();
+fn test_parse_genie_name_from_path_with_directory() {
+    // Name is derived from filename even when path includes directories.
+    let content = "---\nscope: document\n---\nSafe content";
+    let result = parse_genie(content, "/some/dir/canonical-test.md").unwrap();
     assert_eq!(result.metadata.name, "canonical-test");
 }
 
 #[test]
-fn test_parse_genie_strips_quotes() {
+fn test_parse_genie_description_strips_quotes() {
     let content = "---\nname: \"quoted name\"\ndescription: 'single quoted'\nscope: selection\n---\n\nTemplate";
     let result = parse_genie(content, "test.md").unwrap();
-    assert_eq!(result.metadata.name, "quoted name");
+    // Name comes from filename "test.md" → "test", NOT from frontmatter "quoted name"
+    assert_eq!(result.metadata.name, "test");
     assert_eq!(result.metadata.description, "single quoted");
 }
 
 #[test]
-fn test_extract_frontmatter_name_strips_quotes() {
-    let content = "---\nname: \"My Genie\"\nscope: selection\n---\n\nTemplate";
-    assert_eq!(extract_frontmatter_name(content), Some("My Genie".to_string()));
+fn test_scan_genies_with_titles_uses_filename_not_frontmatter() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    let base = tmp.path();
+
+    // Create a genie with frontmatter name different from filename
+    let editing = base.join("editing");
+    fs::create_dir_all(&editing).unwrap();
+    let mut f1 = fs::File::create(editing.join("enhance.md")).unwrap();
+    writeln!(f1, "---\nname: old-name\ndescription: test\nscope: selection\n---\ntemplate").unwrap();
+
+    // Root-level genie without frontmatter
+    let mut f2 = fs::File::create(base.join("quick-fix.md")).unwrap();
+    writeln!(f2, "Just a plain template").unwrap();
+
+    let entries = scan_genies_with_titles(base);
+
+    // Should have 2 entries
+    assert_eq!(entries.len(), 2);
+
+    // Titles come from filenames, not frontmatter
+    let titles: Vec<&str> = entries.iter().map(|e| e.title.as_str()).collect();
+    assert!(titles.contains(&"enhance"), "expected 'enhance' from filename, got {:?}", titles);
+    assert!(titles.contains(&"quick-fix"), "expected 'quick-fix' from filename, got {:?}", titles);
+
+    // Category from subdirectory
+    let enhance = entries.iter().find(|e| e.title == "enhance").unwrap();
+    assert_eq!(enhance.category.as_deref(), Some("editing"));
+
+    // Root-level has no category
+    let quick_fix = entries.iter().find(|e| e.title == "quick-fix").unwrap();
+    assert_eq!(quick_fix.category, None);
+
+    // Entries sorted by title
+    assert!(entries[0].title <= entries[1].title, "entries not sorted");
+}
+
+#[test]
+fn test_parse_genie_name_from_filename_not_frontmatter() {
+    // Frontmatter says "old-name" but file is named "new-name.md"
+    let content = "---\nname: old-name\ndescription: Renamed genie\nscope: selection\n---\n\nTemplate";
+    let result = parse_genie(content, "/path/to/new-name.md").unwrap();
+    assert_eq!(result.metadata.name, "new-name");
 }
