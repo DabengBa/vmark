@@ -159,12 +159,11 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
     },
 
     popUndo: (tabId) => {
-      const docHistory = get().documents[tabId];
-      if (!docHistory || docHistory.undoStack.length === 0) return null;
-
-      const checkpoint = docHistory.undoStack[docHistory.undoStack.length - 1];
+      let checkpoint: HistoryCheckpoint | null = null;
       set((state) => {
         const current = state.documents[tabId] || emptyHistory;
+        if (current.undoStack.length === 0) return state;
+        checkpoint = current.undoStack[current.undoStack.length - 1];
         return {
           documents: {
             ...state.documents,
@@ -179,12 +178,11 @@ export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistor
     },
 
     popRedo: (tabId) => {
-      const docHistory = get().documents[tabId];
-      if (!docHistory || docHistory.redoStack.length === 0) return null;
-
-      const checkpoint = docHistory.redoStack[docHistory.redoStack.length - 1];
+      let checkpoint: HistoryCheckpoint | null = null;
       set((state) => {
         const current = state.documents[tabId] || emptyHistory;
+        if (current.redoStack.length === 0) return state;
+        checkpoint = current.redoStack[current.redoStack.length - 1];
         return {
           documents: {
             ...state.documents,
