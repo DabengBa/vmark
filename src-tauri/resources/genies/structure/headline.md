@@ -1,5 +1,4 @@
 ---
-name: headline
 description: Suggest title options
 scope: document
 category: structure

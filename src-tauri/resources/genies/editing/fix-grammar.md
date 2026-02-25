@@ -1,5 +1,4 @@
 ---
-name: fix-grammar
 description: Fix grammar and spelling
 scope: selection
 category: editing

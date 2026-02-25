@@ -33,7 +33,7 @@ pub struct GenieMetadata {
     pub context: Option<u8>,
 }
 
-/// Entry returned by menu scanning — includes resolved title from frontmatter.
+/// Entry returned by menu scanning — title derived from filename.
 pub struct GenieMenuEntry {
     pub title: String,
     pub path: String,

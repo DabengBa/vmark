@@ -1,5 +1,4 @@
 ---
-name: summarize
 description: Summarize the document
 scope: document
 category: structure

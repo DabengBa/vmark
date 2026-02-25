@@ -1,5 +1,4 @@
 ---
-name: vivid
 description: Add sensory details and imagery
 scope: selection
 category: creative
