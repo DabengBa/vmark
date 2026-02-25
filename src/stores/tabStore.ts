@@ -104,194 +104,191 @@ export const useTabStore = create<TabState & TabActions>((set, get) => ({
   closedTabs: {},
 
   createTab: (windowLabel, filePath = null) => {
-    const state = get();
-
-    // Check if file is already open in this window
-    if (filePath) {
-      const existing = state.findTabByPath(windowLabel, filePath);
-      if (existing) {
-        // Activate existing tab instead of creating new
-        set({ activeTabId: { ...state.activeTabId, [windowLabel]: existing.id } });
-        return existing.id;
-      }
-    }
-
+    // Pre-generate ID outside set() — deterministic and side-effect-free
     const id = generateTabId();
-    let title: string;
-    let newCounter = state.untitledCounter;
+    let returnId = id;
 
-    if (filePath) {
-      title = getTabTitle(filePath);
-    } else {
-      newCounter = state.untitledCounter + 1;
-      title = getTabTitle(null, newCounter);
-    }
+    set((state) => {
+      // Check if file is already open in this window
+      if (filePath) {
+        const windowTabs = state.tabs[windowLabel] || [];
+        const normalized = normalizePath(filePath);
+        const existing = windowTabs.find(
+          (t) => t.filePath && normalizePath(t.filePath) === normalized
+        );
+        if (existing) {
+          returnId = existing.id;
+          return { activeTabId: { ...state.activeTabId, [windowLabel]: existing.id } };
+        }
+      }
 
-    const newTab: Tab = {
-      id,
-      filePath,
-      title,
-      isPinned: false,
-    };
+      let title: string;
+      let newCounter = state.untitledCounter;
 
-    const windowTabs = state.tabs[windowLabel] || [];
+      if (filePath) {
+        title = getTabTitle(filePath);
+      } else {
+        newCounter = state.untitledCounter + 1;
+        title = getTabTitle(null, newCounter);
+      }
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: [...windowTabs, newTab] },
-      activeTabId: { ...state.activeTabId, [windowLabel]: id },
-      untitledCounter: newCounter,
+      const newTab: Tab = { id, filePath, title, isPinned: false };
+      const windowTabs = state.tabs[windowLabel] || [];
+
+      return {
+        tabs: { ...state.tabs, [windowLabel]: [...windowTabs, newTab] },
+        activeTabId: { ...state.activeTabId, [windowLabel]: id },
+        untitledCounter: newCounter,
+      };
     });
 
-    return id;
+    return returnId;
   },
 
   createTransferredTab: (windowLabel, tab) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
-    const existing = windowTabs.find((t) => t.id === tab.id);
-    if (existing) {
-      set({
-        activeTabId: { ...state.activeTabId, [windowLabel]: existing.id },
-      });
-      return existing.id;
-    }
+    let returnId = tab.id;
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: [...windowTabs, tab] },
-      activeTabId: { ...state.activeTabId, [windowLabel]: tab.id },
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const existing = windowTabs.find((t) => t.id === tab.id);
+      if (existing) {
+        returnId = existing.id;
+        return { activeTabId: { ...state.activeTabId, [windowLabel]: existing.id } };
+      }
+
+      return {
+        tabs: { ...state.tabs, [windowLabel]: [...windowTabs, tab] },
+        activeTabId: { ...state.activeTabId, [windowLabel]: tab.id },
+      };
     });
 
-    return tab.id;
+    return returnId;
   },
 
   closeTab: (windowLabel, tabId) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
-    const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
 
-    if (tabIndex === -1) return;
+      if (tabIndex === -1) return state;
 
-    const tab = windowTabs[tabIndex];
+      const tab = windowTabs[tabIndex];
 
-    // Don't close pinned tabs without explicit unpin
-    if (tab.isPinned) {
-      toast.info("Unpin tab before closing");
-      return;
-    }
-
-    // Add to closed tabs for reopen
-    const closed = state.closedTabs[windowLabel] || [];
-    const newClosed = [tab, ...closed].slice(0, 10); // Keep max 10
-
-    const newTabs = windowTabs.filter((t) => t.id !== tabId);
-
-    // Determine new active tab
-    let newActiveId = state.activeTabId[windowLabel];
-    if (newActiveId === tabId) {
-      if (newTabs.length > 0) {
-        // Activate adjacent tab (prefer right, then left)
-        const newIndex = Math.min(tabIndex, newTabs.length - 1);
-        newActiveId = newTabs[newIndex].id;
-      } else {
-        newActiveId = null;
+      // Don't close pinned tabs without explicit unpin
+      if (tab.isPinned) {
+        toast.info("Unpin tab before closing");
+        return state;
       }
-    }
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: newTabs },
-      activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
-      closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      // Add to closed tabs for reopen
+      const closed = state.closedTabs[windowLabel] || [];
+      const newClosed = [tab, ...closed].slice(0, 10);
+
+      const newTabs = windowTabs.filter((t) => t.id !== tabId);
+
+      // Determine new active tab
+      let newActiveId = state.activeTabId[windowLabel];
+      if (newActiveId === tabId) {
+        if (newTabs.length > 0) {
+          const newIndex = Math.min(tabIndex, newTabs.length - 1);
+          newActiveId = newTabs[newIndex].id;
+        } else {
+          newActiveId = null;
+        }
+      }
+
+      return {
+        tabs: { ...state.tabs, [windowLabel]: newTabs },
+        activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
+        closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      };
     });
   },
 
   closeOtherTabs: (windowLabel, tabId) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const keptTabs = windowTabs.filter((t) => t.id === tabId || t.isPinned);
+      const closedOnes = windowTabs.filter((t) => t.id !== tabId && !t.isPinned);
 
-    // Keep only the specified tab and pinned tabs
-    const keptTabs = windowTabs.filter((t) => t.id === tabId || t.isPinned);
-    const closedOnes = windowTabs.filter((t) => t.id !== tabId && !t.isPinned);
+      const closed = state.closedTabs[windowLabel] || [];
+      const newClosed = [...closedOnes, ...closed].slice(0, 10);
 
-    // Add closed tabs to history
-    const closed = state.closedTabs[windowLabel] || [];
-    const newClosed = [...closedOnes, ...closed].slice(0, 10);
-
-    set({
-      tabs: { ...state.tabs, [windowLabel]: keptTabs },
-      activeTabId: { ...state.activeTabId, [windowLabel]: tabId },
-      closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      return {
+        tabs: { ...state.tabs, [windowLabel]: keptTabs },
+        activeTabId: { ...state.activeTabId, [windowLabel]: tabId },
+        closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      };
     });
   },
 
   closeTabsToRight: (windowLabel, tabId) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
-    const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
 
-    if (tabIndex === -1) return;
+      if (tabIndex === -1) return state;
 
-    // Keep tabs up to and including the specified tab, plus pinned tabs after
-    const keptTabs = windowTabs.filter((t, i) => i <= tabIndex || t.isPinned);
-    const closedOnes = windowTabs.filter((t, i) => i > tabIndex && !t.isPinned);
+      const keptTabs = windowTabs.filter((t, i) => i <= tabIndex || t.isPinned);
+      const closedOnes = windowTabs.filter((t, i) => i > tabIndex && !t.isPinned);
 
-    const closed = state.closedTabs[windowLabel] || [];
-    const newClosed = [...closedOnes, ...closed].slice(0, 10);
+      const closed = state.closedTabs[windowLabel] || [];
+      const newClosed = [...closedOnes, ...closed].slice(0, 10);
 
-    // If active tab was closed, activate the rightmost kept tab
-    let newActiveId = state.activeTabId[windowLabel];
-    if (newActiveId && !keptTabs.find((t) => t.id === newActiveId)) {
-      newActiveId = keptTabs[keptTabs.length - 1]?.id || null;
-    }
+      let newActiveId = state.activeTabId[windowLabel];
+      if (newActiveId && !keptTabs.find((t) => t.id === newActiveId)) {
+        newActiveId = keptTabs[keptTabs.length - 1]?.id || null;
+      }
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: keptTabs },
-      activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
-      closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      return {
+        tabs: { ...state.tabs, [windowLabel]: keptTabs },
+        activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
+        closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      };
     });
   },
 
   closeAllTabs: (windowLabel) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const keptTabs = windowTabs.filter((t) => t.isPinned);
+      const closedOnes = windowTabs.filter((t) => !t.isPinned);
 
-    // Keep only pinned tabs
-    const keptTabs = windowTabs.filter((t) => t.isPinned);
-    const closedOnes = windowTabs.filter((t) => !t.isPinned);
+      const closed = state.closedTabs[windowLabel] || [];
+      const newClosed = [...closedOnes, ...closed].slice(0, 10);
 
-    const closed = state.closedTabs[windowLabel] || [];
-    const newClosed = [...closedOnes, ...closed].slice(0, 10);
+      const newActiveId = keptTabs.length > 0 ? keptTabs[0].id : null;
 
-    const newActiveId = keptTabs.length > 0 ? keptTabs[0].id : null;
-
-    set({
-      tabs: { ...state.tabs, [windowLabel]: keptTabs },
-      activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
-      closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      return {
+        tabs: { ...state.tabs, [windowLabel]: keptTabs },
+        activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
+        closedTabs: { ...state.closedTabs, [windowLabel]: newClosed },
+      };
     });
   },
 
   detachTab: (windowLabel, tabId) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
-    const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
-    if (tabIndex === -1) return;
+    set((state) => {
+      const windowTabs = state.tabs[windowLabel] || [];
+      const tabIndex = windowTabs.findIndex((t) => t.id === tabId);
+      if (tabIndex === -1) return state;
 
-    const newTabs = windowTabs.filter((t) => t.id !== tabId);
+      const newTabs = windowTabs.filter((t) => t.id !== tabId);
 
-    // Select adjacent tab if the detached tab was active
-    let newActiveId = state.activeTabId[windowLabel];
-    if (newActiveId === tabId) {
-      if (newTabs.length > 0) {
-        const newIndex = Math.min(tabIndex, newTabs.length - 1);
-        newActiveId = newTabs[newIndex].id;
-      } else {
-        newActiveId = null;
+      let newActiveId = state.activeTabId[windowLabel];
+      if (newActiveId === tabId) {
+        if (newTabs.length > 0) {
+          const newIndex = Math.min(tabIndex, newTabs.length - 1);
+          newActiveId = newTabs[newIndex].id;
+        } else {
+          newActiveId = null;
+        }
       }
-    }
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: newTabs },
-      activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
+      return {
+        tabs: { ...state.tabs, [windowLabel]: newTabs },
+        activeTabId: { ...state.activeTabId, [windowLabel]: newActiveId },
+      };
     });
   },
 
@@ -368,29 +365,38 @@ export const useTabStore = create<TabState & TabActions>((set, get) => ({
   },
 
   moveTabToIndex: (windowLabel, tabId, toIndex) => {
-    const state = get();
-    const windowTabs = state.tabs[windowLabel] || [];
-    const fromIndex = windowTabs.findIndex((t) => t.id === tabId);
-    if (fromIndex !== -1) {
-      state.reorderTabs(windowLabel, fromIndex, toIndex);
-    }
+    set((state) => {
+      const windowTabs = [...(state.tabs[windowLabel] || [])];
+      const fromIndex = windowTabs.findIndex((t) => t.id === tabId);
+      if (fromIndex === -1) return state;
+      if (toIndex < 0 || toIndex >= windowTabs.length) return state;
+
+      const [moved] = windowTabs.splice(fromIndex, 1);
+      windowTabs.splice(toIndex, 0, moved);
+
+      return { tabs: { ...state.tabs, [windowLabel]: windowTabs } };
+    });
   },
 
   reopenClosedTab: (windowLabel) => {
-    const state = get();
-    const closed = state.closedTabs[windowLabel] || [];
-    if (closed.length === 0) return null;
+    let reopened: Tab | null = null;
 
-    const [tab, ...rest] = closed;
-    const windowTabs = state.tabs[windowLabel] || [];
+    set((state) => {
+      const closed = state.closedTabs[windowLabel] || [];
+      if (closed.length === 0) return state;
 
-    set({
-      tabs: { ...state.tabs, [windowLabel]: [...windowTabs, tab] },
-      activeTabId: { ...state.activeTabId, [windowLabel]: tab.id },
-      closedTabs: { ...state.closedTabs, [windowLabel]: rest },
+      const [tab, ...rest] = closed;
+      reopened = tab;
+      const windowTabs = state.tabs[windowLabel] || [];
+
+      return {
+        tabs: { ...state.tabs, [windowLabel]: [...windowTabs, tab] },
+        activeTabId: { ...state.activeTabId, [windowLabel]: tab.id },
+        closedTabs: { ...state.closedTabs, [windowLabel]: rest },
+      };
     });
 
-    return tab;
+    return reopened;
   },
 
   getTabsByWindow: (windowLabel) => {

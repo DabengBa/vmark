@@ -37,19 +37,17 @@ function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function findMatchesInDoc(
-  doc: ProseMirrorNode,
+function buildRegex(
   query: string,
   caseSensitive: boolean,
   wholeWord: boolean,
   useRegex: boolean
-): Match[] {
-  if (!query) return [];
+): RegExp | null {
+  if (!query) return null;
 
-  const matches: Match[] = [];
   const flags = caseSensitive ? "g" : "gi";
-
   let pattern: string;
+
   if (useRegex) {
     pattern = query;
   } else {
@@ -59,38 +57,36 @@ function findMatchesInDoc(
     }
   }
 
-  let regex: RegExp;
   try {
-    regex = new RegExp(pattern, flags);
+    return new RegExp(pattern, flags);
   } catch {
-    return [];
+    return null;
   }
+}
 
-  let textOffset = 0;
-  const posMap: number[] = [];
+function findMatchesInDoc(
+  doc: ProseMirrorNode,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  useRegex: boolean
+): Match[] {
+  const regex = buildRegex(query, caseSensitive, wholeWord, useRegex);
+  if (!regex) return [];
+
+  const matches: Match[] = [];
 
   doc.descendants((node, pos) => {
-    if (node.isText && node.text) {
-      for (let i = 0; i < node.text.length; i++) {
-        posMap[textOffset + i] = pos + i;
-      }
-      textOffset += node.text.length;
+    if (!node.isText || !node.text) return;
+
+    regex.lastIndex = 0;
+    let m: RegExpExecArray | null;
+
+    while ((m = regex.exec(node.text)) !== null) {
+      matches.push({ from: pos + m.index, to: pos + m.index + m[0].length });
+      if (m[0].length === 0) regex.lastIndex++;
     }
   });
-
-  const text = doc.textContent;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    const from = posMap[match.index];
-    const to = posMap[match.index + match[0].length - 1];
-
-    if (from !== undefined && to !== undefined) {
-      matches.push({ from, to: to + 1 });
-    }
-
-    if (match[0].length === 0) regex.lastIndex++;
-  }
 
   return matches;
 }
@@ -109,9 +105,9 @@ export const searchExtension = Extension.create({
         key: searchPluginKey,
         state: {
           init() {
-            return { matches: [] as Match[], currentIndex: -1 };
+            return { matches: [] as Match[], currentIndex: -1, decorationSet: DecorationSet.empty };
           },
-          apply(tr, _value) {
+          apply(tr, value) {
             const state = useSearchStore.getState();
             const queryChanged =
               state.query !== lastQuery ||
@@ -119,7 +115,9 @@ export const searchExtension = Extension.create({
               state.wholeWord !== lastWholeWord ||
               state.useRegex !== lastUseRegex;
 
-            if (queryChanged || tr.docChanged) {
+            const needsRebuild = queryChanged || tr.docChanged;
+
+            if (needsRebuild) {
               lastQuery = state.query;
               lastCaseSensitive = state.caseSensitive;
               lastWholeWord = state.wholeWord;
@@ -137,29 +135,32 @@ export const searchExtension = Extension.create({
             }
 
             const currentIndex = useSearchStore.getState().currentIndex;
-            return { matches, currentIndex };
+
+            // Rebuild decorations only when matches, index, or open state changed
+            if (
+              needsRebuild ||
+              currentIndex !== value.currentIndex
+            ) {
+              let decorationSet = DecorationSet.empty;
+              if (state.isOpen && state.query && matches.length > 0) {
+                const decorations = matches.map((match: Match, i: number) => {
+                  const isActive = i === currentIndex;
+                  return Decoration.inline(match.from, match.to, {
+                    class: isActive ? "search-match search-match-active" : "search-match",
+                  });
+                });
+                decorationSet = DecorationSet.create(tr.doc, decorations);
+              }
+              return { matches, currentIndex, decorationSet };
+            }
+
+            return { matches, currentIndex, decorationSet: value.decorationSet };
           },
         },
         props: {
           decorations(state) {
-            const searchState = useSearchStore.getState();
-            if (!searchState.isOpen || !searchState.query) {
-              return DecorationSet.empty;
-            }
-
             const pluginState = searchPluginKey.getState(state);
-            if (!pluginState || pluginState.matches.length === 0) {
-              return DecorationSet.empty;
-            }
-
-            const decorations = pluginState.matches.map((match: Match, i: number) => {
-              const isActive = i === pluginState.currentIndex;
-              return Decoration.inline(match.from, match.to, {
-                class: isActive ? "search-match search-match-active" : "search-match",
-              });
-            });
-
-            return DecorationSet.create(state.doc, decorations);
+            return pluginState?.decorationSet ?? DecorationSet.empty;
           },
         },
         view(editorView) {

@@ -240,9 +240,20 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
       }),
       onRehydrateStorage: () => {
         // After hydration:
-        // 1. Fill empty API key fields from environment variables.
-        // 2. Detect CLI providers so the CLI section is populated on startup.
+        // 1. Merge any new default REST providers that were added since last persist.
+        // 2. Fill empty API key fields from environment variables.
+        // 3. Detect CLI providers so the CLI section is populated on startup.
         return () => {
+          const { restProviders } = useAiProviderStore.getState();
+          const existingTypes = new Set(restProviders.map((p) => p.type));
+          const newDefaults = DEFAULT_REST_PROVIDERS.filter(
+            (d) => !existingTypes.has(d.type)
+          );
+          if (newDefaults.length > 0) {
+            useAiProviderStore.setState({
+              restProviders: [...restProviders, ...newDefaults],
+            });
+          }
           useAiProviderStore.getState().loadEnvApiKeys();
           useAiProviderStore.getState().detectProviders();
         };

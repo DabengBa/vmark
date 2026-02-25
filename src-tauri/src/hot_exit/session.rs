@@ -96,6 +96,14 @@ pub struct UiState {
     pub source_mode_enabled: bool,
     pub focus_mode_enabled: bool,
     pub typewriter_mode_enabled: bool,
+    #[serde(default)]
+    pub terminal_visible: bool,
+    #[serde(default = "default_terminal_height")]
+    pub terminal_height: u32,
+}
+
+fn default_terminal_height() -> u32 {
+    250
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
