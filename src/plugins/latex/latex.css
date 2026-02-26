@@ -166,7 +166,7 @@
 }
 
 .math-block-editor:focus-visible {
-  border-left: 2px solid var(--primary-color);
+  box-shadow: inset 2px 0 0 var(--primary-color);
 }
 
 .math-block.editing .math-block-editor {

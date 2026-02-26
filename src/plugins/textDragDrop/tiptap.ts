@@ -48,8 +48,8 @@ function positionDropCursor(view: EditorView, cursor: HTMLElement, pos: number):
   }
 }
 
-/** Shared cleanup reference so only one drag session can exist at a time. */
-let activeCleanup: (() => void) | null = null;
+/** Per-view cleanup reference so each editor instance has its own drag state. */
+const activeCleanupMap = new WeakMap<EditorView, () => void>();
 
 export const textDragDropExtension = Extension.create({
   name: "textDragDrop",
@@ -58,13 +58,13 @@ export const textDragDropExtension = Extension.create({
     return [
       new Plugin({
         key: pluginKey,
-        view() {
+        view(editorView) {
           return {
             destroy() {
-              // Cleanup any active drag session when editor is destroyed (#8)
-              if (activeCleanup) {
-                activeCleanup();
-                activeCleanup = null;
+              const fn = activeCleanupMap.get(editorView);
+              if (fn) {
+                fn();
+                activeCleanupMap.delete(editorView);
               }
             },
           };
@@ -92,10 +92,11 @@ export const textDragDropExtension = Extension.create({
               // Use exclusive end boundary (#2)
               if (clickPos < selection.from || clickPos >= selection.to) return false;
 
-              // Cancel any previous drag session (#9 re-entrancy)
-              if (activeCleanup) {
-                activeCleanup();
-                activeCleanup = null;
+              // Cancel any previous drag session for this view
+              const prevCleanup = activeCleanupMap.get(view);
+              if (prevCleanup) {
+                prevCleanup();
+                activeCleanupMap.delete(view);
               }
 
               const startX = event.clientX;
@@ -142,6 +143,16 @@ export const textDragDropExtension = Extension.create({
               };
 
               const handleMouseUp = (e: MouseEvent) => {
+                // Flush pending rAF to get final drop position
+                if (rafId) {
+                  cancelAnimationFrame(rafId);
+                  rafId = 0;
+                  const finalPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+                  if (finalPos) {
+                    currentDropPos = finalPos.pos;
+                  }
+                }
+
                 const wasActive = dragActive;
                 const dropPos = currentDropPos;
 
@@ -226,12 +237,10 @@ export const textDragDropExtension = Extension.create({
                 view.dom.classList.remove("text-drag-active");
                 dropCursor.remove();
                 dragActive = false;
-                if (activeCleanup === cleanup) {
-                  activeCleanup = null;
-                }
+                activeCleanupMap.delete(view);
               };
 
-              activeCleanup = cleanup;
+              activeCleanupMap.set(view, cleanup);
 
               document.addEventListener("mousemove", handleMouseMove);
               document.addEventListener("mouseup", handleMouseUp);

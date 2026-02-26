@@ -95,11 +95,25 @@ export function handleMultiCursorHorizontal(
     moveRangeHorizontally(doc, range, dir, extend, unit, backwardFlags?.[i])
   );
 
+  // Derive updated backward flags: compare original anchor to new head
+  const newBackward = nextRanges.map((range, i) => {
+    if (range.$from.pos === range.$to.pos) return false;
+    if (!extend) return false;
+    // Anchor stays fixed during extend; compute from original range
+    const origRange = selection.ranges[i];
+    const anchorPos = backwardFlags?.[i] ? origRange.$to.pos : origRange.$from.pos;
+    // Head moved to new position; it's whichever end of new range isn't the anchor
+    const headPos = range.$from.pos === anchorPos ? range.$to.pos
+      : range.$to.pos === anchorPos ? range.$from.pos
+      : (dir < 0 ? range.$from.pos : range.$to.pos);
+    return anchorPos > headPos;
+  });
+
   const normalized = normalizeRangesWithPrimary(
     nextRanges,
     doc,
     selection.primaryIndex
   );
-  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex);
+  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex, newBackward);
   return state.tr.setSelection(newSel);
 }
