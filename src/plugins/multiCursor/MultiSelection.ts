@@ -71,7 +71,8 @@ export class MultiSelection extends Selection {
       const otherRange = other.ranges[i];
       return (
         range.$from.pos === otherRange.$from.pos &&
-        range.$to.pos === otherRange.$to.pos
+        range.$to.pos === otherRange.$to.pos &&
+        this.backward[i] === other.backward[i]
       );
     });
   }

@@ -14,11 +14,8 @@ import { type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
-import { useTabStore } from "@/stores/tabStore";
 import { requestToggleTerminal } from "@/components/Terminal/terminalGate";
-import { useDocumentStore } from "@/stores/documentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { normalizeLineEndings } from "@/utils/linebreaks";
 import { cleanupBeforeModeSwitch } from "@/utils/modeSwitchCleanup";
 import { toggleSourceModeWithCheckpoint } from "@/hooks/useUnifiedHistory";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
@@ -125,31 +122,8 @@ export function useViewMenuEvents(): void {
       if (cancelled) { unlistenToggleTerminal(); return; }
       unlistenRefs.current.push(unlistenToggleTerminal);
 
-      const convertLineEndings = (target: "lf" | "crlf"): void => {
-        const tabId = useTabStore.getState().activeTabId[windowLabel];
-        if (!tabId) return;
-        const doc = useDocumentStore.getState().getDocument(tabId);
-        if (!doc) return;
-        const normalized = normalizeLineEndings(doc.content, target);
-        if (normalized !== doc.content) {
-          useDocumentStore.getState().setContent(tabId, normalized);
-        }
-        useDocumentStore.getState().setLineMetadata(tabId, { lineEnding: target });
-      };
-
-      const unlistenLineEndingsLf = await currentWindow.listen<string>("menu:line-endings-lf", (event) => {
-        if (event.payload !== windowLabel) return;
-        convertLineEndings("lf");
-      });
-      if (cancelled) { unlistenLineEndingsLf(); return; }
-      unlistenRefs.current.push(unlistenLineEndingsLf);
-
-      const unlistenLineEndingsCrlf = await currentWindow.listen<string>("menu:line-endings-crlf", (event) => {
-        if (event.payload !== windowLabel) return;
-        convertLineEndings("crlf");
-      });
-      if (cancelled) { unlistenLineEndingsCrlf(); return; }
-      unlistenRefs.current.push(unlistenLineEndingsCrlf);
+      // Line-ending events are handled by the unified menu dispatcher
+      // (menuMapping.ts → action adapters), so no listeners here.
 
       // Zoom controls
       const unlistenZoomActual = await currentWindow.listen<string>("menu:zoom-actual", (event) => {
