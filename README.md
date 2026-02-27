@@ -77,9 +77,11 @@ Five hand-crafted themes designed for extended writing sessions. Typography that
 - **Sepia** — Classic reading feel
 - **Night** — Easy on the eyes
 
-### Local-First, Always
+### Local-First, Privacy-Respecting
 
-Your documents stay on your machine. No cloud services, no accounts, no tracking. VMark works entirely offline.
+Your documents stay on your machine. No cloud services, no accounts, no analytics SDKs. VMark works entirely offline.
+
+The only network request VMark makes is an **automatic update check** — a standard HTTP request to see if a new version is available. We count unique IPs from these requests to track active users. No document content, file names, or personal information is ever sent. See our [Privacy page](https://vmark.app/guide/privacy) for full details.
 
 ---
 

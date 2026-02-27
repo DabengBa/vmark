@@ -48,6 +48,7 @@ export default withMermaid(defineConfig({
             { text: 'Media (Video/Audio)', link: '/guide/media-support' },
             { text: 'Integrated Terminal', link: '/guide/terminal' },
             { text: 'CJK Formatting', link: '/guide/cjk-formatting' },
+            { text: 'Privacy', link: '/guide/privacy' },
           ]
         },
         {
