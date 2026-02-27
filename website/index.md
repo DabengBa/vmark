@@ -46,6 +46,7 @@ import TypographyDemo from './.vitepress/components/demos/TypographyDemo.vue'
 import AlertBlockDemo from './.vitepress/components/demos/AlertBlockDemo.vue'
 import FocusModeDemo from './.vitepress/components/demos/FocusModeDemo.vue'
 import DetailsBlockDemo from './.vitepress/components/demos/DetailsBlockDemo.vue'
+import UserStats from './.vitepress/theme/UserStats.vue'
 </script>
 
 <style>
@@ -160,6 +161,10 @@ Claude Code, Claude Desktop, Codex CLI, Gemini CLI... can write directly to your
   <a href="https://codemirror.net" target="_blank" class="tech-badge">CodeMirror 6</a>
   <a href="https://www.rust-lang.org" target="_blank" class="tech-badge">Rust</a>
 </div>
+
+## Active Users
+
+<UserStats />
 
 ## Available for macOS
 
