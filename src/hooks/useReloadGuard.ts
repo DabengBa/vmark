@@ -7,9 +7,13 @@
  *
  * Behavior:
  *   - Production: blocks ALL reload triggers unconditionally
- *     (Cmd+R, Ctrl+R, Ctrl+Shift+R, F5, and beforeunload).
+ *     (Cmd+R, Ctrl+R, Ctrl+Shift+R, beforeunload, and the native
+ *     webview context menu which includes "Reload").
  *   - Dev: only warns via beforeunload when documents are dirty,
  *     so developers can still use Cmd+R to refresh during development.
+ *
+ * Note: F5 is NOT blocked — it is used as the Source Peek shortcut.
+ * Tauri's webview does not reload on bare F5 (unlike browsers).
  *
  * @coordinates-with reloadGuard.ts — pure logic for shouldBlockReload (dev mode)
  * @module hooks/useReloadGuard
@@ -21,6 +25,9 @@ import { shouldBlockReload, getReloadWarningMessage, isReloadShortcut } from "@/
 
 /**
  * Production guard: block all reload triggers unconditionally.
+ *
+ * Blocks keyboard shortcuts (Cmd+R, Ctrl+R), beforeunload, and the
+ * native webview context menu (which includes a "Reload" option on macOS).
  */
 function useProductionReloadGuard(): void {
   useEffect(() => {
@@ -36,13 +43,22 @@ function useProductionReloadGuard(): void {
       e.returnValue = "";
     };
 
+    // Block the native webview context menu (contains "Reload" on macOS).
+    // Custom context menus (table, image) call stopPropagation() so this
+    // global handler won't interfere with them.
+    const blockContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
     // Capture phase to intercept before anything else handles it
     window.addEventListener("keydown", blockKeyboard, true);
     window.addEventListener("beforeunload", blockBeforeUnload);
+    window.addEventListener("contextmenu", blockContextMenu);
 
     return () => {
       window.removeEventListener("keydown", blockKeyboard, true);
       window.removeEventListener("beforeunload", blockBeforeUnload);
+      window.removeEventListener("contextmenu", blockContextMenu);
     };
   }, []);
 }

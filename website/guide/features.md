@@ -100,8 +100,8 @@ Powerful line manipulation via Edit → Lines:
 | Delete Line | `Mod+Shift+K` |
 | Join Lines | `Mod+J` |
 | Remove Blank Lines | — |
-| Sort Lines Ascending | `F5` |
-| Sort Lines Descending | `Shift+F5` |
+| Sort Lines Ascending | `F4` |
+| Sort Lines Descending | `Shift+F4` |
 
 ## Tables
 
