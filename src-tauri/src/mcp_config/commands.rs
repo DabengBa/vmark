@@ -184,14 +184,8 @@ pub fn mcp_config_install(provider: String) -> Result<InstallResult, String> {
     let new_content =
         generate_config_content(config.id, &binary_path, current_content.as_deref())?;
 
-    // Write to temp file first (atomic write)
-    let temp_path = path.with_extension("tmp");
-    fs::write(&temp_path, &new_content)
-        .map_err(|e| format!("Failed to write config: {}", e))?;
-
-    // Rename temp to final (atomic on most filesystems)
-    fs::rename(&temp_path, &path)
-        .map_err(|e| format!("Failed to finalize config: {}", e))?;
+    // Atomic write (handles Windows rename-over-existing via platform-specific code)
+    crate::app_paths::atomic_write_file(&path, new_content.as_bytes())?;
 
     // Validate by re-reading
     let validation = fs::read_to_string(&path).ok();
