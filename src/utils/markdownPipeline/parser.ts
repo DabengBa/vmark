@@ -290,6 +290,12 @@ function analyzeContent(markdown: string): ContentAnalysis {
  * VMark always serializes headings as ATX (`#`), never setext. Disabling setext
  * parsing prevents a common misparse: an empty nested list item (`  -`) being
  * interpreted as a setext heading underline for the preceding paragraph.
+ *
+ * This is an intentional compatibility trade-off for VMark:
+ * - VMark's serializer never produces setext headings (always ATX `#`)
+ * - Setext input (`Heading\n---`) is rare in practice and can always be
+ *   written as `## Heading` instead
+ * - The misparse of `  -` as heading underline causes data corruption
  */
 const remarkDisableSetextHeadings: Plugin<[], Root> = function () {
   const data = this.data();
@@ -369,11 +375,12 @@ function createProcessor(markdown: string, options: MarkdownPipelineOptions = {}
  * Skips fenced code blocks to avoid corrupting code content.
  */
 /** @internal Exported for testing */
-export function normalizeBareListMarkers(markdown: string): string {
+export function normalizeBareListMarkers(markdown: string): { text: string; modified: boolean } {
   const lines = markdown.split("\n");
   let inFencedBlock = false;
   let fenceChar = "";
   let fenceLen = 0;
+  let modified = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -381,11 +388,11 @@ export function normalizeBareListMarkers(markdown: string): string {
 
     // Track fenced code blocks
     if (!inFencedBlock) {
-      const openMatch = trimmed.match(/^( {0,3})(`{3,}|~{3,})/);
+      const openMatch = trimmed.match(/^ {0,3}(`{3,}|~{3,})/);
       if (openMatch) {
         inFencedBlock = true;
-        fenceChar = openMatch[2][0];
-        fenceLen = openMatch[2].length;
+        fenceChar = openMatch[1][0];
+        fenceLen = openMatch[1].length;
         continue;
       }
     } else {
@@ -398,22 +405,30 @@ export function normalizeBareListMarkers(markdown: string): string {
       continue;
     }
 
-    // Match: 1-4 spaces + list marker (- + *) + optional whitespace + end of line
+    // Match: bare indented list markers (no content after marker, or only whitespace).
     // In CommonMark, an empty list item cannot interrupt a paragraph.
     // Insert a blank line before it so the paragraph ends first,
     // and ensure a trailing space so the marker is valid.
+    // Only match markers that need fixing: no trailing space, or missing blank line.
     if (/^ {1,4}[-+*][ \t]*$/.test(trimmed)) {
+      let changed = false;
       // Add blank line before if previous line is non-blank (paragraph interruption fix)
       if (i > 0 && lines[i - 1].trim() !== "") {
         lines.splice(i, 0, "");
         i++; // skip the blank line we just inserted
+        changed = true;
       }
       // Ensure at least one space after the marker
-      lines[i] = trimmed.replace(/^( {1,4}[-+*])[ \t]*$/, "$1 ");
+      const fixed = trimmed.replace(/^( {1,4}[-+*])[ \t]*$/, "$1 ");
+      if (fixed !== lines[i]) {
+        lines[i] = fixed;
+        changed = true;
+      }
+      if (changed) modified = true;
     }
   }
 
-  return lines.join("\n");
+  return { text: lines.join("\n"), modified };
 }
 
 /**
@@ -485,7 +500,7 @@ export function parseMarkdownToMdast(
   options: MarkdownPipelineOptions = {}
 ): Root {
   // Normalize bare list markers (e.g., "  -\n") to ensure trailing space
-  const normalized = normalizeBareListMarkers(markdown);
+  const { text: normalized, modified: wasNormalized } = normalizeBareListMarkers(markdown);
   // Pre-process escaped custom markers before remark parsing
   const preprocessed = preprocessEscapedMarkers(normalized);
 
@@ -505,8 +520,10 @@ export function parseMarkdownToMdast(
   // Restore escaped markers back to literal characters
   restoreEscapedMarkers(transformed as Root);
 
-  // Fix spread artifacts from bare-marker normalization
-  fixNormalizationSpread(transformed as Root);
+  // Fix spread artifacts only when normalization inserted blank lines
+  if (wasNormalized) {
+    fixNormalizationSpread(transformed as Root);
+  }
 
   return transformed as Root;
 }
