@@ -95,7 +95,7 @@ export function handleClick(
   }
 
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return false;
+  if (!(target instanceof Element)) return false;
 
   // Check if the DOM click target is inside an <li>
   const liElement = target.closest("li");

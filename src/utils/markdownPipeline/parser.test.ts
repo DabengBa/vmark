@@ -282,16 +282,16 @@ Content`;
   describe("setext heading disabled and bare list markers", () => {
     it("normalizeBareListMarkers adds blank line and trailing space", () => {
       // Adds blank line before + trailing space
-      expect(normalizeBareListMarkers("- text\n  -\n")).toBe("- text\n\n  - \n");
+      expect(normalizeBareListMarkers("- text\n  -\n")).toEqual({ text: "- text\n\n  - \n", modified: true });
       // Already has blank line — only adds trailing space
-      expect(normalizeBareListMarkers("- text\n\n  -\n")).toBe("- text\n\n  - \n");
+      expect(normalizeBareListMarkers("- text\n\n  -\n")).toEqual({ text: "- text\n\n  - \n", modified: true });
       // Various markers
-      expect(normalizeBareListMarkers("  *\n")).toBe("  * \n");
-      expect(normalizeBareListMarkers("   +\n")).toBe("   + \n");
+      expect(normalizeBareListMarkers("  *\n")).toEqual({ text: "  * \n", modified: true });
+      expect(normalizeBareListMarkers("   +\n")).toEqual({ text: "   + \n", modified: true });
       // Should NOT touch non-indented markers
-      expect(normalizeBareListMarkers("-\n")).toBe("-\n");
+      expect(normalizeBareListMarkers("-\n")).toEqual({ text: "-\n", modified: false });
       // Should NOT touch markers with existing space
-      expect(normalizeBareListMarkers("  - \n")).toBe("  - \n");
+      expect(normalizeBareListMarkers("  - \n")).toEqual({ text: "  - \n", modified: false });
     });
 
     it("parses trailing dash as nested list item, not heading or text", () => {
@@ -327,6 +327,29 @@ Content`;
       expect(result.children[0].type).toBe("code");
       const code = result.children[0] as any;
       expect(code.value).toBe("  -");
+    });
+
+    it("preserves intentionally loose lists (blank lines between items)", () => {
+      const input = "- Item 1\n\n- Item 2\n\n- Item 3\n";
+      const result = parseMarkdownToMdast(input);
+      const list = result.children[0] as any;
+      expect(list.type).toBe("list");
+      // Loose list should retain spread: true
+      expect(list.spread).toBe(true);
+    });
+
+    it("parses ATX headings normally (setext disabled does not affect ATX)", () => {
+      const result = parseMarkdownToMdast("# Heading 1\n\n## Heading 2\n");
+      expect(result.children[0].type).toBe("heading");
+      expect((result.children[0] as any).depth).toBe(1);
+      expect(result.children[1].type).toBe("heading");
+      expect((result.children[1] as any).depth).toBe(2);
+    });
+
+    it("does not normalize non-list indented content", () => {
+      // 4-space indent is indented code, not a list marker
+      const result = normalizeBareListMarkers("    code block\n");
+      expect(result.modified).toBe(false);
     });
   });
 });
