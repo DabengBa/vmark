@@ -261,7 +261,7 @@ describe("listClickFix integration", () => {
 
   it("extension is registered and active", () => {
     const editor = createEditor("<ul><li>Test</li></ul>");
-    const pluginKeys = editor.state.plugins.map((p) => (p as { key: string }).key);
+    const pluginKeys = editor.state.plugins.map((p) => (p as unknown as { key: string }).key);
     expect(pluginKeys.length).toBeGreaterThan(0);
     editor.destroy();
   });
