@@ -61,8 +61,8 @@ describe("reloadGuard", () => {
   });
 
   describe("isReloadShortcut", () => {
-    it("detects F5", () => {
-      expect(isReloadShortcut({ key: "F5", metaKey: false, ctrlKey: false })).toBe(true);
+    it("does not treat F5 as reload (used for Source Peek)", () => {
+      expect(isReloadShortcut({ key: "F5", metaKey: false, ctrlKey: false })).toBe(false);
     });
 
     it("detects Cmd+R (macOS)", () => {

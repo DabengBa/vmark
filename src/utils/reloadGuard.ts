@@ -62,12 +62,14 @@ export function getReloadWarningMessage(count: number): string {
  * Check if a keyboard event is a browser/webview reload shortcut.
  *
  * Detected shortcuts:
- *   - F5
  *   - Cmd+R / Ctrl+R
  *   - Cmd+Shift+R / Ctrl+Shift+R
+ *
+ * Note: F5 is NOT included here — it is used as the Source Peek shortcut.
+ * Tauri's webview does not reload on bare F5 (unlike browsers), so
+ * blocking it would only prevent the Source Peek feature from working.
  */
 export function isReloadShortcut(e: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">): boolean {
-  if (e.key === "F5") return true;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "r") return true;
   return false;
 }
