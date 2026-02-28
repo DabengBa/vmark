@@ -12,6 +12,7 @@
 
 import "./source-table.css";
 import "./source-blocks.css";
+import "./source-syntax.css";
 export { sourceEditorTheme, codeHighlightStyle } from "./theme";
 export { createBrHidingPlugin } from "./brHidingPlugin";
 export { createListBlankLinePlugin } from "./listBlankLinePlugin";

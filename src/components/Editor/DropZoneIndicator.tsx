@@ -8,6 +8,7 @@
  */
 
 import { useDropZoneStore } from "@/stores/dropZoneStore";
+import "./drop-zone.css";
 
 export function DropZoneIndicator() {
   const isDragging = useDropZoneStore((state) => state.isDragging);
