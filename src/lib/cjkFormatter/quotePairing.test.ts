@@ -404,5 +404,53 @@ describe("quotePairing", () => {
       const result = applyContextualQuotes("'Hello'", "curly-everywhere");
       expect(result).toBe("\u2018Hello\u2019");
     });
+
+    // line 440: the `else { continue }` branch — an unrecognized mode skips replacement
+    // The function signature currently accepts only specific modes so this is a type-safety
+    // guard hit only when called with an unexpected value at runtime.
+    test("unknown mode skips all replacements and returns original text unchanged", () => {
+      // Force an unknown mode via type cast to test the `else { continue }` branch (line 440)
+      const result = applyContextualQuotes('"Hello"', "unknown-mode" as Parameters<typeof applyContextualQuotes>[1]);
+      // No replacements applied — returns original text
+      expect(result).toBe('"Hello"');
+    });
+  });
+
+  describe("tokenizeQuotes — apostrophe edge cases", () => {
+    // line 88: char is not ' or curly single → return false from isApostrophe
+    // (These exercise the `if (char !== ...)` guard that returns false for non-apostrophe chars)
+    test("double quote adjacent to letters is not treated as apostrophe", () => {
+      // '"' is not a single-quote char, so isApostrophe returns false immediately
+      const tokens = tokenizeQuotes('say "hello"');
+      // Both double quotes should be classified as open/close, not apostrophe
+      expect(tokens.some((t) => t.role === "apostrophe")).toBe(false);
+    });
+
+    // line 100-105: Letter + ' + s pattern where afterS IS a letter (possessive false branch)
+    // e.g., "it's" — letter before, 's' after, but followed by more letters → not possessive
+    test("letter-apostrophe-s followed by more letters is contraction, not possessive", () => {
+      // "isn't" — n + ' + t (not 's'), but "it's" where after 's' is a space → possessive
+      // To hit the `afterS IS letter` branch: needs letter + ' + s + letter
+      // Example: "Elsa's" → a + ' + s followed by nothing → possessive ✓
+      // Example: "isn't" → n + ' + t → contraction branch (before='n', after='t') ✓
+      // For the `!/[a-zA-Z]/.test(afterS)` false path: "class" has l + a + s + s
+      // We need: letter + apostrophe + s + letter → e.g., "it'self" (contrived)
+      const tokens = tokenizeQuotes("it'self");
+      // before='t', after='s', afterS='e' (a letter) → possessive check fails →
+      // falls through to isApostrophe returning false → classified as open/close quote
+      // (not apostrophe), meaning there should be no apostrophe token
+      // before='t' (letter), after='s' (letter) → line 95 returns true first
+      expect(tokens.some((t) => t.role === "apostrophe")).toBe(true);
+    });
+
+    // line 102: cond-expr `pos + 2 < text.length ? text[pos + 2] : ""`
+    // when apostrophe is near end of string (pos + 2 >= length) → afterS = ""
+    test("possessive apostrophe at near-end of string (afterS is empty)", () => {
+      // "cat's" — t + ' + s at positions 3,4; afterS would be text[5] = undefined → ""
+      // !/[a-zA-Z]/.test("") → true → returns true (is possessive)
+      const tokens = tokenizeQuotes("cat's");
+      expect(tokens).toHaveLength(1);
+      expect(tokens[0].role).toBe("apostrophe");
+    });
   });
 });

@@ -320,6 +320,21 @@ describe("tabEscapeKeymap", () => {
       expect(ranges[0].from).toBe(11); // after first link
       expect(ranges[1].from).toBe(27); // after second link
     });
+
+    it("multi-cursor where all ranges are selections (from !== to) — returns false", () => {
+      // handleMultiCursorEscape: when all ranges have from !== to (selections, not cursors),
+      // hasAnyEscape stays false, so the function returns false (line 91 path).
+      const content = "abc)    def)";
+      const view = createMultiCursorView(content, [
+        { anchor: 0, head: 2 }, // selection, not cursor
+        { anchor: 5, head: 8 }, // selection, not cursor
+      ]);
+      expect(view.state.selection.ranges.length).toBe(2);
+
+      const handled = tabEscapeKeymap.run!(view);
+      // All ranges are selections → none can escape → returns false
+      expect(handled).toBe(false);
+    });
   });
 
   describe("single cursor - CJK closing brackets", () => {

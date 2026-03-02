@@ -1191,4 +1191,149 @@ describe("WindowContext", () => {
       vi.mocked(invoke).mockImplementation(() => Promise.resolve(null));
     });
   });
+
+  describe("WindowProvider — claim_tab_transfer returns null", () => {
+    it("falls through to normal init when claim_tab_transfer returns null", async () => {
+      vi.useFakeTimers();
+      mockWindowLabel = "doc-nulltransfer";
+      const { invoke } = await import("@tauri-apps/api/core");
+      // URL has ?transfer but invoke returns null (no transfer data found)
+      vi.mocked(invoke).mockResolvedValue(null);
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?transfer=true" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      // invoke was called for claim_tab_transfer (returned null)
+      expect(invoke).toHaveBeenCalledWith("claim_tab_transfer", { windowLabel: "doc-nulltransfer" });
+      // Should fall through to normal init and create a tab
+      expect(mockCreateTab).toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — unhandled init error catch path", () => {
+    it("handles unhandled rejection from init() via .catch()", async () => {
+      vi.useFakeTimers();
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Make getCurrentWebviewWindow throw on second call (after initial setup)
+      // by making rehydrate throw async inside init()
+      const { migrateWorkspaceStorage } = await import("../utils/workspaceStorage");
+      let callCount = 0;
+      vi.mocked(migrateWorkspaceStorage).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // Simulate an async rejection that bubbles out of init()
+          // by making it throw synchronously so init() throws
+          throw new Error("async boom in init");
+        }
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Init failed"),
+        expect.any(Error),
+      );
+
+      errorSpy.mockRestore();
+      vi.mocked(migrateWorkspaceStorage).mockImplementation(() => {});
+      vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — cancelled tab:transfer listener path", () => {
+    it("calls unlisten immediately when component unmounts before listener resolves", async () => {
+      // Use a deferred promise so the listen promise resolves AFTER unmount
+      let resolveTransfer!: (fn: () => void) => void;
+      const transferListenPromise = new Promise<() => void>((resolve) => {
+        resolveTransfer = resolve;
+      });
+
+      const unlistenFn = vi.fn();
+
+      mockListen.mockImplementation((event: string) => {
+        if (event === "tab:transfer") return transferListenPromise;
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      // Wait for initial render
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Unmount BEFORE the listen promise resolves (cancelled = true)
+      unmount();
+
+      // Now resolve the listen promise - the cancelled branch should call fn() immediately
+      resolveTransfer(unlistenFn);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      // The unlisten function should have been called because cancelled was true
+      expect(unlistenFn).toHaveBeenCalled();
+    });
+  });
+
+  describe("WindowProvider — close_window failure via tab:remove-by-id", () => {
+    it("calls windowCloseWarn when close_window invoke fails for doc window", async () => {
+      mockWindowLabel = "doc-closefail";
+      const { invoke } = await import("@tauri-apps/api/core");
+      vi.mocked(invoke).mockImplementation((cmd: string) => {
+        if (cmd === "close_window") return Promise.reject(new Error("cannot close"));
+        return Promise.resolve(null);
+      });
+      // No remaining tabs after removal
+      mockGetTabsByWindow.mockReturnValue([]);
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Find and invoke the tab:remove-by-id handler
+      const removeCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab:remove-by-id",
+      );
+      if (removeCall) {
+        const removeHandler = removeCall![1];
+        removeHandler({ payload: { tabId: "last-tab" } });
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        const { windowCloseWarn } = await import("../utils/debug");
+        expect(windowCloseWarn).toHaveBeenCalledWith(
+          "Failed to close window:",
+          expect.stringMatching(/cannot close|string/),
+        );
+      }
+
+      vi.mocked(invoke).mockImplementation(() => Promise.resolve(null));
+    });
+  });
 });

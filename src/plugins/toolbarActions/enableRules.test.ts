@@ -1198,6 +1198,28 @@ describe("getToolbarButtonState (wysiwyg)", () => {
     });
     expect(state.itemStates?.[0].disabled).toBe(true);
   });
+
+  it("heading:NaN is never active in wysiwyg mode (line 88 guard)", () => {
+    const view = createWysiwygView([]);
+    const button = createGroupButton("heading", [createItem("heading:abc", ["always"])]);
+    const state = getToolbarButtonState(button, {
+      surface: "wysiwyg",
+      view,
+      context: wysiwygCtx({ inHeading: { level: 2 } }),
+    });
+    expect(state.itemStates?.[0].active).toBe(false);
+  });
+
+  it("heading:N is not active when not in a heading in wysiwyg mode (line 92 guard)", () => {
+    const view = createWysiwygView([]);
+    const button = createGroupButton("heading", [createItem("heading:2", ["always"])]);
+    const state = getToolbarButtonState(button, {
+      surface: "wysiwyg",
+      view,
+      context: wysiwygCtx({ inHeading: null }),
+    });
+    expect(state.itemStates?.[0].active).toBe(false);
+  });
 });
 
 function sourceCtx(overrides?: Record<string, unknown>) {
