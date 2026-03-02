@@ -448,3 +448,87 @@ describe("escapeListDown", () => {
     expect(view.dispatch).not.toHaveBeenCalled();
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// Edge-case: schema without a paragraph type (lines 135 and 168 guard)
+// ──────────────────────────────────────────────────────────────────────
+
+describe("escapeListUp — schema without paragraph type returns false", () => {
+  // Build a minimal schema that has lists but NO paragraph node.
+  // This exercises the `if (!paragraphType) return false` guard (line 135).
+  const noParagraphSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      bulletList: { content: "listItem+", group: "block" },
+      listItem: { content: "text*" },
+      text: { inline: true },
+    },
+  });
+
+  it("returns false when schema has no paragraph node", () => {
+    // Build: bulletList > listItem > text("hi")
+    const listItem = noParagraphSchema.nodes.listItem.create(
+      null,
+      [noParagraphSchema.text("hi")]
+    );
+    const doc = noParagraphSchema.nodes.doc.create(null, [
+      noParagraphSchema.nodes.bulletList.create(null, [listItem]),
+    ]);
+    // Cursor at position 2 — inside the listItem text
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 2),
+    });
+    const view: import("@tiptap/pm/view").EditorView = {
+      get state() { return state; },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    const handled = escapeListUp(view);
+
+    // Cannot insert paragraph because schema lacks the type → returns false
+    expect(handled).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("escapeListDown — schema without paragraph type returns false", () => {
+  // Same minimal schema — exercises the `if (!paragraphType) return false` guard (line 168).
+  const noParagraphSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      bulletList: { content: "listItem+", group: "block" },
+      listItem: { content: "text*" },
+      text: { inline: true },
+    },
+  });
+
+  it("returns false when schema has no paragraph node", () => {
+    const listItem = noParagraphSchema.nodes.listItem.create(
+      null,
+      [noParagraphSchema.text("hi")]
+    );
+    const doc = noParagraphSchema.nodes.doc.create(null, [
+      noParagraphSchema.nodes.bulletList.create(null, [listItem]),
+    ]);
+    // listItem text is "hi" (2 chars); end of content is at pos 4
+    // (doc(1) > bulletList(1) > listItem(1) > text = pos 3; end at pos 3+2=5 - 1 = 4)
+    const endPos = doc.content.size - 2; // near end of content
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, endPos),
+    });
+    const view: import("@tiptap/pm/view").EditorView = {
+      get state() { return state; },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    const handled = escapeListDown(view);
+
+    // Cannot insert paragraph because schema lacks the type → returns false
+    expect(handled).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});

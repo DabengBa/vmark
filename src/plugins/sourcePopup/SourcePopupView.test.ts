@@ -45,6 +45,8 @@ import {
   type StoreApi,
 } from "./SourcePopupView";
 import type { EditorView } from "@codemirror/view";
+import { getPopupHostForDom, toHostCoordsForDom } from "./sourcePopupUtils";
+import { handlePopupTabNavigation } from "@/utils/popupComponents";
 
 // ---------------------------------------------------------------------------
 // Concrete test subclass
@@ -264,5 +266,56 @@ describe("SourcePopupView", () => {
     expect(removeSpy).toHaveBeenCalledWith("mousedown", expect.any(Function));
     expect(removeSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
     removeSpy.mockRestore();
+  });
+
+  it("updatePosition updates style when popup is visible (host is document.body)", () => {
+    // Show popup first
+    store.trigger({ isOpen: true, anchorRect: ANCHOR, closePopup: store.mockClosePopup });
+
+    // Now call updatePosition while visible — hits lines 305-322 (else branch: host is document.body)
+    popup.callUpdatePosition({ top: 200, left: 300, bottom: 220, right: 350 });
+
+    // Container should have updated position styles
+    const container = (popup as unknown as { container: HTMLElement }).container;
+    expect(container.style.top).not.toBe("");
+    expect(container.style.left).not.toBe("");
+  });
+
+  it("updatePosition uses host-relative coords when host is not document.body", () => {
+    // Mock getPopupHostForDom to return a specific element (not document.body)
+    const hostEl = document.createElement("div");
+    document.body.appendChild(hostEl);
+    vi.mocked(getPopupHostForDom).mockReturnValueOnce(hostEl);
+    vi.mocked(toHostCoordsForDom).mockReturnValueOnce({ top: 10, left: 20 });
+
+    // Re-create popup to pick up new mock
+    popup.destroy();
+    popup = new TestPopupView(view, store);
+
+    store.trigger({ isOpen: true, anchorRect: ANCHOR, closePopup: store.mockClosePopup });
+
+    // Update position — now host !== document.body, should use toHostCoordsForDom
+    vi.mocked(toHostCoordsForDom).mockReturnValueOnce({ top: 15, left: 25 });
+    popup.callUpdatePosition({ top: 200, left: 300, bottom: 220, right: 350 });
+
+    const container = (popup as unknown as { container: HTMLElement }).container;
+    expect(container.style.top).toBe("15px");
+    expect(container.style.left).toBe("25px");
+
+    hostEl.remove();
+  });
+
+  it("Tab key on container triggers handleTabNavigation", () => {
+    store.trigger({ isOpen: true, anchorRect: ANCHOR, closePopup: store.mockClosePopup });
+
+    // Get the container element
+    const container = (popup as unknown as { container: HTMLElement }).container;
+
+    // Dispatch Tab key on the container — handleTabNavigation should be triggered
+    const tabEvent = new KeyboardEvent("keydown", { key: "Tab", bubbles: true });
+    container.dispatchEvent(tabEvent);
+
+    // handlePopupTabNavigation should be called
+    expect(vi.mocked(handlePopupTabNavigation)).toHaveBeenCalled();
   });
 });

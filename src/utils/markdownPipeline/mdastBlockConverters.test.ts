@@ -311,6 +311,32 @@ describe("mdastBlockConverters", () => {
       const result = convertList(context, node, []);
       expect(result!.type.name).toBe("bulletList");
     });
+
+    it("returns null when bulletList not in schema (line 180 guard)", () => {
+      const ctx = createContext(minimalSchema);
+      const node: List = {
+        type: "list",
+        ordered: false,
+        children: [
+          { type: "listItem", children: [{ type: "paragraph", children: [] }] },
+        ],
+      };
+      const result = convertList(ctx, node, []);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when orderedList not in schema (line 180 guard)", () => {
+      const ctx = createContext(minimalSchema);
+      const node: List = {
+        type: "list",
+        ordered: true,
+        children: [
+          { type: "listItem", children: [{ type: "paragraph", children: [] }] },
+        ],
+      };
+      const result = convertList(ctx, node, []);
+      expect(result).toBeNull();
+    });
   });
 
   describe("convertListItem", () => {
@@ -346,6 +372,16 @@ describe("mdastBlockConverters", () => {
       // Should have a fallback paragraph
       expect(result!.childCount).toBe(1);
       expect(result!.firstChild!.type.name).toBe("paragraph");
+    });
+
+    it("returns null when listItem not in schema (line 194 guard)", () => {
+      const ctx = createContext(minimalSchema);
+      const node: ListItem = {
+        type: "listItem",
+        children: [{ type: "paragraph", children: [] }],
+      };
+      const result = convertListItem(ctx, node, []);
+      expect(result).toBeNull();
     });
   });
 
@@ -437,6 +473,13 @@ describe("mdastBlockConverters", () => {
       const result = convertMathBlock(context, node);
       expect(result).not.toBeNull();
       expect(result!.content.size).toBe(0);
+    });
+
+    it("returns null when codeBlock not in schema (line 263 guard)", () => {
+      const ctx = createContext(minimalSchema);
+      const node = { type: "math", value: "x^2" } as Math;
+      const result = convertMathBlock(ctx, node);
+      expect(result).toBeNull();
     });
   });
 
@@ -909,6 +952,43 @@ describe("mdastBlockConverters", () => {
       };
       const result = convertHtml(mediaCtx, node, false);
       // Not a recognized video provider, falls through to html_block
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("html_block");
+    });
+
+    it("returns null when video_embed not in schema but iframe has recognized provider (line 409 guard)", () => {
+      // Build a schema that has html_block but NOT video_embed
+      const noEmbedSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { content: "inline*", group: "block" },
+          html_block: {
+            attrs: { value: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(noEmbedSchema);
+      const node: Html = {
+        type: "html",
+        value: '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>',
+      };
+      const result = convertHtml(ctx, node, false);
+      // video_embed not in schema → tryPromoteMediaHtml returns null → falls to html_block
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("html_block");
+    });
+
+    it("returns html_block when iframe src has recognized provider but no extractable video ID (line 415 guard)", () => {
+      // A YouTube embed URL that has no video ID segment
+      const node: Html = {
+        type: "html",
+        value: '<iframe src="https://www.youtube.com/embed/"></iframe>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      // Provider detected (youtube) but videoId is empty/null → falls through to html_block
       expect(result).not.toBeNull();
       expect(result!.type.name).toBe("html_block");
     });

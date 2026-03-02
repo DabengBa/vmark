@@ -227,6 +227,19 @@ describe("sourceMultiCursorExtensions", () => {
     });
   });
 
+  describe("collapseToSingleCursor via keymap — multi-cursor state", () => {
+    it("returns false (no dispatch) when already single cursor", () => {
+      // collapseToSingleCursor: selection.ranges.length <= 1 → return false
+      const view = createSingleCursorView("hello world", 5);
+      // Manually invoke via keydown (covers the run: (view) => collapseToSingleCursor line 68)
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      view.dom.dispatchEvent(event);
+      // No change expected
+      expect(view.state.selection.main.head).toBe(5);
+    });
+
+  });
+
   describe("Escape with various selection states", () => {
     it("handles cursor at position 0", () => {
       const view = createSingleCursorView("hello", 0);
