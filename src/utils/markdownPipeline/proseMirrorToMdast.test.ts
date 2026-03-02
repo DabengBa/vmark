@@ -154,4 +154,140 @@ describe("proseMirrorToMdast", () => {
     const result = proseMirrorToMdast(schema, doc);
     expect(result.children).toHaveLength(3);
   });
+
+  it("converts block_video nodes", () => {
+    const videoSchema = new Schema({
+      nodes: schema.spec.nodes.append({
+        block_video: { group: "block", attrs: { src: { default: "" } } },
+      }),
+    });
+    mockConverters.convertBlockVideo.mockReturnValue({ type: "html", value: "<video />" });
+    const doc = videoSchema.node("doc", null, [
+      videoSchema.node("block_video", { src: "video.mp4" }),
+    ]);
+    const result = proseMirrorToMdast(videoSchema, doc);
+    expect(mockConverters.convertBlockVideo).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts block_audio nodes", () => {
+    const audioSchema = new Schema({
+      nodes: schema.spec.nodes.append({
+        block_audio: { group: "block", attrs: { src: { default: "" } } },
+      }),
+    });
+    mockConverters.convertBlockAudio.mockReturnValue({ type: "html", value: "<audio />" });
+    const doc = audioSchema.node("doc", null, [
+      audioSchema.node("block_audio", { src: "audio.mp3" }),
+    ]);
+    const result = proseMirrorToMdast(audioSchema, doc);
+    expect(mockConverters.convertBlockAudio).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts video_embed nodes", () => {
+    const embedSchema = new Schema({
+      nodes: schema.spec.nodes.append({
+        video_embed: { group: "block", attrs: { src: { default: "" } } },
+      }),
+    });
+    mockConverters.convertVideoEmbed.mockReturnValue({ type: "html", value: "<iframe />" });
+    const doc = embedSchema.node("doc", null, [
+      embedSchema.node("video_embed", { src: "https://youtube.com/x" }),
+    ]);
+    const result = proseMirrorToMdast(embedSchema, doc);
+    expect(mockConverters.convertVideoEmbed).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts hardBreak nodes at block level", () => {
+    const looseSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        hardBreak: { group: "block" },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = looseSchema.node("doc", null, [
+      looseSchema.node("hardBreak"),
+    ]);
+    const result = proseMirrorToMdast(looseSchema, doc);
+    expect(mockInlineConverters.convertHardBreak).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts image nodes at block level", () => {
+    const looseSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        image: { group: "block", attrs: { src: { default: "" } } },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = looseSchema.node("doc", null, [
+      looseSchema.node("image", { src: "img.png" }),
+    ]);
+    const result = proseMirrorToMdast(looseSchema, doc);
+    expect(mockInlineConverters.convertImage).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts math_inline nodes at block level", () => {
+    const looseSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        math_inline: { group: "block", attrs: { content: { default: "" } } },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = looseSchema.node("doc", null, [
+      looseSchema.node("math_inline", { content: "E=mc^2" }),
+    ]);
+    const result = proseMirrorToMdast(looseSchema, doc);
+    expect(mockInlineConverters.convertMathInline).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("converts footnote_reference nodes at block level", () => {
+    const looseSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        footnote_reference: { group: "block", attrs: { label: { default: "1" } } },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = looseSchema.node("doc", null, [
+      looseSchema.node("footnote_reference", { label: "1" }),
+    ]);
+    const result = proseMirrorToMdast(looseSchema, doc);
+    expect(mockInlineConverters.convertFootnoteReference).toHaveBeenCalled();
+    expect(result.children).toHaveLength(1);
+  });
+
+  it("convertFootnoteDefinition handles array result from nested convertNode", () => {
+    const looseSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        footnote_definition: { content: "block+", group: "block", attrs: { label: { default: "1" } } },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+    mockConverters.convertParagraph.mockReturnValue([
+      { type: "paragraph", children: [] },
+      { type: "paragraph", children: [] },
+    ]);
+    const doc = looseSchema.node("doc", null, [
+      looseSchema.node("footnote_definition", { label: "2" }, [
+        looseSchema.node("paragraph", null, [looseSchema.text("note")]),
+      ]),
+    ]);
+    const result = proseMirrorToMdast(looseSchema, doc);
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe("footnoteDefinition");
+  });
 });

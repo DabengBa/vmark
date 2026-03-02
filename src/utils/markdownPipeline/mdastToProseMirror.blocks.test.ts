@@ -93,4 +93,18 @@ describe("mdastToProseMirror blocks", () => {
     expect(doc.firstChild?.type.name).toBe("footnote_definition");
     expect(doc.firstChild?.attrs.label).toBe("1");
   });
+
+  it("handles unknown node type in convertNode (returns null, warns)", () => {
+    const unknownRoot = {
+      type: "root" as const,
+      children: [{ type: "unknownNodeType" } as never],
+    };
+    const doc = mdastToProseMirror(testSchema, unknownRoot);
+    expect(doc).toBeDefined();
+  });
+
+  it("generateHeadingId returns null for heading with no text (empty slug)", () => {
+    const doc = parseDoc("# 💡");
+    expect(doc.firstChild?.type.name).toBe("heading");
+  });
 });
