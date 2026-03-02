@@ -1,21 +1,28 @@
 /**
- * Media Insert Tools
+ * Media composite tool — math, diagrams, SVG, wiki links, CJK formatting,
+ * video, audio, and video embeds.
  *
- * Purpose: MCP tools for inserting video, audio, and video embeds. Each tool
- * builds an HTML tag and sends it via the bridge as an insertMedia request.
- * The frontend pipeline promotes the HTML to block_video, block_audio, or
- * video_embed nodes.
+ * Merges former vmark.ts + media.ts into a single tool.
  *
  * @coordinates-with hooks/mcpBridge/mediaHandlers.ts — frontend handler
  * @module tools/media
  */
 
-import { VMarkMcpServer, resolveWindowId, requireStringArg, getStringArg } from '../server.js';
+import {
+  VMarkMcpServer,
+  getWindowIdArg,
+  requireStringArg,
+  getStringArg,
+} from '../server.js';
 import type { BridgeRequest } from '../bridge/types.js';
 
 /** Escape a string for safe use in an HTML attribute value. */
 function escapeAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // Provider ID validation patterns — keep in sync with src/utils/videoProviderRegistry.ts
@@ -58,208 +65,329 @@ const PROVIDER_EMBEDS: Record<VideoProvider, ProviderEmbed> = {
 };
 
 const VALID_PROVIDERS = Object.keys(PROVIDER_EMBEDS);
-
-/** Only allow safe URL schemes for media src attributes. */
 const ALLOWED_SCHEMES = /^(https?|file):\/\//i;
 
-export function registerMediaTools(server: VMarkMcpServer): void {
-  // insert_video tool
+export function registerMediaTool(server: VMarkMcpServer): void {
   server.registerTool(
     {
-      name: 'insert_video',
+      name: 'media',
       description:
-        'Insert a video element into the document. ' +
-        'Generates an HTML5 <video> tag with the specified source path or URL.',
+        'Insert math, diagrams, media, wiki links, and CJK formatting.\n\n' +
+        'Actions:\n' +
+        '- math_inline: Insert inline LaTeX (param: latex)\n' +
+        '- math_block: Insert block LaTeX equation (param: latex)\n' +
+        '- mermaid: Insert Mermaid diagram (param: code)\n' +
+        '- markmap: Insert Markmap mindmap (param: code)\n' +
+        '- svg: Insert SVG graphic (param: code)\n' +
+        '- wiki_link: Insert [[target]] wiki link (params: target, displayText?)\n' +
+        '- video: Insert HTML5 video (params: src, baseRevision, title?, poster?)\n' +
+        '- audio: Insert HTML5 audio (params: src, baseRevision, title?)\n' +
+        '- video_embed: Insert iframe video embed (params: videoId, baseRevision, provider?)\n' +
+        '- cjk_punctuation: Convert CJK punctuation (param: direction)\n' +
+        '- cjk_spacing: Fix CJK-Latin spacing (param: spacingAction)',
       inputSchema: {
         type: 'object',
+        required: ['action'],
         properties: {
-          src: {
+          action: {
             type: 'string',
-            description: 'Video file path (relative or absolute) or URL.',
+            enum: [
+              'math_inline', 'math_block', 'mermaid', 'markmap', 'svg',
+              'wiki_link', 'video', 'audio', 'video_embed',
+              'cjk_punctuation', 'cjk_spacing',
+            ],
           },
-          title: {
-            type: 'string',
-            description: 'Optional title attribute for the video.',
-          },
-          poster: {
-            type: 'string',
-            description: 'Optional poster image path or URL.',
-          },
-          baseRevision: {
-            type: 'string',
-            description: 'The document revision this insert is based on.',
-          },
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-        required: ['src', 'baseRevision'],
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-      const src = requireStringArg(args, 'src');
-      if (!ALLOWED_SCHEMES.test(src)) {
-        return VMarkMcpServer.errorResult('src must use http, https, or file protocol');
-      }
-      const baseRevision = requireStringArg(args, 'baseRevision');
-      const title = getStringArg(args, 'title');
-      const poster = getStringArg(args, 'poster');
-
-      const attrs: string[] = [`src="${escapeAttr(src)}"`, 'controls'];
-      if (title) attrs.push(`title="${escapeAttr(title)}"`);
-      if (poster) attrs.push(`poster="${escapeAttr(poster)}"`);
-
-      const html = `<video ${attrs.join(' ')}></video>`;
-
-      try {
-        const request: BridgeRequest = {
-          type: 'insertMedia',
-          mediaHtml: html,
-          baseRevision,
-          windowId,
-        };
-        const result = await server.sendBridgeRequest(request);
-        return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to insert video: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // insert_audio tool
-  server.registerTool(
-    {
-      name: 'insert_audio',
-      description:
-        'Insert an audio element into the document. ' +
-        'Generates an HTML5 <audio> tag with the specified source path or URL.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          src: {
-            type: 'string',
-            description: 'Audio file path (relative or absolute) or URL.',
-          },
-          title: {
-            type: 'string',
-            description: 'Optional title attribute for the audio.',
-          },
-          baseRevision: {
-            type: 'string',
-            description: 'The document revision this insert is based on.',
-          },
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-        required: ['src', 'baseRevision'],
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-      const src = requireStringArg(args, 'src');
-      if (!ALLOWED_SCHEMES.test(src)) {
-        return VMarkMcpServer.errorResult('src must use http, https, or file protocol');
-      }
-      const baseRevision = requireStringArg(args, 'baseRevision');
-      const title = getStringArg(args, 'title');
-
-      const attrs: string[] = [`src="${escapeAttr(src)}"`, 'controls'];
-      if (title) attrs.push(`title="${escapeAttr(title)}"`);
-
-      const html = `<audio ${attrs.join(' ')}></audio>`;
-
-      try {
-        const request: BridgeRequest = {
-          type: 'insertMedia',
-          mediaHtml: html,
-          baseRevision,
-          windowId,
-        };
-        const result = await server.sendBridgeRequest(request);
-        return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to insert audio: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // insert_video_embed tool (supports YouTube, Vimeo, Bilibili)
-  server.registerTool(
-    {
-      name: 'insert_video_embed',
-      description:
-        'Insert a video embed (iframe) into the document. ' +
-        'Supports YouTube (privacy-enhanced), Vimeo, and Bilibili. ' +
-        'Generates a provider-specific iframe tag.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          videoId: {
-            type: 'string',
-            description: 'Video ID. YouTube: 11-char ID (e.g., "dQw4w9WgXcQ"). Vimeo: numeric ID (e.g., "123456789"). Bilibili: BV ID (e.g., "BV1xx411c7mD").',
-          },
+          latex: { type: 'string', description: 'LaTeX expression (for math_inline, math_block).' },
+          code: { type: 'string', description: 'Diagram/SVG code (for mermaid, markmap, svg).' },
+          target: { type: 'string', description: 'Wiki link target (for wiki_link).' },
+          displayText: { type: 'string', description: 'Wiki link display text (for wiki_link).' },
+          src: { type: 'string', description: 'Media URL/path (for video, audio).' },
+          title: { type: 'string', description: 'Title attribute (for video, audio).' },
+          poster: { type: 'string', description: 'Poster image URL (for video).' },
+          videoId: { type: 'string', description: 'Video ID (for video_embed).' },
           provider: {
             type: 'string',
-            description: 'Video provider: "youtube" (default), "vimeo", or "bilibili".',
             enum: ['youtube', 'vimeo', 'bilibili'],
+            description: 'Video provider (for video_embed, default: youtube).',
           },
-          baseRevision: {
+          baseRevision: { type: 'string', description: 'Document revision (for video, audio, video_embed).' },
+          direction: {
             type: 'string',
-            description: 'The document revision this insert is based on.',
+            enum: ['to-fullwidth', 'to-halfwidth'],
+            description: 'Conversion direction (for cjk_punctuation).',
           },
-          windowId: {
+          spacingAction: {
             type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
+            enum: ['add', 'remove'],
+            description: 'Add or remove CJK spacing (for cjk_spacing).',
           },
+          windowId: { type: 'string', description: 'Optional window identifier.' },
         },
-        required: ['videoId', 'baseRevision'],
       },
     },
     async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-      const videoId = requireStringArg(args, 'videoId');
-      const baseRevision = requireStringArg(args, 'baseRevision');
-      const provider = (getStringArg(args, 'provider') ?? 'youtube') as VideoProvider;
+      const action = args.action as string;
+      const windowId = getWindowIdArg(args);
 
-      if (!VALID_PROVIDERS.includes(provider)) {
-        return VMarkMcpServer.errorResult(
-          `Invalid provider: "${provider}". Must be one of: ${VALID_PROVIDERS.join(', ')}.`
-        );
-      }
-
-      const embed = PROVIDER_EMBEDS[provider];
-      if (!embed.validateId(videoId)) {
-        return VMarkMcpServer.errorResult(
-          `Invalid ${provider} video ID: "${videoId}". ${embed.idDescription}`
-        );
-      }
-
-      const embedUrl = embed.buildUrl(videoId);
-      const html = `<iframe src="${embedUrl}" width="${embed.defaultWidth}" height="${embed.defaultHeight}" frameborder="0" allowfullscreen></iframe>`;
-
-      try {
-        const request: BridgeRequest = {
-          type: 'insertMedia',
-          mediaHtml: html,
-          baseRevision,
-          windowId,
-        };
-        const result = await server.sendBridgeRequest(request);
-        return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to insert video embed: ${error instanceof Error ? error.message : String(error)}`
-        );
+      switch (action) {
+        case 'math_inline':
+          return handleMathInline(server, windowId, args);
+        case 'math_block':
+          return handleMathBlock(server, windowId, args);
+        case 'mermaid':
+          return handleMermaid(server, windowId, args);
+        case 'markmap':
+          return handleMarkmap(server, windowId, args);
+        case 'svg':
+          return handleSvg(server, windowId, args);
+        case 'wiki_link':
+          return handleWikiLink(server, windowId, args);
+        case 'video':
+          return handleVideo(server, windowId, args);
+        case 'audio':
+          return handleAudio(server, windowId, args);
+        case 'video_embed':
+          return handleVideoEmbed(server, windowId, args);
+        case 'cjk_punctuation':
+          return handleCjkPunctuation(server, windowId, args);
+        case 'cjk_spacing':
+          return handleCjkSpacing(server, windowId, args);
+        default:
+          return VMarkMcpServer.errorResult(`Unknown media action: ${action}`);
       }
     }
   );
+}
 
+// --- Math ---
+
+async function handleMathInline(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const latex = requireStringArg(args, 'latex');
+    await server.sendBridgeRequest<null>({ type: 'vmark.insertMathInline', latex, windowId });
+    return VMarkMcpServer.successResult(`Inserted inline math: ${latex}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert inline math: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleMathBlock(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const latex = requireStringArg(args, 'latex');
+    await server.sendBridgeRequest<null>({ type: 'vmark.insertMathBlock', latex, windowId });
+    return VMarkMcpServer.successResult('Inserted block math equation');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert block math: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// --- Diagrams ---
+
+async function handleMermaid(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const code = requireStringArg(args, 'code');
+    await server.sendBridgeRequest<null>({ type: 'vmark.insertMermaid', code, windowId });
+    return VMarkMcpServer.successResult('Inserted Mermaid diagram');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert Mermaid diagram: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleMarkmap(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const code = requireStringArg(args, 'code');
+    await server.sendBridgeRequest<null>({ type: 'vmark.insertMarkmap', code, windowId });
+    return VMarkMcpServer.successResult('Inserted Markmap mindmap');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert Markmap mindmap: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleSvg(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const code = requireStringArg(args, 'code');
+    await server.sendBridgeRequest<null>({ type: 'vmark.insertSvg', code, windowId });
+    return VMarkMcpServer.successResult('Inserted SVG graphic');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert SVG graphic: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// --- Wiki Link ---
+
+async function handleWikiLink(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  try {
+    const target = requireStringArg(args, 'target');
+    const displayText = getStringArg(args, 'displayText');
+    await server.sendBridgeRequest<null>({
+      type: 'vmark.insertWikiLink',
+      target,
+      displayText,
+      windowId,
+    });
+    const linkText = displayText ? `[[${target}|${displayText}]]` : `[[${target}]]`;
+    return VMarkMcpServer.successResult(`Inserted wiki link: ${linkText}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert wiki link: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// --- Video / Audio ---
+
+async function handleVideo(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const src = requireStringArg(args, 'src');
+  if (!ALLOWED_SCHEMES.test(src)) {
+    return VMarkMcpServer.errorResult('src must use http, https, or file protocol');
+  }
+  const baseRevision = requireStringArg(args, 'baseRevision');
+  const title = getStringArg(args, 'title');
+  const poster = getStringArg(args, 'poster');
+
+  const attrs: string[] = [`src="${escapeAttr(src)}"`, 'controls'];
+  if (title) attrs.push(`title="${escapeAttr(title)}"`);
+  if (poster) attrs.push(`poster="${escapeAttr(poster)}"`);
+  const html = `<video ${attrs.join(' ')}></video>`;
+
+  try {
+    const request: BridgeRequest = { type: 'insertMedia', mediaHtml: html, baseRevision, windowId };
+    const result = await server.sendBridgeRequest(request);
+    return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert video: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleAudio(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const src = requireStringArg(args, 'src');
+  if (!ALLOWED_SCHEMES.test(src)) {
+    return VMarkMcpServer.errorResult('src must use http, https, or file protocol');
+  }
+  const baseRevision = requireStringArg(args, 'baseRevision');
+  const title = getStringArg(args, 'title');
+
+  const attrs: string[] = [`src="${escapeAttr(src)}"`, 'controls'];
+  if (title) attrs.push(`title="${escapeAttr(title)}"`);
+  const html = `<audio ${attrs.join(' ')}></audio>`;
+
+  try {
+    const request: BridgeRequest = { type: 'insertMedia', mediaHtml: html, baseRevision, windowId };
+    const result = await server.sendBridgeRequest(request);
+    return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert audio: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleVideoEmbed(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const videoId = requireStringArg(args, 'videoId');
+  const baseRevision = requireStringArg(args, 'baseRevision');
+  const provider = (getStringArg(args, 'provider') ?? 'youtube') as VideoProvider;
+
+  if (!VALID_PROVIDERS.includes(provider)) {
+    return VMarkMcpServer.errorResult(
+      `Invalid provider: "${provider}". Must be one of: ${VALID_PROVIDERS.join(', ')}.`
+    );
+  }
+
+  const embed = PROVIDER_EMBEDS[provider];
+  if (!embed.validateId(videoId)) {
+    return VMarkMcpServer.errorResult(
+      `Invalid ${provider} video ID: "${videoId}". ${embed.idDescription}`
+    );
+  }
+
+  const embedUrl = embed.buildUrl(videoId);
+  const html = `<iframe src="${embedUrl}" width="${embed.defaultWidth}" height="${embed.defaultHeight}" frameborder="0" allowfullscreen></iframe>`;
+
+  try {
+    const request: BridgeRequest = { type: 'insertMedia', mediaHtml: html, baseRevision, windowId };
+    const result = await server.sendBridgeRequest(request);
+    return VMarkMcpServer.successResult(JSON.stringify(result, null, 2));
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to insert video embed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// --- CJK ---
+
+async function handleCjkPunctuation(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const direction = requireStringArg(args, 'direction');
+  if (direction !== 'to-fullwidth' && direction !== 'to-halfwidth') {
+    return VMarkMcpServer.errorResult('direction must be "to-fullwidth" or "to-halfwidth"');
+  }
+
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'vmark.cjkPunctuationConvert',
+      direction,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(`Converted punctuation ${direction}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to convert punctuation: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleCjkSpacing(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const spacingAction = requireStringArg(args, 'spacingAction');
+  if (spacingAction !== 'add' && spacingAction !== 'remove') {
+    return VMarkMcpServer.errorResult('spacingAction must be "add" or "remove"');
+  }
+
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'vmark.cjkSpacingFix',
+      action: spacingAction,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(
+      spacingAction === 'add' ? 'Added CJK spacing' : 'Removed CJK spacing'
+    );
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to fix CJK spacing: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

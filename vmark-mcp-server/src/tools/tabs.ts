@@ -1,14 +1,11 @@
 /**
- * Tab tools - Manage editor tabs within windows.
+ * Tabs composite tool — manage editor tabs within windows.
  */
 
-import { VMarkMcpServer, resolveWindowId } from '../server.js';
+import { VMarkMcpServer, getWindowIdArg, getStringArg } from '../server.js';
 import type { ReopenedTabResult } from '../bridge/types.js';
 
-/**
- * Tab information returned by tab tools.
- */
-export interface TabInfo {
+interface TabInfo {
   id: string;
   title: string;
   filePath: string | null;
@@ -16,103 +13,30 @@ export interface TabInfo {
   isActive: boolean;
 }
 
-/**
- * Register all tab management tools on the server.
- */
-export function registerTabTools(server: VMarkMcpServer): void {
-  // tabs_list - List all tabs in a window
+export function registerTabsTool(server: VMarkMcpServer): void {
   server.registerTool(
     {
-      name: 'tabs_list',
+      name: 'tabs',
       description:
-        'List all tabs in the specified window. ' +
-        'Returns tab IDs, titles, file paths, and dirty state.',
+        'Manage editor tabs.\n\n' +
+        'Actions:\n' +
+        '- list: List all tabs (returns id, title, path, dirty state)\n' +
+        '- switch: Switch to tab by tabId\n' +
+        '- close: Close tab (by tabId, or active tab if omitted)\n' +
+        '- create: Create new empty tab\n' +
+        '- get_info: Get tab details (by tabId, or active tab)\n' +
+        '- reopen_closed: Reopen most recently closed tab',
       inputSchema: {
         type: 'object',
+        required: ['action'],
         properties: {
-          windowId: {
+          action: {
             type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
+            enum: ['list', 'switch', 'close', 'create', 'get_info', 'reopen_closed'],
           },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        const tabs = await server.sendBridgeRequest<TabInfo[]>({
-          type: 'tabs.list',
-          windowId,
-        });
-
-        return VMarkMcpServer.successJsonResult(tabs);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to list tabs: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // tabs_switch - Switch to a specific tab
-  server.registerTool(
-    {
-      name: 'tabs_switch',
-      description:
-        'Switch to a specific tab by its ID. Makes the tab active.',
-      inputSchema: {
-        type: 'object',
-        properties: {
           tabId: {
             type: 'string',
-            description: 'The ID of the tab to switch to.',
-          },
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-        required: ['tabId'],
-      },
-    },
-    async (args) => {
-      const tabId = args.tabId as string;
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      if (typeof tabId !== 'string' || tabId.length === 0) {
-        return VMarkMcpServer.errorResult('tabId must be a non-empty string');
-      }
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'tabs.switch',
-          tabId,
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult(`Switched to tab: ${tabId}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to switch tab: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // tabs_close - Close a specific tab
-  server.registerTool(
-    {
-      name: 'tabs_close',
-      description:
-        'Close a specific tab by its ID. ' +
-        'If the tab has unsaved changes, the user will be prompted.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          tabId: {
-            type: 'string',
-            description: 'The ID of the tab to close. If omitted, closes the active tab.',
+            description: 'Tab ID (for switch, close, get_info). Optional for close/get_info.',
           },
           windowId: {
             type: 'string',
@@ -122,142 +46,142 @@ export function registerTabTools(server: VMarkMcpServer): void {
       },
     },
     async (args) => {
-      const tabId = args.tabId as string | undefined;
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+      const action = args.action as string;
+      const windowId = getWindowIdArg(args);
 
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'tabs.close',
-          tabId,
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult(tabId ? `Closed tab: ${tabId}` : 'Closed active tab');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to close tab: ${error instanceof Error ? error.message : String(error)}`
-        );
+      switch (action) {
+        case 'list':
+          return handleList(server, windowId);
+        case 'switch':
+          return handleSwitch(server, windowId, args);
+        case 'close':
+          return handleClose(server, windowId, args);
+        case 'create':
+          return handleCreate(server, windowId);
+        case 'get_info':
+          return handleGetInfo(server, windowId, args);
+        case 'reopen_closed':
+          return handleReopenClosed(server, windowId);
+        default:
+          return VMarkMcpServer.errorResult(`Unknown tabs action: ${action}`);
       }
     }
   );
+}
 
-  // tabs_create - Create a new empty tab
-  server.registerTool(
-    {
-      name: 'tabs_create',
-      description:
-        'Create a new empty tab in the window. ' +
-        'The new tab becomes the active tab.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+async function handleList(server: VMarkMcpServer, windowId: string) {
+  try {
+    const tabs = await server.sendBridgeRequest<TabInfo[]>({
+      type: 'tabs.list',
+      windowId,
+    });
+    return VMarkMcpServer.successJsonResult(tabs);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to list tabs: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-      try {
-        const result = await server.sendBridgeRequest<{ tabId: string }>({
-          type: 'tabs.create',
-          windowId,
-        });
+async function handleSwitch(
+  server: VMarkMcpServer,
+  windowId: string,
+  args: Record<string, unknown>
+) {
+  const tabId = getStringArg(args, 'tabId');
+  if (!tabId) {
+    return VMarkMcpServer.errorResult('tabId is required for switch action');
+  }
 
-        const tabId = result?.tabId;
-        if (!tabId) {
-          return VMarkMcpServer.errorResult('Tab created but no tab ID returned');
-        }
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'tabs.switch',
+      tabId,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(`Switched to tab: ${tabId}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to switch tab: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-        return VMarkMcpServer.successResult(`Created new tab: ${tabId}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to create tab: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+async function handleClose(
+  server: VMarkMcpServer,
+  windowId: string,
+  args: Record<string, unknown>
+) {
+  const tabId = getStringArg(args, 'tabId');
+
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'tabs.close',
+      tabId,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(tabId ? `Closed tab: ${tabId}` : 'Closed active tab');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to close tab: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleCreate(server: VMarkMcpServer, windowId: string) {
+  try {
+    const result = await server.sendBridgeRequest<{ tabId: string }>({
+      type: 'tabs.create',
+      windowId,
+    });
+
+    const tabId = result?.tabId;
+    if (!tabId) {
+      return VMarkMcpServer.errorResult('Tab created but no tab ID returned');
     }
-  );
+    return VMarkMcpServer.successResult(`Created new tab: ${tabId}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to create tab: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-  // tabs_get_info - Get detailed info about a specific tab
-  server.registerTool(
-    {
-      name: 'tabs_get_info',
-      description:
-        'Get detailed information about a specific tab including path, dirty state, and title.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          tabId: {
-            type: 'string',
-            description: 'The ID of the tab. If omitted, returns info for active tab.',
-          },
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const tabId = args.tabId as string | undefined;
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+async function handleGetInfo(
+  server: VMarkMcpServer,
+  windowId: string,
+  args: Record<string, unknown>
+) {
+  const tabId = getStringArg(args, 'tabId');
 
-      try {
-        const tab = await server.sendBridgeRequest<TabInfo>({
-          type: 'tabs.getInfo',
-          tabId,
-          windowId,
-        });
+  try {
+    const tab = await server.sendBridgeRequest<TabInfo>({
+      type: 'tabs.getInfo',
+      tabId,
+      windowId,
+    });
+    return VMarkMcpServer.successJsonResult(tab);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to get tab info: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-        return VMarkMcpServer.successJsonResult(tab);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to get tab info: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+async function handleReopenClosed(server: VMarkMcpServer, windowId: string) {
+  try {
+    const result = await server.sendBridgeRequest<ReopenedTabResult | null>({
+      type: 'tabs.reopenClosed',
+      windowId,
+    });
+
+    if (!result) {
+      return VMarkMcpServer.successResult('No closed tabs to reopen');
     }
-  );
-
-  // tabs_reopen_closed - Reopen the most recently closed tab
-  server.registerTool(
-    {
-      name: 'tabs_reopen_closed',
-      description:
-        'Reopen the most recently closed tab. ' +
-        'VMark keeps track of the last 10 closed tabs per window. ' +
-        'Returns the reopened tab info or null if no closed tabs available.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        const result = await server.sendBridgeRequest<ReopenedTabResult | null>({
-          type: 'tabs.reopenClosed',
-          windowId,
-        });
-
-        if (!result) {
-          return VMarkMcpServer.successResult('No closed tabs to reopen');
-        }
-
-        return VMarkMcpServer.successJsonResult(result);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to reopen closed tab: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
+    return VMarkMcpServer.successJsonResult(result);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to reopen closed tab: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
