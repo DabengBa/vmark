@@ -595,5 +595,86 @@ describe("useTabContextMenuActions", () => {
       expect(mocks.toast.error).toHaveBeenCalledWith("Failed to move tab to a new window.");
       expect(onClose).toHaveBeenCalled();
     });
+
+    it("handleMoveToNewWindow Undo action calls restoreTransferredTab", async () => {
+      const tabs = makeTabs(2);
+      const onClose = vi.fn();
+      const { items } = renderActions({ tab: tabs[0], tabs, onClose });
+      await findItem(items, "moveToNewWindow")!.action();
+
+      // Extract the undo onClick from the toast.message call
+      const toastCall = mocks.toast.message.mock.calls[0];
+      const toastOptions = toastCall[1] as { action: { onClick: () => void } };
+      toastOptions.action.onClick();
+
+      await vi.waitFor(() => {
+        expect(mocks.restoreTransferredTab).toHaveBeenCalled();
+      });
+    });
+
+    it("handleMoveToNewWindow Undo action handles restoreTransferredTab error", async () => {
+      mocks.restoreTransferredTab.mockRejectedValueOnce(new Error("restore fail"));
+      const tabs = makeTabs(2);
+      const onClose = vi.fn();
+      const { items } = renderActions({ tab: tabs[0], tabs, onClose });
+      await findItem(items, "moveToNewWindow")!.action();
+
+      // Invoke the Undo action which will fail
+      const toastCall = mocks.toast.message.mock.calls[0];
+      const toastOptions = toastCall[1] as { action: { onClick: () => void } };
+      toastOptions.action.onClick();
+
+      await vi.waitFor(() => {
+        expect(mocks.toast.error).toHaveBeenCalledWith("Failed to undo tab move.");
+      });
+    });
+
+    it("handleMoveToNewWindow closes window when no tabs remain in non-main window", async () => {
+      // After moving the tab, no tabs remain in this window → invoke close_window
+      mocks.getTabsByWindow.mockReturnValue([]);
+      mocks.getCurrentWebviewWindow.mockReturnValue({ label: "doc-1" });
+
+      const tab = makeTab({ id: "tab-1" });
+      const tabs = [tab, makeTab({ id: "tab-2" })]; // 2 tabs so moveToNewWindow is enabled
+      const onClose = vi.fn();
+      const { items } = renderActions({
+        tab,
+        tabs,
+        windowLabel: "doc-1",
+        onClose,
+      });
+      await findItem(items, "moveToNewWindow")!.action();
+
+      await vi.waitFor(() => {
+        expect(mocks.invoke).toHaveBeenCalledWith("close_window", { label: "doc-1" });
+      });
+    });
+
+    it("handleMoveToNewWindow logs warn when close_window invoke fails", async () => {
+      mocks.getTabsByWindow.mockReturnValue([]);
+      mocks.getCurrentWebviewWindow.mockReturnValue({ label: "doc-1" });
+      // Make the second invoke (close_window) reject
+      mocks.invoke
+        .mockResolvedValueOnce("new-window-label") // detach_tab_to_new_window succeeds
+        .mockRejectedValueOnce(new Error("close fail")); // close_window fails
+
+      const { windowCloseWarn } = await import("@/utils/debug");
+
+      const tab = makeTab({ id: "tab-1" });
+      const tabs = [tab, makeTab({ id: "tab-2" })];
+      const { items } = renderActions({
+        tab,
+        tabs,
+        windowLabel: "doc-1",
+      });
+      await findItem(items, "moveToNewWindow")!.action();
+
+      await vi.waitFor(() => {
+        expect(windowCloseWarn).toHaveBeenCalledWith(
+          "Failed to close window:",
+          "close fail",
+        );
+      });
+    });
   });
 });

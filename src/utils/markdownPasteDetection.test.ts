@@ -64,4 +64,22 @@ describe("markdownPasteDetection", () => {
     expect(isMarkdownPasteCandidate("Just a sentence with _underscores_.")).toBe(false);
   });
 
+  it("detects multi-line content with link only (hasLink branch, line 83)", () => {
+    // No strong signals, weak < 2, but hasLink is true on multi-line text
+    const text = "[My Link](https://example.com)\nSome plain text without emphasis";
+    expect(isMarkdownPasteCandidate(text)).toBe(true);
+  });
+
+  it("detects blockquote + weak signal combo (hasBlockquote && weakSignals > 0, line 84)", () => {
+    // Has blockquote but no strong signals, weak < 2, and no link.
+    // hasBlockquote && weakSignals > 0 should return true.
+    const text = "> Quote line\nSome *emphasized* text";
+    expect(isMarkdownPasteCandidate(text)).toBe(true);
+  });
+
+  it("rejects blockquote-only multi-line without weak signals", () => {
+    // Has blockquote but no weak signals (no emphasis, no link)
+    const text = "> Quote line\nPlain text no markdown signals";
+    expect(isMarkdownPasteCandidate(text)).toBe(false);
+  });
 });

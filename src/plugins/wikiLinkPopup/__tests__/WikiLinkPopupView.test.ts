@@ -39,10 +39,16 @@ vi.mock("@/stores/wikiLinkPopupStore", () => ({
   },
 }));
 
+let mockWorkspaceRootPath: string | null = "/workspace";
 vi.mock("@/stores/workspaceStore", () => ({
   useWorkspaceStore: {
-    getState: () => ({ rootPath: "/workspace" }),
+    getState: () => ({ rootPath: mockWorkspaceRootPath }),
   },
+}));
+
+const mockWikiLinkPopupWarn = vi.fn();
+vi.mock("@/utils/debug", () => ({
+  wikiLinkPopupWarn: (...args: unknown[]) => mockWikiLinkPopupWarn(...args),
 }));
 
 vi.mock("@/utils/imeGuard", () => ({
@@ -68,8 +74,9 @@ vi.mock("@/utils/popupComponents", () => ({
   handlePopupTabNavigation: vi.fn(),
 }));
 
+const mockGetPopupHostForDom = vi.fn((dom: HTMLElement) => dom.closest(".editor-container") as HTMLElement | null);
 vi.mock("@/plugins/sourcePopup", () => ({
-  getPopupHostForDom: (dom: HTMLElement) => dom.closest(".editor-container"),
+  getPopupHostForDom: (...args: unknown[]) => mockGetPopupHostForDom(args[0] as HTMLElement),
   toHostCoordsForDom: (_host: HTMLElement, pos: { top: number; left: number }) => pos,
 }));
 
@@ -175,6 +182,8 @@ describe("WikiLinkPopupView", () => {
     document.body.innerHTML = "";
     resetState();
     vi.clearAllMocks();
+    mockWorkspaceRootPath = "/workspace";
+    mockGetPopupHostForDom.mockImplementation((domEl: HTMLElement) => domEl.closest(".editor-container") as HTMLElement | null);
     dom = createEditorContainer();
     view = createMockView(dom.editorDom);
     popup = new WikiLinkPopupView(view as unknown as ConstructorParameters<typeof WikiLinkPopupView>[0]);
@@ -636,6 +645,7 @@ describe("WikiLinkPopupView", () => {
       emitStateChange({ isOpen: false, anchorRect: null });
 
       vi.clearAllMocks();
+    mockWorkspaceRootPath = "/workspace";
 
       dom.container.dispatchEvent(new Event("scroll", { bubbles: false }));
 
@@ -852,6 +862,7 @@ describe("WikiLinkPopupView", () => {
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to open file"), expect.any(Error));
       errorSpy.mockRestore();
     });
+
   });
 
   describe("Delete — falls back to attrs.value when textContent is empty", () => {
@@ -872,6 +883,66 @@ describe("WikiLinkPopupView", () => {
       // Should use attrs.value ("FallbackTarget") as display text
       expect(view.state.schema.text).toHaveBeenCalledWith("FallbackTarget");
       expect(view.state.tr.replaceWith).toHaveBeenCalled();
+    });
+  });
+
+  describe("Open — resolveWikiLinkPath returns null when no workspace root", () => {
+    it("warns and skips open when rootPath is null", async () => {
+      mockWorkspaceRootPath = null;
+
+      emitStateChange({ isOpen: true, target: "SomePage", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.value = "SomePage";
+
+      const openBtn = dom.container.querySelector(".wiki-link-popup-btn-open") as HTMLButtonElement;
+      openBtn.disabled = false; // force enable for test
+      openBtn.click();
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockWikiLinkPopupWarn).toHaveBeenCalledWith(
+        "Cannot resolve wiki link target:",
+        "SomePage",
+      );
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Mounting — fixed positioning when host is document.body", () => {
+    it("uses fixed positioning and sets top/left directly when mounted to document.body", async () => {
+      // Make getPopupHostForDom return null so popup falls back to document.body
+      mockGetPopupHostForDom.mockReturnValueOnce(null);
+
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = document.body.querySelector(".wiki-link-popup") as HTMLElement;
+      expect(popupEl).not.toBeNull();
+      expect(popupEl.style.position).toBe("fixed");
+    });
+  });
+
+  describe("Mouse leave — input focused early return", () => {
+    it("does not close when input is focused and mouse leaves to non-wiki element", async () => {
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      // Focus the input so document.activeElement === targetInput
+      input.focus();
+
+      const outsideDiv = document.createElement("div");
+      document.body.appendChild(outsideDiv);
+
+      const popupEl = dom.container.querySelector(".wiki-link-popup") as HTMLElement;
+      const mouseleaveEvent = new MouseEvent("mouseleave", { bubbles: false });
+      Object.defineProperty(mouseleaveEvent, "relatedTarget", { value: outsideDiv });
+      popupEl.dispatchEvent(mouseleaveEvent);
+
+      // Should NOT close because input is focused
+      expect(mockClosePopup).not.toHaveBeenCalled();
+      outsideDiv.remove();
     });
   });
 });

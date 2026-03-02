@@ -9,6 +9,8 @@ import {
   collapseMultiSelection,
   skipOccurrence,
   softUndoCursor,
+  addCursorAbove,
+  addCursorBelow,
 } from "../commands";
 import { getCodeBlockBounds } from "../codeBlockBounds";
 
@@ -603,6 +605,136 @@ describe("commands", () => {
       const bounds = getCodeBlockBounds(state, 10);
 
       expect(bounds).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // addCursorAbove / addCursorBelow
+  // ---------------------------------------------------------------------------
+
+  describe("addCursorAbove", () => {
+    function makeView(
+      state: EditorState,
+      coordsAtPos: (pos: number) => { top: number; bottom: number; left: number; right: number },
+      posAtCoords: (coords: { left: number; top: number }) => { pos: number } | null
+    ) {
+      return { state, coordsAtPos, posAtCoords } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("returns null when posAtCoords returns null", () => {
+      const state = createState("hello world", { anchor: 3, head: 3 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => null
+      );
+      expect(addCursorAbove(state, view)).toBeNull();
+    });
+
+    it("returns null when new position equals existing position", () => {
+      const state = createState("hello world", { anchor: 3, head: 3 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => ({ pos: 3 }) // same position — no movement
+      );
+      expect(addCursorAbove(state, view)).toBeNull();
+    });
+
+    it("returns null when new position is already in selection", () => {
+      // Build a MultiSelection at positions 1 and 7
+      const state0 = createState("hello hello", { anchor: 1, head: 6 });
+      const tr = selectNextOccurrence(state0);
+      const state = state0.apply(tr!);
+
+      const view = makeView(
+        state,
+        (pos) => ({ top: 100, bottom: 120, left: pos * 5, right: pos * 5 + 5 }),
+        () => ({ pos: 1 }) // maps to an already-existing range start
+      );
+      expect(addCursorAbove(state, view)).toBeNull();
+    });
+
+    it("adds cursor at new position above", () => {
+      const state = createState("hello world", { anchor: 8, head: 8 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => ({ pos: 2 }) // a different position above
+      );
+      const tr = addCursorAbove(state, view);
+      expect(tr).not.toBeNull();
+      const newState = state.apply(tr!);
+      expect(newState.selection).toBeInstanceOf(MultiSelection);
+    });
+
+    it("uses DEFAULT_LINE_HEIGHT_PX when coords have zero height", () => {
+      const state = createState("hello world", { anchor: 8, head: 8 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 100, left: 50, right: 55 }), // zero height
+        () => ({ pos: 2 })
+      );
+      const tr = addCursorAbove(state, view);
+      expect(tr).not.toBeNull();
+    });
+  });
+
+  describe("addCursorBelow", () => {
+    function makeView(
+      state: EditorState,
+      coordsAtPos: (pos: number) => { top: number; bottom: number; left: number; right: number },
+      posAtCoords: (coords: { left: number; top: number }) => { pos: number } | null
+    ) {
+      return { state, coordsAtPos, posAtCoords } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("returns null when posAtCoords returns null", () => {
+      const state = createState("hello world", { anchor: 3, head: 3 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => null
+      );
+      expect(addCursorBelow(state, view)).toBeNull();
+    });
+
+    it("returns null when new position equals existing position", () => {
+      const state = createState("hello world", { anchor: 3, head: 3 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => ({ pos: 3 })
+      );
+      expect(addCursorBelow(state, view)).toBeNull();
+    });
+
+    it("adds cursor at new position below", () => {
+      const state = createState("hello world", { anchor: 2, head: 2 });
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => ({ pos: 9 }) // position below
+      );
+      const tr = addCursorBelow(state, view);
+      expect(tr).not.toBeNull();
+      const newState = state.apply(tr!);
+      expect(newState.selection).toBeInstanceOf(MultiSelection);
+    });
+
+    it("works when current selection is a MultiSelection (uses bottommost)", () => {
+      // Build MultiSelection with two ranges
+      const state0 = createState("hello hello", { anchor: 1, head: 6 });
+      const tr1 = selectNextOccurrence(state0);
+      const state = state0.apply(tr1!);
+
+      const view = makeView(
+        state,
+        (pos) => ({ top: pos * 5, bottom: pos * 5 + 10, left: 50, right: 55 }),
+        () => ({ pos: 10 })
+      );
+      const tr = addCursorBelow(state, view);
+      expect(tr).not.toBeNull();
     });
   });
 });

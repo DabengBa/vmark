@@ -422,5 +422,101 @@ describe('useHotExitRestore', () => {
         );
       });
     });
+
+    it('should emit RESTORE_COMPLETE when secondary window allDone is true', async () => {
+      currentWindowLabel = 'doc-0';
+
+      vi.resetModules();
+      vi.doMock('@tauri-apps/api/core', () => ({
+        invoke: (...args: unknown[]) => mockInvoke(...args),
+      }));
+      vi.doMock('@tauri-apps/api/event', () => ({
+        emit: (...args: unknown[]) => mockEmit(...args),
+        listen: (...args: unknown[]) => mockListen(...args),
+      }));
+      vi.doMock('@tauri-apps/api/webviewWindow', () => ({
+        getCurrentWebviewWindow: () => ({ label: currentWindowLabel }),
+      }));
+      vi.doMock('@/utils/debug', () => ({
+        hotExitLog: vi.fn(),
+        hotExitWarn: vi.fn(),
+      }));
+      vi.doMock('./restoreHelpers', () => ({
+        pullWindowStateWithRetry: (...args: unknown[]) => mockPullWindowStateWithRetry(...args),
+        restoreWindowState: (...args: unknown[]) => mockRestoreWindowState(...args),
+      }));
+
+      const mod = await import('./useHotExitRestore');
+      const state = makeWindowState();
+      mockPullWindowStateWithRetry.mockResolvedValueOnce(state);
+      mockInvoke.mockResolvedValueOnce(true); // allDone = true
+
+      renderHook(() => mod.useHotExitRestore());
+
+      await vi.waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith('hot-exit:restore-complete', {});
+      });
+    });
+
+    it('should handle non-Error throw in secondary window restore', async () => {
+      currentWindowLabel = 'doc-0';
+
+      vi.resetModules();
+      vi.doMock('@tauri-apps/api/core', () => ({
+        invoke: (...args: unknown[]) => mockInvoke(...args),
+      }));
+      vi.doMock('@tauri-apps/api/event', () => ({
+        emit: (...args: unknown[]) => mockEmit(...args),
+        listen: (...args: unknown[]) => mockListen(...args),
+      }));
+      vi.doMock('@tauri-apps/api/webviewWindow', () => ({
+        getCurrentWebviewWindow: () => ({ label: currentWindowLabel }),
+      }));
+      vi.doMock('@/utils/debug', () => ({
+        hotExitLog: vi.fn(),
+        hotExitWarn: vi.fn(),
+      }));
+      vi.doMock('./restoreHelpers', () => ({
+        pullWindowStateWithRetry: (...args: unknown[]) => mockPullWindowStateWithRetry(...args),
+        restoreWindowState: (...args: unknown[]) => mockRestoreWindowState(...args),
+      }));
+
+      const mod = await import('./useHotExitRestore');
+      mockPullWindowStateWithRetry.mockRejectedValueOnce('string error from secondary');
+
+      renderHook(() => mod.useHotExitRestore());
+
+      await vi.waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith(
+          'hot-exit:restore-failed',
+          { error: 'string error from secondary' },
+        );
+      });
+    });
+
+    it('should ignore RESTORE_START when mainWindowRestoreStarted is already set', async () => {
+      currentWindowLabel = 'main';
+
+      // First, call restoreMainWindowState to set the flag
+      const state = makeWindowState();
+      mockPullWindowStateWithRetry.mockResolvedValueOnce(state);
+      mockInvoke.mockResolvedValueOnce(false);
+
+      await restoreMainWindowState();
+
+      // Now render hook — RESTORE_START listener should ignore
+      renderHook(() => useHotExitRestore());
+
+      const listenerCallback = mockListen.mock.calls[0]?.[1] as (() => Promise<void>) | undefined;
+      expect(listenerCallback).toBeDefined();
+
+      // Clear to track new calls
+      mockPullWindowStateWithRetry.mockClear();
+
+      await listenerCallback!();
+
+      // Should NOT call pull again since flag is already set
+      expect(mockPullWindowStateWithRetry).not.toHaveBeenCalled();
+    });
   });
 });

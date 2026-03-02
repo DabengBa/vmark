@@ -322,6 +322,45 @@ describe("scheduleTiptapFocusAndRestore", () => {
     expect(scrollTop).toBe(0);
   });
 
+  it("scrolls to top when scroll container uses overflow: scroll (not auto)", () => {
+    const focus = vi.fn();
+    const dispatch = vi.fn();
+    let scrollTop = 200;
+    const scrollContainer = {
+      get scrollTop() { return scrollTop; },
+      set scrollTop(val: number) { scrollTop = val; },
+      style: { overflowY: "scroll" },
+      parentElement: null,
+    };
+    const view = {
+      dom: {
+        isConnected: true,
+        parentElement: scrollContainer,
+        style: { overflowY: "visible" },
+      },
+      focus,
+      dispatch,
+      state: {
+        doc: { content: { size: 10 } },
+        tr: { setSelection: vi.fn().mockReturnThis() },
+      },
+    } as unknown as EditorView;
+
+    const editor = { isDestroyed: false, view } as TiptapEditor;
+    const restoreCursor = vi.fn();
+    const getCursorInfo = vi.fn().mockReturnValue(null);
+
+    const raf = vi.fn((cb: FrameRequestCallback) => { cb(0); return 1; });
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = raf;
+
+    scheduleTiptapFocusAndRestore(editor, getCursorInfo, restoreCursor);
+
+    globalThis.requestAnimationFrame = originalRaf;
+
+    expect(scrollTop).toBe(0);
+  });
+
   it("handles setSelection throwing an error gracefully", () => {
     const focus = vi.fn();
     const dispatch = vi.fn();

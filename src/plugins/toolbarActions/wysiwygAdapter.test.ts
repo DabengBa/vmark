@@ -727,4 +727,175 @@ describe("performWysiwygToolbarAction (with view)", () => {
     });
     expect(result).toBe(false);
   });
+
+  it("returns false for bulletList without view (null view path)", () => {
+    const result = performWysiwygToolbarAction("bulletList", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for orderedList without view (null view path)", () => {
+    const result = performWysiwygToolbarAction("orderedList", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for indent without view (null view path)", () => {
+    const result = performWysiwygToolbarAction("indent", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for outdent without view (null view path)", () => {
+    const result = performWysiwygToolbarAction("outdent", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for removeList without view (null view path)", () => {
+    const result = performWysiwygToolbarAction("removeList", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles bulletList", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("bulletList", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles orderedList", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("orderedList", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles taskList", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("taskList", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles indent", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("indent", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles outdent", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("outdent", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionListAction handles removeList", async () => {
+    const { applyMultiSelectionListAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionListAction).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("removeList", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionBlockquoteAction handles nestBlockquote", async () => {
+    const { applyMultiSelectionBlockquoteAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionBlockquoteAction).mockReturnValueOnce(true);
+    const result = performWysiwygToolbarAction("nestBlockquote", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionBlockquoteAction handles unnestBlockquote", async () => {
+    const { applyMultiSelectionBlockquoteAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionBlockquoteAction).mockReturnValueOnce(true);
+    const result = performWysiwygToolbarAction("unnestBlockquote", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when applyMultiSelectionBlockquoteAction handles removeBlockquote", async () => {
+    const { applyMultiSelectionBlockquoteAction } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionBlockquoteAction).mockReturnValueOnce(true);
+    const result = performWysiwygToolbarAction("removeBlockquote", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns false for insertAlertNote without editor", () => {
+    const result = performWysiwygToolbarAction("insertAlertNote", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for insertAlertTip without editor", () => {
+    const result = performWysiwygToolbarAction("insertAlertTip", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for insertAlertImportant without editor", () => {
+    const result = performWysiwygToolbarAction("insertAlertImportant", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for insertAlertWarning without editor", () => {
+    const result = performWysiwygToolbarAction("insertAlertWarning", baseContext);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for insertAlertCaution without editor", () => {
+    const result = performWysiwygToolbarAction("insertAlertCaution", baseContext);
+    expect(result).toBe(false);
+  });
+});
+
+describe("setWysiwygHeadingLevel — multi-selection handled", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(true);
+  });
+
+  it("returns true when applyMultiSelectionHeading handles the action", async () => {
+    const { applyMultiSelectionHeading } = await import("./wysiwygMultiSelection");
+    vi.mocked(applyMultiSelectionHeading).mockReturnValueOnce(true);
+    const editor = createMockEditor();
+    const mockView = {} as import("@tiptap/pm/view").EditorView;
+    const result = setWysiwygHeadingLevel(
+      { ...baseContext, editor, view: mockView },
+      2
+    );
+    expect(result).toBe(true);
+  });
 });

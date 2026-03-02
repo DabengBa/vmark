@@ -268,6 +268,53 @@ describe("restoreCursorInCodeMirror", () => {
     expect(view.dispatch).toHaveBeenCalled();
   });
 
+  it("falls back to generic restore when code block anchor target line exceeds doc length", () => {
+    // Code block with anchor pointing to a line beyond the document
+    const content = "```\nonly\n```";
+    const view = buildMockView({ content, cursorPos: 0 });
+    const info: CursorInfo = {
+      sourceLine: 1,
+      wordAtCursor: "",
+      offsetInWord: 0,
+      nodeType: "code_block",
+      percentInLine: 0,
+      contextBefore: "",
+      contextAfter: "",
+      blockAnchor: {
+        kind: "code",
+        lineInBlock: 999, // way beyond document length
+        columnInLine: 0,
+      },
+    };
+    restoreCursorInCodeMirror(view as never, info);
+    // Should fall back to generic restore and still dispatch
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("falls back to generic restore when table anchor column returns null", () => {
+    const content = "| a | b |";
+    vi.mocked(restoreTableColumnFromAnchor).mockReturnValue(null);
+    const view = buildMockView({ content, cursorPos: 0 });
+    const info: CursorInfo = {
+      sourceLine: 1,
+      wordAtCursor: "",
+      offsetInWord: 0,
+      nodeType: "table_cell",
+      percentInLine: 0.5,
+      contextBefore: "",
+      contextAfter: "",
+      blockAnchor: {
+        kind: "table",
+        row: 0,
+        col: 99,
+        offsetInCell: 0,
+      },
+    };
+    restoreCursorInCodeMirror(view as never, info);
+    // Falls back to generic restore via percentage
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
   it("restores cursor in table using block anchor", () => {
     const content = "| a | b |\n|---|---|\n| 1 | 2 |";
     vi.mocked(restoreTableColumnFromAnchor).mockReturnValue(4);
