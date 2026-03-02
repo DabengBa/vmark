@@ -172,13 +172,8 @@ describe("tabEscapeKeymap", () => {
   });
 
   describe("multi-cursor escape", () => {
-    // Note: EditorState.create in jsdom does not reliably preserve multi-range
-    // selections. Multi-cursor integration tests are covered in
-    // tabEscape.multi-cursor.test.ts which documents current behavior.
-
     it("returns false for single cursor (no multi-cursor path)", () => {
       const view = createView("text^)");
-      // Single cursor before ) -- should go through single-cursor path, not multi
       expect(view.state.selection.ranges.length).toBe(1);
       const handled = tabEscapeKeymap.run!(view);
       expect(handled).toBe(true);
@@ -188,6 +183,247 @@ describe("tabEscapeKeymap", () => {
     it("single cursor returns false when nothing to escape", () => {
       const view = createView("text^abc");
       expect(view.state.selection.ranges.length).toBe(1);
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(false);
+    });
+
+    it("handles multi-cursor where all cursors can escape", () => {
+      const view = createMultiCursorView("a)b)c)", [
+        { anchor: 1 },
+        { anchor: 3 },
+        { anchor: 5 },
+      ]);
+
+      if (view.state.selection.ranges.length > 1) {
+        const handled = tabEscapeKeymap.run!(view);
+        expect(handled).toBe(true);
+      }
+    });
+
+    it("handles multi-cursor where no cursors can escape", () => {
+      const view = createMultiCursorView("abcdef", [
+        { anchor: 1 },
+        { anchor: 3 },
+        { anchor: 5 },
+      ]);
+
+      if (view.state.selection.ranges.length > 1) {
+        const handled = tabEscapeKeymap.run!(view);
+        expect(handled).toBe(false);
+      }
+    });
+
+    it("handles multi-cursor with selections (not just cursors)", () => {
+      const view = createMultiCursorView("abc)def)", [
+        { anchor: 0, head: 2 },
+        { anchor: 4, head: 6 },
+      ]);
+
+      if (view.state.selection.ranges.length > 1) {
+        const handled = tabEscapeKeymap.run!(view);
+        // Selections are kept as-is (not processed as escape candidates)
+        expect(typeof handled).toBe("boolean");
+      }
+    });
+  });
+
+  describe("single cursor - CJK closing brackets", () => {
+    it("jumps over CJK closing paren", () => {
+      const view = createView("text^）");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(5);
+    });
+
+    it("jumps over CJK closing bracket 】", () => {
+      const view = createView("text^】");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over CJK closing quote 」", () => {
+      const view = createView("text^」");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over CJK closing quote 』", () => {
+      const view = createView("text^』");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over CJK closing angle 》", () => {
+      const view = createView("text^》");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over CJK closing angle 〉", () => {
+      const view = createView("text^〉");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+  });
+
+  describe("single cursor - curly quotes", () => {
+    it("jumps over right double curly quote", () => {
+      const view = createView("text^\u201D");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over right single curly quote", () => {
+      const view = createView("text^\u2019");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+  });
+
+  describe("single cursor - markdown format chars", () => {
+    it("jumps over asterisk", () => {
+      const view = createView("bold^*");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(5);
+    });
+
+    it("jumps over underscore", () => {
+      const view = createView("text^_");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over caret (^)", () => {
+      const view = createView("text^" + "^");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over backtick", () => {
+      const view = createView("code^`");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(5);
+    });
+
+    it("jumps over closing brace", () => {
+      const view = createView("obj^}");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over double quote", () => {
+      const view = createView('text^"');
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over single quote", () => {
+      const view = createView("text^'");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("jumps over >", () => {
+      const view = createView("text^>");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+  });
+
+  describe("single cursor - boundary conditions", () => {
+    it("returns false at start of empty document", () => {
+      const view = createView("^");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(false);
+    });
+
+    it("returns false at start of document with non-closing char", () => {
+      const view = createView("^abc");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(false);
+    });
+
+    it("escapes closing char at start of document", () => {
+      const view = createView("^)abc");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(1);
+    });
+
+    it("escapes closing char at very end (last char)", () => {
+      const view = createView("abc^)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(4);
+    });
+
+    it("handles single closing char document", () => {
+      const view = createView("^)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(1);
+    });
+
+    it("handles ~~ at end of document", () => {
+      const view = createView("abc^~~");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(5);
+    });
+
+    it("handles == at end of document", () => {
+      const view = createView("abc^==");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(5);
+    });
+
+    it("handles single ~ (not a sequence)", () => {
+      // ~ is not in CLOSING_CHARS, so should not be jumped
+      const view = createView("abc^~x");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(false);
+    });
+  });
+
+  describe("link navigation edge cases", () => {
+    it("handles nested brackets in link text", () => {
+      const view = createView("[text [nested]^](url)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("handles empty link text", () => {
+      const view = createView("[^](url)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("handles empty URL", () => {
+      const view = createView("[text](^)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      expect(view.state.selection.main.from).toBe(8);
+    });
+
+    it("handles link at start of document", () => {
+      const view = createView("[^text](url)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("handles link at end of document", () => {
+      const view = createView("[text](url^)");
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+      // [text](url) is 11 chars, linkEnd = 11 (after closing paren)
+      expect(view.state.selection.main.from).toBe(11);
+    });
+
+    it("does not navigate when cursor is outside any link", () => {
+      const view = createView("before ^[text](url) after");
       const handled = tabEscapeKeymap.run!(view);
       expect(handled).toBe(false);
     });

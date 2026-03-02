@@ -80,6 +80,17 @@ vi.mock("@/plugins/actions/actionRegistry", () => ({
     "menu:italic": { actionId: "italic" },
     "menu:undo": { actionId: "undo" },
     "menu:redo": { actionId: "redo" },
+    "menu:heading-1": { actionId: "setHeading", params: { level: 1 } },
+    "menu:paragraph": { actionId: "paragraph" },
+    "menu:increaseHeading": { actionId: "increaseHeading" },
+    "menu:codeBlock": { actionId: "codeBlock" },
+    "menu:blockquote": { actionId: "blockquote" },
+    "menu:horizontalLine": { actionId: "horizontalLine" },
+    "menu:addRowBelow": { actionId: "addRowBelow" },
+    "menu:addColRight": { actionId: "addColRight" },
+    "menu:wikiLink": { actionId: "wikiLink" },
+    "menu:bookmark": { actionId: "bookmark" },
+    "menu:unknown-action": { actionId: "nonexistent" },
   },
   ACTION_DEFINITIONS: {
     bold: {
@@ -106,8 +117,68 @@ vi.mock("@/plugins/actions/actionRegistry", () => ({
       category: "edit",
       supports: { wysiwyg: true, source: true },
     },
+    setHeading: {
+      id: "setHeading",
+      label: "Heading",
+      category: "formatting",
+      supports: { wysiwyg: true, source: true },
+    },
+    paragraph: {
+      id: "paragraph",
+      label: "Paragraph",
+      category: "formatting",
+      supports: { wysiwyg: true, source: true },
+    },
+    increaseHeading: {
+      id: "increaseHeading",
+      label: "Increase Heading",
+      category: "formatting",
+      supports: { wysiwyg: true, source: true },
+    },
+    codeBlock: {
+      id: "codeBlock",
+      label: "Code Block",
+      category: "insert",
+      supports: { wysiwyg: true, source: true },
+    },
+    blockquote: {
+      id: "blockquote",
+      label: "Blockquote",
+      category: "insert",
+      supports: { wysiwyg: true, source: true },
+    },
+    horizontalLine: {
+      id: "horizontalLine",
+      label: "Divider",
+      category: "insert",
+      supports: { wysiwyg: true, source: true },
+    },
+    addRowBelow: {
+      id: "addRowBelow",
+      label: "Add Row",
+      category: "table",
+      supports: { wysiwyg: true, source: true },
+    },
+    addColRight: {
+      id: "addColRight",
+      label: "Add Column",
+      category: "table",
+      supports: { wysiwyg: true, source: true },
+    },
+    wikiLink: {
+      id: "wikiLink",
+      label: "Wiki Link",
+      category: "insert",
+      supports: { wysiwyg: true, source: true },
+    },
+    bookmark: {
+      id: "bookmark",
+      label: "Bookmark",
+      category: "insert",
+      supports: { wysiwyg: true, source: true },
+    },
   },
-  getHeadingLevelFromParams: () => 1,
+  getHeadingLevelFromParams: (params?: Record<string, unknown>) => (params as { level?: number })?.level ?? 1,
 }));
 
 function TestHarness() {
@@ -228,10 +299,170 @@ describe("useUnifiedMenuCommands", () => {
     render(<TestHarness />);
     await waitFor(() => expect(listeners.size).toBeGreaterThan(0));
 
-    // Should have listeners for all 4 events in our mock MENU_TO_ACTION
+    // Should have listeners for all events in our mock MENU_TO_ACTION
     expect(listeners.has("menu:bold")).toBe(true);
     expect(listeners.has("menu:italic")).toBe(true);
     expect(listeners.has("menu:undo")).toBe(true);
     expect(listeners.has("menu:redo")).toBe(true);
+    expect(listeners.has("menu:heading-1")).toBe(true);
+    expect(listeners.has("menu:paragraph")).toBe(true);
+  });
+
+  it("dispatches setHeading to WYSIWYG adapter with level", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:heading-1")).toBe(true));
+
+    listeners.get("menu:heading-1")?.({ payload: "main" });
+
+    // setHeading goes through setWysiwygHeadingLevel, not performWysiwygToolbarAction
+    const { setWysiwygHeadingLevel } = await import("@/plugins/toolbarActions/wysiwygAdapter");
+    expect(setWysiwygHeadingLevel).toHaveBeenCalled();
+  });
+
+  it("dispatches paragraph (heading level 0) to WYSIWYG", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:paragraph")).toBe(true));
+
+    listeners.get("menu:paragraph")?.({ payload: "main" });
+
+    const { setWysiwygHeadingLevel } = await import("@/plugins/toolbarActions/wysiwygAdapter");
+    expect(setWysiwygHeadingLevel).toHaveBeenCalled();
+  });
+
+  it("dispatches increaseHeading through performWysiwygToolbarAction", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:increaseHeading")).toBe(true));
+
+    listeners.get("menu:increaseHeading")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "increaseHeading",
+      expect.objectContaining({ surface: "wysiwyg" })
+    );
+  });
+
+  it("maps codeBlock to insertCodeBlock action name", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:codeBlock")).toBe(true));
+
+    listeners.get("menu:codeBlock")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "insertCodeBlock",
+      expect.any(Object)
+    );
+  });
+
+  it("maps blockquote to insertBlockquote action name", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:blockquote")).toBe(true));
+
+    listeners.get("menu:blockquote")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "insertBlockquote",
+      expect.any(Object)
+    );
+  });
+
+  it("maps horizontalLine to insertDivider", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:horizontalLine")).toBe(true));
+
+    listeners.get("menu:horizontalLine")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "insertDivider",
+      expect.any(Object)
+    );
+  });
+
+  it("maps wikiLink to link:wiki", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:wikiLink")).toBe(true));
+
+    listeners.get("menu:wikiLink")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "link:wiki",
+      expect.any(Object)
+    );
+  });
+
+  it("dispatches to Source adapter in source mode for codeBlock", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:codeBlock")).toBe(true));
+
+    listeners.get("menu:codeBlock")?.({ payload: "main" });
+
+    expect(performSourceToolbarAction).toHaveBeenCalledWith(
+      "insertCodeBlock",
+      expect.objectContaining({ surface: "source" })
+    );
+  });
+
+  it("dispatches setHeading to Source adapter in source mode", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:heading-1")).toBe(true));
+
+    listeners.get("menu:heading-1")?.({ payload: "main" });
+
+    const { setSourceHeadingLevel } = await import("@/plugins/toolbarActions/sourceAdapter");
+    expect(setSourceHeadingLevel).toHaveBeenCalled();
+  });
+
+  it("dispatches paragraph to Source adapter in source mode", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:paragraph")).toBe(true));
+
+    listeners.get("menu:paragraph")?.({ payload: "main" });
+
+    const { setSourceHeadingLevel } = await import("@/plugins/toolbarActions/sourceAdapter");
+    expect(setSourceHeadingLevel).toHaveBeenCalled();
+  });
+
+  it("silently skips unknown action definitions", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:unknown-action")).toBe(true));
+
+    // Should not throw — action definition lookup fails gracefully
+    expect(() => {
+      listeners.get("menu:unknown-action")?.({ payload: "main" });
+    }).not.toThrow();
+
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
   });
 });

@@ -233,23 +233,39 @@ describe("linkPopupExtension", () => {
   });
 
   describe("handleClick behavior", () => {
+    // Extract the handleClick function via the plugin spec
+    function getHandleClick() {
+      const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({
+        editor: { view: {} },
+      } as unknown as Parameters<typeof linkPopupExtension.config.addProseMirrorPlugins>[0]);
+      return plugins[0].props.handleClick! as (
+        view: EditorView,
+        pos: number,
+        event: MouseEvent
+      ) => boolean;
+    }
+
     it("opens popup on regular click on a link", () => {
+      const handleClick = getHandleClick();
       const doc = createDocWithLink("", "click me", "http://example.com", "");
       const state = EditorState.create({ doc, schema });
       const view = createMockView(state);
 
-      // Simulate a regular click (no meta/ctrl key)
-      const event = new MouseEvent("click", {
-        metaKey: false,
-        ctrlKey: false,
-      });
+      const event = new MouseEvent("click", { metaKey: false, ctrlKey: false });
+      const result = handleClick(view, 3, event);
 
-      // The plugin registers handleClick - test the behavior via the extension
-      // We verify store interactions since handleClick calls store methods
-      expect(mockLinkPopupState.openPopup).not.toHaveBeenCalled();
+      expect(result).toBe(false); // Regular click returns false to let PM place cursor
+      expect(mockLinkPopupState.openPopup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: "http://example.com",
+          linkFrom: 1,
+          linkTo: 9,
+        })
+      );
     });
 
     it("closes popups on regular click outside any link", () => {
+      const handleClick = getHandleClick();
       mockLinkPopupState.isOpen = true;
       mockLinkCreatePopupState.isOpen = true;
 
@@ -257,41 +273,193 @@ describe("linkPopupExtension", () => {
         schema.node("paragraph", null, [schema.text("no links")]),
       ]);
       const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
 
-      // Verify the stores would be closed
-      expect(mockLinkPopupState.isOpen).toBe(true);
-      expect(mockLinkCreatePopupState.isOpen).toBe(true);
+      const event = new MouseEvent("click", { metaKey: false, ctrlKey: false });
+      handleClick(view, 3, event);
+
+      expect(mockLinkPopupState.closePopup).toHaveBeenCalled();
+      expect(mockLinkCreatePopupState.closePopup).toHaveBeenCalled();
     });
 
-    it("handles fragment links with # prefix for internal navigation", () => {
-      // Fragment links start with #
-      const href = "#my-heading";
-      expect(href.startsWith("#")).toBe(true);
-      expect(href.slice(1)).toBe("my-heading");
+    it("does not close popups if none are open", () => {
+      const handleClick = getHandleClick();
+      mockLinkPopupState.isOpen = false;
+      mockLinkCreatePopupState.isOpen = false;
+
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [schema.text("no links")]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: false, ctrlKey: false });
+      handleClick(view, 3, event);
+
+      expect(mockLinkPopupState.closePopup).not.toHaveBeenCalled();
+      expect(mockLinkCreatePopupState.closePopup).not.toHaveBeenCalled();
     });
 
-    it("handles Cmd+click on external links", () => {
-      const event = new MouseEvent("click", {
-        metaKey: true,
-        ctrlKey: false,
+    it("closes link create popup when clicking a link", () => {
+      const handleClick = getHandleClick();
+      mockLinkCreatePopupState.isOpen = true;
+
+      const doc = createDocWithLink("", "click", "http://test.com", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: false, ctrlKey: false });
+      handleClick(view, 2, event);
+
+      expect(mockLinkCreatePopupState.closePopup).toHaveBeenCalled();
+      expect(mockLinkPopupState.openPopup).toHaveBeenCalled();
+    });
+
+    it("Cmd+click on external link opens in browser", async () => {
+      const handleClick = getHandleClick();
+      const doc = createDocWithLink("", "click me", "http://example.com", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: true, ctrlKey: false });
+      const preventDefault = vi.spyOn(event, "preventDefault");
+      const result = handleClick(view, 3, event);
+
+      expect(result).toBe(true);
+      expect(preventDefault).toHaveBeenCalled();
+
+      // Wait for dynamic import
+      await new Promise((r) => setTimeout(r, 10));
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      expect(openUrl).toHaveBeenCalledWith("http://example.com");
+    });
+
+    it("Ctrl+click on external link opens in browser", async () => {
+      const handleClick = getHandleClick();
+      const doc = createDocWithLink("", "click", "https://test.com", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: false, ctrlKey: true });
+      const result = handleClick(view, 2, event);
+
+      expect(result).toBe(true);
+    });
+
+    it("Cmd+click on fragment link navigates to heading", async () => {
+      const handleClick = getHandleClick();
+
+      const { findHeadingById } = await import("@/utils/headingSlug");
+      vi.mocked(findHeadingById).mockReturnValue(0);
+
+      // Build a doc with a heading and a link
+      const linkMark = schema.marks.link.create({ href: "#my-heading" });
+      const doc = schema.node("doc", null, [
+        schema.node("heading", { level: 1, id: "my-heading" }, [schema.text("My Heading")]),
+        schema.node("paragraph", null, [
+          schema.text("click", [linkMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      // Need real dispatch for TextSelection.near to work
+      view.dispatch = vi.fn((tr) => {
+        // Accept the transaction
       });
-      expect(event.metaKey).toBe(true);
+
+      // link text starts at paragraph start
+      // heading: 1 (open) + 10 (text) + 1 (close) = 12, so paragraph starts at 12
+      // paragraph: 12 (open) = 13, link "click" at 13..18
+      const linkPos = 13;
+      const event = new MouseEvent("click", { metaKey: true });
+      const preventDefault = vi.spyOn(event, "preventDefault");
+      const result = handleClick(view, linkPos, event);
+
+      expect(result).toBe(true);
+      expect(preventDefault).toHaveBeenCalled();
+      expect(findHeadingById).toHaveBeenCalledWith(expect.anything(), "my-heading");
     });
 
-    it("handles Ctrl+click on external links", () => {
-      const event = new MouseEvent("click", {
-        metaKey: false,
-        ctrlKey: true,
-      });
-      expect(event.ctrlKey).toBe(true);
+    it("Cmd+click on fragment link returns false when heading not found", async () => {
+      const handleClick = getHandleClick();
+
+      const { findHeadingById } = await import("@/utils/headingSlug");
+      vi.mocked(findHeadingById).mockReturnValue(null);
+
+      const doc = createDocWithLink("", "click", "#nonexistent", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: true });
+      const result = handleClick(view, 2, event);
+
+      expect(result).toBe(false);
+    });
+
+    it("Cmd+click on non-link returns false", () => {
+      const handleClick = getHandleClick();
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [schema.text("plain text")]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: true });
+      const result = handleClick(view, 3, event);
+
+      expect(result).toBe(false);
+    });
+
+    it("handles click error gracefully", () => {
+      const handleClick = getHandleClick();
+      const view = {
+        state: {
+          doc: {
+            resolve: () => { throw new Error("test error"); },
+          },
+        },
+        coordsAtPos: vi.fn(),
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: { closest: vi.fn() },
+      } as unknown as EditorView;
+
+      const event = new MouseEvent("click");
+      const result = handleClick(view, 3, event);
+
+      expect(result).toBe(false);
+    });
+
+    it("does not open popup when link has empty href", () => {
+      const handleClick = getHandleClick();
+      const doc = createDocWithLink("", "click", "", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click");
+      handleClick(view, 2, event);
+
+      // Empty href means no popup opened
+      expect(mockLinkPopupState.openPopup).not.toHaveBeenCalled();
     });
   });
 
   describe("navigateToFragment", () => {
     it("returns false when heading is not found", async () => {
-      // findHeadingById returns null by default in our mock
       const { findHeadingById } = await import("@/utils/headingSlug");
       expect(findHeadingById(null as unknown as import("@tiptap/pm/model").Node, "nonexistent")).toBeNull();
+    });
+  });
+
+  describe("LinkPopupPluginView lifecycle", () => {
+    it("plugin creates a view with destroy method", () => {
+      const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({
+        editor: { view: {} },
+      } as unknown as Parameters<typeof linkPopupExtension.config.addProseMirrorPlugins>[0]);
+
+      const plugin = plugins[0];
+      expect(plugin.spec.view).toBeDefined();
     });
   });
 
@@ -312,7 +480,6 @@ describe("linkPopupExtension", () => {
       const state = EditorState.create({ doc, schema });
       const view = createMockView(state);
 
-      // Position at the very start of the link
       const result = findLinkMarkRange(view, 1);
       expect(result).not.toBeNull();
       expect(result!.from).toBe(1);
@@ -323,9 +490,19 @@ describe("linkPopupExtension", () => {
       const state = EditorState.create({ doc, schema });
       const view = createMockView(state);
 
-      // Position at the exact end of the link text (exclusive boundary)
-      // "link" occupies positions 1-4, position 5 is " after"
       const result = findLinkMarkRange(view, 5);
+      expect(result).toBeNull();
+    });
+
+    it("handles non-text child nodes in paragraph", () => {
+      // A paragraph with only a non-text inline node wouldn't have link marks
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [schema.text("text")]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const result = findLinkMarkRange(view, 2);
       expect(result).toBeNull();
     });
   });

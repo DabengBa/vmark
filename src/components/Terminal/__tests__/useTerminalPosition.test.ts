@@ -112,4 +112,49 @@ describe("getAvailableDimension", () => {
     const result = getAvailableDimension("bottom", 800, 200, false, 0);
     expect(result).toBe(200 - TITLEBAR_HEIGHT - STATUSBAR_HEIGHT);
   });
+
+  it("handles negative sidebar width gracefully", () => {
+    const result = getAvailableDimension("right", 1920, 1080, true, -100);
+    // sidebarW = -100, so offset = -100, result = 1920 - (-100) = 2020
+    expect(result).toBe(2020);
+  });
+
+  it("returns correct dimension when sidebar takes most of the width", () => {
+    const result = getAvailableDimension("right", 1920, 1080, true, 1800);
+    expect(result).toBe(1920 - 1800);
+  });
+});
+
+describe("pixelsToRatio — edge cases", () => {
+  it("handles NaN available dimension (returns NaN since guard only checks <= 0)", () => {
+    expect(pixelsToRatio(400, NaN)).toBeNaN();
+  });
+
+  it("handles exact boundary values", () => {
+    // 100/1000 = 0.1 (minimum)
+    expect(pixelsToRatio(100, 1000)).toBeCloseTo(0.1);
+    // 800/1000 = 0.8 (maximum)
+    expect(pixelsToRatio(800, 1000)).toBeCloseTo(0.8);
+  });
+});
+
+describe("computeTerminalPosition — additional edge cases", () => {
+  it("handles very small window (1x1)", () => {
+    // ratio = 1.0, in ambiguous zone. w=1 < threshold (1440 or 1390) → bottom
+    expect(computeTerminalPosition(1, 1, "bottom")).toBe("bottom");
+    expect(computeTerminalPosition(1, 1, "right")).toBe("bottom");
+  });
+
+  it("handles square window (ratio exactly 1.0)", () => {
+    // ratio = 1.0, in ambiguous zone. w=1000 < 1440, so bottom
+    expect(computeTerminalPosition(1000, 1000, "bottom")).toBe("bottom");
+  });
+
+  it("handles very wide window", () => {
+    expect(computeTerminalPosition(3840, 1080, "bottom")).toBe("right");
+  });
+
+  it("handles very tall window", () => {
+    expect(computeTerminalPosition(800, 2000, "right")).toBe("bottom");
+  });
 });

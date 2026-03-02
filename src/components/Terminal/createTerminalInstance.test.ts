@@ -279,3 +279,91 @@ describe("createTerminalInstance with WebGL", () => {
     ).not.toThrow();
   });
 });
+
+describe("createTerminalInstance — different settings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("accepts bar cursor style", () => {
+    const parentEl = document.createElement("div");
+    const inst = createTerminalInstance({
+      parentEl,
+      settings: {
+        fontSize: 12,
+        lineHeight: 1.0,
+        cursorStyle: "bar",
+        cursorBlink: false,
+        useWebGL: false,
+      },
+      ptyRef: { current: null },
+      onSearch: vi.fn(),
+    });
+    expect(inst.term).toBeDefined();
+    inst.dispose();
+  });
+
+  it("accepts underline cursor style", () => {
+    const parentEl = document.createElement("div");
+    const inst = createTerminalInstance({
+      parentEl,
+      settings: {
+        fontSize: 16,
+        lineHeight: 1.5,
+        cursorStyle: "underline",
+        cursorBlink: true,
+        useWebGL: false,
+      },
+      ptyRef: { current: null },
+      onSearch: vi.fn(),
+    });
+    expect(inst.term).toBeDefined();
+    inst.dispose();
+  });
+});
+
+describe("createTerminalInstance — dispose edge cases", () => {
+  it("handles dispose when container already removed from DOM", () => {
+    const parentEl = document.createElement("div");
+    const inst = createTerminalInstance({
+      parentEl,
+      settings: {
+        fontSize: 14,
+        lineHeight: 1.2,
+        cursorStyle: "block",
+        cursorBlink: true,
+        useWebGL: false,
+      },
+      ptyRef: { current: null },
+      onSearch: vi.fn(),
+    });
+
+    // Manually remove container before dispose
+    if (inst.container.parentElement) {
+      inst.container.parentElement.removeChild(inst.container);
+    }
+
+    // Should not throw
+    expect(() => inst.dispose()).not.toThrow();
+  });
+
+  it("calling dispose twice does not throw", () => {
+    const parentEl = document.createElement("div");
+    const inst = createTerminalInstance({
+      parentEl,
+      settings: {
+        fontSize: 14,
+        lineHeight: 1.2,
+        cursorStyle: "block",
+        cursorBlink: true,
+        useWebGL: false,
+      },
+      ptyRef: { current: null },
+      onSearch: vi.fn(),
+    });
+
+    inst.dispose();
+    // Second dispose — container already removed
+    expect(() => inst.dispose()).not.toThrow();
+  });
+});

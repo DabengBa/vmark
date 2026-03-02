@@ -573,6 +573,394 @@ describe("batchOpHandlers", () => {
     });
   });
 
+  describe("handleTableBatchModify — apply mode structural ops", () => {
+    function makeTableEditor() {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 2,
+        child: () => cellNode,
+        nodeSize: 12,
+        firstChild: {
+          type: { name: "tableHeader" },
+        },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+          cb(cellNode, 5);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 2,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 24 },
+        nodeSize: 26,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+          cb(tableRow, 12);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      return {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({
+              nodeSize: 5,
+            })),
+          },
+          tr: {
+            replaceWith: vi.fn().mockReturnThis(),
+            get docChanged() { return true; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          addRowAfter: vi.fn(),
+          deleteRow: vi.fn(),
+          addColumnAfter: vi.fn(),
+          deleteColumn: vi.fn(),
+          toggleHeaderRow: vi.fn(),
+        },
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+    }
+
+    it("applies delete_row operation", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-30", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "delete_row", at: 0 }],
+      });
+
+      expect(editor.commands.deleteRow).toHaveBeenCalled();
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+    });
+
+    it("applies add_column operation", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-31", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "add_column", at: 0, header: "Col", cells: ["a"] }],
+      });
+
+      expect(editor.commands.addColumnAfter).toHaveBeenCalled();
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+    });
+
+    it("applies delete_column operation", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-32", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "delete_column", at: 0 }],
+      });
+
+      expect(editor.commands.deleteColumn).toHaveBeenCalled();
+    });
+
+    it("applies set_header operation (toggle)", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-33", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "set_header", row: 0, isHeader: false }],
+      });
+
+      // firstChild.firstChild is tableHeader, so isCurrentlyHeader=true, wantHeader=false → toggle
+      expect(editor.commands.toggleHeaderRow).toHaveBeenCalled();
+    });
+
+    it("warns on unknown table operation", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-34", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "unknown_op" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings).toContain("Unknown table operation: unknown_op");
+    });
+
+    it("warns when operation has no action field", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-35", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ noAction: true }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("Failed to normalize"))).toBe(true);
+    });
+
+    it("applies multiple operations in sequence", async () => {
+      const editor = makeTableEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-36", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [
+          { action: "add_row", at: 0, cells: ["a"] },
+          { action: "delete_row", at: 1 },
+        ],
+      });
+
+      expect(editor.commands.addRowAfter).toHaveBeenCalled();
+      expect(editor.commands.deleteRow).toHaveBeenCalled();
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.data.appliedCount).toBe(2);
+    });
+  });
+
+  describe("handleListBatchModify — apply mode operations", () => {
+    function makeListEditor() {
+      const listItemNode = {
+        type: { name: "listItem" },
+        nodeSize: 8,
+      };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItemNode, 0);
+          cb(listItemNode, 8);
+        }),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      return {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+          selection: {
+            $from: {
+              depth: 2,
+              node: (d: number) => {
+                if (d === 1) return { type: { name: "taskItem" }, attrs: { checked: false } };
+                return { type: { name: "bulletList" } };
+              },
+              before: () => 5,
+            },
+          },
+          tr: {
+            replaceSelection: vi.fn().mockReturnThis(),
+            setNodeMarkup: vi.fn().mockReturnThis(),
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          splitListItem: vi.fn(),
+          deleteNode: vi.fn(),
+          sinkListItem: vi.fn(),
+          liftListItem: vi.fn(),
+        },
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+    }
+
+    it("applies delete_item operation", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-40", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "delete_item", at: 0 }],
+      });
+
+      expect(editor.commands.deleteNode).toHaveBeenCalledWith("listItem");
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+    });
+
+    it("applies set_indent (indent > 0 = sink)", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-41", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "set_indent", at: 0, indent: 1 }],
+      });
+
+      expect(editor.commands.sinkListItem).toHaveBeenCalledWith("listItem");
+    });
+
+    it("applies set_indent (indent = 0 = lift)", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-42", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "set_indent", at: 0, indent: 0 }],
+      });
+
+      expect(editor.commands.liftListItem).toHaveBeenCalledWith("listItem");
+    });
+
+    it("warns on update_item (requires item selection)", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-43", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "update_item", at: 0, text: "updated" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.data.warnings.some((w: string) => w.includes("update_item"))).toBe(true);
+    });
+
+    it("warns on reorder operation", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-44", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "reorder", order: [1, 0] }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.data.warnings.some((w: string) => w.includes("reorder"))).toBe(true);
+    });
+
+    it("warns on unknown list operation", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-45", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "nonexistent_op" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.data.warnings).toContain("Unknown list operation: nonexistent_op");
+    });
+
+    it("warns when list item at index not found", async () => {
+      const editor = makeListEditor();
+      // Override forEach to return no items
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn(),
+      };
+      editor.state.doc.descendants = (cb: (node: unknown, pos: number) => boolean | undefined) => {
+        cb(listNode, 0);
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-46", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "delete_item", at: 99 }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.data.warnings.some((w: string) => w.includes("not found"))).toBe(true);
+    });
+
+    it("accepts 'op' as action key alias", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-47", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ op: "delete_item", at: 0 }],
+      });
+
+      expect(editor.commands.deleteNode).toHaveBeenCalled();
+    });
+
+    it("normalizes camelCase to snake_case", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-48", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "deleteItem", at: 0 }],
+      });
+
+      expect(editor.commands.deleteNode).toHaveBeenCalled();
+    });
+
+    it("handles operation errors gracefully", async () => {
+      const editor = makeListEditor();
+      editor.commands.splitListItem = vi.fn(() => { throw new Error("PM error"); });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-49", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("Failed"))).toBe(true);
+    });
+  });
+
   describe("handleTableBatchModify — normalizeOp", () => {
     it("accepts type or op as action key aliases", async () => {
       const tableRow = {

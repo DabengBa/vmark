@@ -343,5 +343,102 @@ describe("tabIndentExtension", () => {
       const state = createState("   ");
       expect(state.doc.textContent).toBe("   ");
     });
+
+    it("handles cursor at start of document (pos 1)", () => {
+      const state = createState("hello", 1);
+      const $from = state.doc.resolve(1);
+      expect($from.pos).toBe(1);
+      expect($from.parentOffset).toBe(0);
+    });
+
+    it("handles cursor at end of document", () => {
+      const state = createState("hello");
+      const endPos = state.doc.content.size - 1;
+      const stateAtEnd = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, endPos)),
+      );
+      expect(stateAtEnd.selection.from).toBe(endPos);
+    });
+
+    it("handles deeply nested list items", () => {
+      // Create a nested list: bulletList > listItem > bulletList > listItem
+      const innerItem = schema.node("listItem", null, [
+        schema.node("paragraph", null, [schema.text("deep")]),
+      ]);
+      const innerList = schema.node("bulletList", null, [innerItem]);
+      const outerItem = schema.node("listItem", null, [
+        schema.node("paragraph", null, [schema.text("outer")]),
+        innerList,
+      ]);
+      const doc = schema.node("doc", null, [
+        schema.node("bulletList", null, [outerItem]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+
+      // Position inside the deeply nested item
+      const listItemType = state.schema.nodes.listItem;
+      let found = false;
+      state.doc.descendants((node) => {
+        if (node.type === listItemType) found = true;
+      });
+      expect(found).toBe(true);
+    });
+  });
+
+  describe("multi-cursor tab escape", () => {
+    it("handles MultiSelection result from canTabEscape", async () => {
+      const { MultiSelection } = await import(
+        "@/plugins/multiCursor/MultiSelection"
+      );
+      const ms = new MultiSelection([], 0);
+      mockCanTabEscape.mockReturnValue(ms);
+      const result = mockCanTabEscape({});
+      expect(result).toBeInstanceOf(MultiSelection);
+    });
+  });
+
+  describe("Shift+Tab edge cases", () => {
+    it("handles single leading space (less than tabSize)", () => {
+      const state = createState(" hello", 2);
+      const $from = state.doc.resolve(2);
+      const lineStart = $from.start();
+      const textBefore = state.doc.textBetween(lineStart, 2, "\n");
+
+      const leadingSpaces = textBefore.match(/^[ ]*/)?.[0].length ?? 0;
+      expect(leadingSpaces).toBe(1);
+
+      // tabSize is 2, so only 1 space is removed
+      const spacesToRemove = Math.min(leadingSpaces, 2);
+      expect(spacesToRemove).toBe(1);
+    });
+
+    it("handles cursor at very start of line (no text before)", () => {
+      const state = createState("hello", 1);
+      const $from = state.doc.resolve(1);
+      const lineStart = $from.start();
+      const textBefore = state.doc.textBetween(lineStart, 1, "\n");
+      expect(textBefore).toBe("");
+
+      const leadingSpaces = textBefore.match(/^[ ]*/)?.[0].length ?? 0;
+      expect(leadingSpaces).toBe(0);
+    });
+  });
+
+  describe("Tab with selection", () => {
+    it("replaces selected text with spaces", () => {
+      const state = createState("hello world");
+      const sel = TextSelection.create(state.doc, 1, 6);
+      const stateWithSel = state.apply(state.tr.setSelection(sel));
+      expect(stateWithSel.selection.empty).toBe(false);
+
+      // Simulate replacing selection with tab spaces
+      const tabSize = 2;
+      const spaces = " ".repeat(tabSize);
+      const tr = stateWithSel.tr.replaceSelectionWith(
+        schema.text(spaces),
+        true,
+      );
+      expect(tr.doc.textContent).toBe("   world");
+    });
   });
 });

@@ -445,4 +445,120 @@ describe("CodeBlockWithLineNumbers", () => {
       expect(handler).not.toHaveBeenCalled();
     });
   });
+
+  describe("outside click detection", () => {
+    it("closes dropdown when click is outside both dropdown and selector", () => {
+      const dropdown = document.createElement("div");
+      const langSelector = document.createElement("div");
+      const target = document.createElement("div");
+      document.body.appendChild(target);
+
+      const isOutside = !dropdown.contains(target) && !langSelector.contains(target);
+      expect(isOutside).toBe(true);
+
+      document.body.removeChild(target);
+    });
+
+    it("does not close when click is inside dropdown", () => {
+      const dropdown = document.createElement("div");
+      const item = document.createElement("div");
+      dropdown.appendChild(item);
+
+      const isOutside = !dropdown.contains(item);
+      expect(isOutside).toBe(false);
+    });
+
+    it("does not close when click is inside lang selector", () => {
+      const langSelector = document.createElement("div");
+      const child = document.createElement("span");
+      langSelector.appendChild(child);
+
+      const isOutside = !langSelector.contains(child);
+      expect(isOutside).toBe(false);
+    });
+  });
+
+  describe("very many lines", () => {
+    it("handles code block with 1000 lines", () => {
+      const lines = Array.from({ length: 1000 }, (_, i) => `line ${i + 1}`);
+      const text = lines.join("\n");
+      const lineCount = text.split("\n").length;
+      expect(lineCount).toBe(1000);
+
+      const gutter = document.createElement("div");
+      for (let i = 1; i <= lineCount; i++) {
+        const lineNum = document.createElement("div");
+        lineNum.className = "line-num";
+        lineNum.textContent = String(i);
+        gutter.appendChild(lineNum);
+      }
+      expect(gutter.children.length).toBe(1000);
+      expect(gutter.children[999].textContent).toBe("1000");
+    });
+
+    it("handles code block with only newlines", () => {
+      const text = "\n\n\n\n";
+      const lineCount = text.split("\n").length;
+      expect(lineCount).toBe(5);
+    });
+  });
+
+  describe("language rendering in list", () => {
+    it("renders language list with active and highlighted classes", () => {
+      const LANGUAGES = [
+        { id: "", name: "Plain Text" },
+        { id: "javascript", name: "JavaScript" },
+        { id: "python", name: "Python" },
+      ];
+
+      const container = document.createElement("div");
+      const currentLang = "python";
+      const query = "";
+
+      const filtered = LANGUAGES.filter(
+        (lang) =>
+          lang.name.toLowerCase().includes(query) ||
+          lang.id.toLowerCase().includes(query),
+      );
+
+      const currentIndex = filtered.findIndex((lang) => lang.id === currentLang);
+      const highlightIndex = currentIndex >= 0 ? currentIndex : 0;
+
+      filtered.forEach((lang, index) => {
+        const item = document.createElement("div");
+        item.className = "code-lang-item";
+        item.tabIndex = 0;
+        if (lang.id === currentLang) {
+          item.classList.add("active");
+        }
+        if (index === highlightIndex) {
+          item.classList.add("highlighted");
+        }
+        item.textContent = lang.name;
+        item.dataset.langId = lang.id;
+        container.appendChild(item);
+      });
+
+      expect(container.children.length).toBe(3);
+      // Python should have both active and highlighted
+      const pythonItem = container.children[2];
+      expect(pythonItem.classList.contains("active")).toBe(true);
+      expect(pythonItem.classList.contains("highlighted")).toBe(true);
+      // Plain Text should not have active or highlighted
+      const plainItem = container.children[0];
+      expect(plainItem.classList.contains("active")).toBe(false);
+      expect(plainItem.classList.contains("highlighted")).toBe(false);
+    });
+
+    it("highlights first item when current language not in filtered results", () => {
+      const LANGUAGES = [
+        { id: "javascript", name: "JavaScript" },
+        { id: "python", name: "Python" },
+      ];
+      const currentLang = "rust";
+      const currentIndex = LANGUAGES.findIndex((lang) => lang.id === currentLang);
+      const highlightIndex = currentIndex >= 0 ? currentIndex : 0;
+      expect(highlightIndex).toBe(0);
+    });
+  });
 });

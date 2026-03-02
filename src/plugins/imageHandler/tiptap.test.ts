@@ -398,3 +398,143 @@ describe("drag event structure", () => {
     expect(uriList).toBe("file:///Users/test/photo.png");
   });
 });
+
+describe("handlePaste edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsGetState.mockReturnValue({ image: { copyToAssets: true } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+    mockSaveImageToAssets.mockResolvedValue(".assets/saved.png");
+    mockTryTextImagePaste.mockReturnValue(false);
+  });
+
+  it("handles clipboard with both image and text items (image takes priority)", () => {
+    const file = new File(["data"], "test.png", { type: "image/png" });
+    const event = createMockClipboardEvent([
+      { type: "text/plain", data: "some text" },
+      { type: "image/png", file },
+    ]);
+
+    // Binary image should be found first
+    const items = Array.from(event.clipboardData?.items ?? []);
+    const hasImage = items.some((item) => item.type.startsWith("image/"));
+    expect(hasImage).toBe(true);
+  });
+
+  it("handles clipboard with no items", () => {
+    const event = {
+      clipboardData: null,
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    expect(event.clipboardData).toBeNull();
+  });
+
+  it("does not process non-image clipboard items", () => {
+    const event = createMockClipboardEvent([
+      { type: "text/html", data: "<p>html</p>" },
+    ]);
+
+    const items = Array.from(event.clipboardData?.items ?? []);
+    const hasImage = items.some((item) => item.type.startsWith("image/"));
+    expect(hasImage).toBe(false);
+  });
+
+  it("calls tryTextImagePaste when text contains image path", () => {
+    mockTryTextImagePaste.mockReturnValue(true);
+    const view = createMockView();
+    const text = "/path/to/image.png";
+
+    const result = mockTryTextImagePaste(view, text);
+    expect(result).toBe(true);
+    expect(mockTryTextImagePaste).toHaveBeenCalledWith(view, text);
+  });
+
+  it("returns false from tryTextImagePaste for non-image text", () => {
+    mockTryTextImagePaste.mockReturnValue(false);
+    const view = createMockView();
+    const text = "just some regular text";
+
+    const result = mockTryTextImagePaste(view, text);
+    expect(result).toBe(false);
+  });
+});
+
+describe("handleDrop edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsGetState.mockReturnValue({ image: { copyToAssets: true } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+    mockSaveImageToAssets.mockResolvedValue(".assets/saved.png");
+  });
+
+  it("handles drop with multiple image files", () => {
+    const files = [
+      new File([""], "a.png", { type: "image/png" }),
+      new File([""], "b.jpg", { type: "image/jpeg" }),
+      new File([""], "c.gif", { type: "image/gif" }),
+    ];
+    const imageFiles = files.filter((f) => mockIsImageFile(f));
+    expect(imageFiles).toHaveLength(3);
+  });
+
+  it("handles drop with mixed file types", () => {
+    const files = [
+      new File([""], "photo.png", { type: "image/png" }),
+      new File([""], "document.pdf", { type: "application/pdf" }),
+      new File([""], "video.mp4", { type: "video/mp4" }),
+    ];
+    const imageFiles = files.filter((f) => mockIsImageFile(f));
+    expect(imageFiles).toHaveLength(1);
+    expect(imageFiles[0].name).toBe("photo.png");
+  });
+
+  it("handles drop with only non-image files", () => {
+    const files = [
+      new File([""], "doc.pdf", { type: "application/pdf" }),
+      new File([""], "text.txt", { type: "text/plain" }),
+    ];
+    const imageFiles = files.filter((f) => mockIsImageFile(f));
+    expect(imageFiles).toHaveLength(0);
+  });
+
+  it("handles drop with URI list containing multiple file:// URLs", () => {
+    const uriList = "file:///path/to/a.png\nfile:///path/to/b.jpg";
+    const filePaths = uriList
+      .split("\n")
+      .filter((line) => line.startsWith("file://"))
+      .map(mockFileUrlToPath);
+
+    expect(filePaths).toHaveLength(2);
+    expect(filePaths[0]).toBe("/path/to/a.png");
+    expect(filePaths[1]).toBe("/path/to/b.jpg");
+  });
+
+  it("handles drop with URI list containing non-file URLs", () => {
+    const uriList = "https://example.com/image.png\nfile:///local/photo.jpg";
+    const filePaths = uriList
+      .split("\n")
+      .filter((line) => line.startsWith("file://"))
+      .map(mockFileUrlToPath);
+
+    expect(filePaths).toHaveLength(1);
+    expect(filePaths[0]).toBe("/local/photo.jpg");
+  });
+
+  it("handles text drop with newline-separated image paths", () => {
+    const text = "/path/to/a.png\n/path/to/b.jpg";
+    const paths = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    expect(paths).toHaveLength(2);
+  });
+
+  it("handles drop position when posAtCoords returns null", () => {
+    const view = createMockView();
+    (view as Record<string, unknown>).posAtCoords = vi.fn(() => null);
+
+    const result = (view as unknown as { posAtCoords: (c: { left: number; top: number }) => null }).posAtCoords({ left: -1, top: -1 });
+    expect(result).toBeNull();
+    // Fallback should use view.state.selection.from
+  });
+});

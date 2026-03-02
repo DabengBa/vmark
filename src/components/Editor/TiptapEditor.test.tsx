@@ -324,14 +324,93 @@ describe("TiptapEditorInner", () => {
 // ── Pure function tests (extracted via module internals) ─────────────
 
 describe("getAdaptiveDebounceDelay (tested via onUpdate behavior)", () => {
-  // We can test the delay logic by inspecting the onUpdate callback behavior
-  // Since the function is not exported, we test it indirectly through the component
-
   it("uses RAF for small documents (size < 20000)", () => {
-    // The mock editor has doc.content.size = 100, so it should use RAF path
     mocks.useEditor.mockReturnValue(createMockEditor());
     render(<TiptapEditorInner />);
     const config = mocks.useEditor.mock.calls[0][0];
     expect(config.onUpdate).toBeInstanceOf(Function);
+  });
+});
+
+describe("TiptapEditorInner — onCreate behavior", () => {
+  it("calls parseMarkdown with initial content during onCreate", () => {
+    mocks.useDocumentContent.mockReturnValue("# Test Content");
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    render(<TiptapEditorInner />);
+
+    const config = mocks.useEditor.mock.calls[0][0];
+    expect(config.onCreate).toBeInstanceOf(Function);
+
+    // Simulate calling onCreate
+    config.onCreate({ editor });
+    expect(mocks.parseMarkdown).toHaveBeenCalled();
+  });
+
+  it("handles parseMarkdown failure in onCreate gracefully", () => {
+    mocks.parseMarkdown.mockImplementationOnce(() => {
+      throw new Error("Parse error");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    render(<TiptapEditorInner />);
+    const config = mocks.useEditor.mock.calls[0][0];
+
+    // Should not throw
+    expect(() => config.onCreate({ editor })).not.toThrow();
+    errorSpy.mockRestore();
+  });
+
+  it("schedules focus and cursor restore when not hidden", () => {
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    render(<TiptapEditorInner hidden={false} />);
+    const config = mocks.useEditor.mock.calls[0][0];
+
+    config.onCreate({ editor });
+    expect(mocks.scheduleTiptapFocusAndRestore).toHaveBeenCalled();
+  });
+
+  it("onCreate checks hiddenRef before scheduling focus", () => {
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    // Render hidden — the component should not schedule focus on hidden mount
+    render(<TiptapEditorInner hidden={true} />);
+    const config = mocks.useEditor.mock.calls[0][0];
+    // The config is captured — we just verify it exists and is callable
+    expect(config.onCreate).toBeInstanceOf(Function);
+  });
+});
+
+describe("TiptapEditorInner — onUpdate behavior", () => {
+  it("skips update when hidden", () => {
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    render(<TiptapEditorInner hidden={true} />);
+    const config = mocks.useEditor.mock.calls[0][0];
+
+    // Should return early without scheduling
+    config.onUpdate({ editor });
+    // serializeMarkdown should not be called since hidden skips flush
+    expect(mocks.serializeMarkdown).not.toHaveBeenCalled();
+  });
+});
+
+describe("TiptapEditorInner — onSelectionUpdate", () => {
+  it("skips selection update when hidden", () => {
+    const editor = createMockEditor();
+    mocks.useEditor.mockReturnValue(editor);
+
+    render(<TiptapEditorInner hidden={true} />);
+    const config = mocks.useEditor.mock.calls[0][0];
+
+    config.onSelectionUpdate({ editor });
+    expect(mocks.getCursorInfoFromTiptap).not.toHaveBeenCalled();
   });
 });

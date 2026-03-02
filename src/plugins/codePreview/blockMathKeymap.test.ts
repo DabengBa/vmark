@@ -174,6 +174,52 @@ describe("blockMathKeymap — cursor detection", () => {
   });
 });
 
+describe("blockMathKeymap — empty code block", () => {
+  beforeEach(() => {
+    const store = useBlockMathEditingStore.getState();
+    store.editingPos = null;
+    store.originalContent = null;
+    vi.mocked(store.exitEditing).mockClear();
+  });
+
+  it("handles empty code block content", () => {
+    const store = useBlockMathEditingStore.getState();
+    store.editingPos = 0;
+    store.originalContent = "";
+
+    const state = createEditorState("", "latex");
+    const node = state.doc.nodeAt(0);
+    expect(node).toBeDefined();
+    expect(node!.textContent).toBe("");
+  });
+
+  it("handles code block with LaTeX special chars", () => {
+    const content = "\\int_{0}^{\\infty} e^{-x^2} dx";
+    const state = createEditorState(content, "latex");
+    const node = state.doc.nodeAt(0);
+    expect(node!.textContent).toBe(content);
+  });
+
+  it("handles code block with multiline content", () => {
+    const content = "a = 1\nb = 2\nc = a + b";
+    const state = createEditorState(content, "latex");
+    const node = state.doc.nodeAt(0);
+    expect(node!.textContent).toBe(content);
+  });
+});
+
+describe("blockMathKeymap — extension structure", () => {
+  it("has the correct name", async () => {
+    const { blockMathKeymapExtension } = await import("./blockMathKeymap");
+    expect(blockMathKeymapExtension.name).toBe("blockMathKeymap");
+  });
+
+  it("defines ProseMirror plugins", async () => {
+    const { blockMathKeymapExtension } = await import("./blockMathKeymap");
+    expect(blockMathKeymapExtension.config.addProseMirrorPlugins).toBeDefined();
+  });
+});
+
 describe("blockMathKeymap — store integration", () => {
   beforeEach(() => {
     const store = useBlockMathEditingStore.getState();

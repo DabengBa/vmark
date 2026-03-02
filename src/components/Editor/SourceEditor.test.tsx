@@ -236,4 +236,57 @@ describe("SourceEditor", () => {
       expect(editorDiv.style.display).toBe("none");
     });
   });
+
+  describe("EditorView creation", () => {
+    it("creates CodeMirror EditorView on mount", () => {
+      render(<SourceEditor />);
+      expect(EditorView).toHaveBeenCalled();
+    });
+
+    it("passes container element as parent to EditorView", () => {
+      const { container } = render(<SourceEditor />);
+      const editorDiv = container.firstChild as HTMLElement;
+      expect(EditorView).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parent: editorDiv,
+        })
+      );
+    });
+  });
+
+  describe("hooks integration", () => {
+    it("calls useSourceOutlineSync", async () => {
+      const { useSourceOutlineSync } = await import("@/hooks/useSourceOutlineSync");
+      render(<SourceEditor />);
+      expect(useSourceOutlineSync).toHaveBeenCalled();
+    });
+
+    it("calls useSourceEditorSearch", async () => {
+      const { useSourceEditorSearch } = await import("@/hooks/useSourceEditorSearch");
+      render(<SourceEditor />);
+      expect(useSourceEditorSearch).toHaveBeenCalled();
+    });
+
+    it("calls useSourceEditorSync", async () => {
+      const { useSourceEditorSync } = await import("@/hooks/useSourceEditorSync");
+      render(<SourceEditor />);
+      expect(useSourceEditorSync).toHaveBeenCalled();
+    });
+
+    it("calls useImageDragDrop with source mode flag", async () => {
+      const { useImageDragDrop } = await import("@/hooks/useImageDragDrop");
+      render(<SourceEditor />);
+      expect(useImageDragDrop).toHaveBeenCalledWith(
+        expect.objectContaining({ isSourceMode: true })
+      );
+    });
+
+    it("disables image drag-drop when hidden", async () => {
+      const { useImageDragDrop } = await import("@/hooks/useImageDragDrop");
+      render(<SourceEditor hidden />);
+      expect(useImageDragDrop).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: false })
+      );
+    });
+  });
 });

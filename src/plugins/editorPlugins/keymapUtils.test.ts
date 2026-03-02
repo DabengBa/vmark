@@ -24,6 +24,7 @@ vi.mock("@/plugins/syntaxReveal/marks", () => ({
 
 import { toProseMirrorKey, bindIfKey, wrapWithMultiSelectionGuard, escapeMarkBoundary } from "./keymapUtils";
 import { canRunActionInMultiSelection } from "@/plugins/toolbarActions/multiSelectionPolicy";
+import { findAnyMarkRangeAtCursor } from "@/plugins/syntaxReveal/marks";
 import type { Command } from "@tiptap/pm/state";
 
 describe("toProseMirrorKey", () => {
@@ -177,6 +178,18 @@ describe("escapeMarkBoundary", () => {
     expect(escapeMarkBoundary(view)).toBe(false);
   });
 
+  it("returns false when no mark range and stored marks is empty array", () => {
+    const view = {
+      state: {
+        selection: { $from: { pos: 1 }, empty: true },
+        storedMarks: [],
+      },
+      dispatch: vi.fn(),
+    } as never;
+
+    expect(escapeMarkBoundary(view)).toBe(false);
+  });
+
   it("clears stored marks when no mark range but stored marks exist", () => {
     const dispatchFn = vi.fn();
     const mockTr = { setStoredMarks: vi.fn().mockReturnThis() };
@@ -193,5 +206,24 @@ describe("escapeMarkBoundary", () => {
     expect(result).toBe(true);
     expect(mockTr.setStoredMarks).toHaveBeenCalledWith([]);
     expect(dispatchFn).toHaveBeenCalledWith(mockTr);
+  });
+
+  it("clears stored marks when cursor is at mark end (markTo)", () => {
+    vi.mocked(findAnyMarkRangeAtCursor).mockReturnValueOnce({ from: 2, to: 5 });
+
+    const dispatchFn = vi.fn();
+    const mockTr = { setStoredMarks: vi.fn().mockReturnThis() };
+    const view = {
+      state: {
+        selection: { $from: { pos: 5 }, empty: true },
+        storedMarks: null,
+        tr: mockTr,
+      },
+      dispatch: dispatchFn,
+    } as never;
+
+    const result = escapeMarkBoundary(view);
+    expect(result).toBe(true);
+    expect(mockTr.setStoredMarks).toHaveBeenCalledWith([]);
   });
 });

@@ -162,6 +162,109 @@ describe("focusModeExtension", () => {
     });
   });
 
+  describe("plugin integration", () => {
+    it("creates a plugin from the extension", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      expect(plugins).toHaveLength(1);
+      expect(plugins[0]).toBeDefined();
+    });
+
+    it("plugin has a view factory for store subscription", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      expect(plugins[0].spec.view).toBeDefined();
+    });
+
+    it("plugin provides decorations via props", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      expect(plugins[0].spec.props?.decorations).toBeDefined();
+    });
+
+    it("plugin state has init and apply methods", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      expect(plugins[0].spec.state?.init).toBeDefined();
+      expect(plugins[0].spec.state?.apply).toBeDefined();
+    });
+  });
+
+  describe("store subscription", () => {
+    it("subscribes to editorStore when view is created", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      const viewFactory = plugins[0].spec.view!;
+      const mockView = {
+        state: createState(["hello"]),
+        dispatch: vi.fn(),
+      };
+      const viewResult = viewFactory(mockView as never);
+      expect(mockSubscribers.length).toBe(1);
+      // Cleanup
+      viewResult.destroy?.();
+      expect(mockSubscribers.length).toBe(0);
+    });
+
+    it("dispatches toggle meta when focusMode changes", () => {
+      const plugins = focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+      const viewFactory = plugins[0].spec.view!;
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: {
+          ...createState(["hello"]),
+          tr: { setMeta: vi.fn().mockReturnThis() },
+        },
+        dispatch: mockDispatch,
+      };
+      const viewResult = viewFactory(mockView as never);
+
+      // Toggle focusMode
+      mockEditorStoreState.focusModeEnabled = true;
+      mockSubscribers[0](mockEditorStoreState);
+      expect(mockRunOrQueue).toHaveBeenCalled();
+
+      viewResult.destroy?.();
+    });
+  });
+
   describe("edge cases", () => {
     it("handles empty document gracefully", () => {
       mockEditorStoreState.focusModeEnabled = true;

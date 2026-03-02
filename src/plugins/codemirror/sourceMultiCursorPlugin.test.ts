@@ -178,5 +178,96 @@ describe("sourceMultiCursorExtensions", () => {
       // Should have removed the mousedown handler
       expect(removeEventSpy).toHaveBeenCalledWith("mousedown", expect.any(Function));
     });
+
+    it("handles multiple rapid Alt+Click events", () => {
+      const view = createSingleCursorView("hello world foobar", 0);
+
+      for (let i = 0; i < 5; i++) {
+        const mouseEvent = new MouseEvent("mousedown", {
+          altKey: true,
+          clientX: i * 20,
+          clientY: 10,
+        });
+        view.dom.dispatchEvent(mouseEvent);
+      }
+
+      expect(mockHandleAltClick).toHaveBeenCalledTimes(5);
+    });
+
+    it("handles click with meta+alt combination", () => {
+      const view = createSingleCursorView("hello", 0);
+
+      const mouseEvent = new MouseEvent("mousedown", {
+        altKey: true,
+        metaKey: true,
+        clientX: 10,
+        clientY: 10,
+      });
+      view.dom.dispatchEvent(mouseEvent);
+
+      expect(mockHandleAltClick).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Extension composition", () => {
+    it("sourceMultiCursorExtensions is an array", () => {
+      expect(Array.isArray(sourceMultiCursorExtensions)).toBe(true);
+    });
+
+    it("sourceMultiCursorExtensions contains two entries (altClick + keymap)", () => {
+      expect(sourceMultiCursorExtensions.length).toBe(2);
+    });
+
+    it("extensions can be added to EditorState without error", () => {
+      const state = EditorState.create({
+        doc: "test",
+        extensions: [sourceMultiCursorExtensions],
+      });
+      expect(state.doc.toString()).toBe("test");
+    });
+  });
+
+  describe("Escape with various selection states", () => {
+    it("handles cursor at position 0", () => {
+      const view = createSingleCursorView("hello", 0);
+      expect(view.state.selection.main.head).toBe(0);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      view.dom.dispatchEvent(event);
+
+      // Single cursor, no change
+      expect(view.state.selection.main.head).toBe(0);
+    });
+
+    it("handles cursor at end of document", () => {
+      const view = createSingleCursorView("hello", 5);
+      expect(view.state.selection.main.head).toBe(5);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      view.dom.dispatchEvent(event);
+
+      expect(view.state.selection.main.head).toBe(5);
+    });
+
+    it("handles empty document", () => {
+      const view = createSingleCursorView("", 0);
+      expect(view.state.selection.main.head).toBe(0);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      view.dom.dispatchEvent(event);
+
+      expect(view.state.selection.main.head).toBe(0);
+    });
+
+    it("handles cursor in multiline document", () => {
+      const view = createSingleCursorView("hello\nworld\nfoo", 6);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      view.dom.dispatchEvent(event);
+
+      // Still single cursor, unchanged
+      expect(view.state.selection.ranges.length).toBe(1);
+      expect(view.state.selection.main.head).toBe(6);
+    });
   });
 });

@@ -302,4 +302,337 @@ describe("tryImagePaste", () => {
 
     expect(result).toBe(true);
   });
+
+  describe("edge cases", () => {
+    it("returns false for whitespace-only text", () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: [], format: "single" });
+
+      const view = createView("hello", 0);
+      expect(tryImagePaste(view, "   ")).toBe(false);
+    });
+
+    it("returns false for non-image file extension paths", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["/path/to/file.txt"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: false,
+        imageCount: 0,
+        results: [],
+      });
+
+      const view = createView("hello", 0);
+      expect(tryImagePaste(view, "/path/to/file.txt")).toBe(false);
+    });
+
+    it("handles image URL with special characters", () => {
+      const url = "https://example.com/image%20with%20spaces.png";
+      mockParseMultiplePaths.mockReturnValue({
+        paths: [url],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          { isImage: true, type: "url", path: url, needsCopy: false },
+        ],
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(view, url);
+
+      expect(result).toBe(true);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imagePath: url,
+          imageType: "url",
+        })
+      );
+    });
+
+    it("handles image URL with unicode characters", () => {
+      const url = "https://example.com/图片.png";
+      mockParseMultiplePaths.mockReturnValue({
+        paths: [url],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          { isImage: true, type: "url", path: url, needsCopy: false },
+        ],
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(view, url);
+
+      expect(result).toBe(true);
+    });
+
+    it("handles pasting into empty document", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["https://example.com/img.png"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/img.png",
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("", 0);
+      const result = tryImagePaste(view, "https://example.com/img.png");
+
+      expect(result).toBe(true);
+      expect(mockShowToast).toHaveBeenCalled();
+    });
+
+    it("handles pasting at document boundary (end)", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["https://example.com/img.png"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/img.png",
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("hello world", 11);
+      const result = tryImagePaste(view, "https://example.com/img.png");
+
+      expect(result).toBe(true);
+    });
+
+    it("uses selection as alt text when available", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["https://example.com/photo.jpg"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/photo.jpg",
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("my photo here", 3, 8);
+      tryImagePaste(view, "https://example.com/photo.jpg");
+
+      // The toast should be called with the selected text range for alt text
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imagePath: "https://example.com/photo.jpg",
+        })
+      );
+    });
+
+    it("finds word at cursor for alt text when no selection", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["https://example.com/photo.jpg"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/photo.jpg",
+            needsCopy: false,
+          },
+        ],
+      });
+      mockFindWordAtCursorSource.mockReturnValue({ from: 0, to: 5 });
+
+      const view = createView("hello world", 3);
+      tryImagePaste(view, "https://example.com/photo.jpg");
+
+      expect(mockFindWordAtCursorSource).toHaveBeenCalledWith(view, 3);
+    });
+
+    it("uses empty alt text when no word found at cursor", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["https://example.com/photo.jpg"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/photo.jpg",
+            needsCopy: false,
+          },
+        ],
+      });
+      mockFindWordAtCursorSource.mockReturnValue(null);
+
+      const view = createView("hello world", 5);
+      tryImagePaste(view, "https://example.com/photo.jpg");
+
+      // Should still show toast with empty alt text
+      expect(mockShowToast).toHaveBeenCalled();
+    });
+
+    it("handles relative path image", () => {
+      mockParseMultiplePaths.mockReturnValue({
+        paths: ["./assets/image.png"],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "relativePath",
+            path: "./assets/image.png",
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(view, "./assets/image.png");
+
+      // Relative paths go through async validation
+      expect(result).toBe(true);
+    });
+
+    it("handles multiple images with mix of URLs and local paths", () => {
+      const paths = ["https://example.com/img1.png", "/local/img2.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 2,
+        results: [
+          {
+            isImage: true,
+            type: "url",
+            path: "https://example.com/img1.png",
+            needsCopy: false,
+          },
+          {
+            isImage: true,
+            type: "absolutePath",
+            path: "/local/img2.jpg",
+            needsCopy: true,
+          },
+        ],
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(
+        view,
+        "https://example.com/img1.png\n/local/img2.jpg"
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("handles three or more images", () => {
+      const paths = ["/a.png", "/b.png", "/c.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 3,
+        results: paths.map((p) => ({
+          isImage: true,
+          type: "absolutePath" as const,
+          path: p,
+          needsCopy: true,
+        })),
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(view, paths.join("\n"));
+
+      expect(result).toBe(true);
+    });
+
+    it("handles data URI images", () => {
+      const dataUri = "data:image/png;base64,iVBORw0KGgo=";
+      mockParseMultiplePaths.mockReturnValue({
+        paths: [dataUri],
+        format: "single",
+      });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: true,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "dataUrl",
+            path: dataUri,
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("test", 0);
+      const result = tryImagePaste(view, dataUri);
+
+      expect(result).toBe(true);
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageType: "url",
+        })
+      );
+    });
+
+    it("returns false when one path among multiple is not an image", () => {
+      const paths = ["/a.png", "/b.txt"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue({
+        allImages: false,
+        imageCount: 1,
+        results: [
+          {
+            isImage: true,
+            type: "absolutePath",
+            path: "/a.png",
+            needsCopy: true,
+          },
+          {
+            isImage: false,
+            type: "absolutePath",
+            path: "/b.txt",
+            needsCopy: false,
+          },
+        ],
+      });
+
+      const view = createView("hello", 0);
+      const result = tryImagePaste(view, "/a.png\n/b.txt");
+
+      expect(result).toBe(false);
+    });
+  });
 });
