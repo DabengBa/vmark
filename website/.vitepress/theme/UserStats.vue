@@ -49,25 +49,26 @@ onMounted(async () => {
 <template>
   <div v-if="stats && stats.total && stats.total.pings > 0" class="user-stats">
     <div class="stats-grid">
-      <div class="stat-item">
+      <div class="stat-header">
+        <span class="header-spacer"></span>
+        <span class="header-label">Today</span>
+        <span class="header-label">This Week</span>
+        <span class="header-label">This Month</span>
+        <span class="header-label">All Time</span>
+      </div>
+      <div class="stat-row">
+        <span class="row-label">Update Pings</span>
+        <span class="stat-sub">{{ stats.today.pings }}</span>
+        <span class="stat-sub">{{ stats.week.pings }}</span>
+        <span class="stat-sub">{{ stats.month.pings }}</span>
+        <span class="stat-sub">{{ stats.total.pings }}</span>
+      </div>
+      <div class="stat-row">
+        <span class="row-label">Unique IPs</span>
         <span class="stat-number">{{ stats.today.ips }}</span>
-        <span class="stat-sub">{{ stats.today.pings }} pings</span>
-        <span class="stat-label">Today</span>
-      </div>
-      <div class="stat-item">
         <span class="stat-number">{{ stats.week.ips }}</span>
-        <span class="stat-sub">{{ stats.week.pings }} pings</span>
-        <span class="stat-label">This Week</span>
-      </div>
-      <div class="stat-item">
         <span class="stat-number">{{ stats.month.ips }}</span>
-        <span class="stat-sub">{{ stats.month.pings }} pings</span>
-        <span class="stat-label">This Month</span>
-      </div>
-      <div class="stat-item">
         <span class="stat-number">{{ stats.total.ips }}</span>
-        <span class="stat-sub">{{ stats.total.pings }} pings</span>
-        <span class="stat-label">All Time</span>
       </div>
     </div>
 
@@ -105,44 +106,50 @@ onMounted(async () => {
 }
 
 .stats-grid {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
+  display: inline-grid;
+  grid-template-columns: auto auto auto auto auto;
+  gap: 0.25rem 1.5rem;
+  justify-items: center;
+  margin: 0 auto;
 }
 
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 90px;
-  padding: 1rem 1.25rem;
-  border-radius: 8px;
-  background: var(--vp-c-bg-soft);
-  transition: background 0.2s;
+.stat-header,
+.stat-row {
+  display: contents;
 }
 
-.stat-item:hover {
-  background: var(--vp-c-bg-mute);
+.header-spacer {
+  /* empty first column */
+}
+
+.header-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--vp-c-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-bottom: 0.25rem;
+}
+
+.row-label {
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
+  justify-self: end;
+  padding: 0.35rem 0;
 }
 
 .stat-number {
-  font-size: 1.75rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--vp-c-brand-1);
   line-height: 1.2;
+  padding: 0.35rem 0;
 }
 
 .stat-sub {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  margin-top: 0.15rem;
-}
-
-.stat-label {
-  font-size: 0.8rem;
+  font-size: 1.25rem;
   color: var(--vp-c-text-2);
-  margin-top: 0.25rem;
+  padding: 0.35rem 0;
 }
 
 .stats-details {
