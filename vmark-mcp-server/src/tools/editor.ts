@@ -1,23 +1,27 @@
 /**
- * Editor tools - Editor state operations (undo, redo, focus).
+ * Editor composite tool — undo, redo, focus.
  */
 
-import { VMarkMcpServer, resolveWindowId } from '../server.js';
+import { VMarkMcpServer, getWindowIdArg } from '../server.js';
 
-/**
- * Register all editor tools on the server.
- */
-export function registerEditorTools(server: VMarkMcpServer): void {
-  // editor_undo - Undo the last action
+export function registerEditorTool(server: VMarkMcpServer): void {
   server.registerTool(
     {
-      name: 'editor_undo',
+      name: 'editor',
       description:
-        'Undo the last editing action. ' +
-        'Restores the document to its previous state before the last change.',
+        'Editor state operations.\n\n' +
+        'Actions:\n' +
+        '- undo: Undo the last editing action\n' +
+        '- redo: Redo the last undone action\n' +
+        '- focus: Focus the editor, ready for input',
       inputSchema: {
         type: 'object',
+        required: ['action'],
         properties: {
+          action: {
+            type: 'string',
+            enum: ['undo', 'redo', 'focus'],
+          },
           windowId: {
             type: 'string',
             description: 'Optional window identifier. Defaults to focused window.',
@@ -26,90 +30,52 @@ export function registerEditorTools(server: VMarkMcpServer): void {
       },
     },
     async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+      const action = args.action as string;
+      const windowId = getWindowIdArg(args);
 
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'editor.undo',
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult('Undo completed');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to undo: ${error instanceof Error ? error.message : String(error)}`
-        );
+      switch (action) {
+        case 'undo':
+          return handleUndo(server, windowId);
+        case 'redo':
+          return handleRedo(server, windowId);
+        case 'focus':
+          return handleFocus(server, windowId);
+        default:
+          return VMarkMcpServer.errorResult(`Unknown editor action: ${action}`);
       }
     }
   );
+}
 
-  // editor_redo - Redo the last undone action
-  server.registerTool(
-    {
-      name: 'editor_redo',
-      description:
-        'Redo the last undone action. ' +
-        'Re-applies a change that was previously undone.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+async function handleUndo(server: VMarkMcpServer, windowId: string) {
+  try {
+    await server.sendBridgeRequest<null>({ type: 'editor.undo', windowId });
+    return VMarkMcpServer.successResult('Undo completed');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to undo: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'editor.redo',
-          windowId,
-        });
+async function handleRedo(server: VMarkMcpServer, windowId: string) {
+  try {
+    await server.sendBridgeRequest<null>({ type: 'editor.redo', windowId });
+    return VMarkMcpServer.successResult('Redo completed');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to redo: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 
-        return VMarkMcpServer.successResult('Redo completed');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to redo: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // editor_focus - Focus the editor
-  server.registerTool(
-    {
-      name: 'editor_focus',
-      description:
-        'Focus the editor in the specified window. ' +
-        'Brings the editor into focus, ready for input.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'editor.focus',
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult('Editor focused');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to focus editor: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
+async function handleFocus(server: VMarkMcpServer, windowId: string) {
+  try {
+    await server.sendBridgeRequest<null>({ type: 'editor.focus', windowId });
+    return VMarkMcpServer.successResult('Editor focused');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to focus editor: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

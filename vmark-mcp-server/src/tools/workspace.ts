@@ -1,448 +1,281 @@
 /**
- * Workspace tools - Manage documents and windows.
+ * Workspace composite tool — manage documents, windows, and workspace state.
  */
 
-import { VMarkMcpServer, resolveWindowId } from '../server.js';
+import {
+  VMarkMcpServer,
+  getWindowIdArg,
+  getStringArg,
+  requireStringArg,
+  getBooleanArg,
+} from '../server.js';
 import type { WindowInfo, RecentFile, WorkspaceInfo } from '../bridge/types.js';
 
-/**
- * Register all workspace tools on the server.
- */
-export function registerWorkspaceTools(server: VMarkMcpServer): void {
-  // workspace_list_windows - List all open windows
+export function registerWorkspaceTool(server: VMarkMcpServer): void {
   server.registerTool(
     {
-      name: 'workspace_list_windows',
+      name: 'workspace',
       description:
-        'List all open VMark windows that are exposed to AI. ' +
-        'Returns window labels, titles, file paths, and focus state.',
+        'Manage documents, windows, and workspace state.\n\n' +
+        'Actions:\n' +
+        '- list_windows: List all open VMark windows\n' +
+        '- get_focused: Get focused window label\n' +
+        '- focus_window: Focus a window by windowId\n' +
+        '- new_document: Create new empty document in new window\n' +
+        '- open_document: Open document from filesystem by path\n' +
+        '- save: Save current document to disk\n' +
+        '- save_as: Save document with new file path\n' +
+        '- get_document_info: Get document metadata (path, dirty, word count)\n' +
+        '- close_window: Close window (prompts if unsaved)\n' +
+        '- list_recent_files: List recently opened files\n' +
+        '- get_info: Get workspace state (mode, root path, name)\n' +
+        '- reload_document: Reload document from disk',
       inputSchema: {
         type: 'object',
-        properties: {},
-      },
-    },
-    async () => {
-      try {
-        const windows = await server.sendBridgeRequest<WindowInfo[]>({
-          type: 'windows.list',
-        });
-
-        return VMarkMcpServer.successJsonResult(windows);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to list windows: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_get_focused - Get focused window
-  server.registerTool(
-    {
-      name: 'workspace_get_focused',
-      description:
-        'Get the label of the currently focused window. ' +
-        'Use this label as windowId in other tool calls.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    async () => {
-      try {
-        const focused = await server.sendBridgeRequest<string>({
-          type: 'windows.getFocused',
-        });
-
-        return VMarkMcpServer.successResult(focused);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to get focused window: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_focus_window - Focus a specific window
-  server.registerTool(
-    {
-      name: 'workspace_focus_window',
-      description:
-        'Focus a specific window by its label. ' +
-        'Brings the window to the front and makes it active.',
-      inputSchema: {
-        type: 'object',
+        required: ['action'],
         properties: {
-          windowId: {
+          action: {
             type: 'string',
-            description: 'The window label to focus.',
+            enum: [
+              'list_windows', 'get_focused', 'focus_window',
+              'new_document', 'open_document', 'save', 'save_as',
+              'get_document_info', 'close_window', 'list_recent_files',
+              'get_info', 'reload_document',
+            ],
           },
-        },
-        required: ['windowId'],
-      },
-    },
-    async (args) => {
-      const windowId = args.windowId as string;
-
-      if (typeof windowId !== 'string' || windowId.length === 0) {
-        return VMarkMcpServer.errorResult('windowId must be a non-empty string');
-      }
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'windows.focus',
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult(`Focused window: ${windowId}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to focus window: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_new_document - Create a new document
-  server.registerTool(
-    {
-      name: 'workspace_new_document',
-      description:
-        'Create a new empty document in a new window. ' +
-        'The new window becomes the focused window.',
-      inputSchema: {
-        type: 'object',
-        properties: {
+          path: {
+            type: 'string',
+            description: 'File path (for open_document, save_as).',
+          },
           title: {
             type: 'string',
-            description: 'Optional title for the new document.',
+            description: 'Document title (for new_document).',
           },
-        },
-      },
-    },
-    async (args) => {
-      const title = args.title as string | undefined;
-
-      try {
-        const result = await server.sendBridgeRequest<{ windowId: string }>({
-          type: 'workspace.newDocument',
-          title,
-        });
-
-        return VMarkMcpServer.successResult(`Created new document: ${result.windowId}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to create document: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_open_document - Open an existing document
-  server.registerTool(
-    {
-      name: 'workspace_open_document',
-      description:
-        'Open a document from the filesystem. ' +
-        'Creates a new window with the document content.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: 'Path to the document file.',
-          },
-        },
-        required: ['path'],
-      },
-    },
-    async (args) => {
-      const path = args.path as string;
-
-      if (typeof path !== 'string' || path.length === 0) {
-        return VMarkMcpServer.errorResult('path must be a non-empty string');
-      }
-
-      try {
-        const result = await server.sendBridgeRequest<{ windowId: string }>({
-          type: 'workspace.openDocument',
-          path,
-        });
-
-        return VMarkMcpServer.successResult(`Opened document: ${result.windowId}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to open document: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_save_document - Save the current document
-  server.registerTool(
-    {
-      name: 'workspace_save_document',
-      description:
-        'Save the current document to disk. ' +
-        'If the document is untitled, this will fail (use save_as instead).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'workspace.saveDocument',
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult('Document saved');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to save document: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_close_window - Close a window
-  server.registerTool(
-    {
-      name: 'workspace_close_window',
-      description:
-        'Close a window. If the document has unsaved changes, ' +
-        'the user will be prompted to save.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'workspace.closeWindow',
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult('Window closed');
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to close window: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_save_document_as - Save document with a new path
-  server.registerTool(
-    {
-      name: 'workspace_save_document_as',
-      description:
-        'Save the current document with a new file path. ' +
-        'This creates a copy of the document at the specified location.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: 'The new file path to save the document to.',
-          },
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-        required: ['path'],
-      },
-    },
-    async (args) => {
-      const path = args.path as string;
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      if (typeof path !== 'string' || path.length === 0) {
-        return VMarkMcpServer.errorResult('path must be a non-empty string');
-      }
-
-      try {
-        await server.sendBridgeRequest<null>({
-          type: 'workspace.saveDocumentAs',
-          path,
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult(`Document saved to: ${path}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to save document: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_get_document_info - Get document metadata
-  server.registerTool(
-    {
-      name: 'workspace_get_document_info',
-      description:
-        'Get information about the current document including path, dirty state, ' +
-        'word count, and character count.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        const info = await server.sendBridgeRequest<{
-          filePath: string | null;
-          isDirty: boolean;
-          title: string;
-          wordCount: number;
-          charCount: number;
-        }>({
-          type: 'workspace.getDocumentInfo',
-          windowId,
-        });
-
-        return VMarkMcpServer.successJsonResult(info);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to get document info: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_list_recent_files - List recently opened files
-  server.registerTool(
-    {
-      name: 'workspace_list_recent_files',
-      description:
-        'List recently opened files. Returns up to 10 files with paths, names, ' +
-        'and timestamps (most recent first). Useful for accessing previously edited documents.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    async () => {
-      try {
-        const files = await server.sendBridgeRequest<RecentFile[]>({
-          type: 'workspace.listRecentFiles',
-        });
-
-        if (files.length === 0) {
-          return VMarkMcpServer.successResult('No recent files');
-        }
-
-        return VMarkMcpServer.successJsonResult(files);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to list recent files: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_get_info - Get workspace information
-  server.registerTool(
-    {
-      name: 'workspace_get_info',
-      description:
-        'Get information about the current workspace state. ' +
-        'Returns whether in workspace mode, the workspace root path, and workspace name.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          windowId: {
-            type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
-          },
-        },
-      },
-    },
-    async (args) => {
-      const windowId = resolveWindowId(args.windowId as string | undefined);
-
-      try {
-        const info = await server.sendBridgeRequest<WorkspaceInfo>({
-          type: 'workspace.getInfo',
-          windowId,
-        });
-
-        return VMarkMcpServer.successJsonResult(info);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to get workspace info: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-  );
-
-  // workspace_reload_document - Reload the active document from disk
-  server.registerTool(
-    {
-      name: 'workspace_reload_document',
-      description:
-        'Reload the active document from disk. ' +
-        'Use after editing the file externally (e.g. with sed or a script) to pick up changes. ' +
-        'Fails if the document is untitled (no file path). ' +
-        'If the document has unsaved changes, you must pass force: true or save first.',
-      inputSchema: {
-        type: 'object',
-        properties: {
           force: {
             type: 'boolean',
-            description:
-              'Force reload even if the document has unsaved changes. ' +
-              'Defaults to false (refuses to discard unsaved edits).',
+            description: 'Force reload even with unsaved changes (for reload_document).',
           },
           windowId: {
             type: 'string',
-            description: 'Optional window identifier. Defaults to focused window.',
+            description: 'Window identifier. Defaults to focused window.',
           },
         },
       },
     },
     async (args) => {
-      const force = (args.force as boolean) ?? false;
-      const windowId = resolveWindowId(args.windowId as string | undefined);
+      const action = args.action as string;
+      const windowId = getWindowIdArg(args);
 
-      try {
-        const result = await server.sendBridgeRequest<{ filePath: string }>({
-          type: 'workspace.reloadDocument',
-          force,
-          windowId,
-        });
-
-        return VMarkMcpServer.successResult(`Reloaded document from: ${result.filePath}`);
-      } catch (error) {
-        return VMarkMcpServer.errorResult(
-          `Failed to reload document: ${error instanceof Error ? error.message : String(error)}`
-        );
+      switch (action) {
+        case 'list_windows':
+          return handleListWindows(server);
+        case 'get_focused':
+          return handleGetFocused(server);
+        case 'focus_window':
+          return handleFocusWindow(server, args);
+        case 'new_document':
+          return handleNewDocument(server, args);
+        case 'open_document':
+          return handleOpenDocument(server, args);
+        case 'save':
+          return handleSave(server, windowId);
+        case 'save_as':
+          return handleSaveAs(server, windowId, args);
+        case 'get_document_info':
+          return handleGetDocumentInfo(server, windowId);
+        case 'close_window':
+          return handleCloseWindow(server, windowId);
+        case 'list_recent_files':
+          return handleListRecentFiles(server);
+        case 'get_info':
+          return handleGetInfo(server, windowId);
+        case 'reload_document':
+          return handleReloadDocument(server, windowId, args);
+        default:
+          return VMarkMcpServer.errorResult(`Unknown workspace action: ${action}`);
       }
     }
   );
+}
+
+async function handleListWindows(server: VMarkMcpServer) {
+  try {
+    const windows = await server.sendBridgeRequest<WindowInfo[]>({ type: 'windows.list' });
+    return VMarkMcpServer.successJsonResult(windows);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to list windows: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleGetFocused(server: VMarkMcpServer) {
+  try {
+    const focused = await server.sendBridgeRequest<string>({ type: 'windows.getFocused' });
+    return VMarkMcpServer.successResult(focused);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to get focused window: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleFocusWindow(server: VMarkMcpServer, args: Record<string, unknown>) {
+  const windowId = requireStringArg(args, 'windowId');
+
+  try {
+    await server.sendBridgeRequest<null>({ type: 'windows.focus', windowId });
+    return VMarkMcpServer.successResult(`Focused window: ${windowId}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to focus window: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleNewDocument(server: VMarkMcpServer, args: Record<string, unknown>) {
+  const title = getStringArg(args, 'title');
+
+  try {
+    const result = await server.sendBridgeRequest<{ windowId: string }>({
+      type: 'workspace.newDocument',
+      title,
+    });
+    return VMarkMcpServer.successResult(`Created new document: ${result.windowId}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to create document: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleOpenDocument(server: VMarkMcpServer, args: Record<string, unknown>) {
+  const path = requireStringArg(args, 'path');
+
+  try {
+    const result = await server.sendBridgeRequest<{ windowId: string }>({
+      type: 'workspace.openDocument',
+      path,
+    });
+    return VMarkMcpServer.successResult(`Opened document: ${result.windowId}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to open document: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleSave(server: VMarkMcpServer, windowId: string) {
+  try {
+    await server.sendBridgeRequest<null>({ type: 'workspace.saveDocument', windowId });
+    return VMarkMcpServer.successResult('Document saved');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to save document: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleSaveAs(
+  server: VMarkMcpServer,
+  windowId: string,
+  args: Record<string, unknown>
+) {
+  const path = requireStringArg(args, 'path');
+
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'workspace.saveDocumentAs',
+      path,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(`Document saved to: ${path}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to save document: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleGetDocumentInfo(server: VMarkMcpServer, windowId: string) {
+  try {
+    const info = await server.sendBridgeRequest<{
+      filePath: string | null;
+      isDirty: boolean;
+      title: string;
+      wordCount: number;
+      charCount: number;
+    }>({
+      type: 'workspace.getDocumentInfo',
+      windowId,
+    });
+    return VMarkMcpServer.successJsonResult(info);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to get document info: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleCloseWindow(server: VMarkMcpServer, windowId: string) {
+  try {
+    await server.sendBridgeRequest<null>({ type: 'workspace.closeWindow', windowId });
+    return VMarkMcpServer.successResult('Window closed');
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to close window: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleListRecentFiles(server: VMarkMcpServer) {
+  try {
+    const files = await server.sendBridgeRequest<RecentFile[]>({
+      type: 'workspace.listRecentFiles',
+    });
+
+    if (files.length === 0) {
+      return VMarkMcpServer.successResult('No recent files');
+    }
+    return VMarkMcpServer.successJsonResult(files);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to list recent files: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleGetInfo(server: VMarkMcpServer, windowId: string) {
+  try {
+    const info = await server.sendBridgeRequest<WorkspaceInfo>({
+      type: 'workspace.getInfo',
+      windowId,
+    });
+    return VMarkMcpServer.successJsonResult(info);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to get workspace info: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleReloadDocument(
+  server: VMarkMcpServer,
+  windowId: string,
+  args: Record<string, unknown>
+) {
+  const force = getBooleanArg(args, 'force') ?? false;
+
+  try {
+    const result = await server.sendBridgeRequest<{ filePath: string }>({
+      type: 'workspace.reloadDocument',
+      force,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(`Reloaded document from: ${result.filePath}`);
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to reload document: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

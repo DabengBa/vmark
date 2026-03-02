@@ -29,28 +29,18 @@ export type { VMarkMcpServerConfig, ToolArgs } from './server.js';
 export { WebSocketBridge } from './bridge/websocket.js';
 export type { WebSocketBridgeConfig, Logger } from './bridge/websocket.js';
 
-// Tool registrations
-export { registerDocumentTools } from './tools/document.js';
-export { registerSelectionTools } from './tools/selection.js';
-export { registerEditorTools } from './tools/editor.js';
-export { registerFormattingTools } from './tools/formatting.js';
-export { registerBlockTools } from './tools/blocks.js';
-export { registerListTools } from './tools/lists.js';
-export { registerTableTools } from './tools/tables.js';
-export { registerVMarkTools } from './tools/vmark.js';
-export { registerWorkspaceTools } from './tools/workspace.js';
-export { registerTabTools } from './tools/tabs.js';
-export { registerSuggestionTools } from './tools/suggestions.js';
-// AI-Oriented MCP Design tools
+// Tool registrations (2 standalone + 10 composite = 12 tools)
 export { registerProtocolTools } from './tools/protocol.js';
-export { registerStructureTools } from './tools/structure.js';
-export { registerMutationTools } from './tools/mutations.js';
-export { registerSectionTools } from './tools/sections.js';
-export { registerBatchOpTools } from './tools/batch-ops.js';
-export { registerParagraphTools } from './tools/paragraphs.js';
-export { registerSmartInsertTool } from './tools/smart-insert.js';
-export { registerGenieTools } from './tools/genies.js';
-export { registerMediaTools } from './tools/media.js';
+export { registerDocumentTool } from './tools/document.js';
+export { registerStructureTool } from './tools/structure.js';
+export { registerSelectionTool } from './tools/selection.js';
+export { registerFormatTool } from './tools/format.js';
+export { registerTableTool } from './tools/table.js';
+export { registerEditorTool } from './tools/editor.js';
+export { registerWorkspaceTool } from './tools/workspace.js';
+export { registerTabsTool } from './tools/tabs.js';
+export { registerMediaTool } from './tools/media.js';
+export { registerSuggestionsTool } from './tools/suggestions.js';
 
 // Resource registrations
 export { registerDocumentResources } from './resources/document.js';
@@ -136,26 +126,17 @@ export type {
 } from './types.js';
 
 import { VMarkMcpServer } from './server.js';
-import { registerDocumentTools } from './tools/document.js';
-import { registerSelectionTools } from './tools/selection.js';
-import { registerEditorTools } from './tools/editor.js';
-import { registerFormattingTools } from './tools/formatting.js';
-import { registerBlockTools } from './tools/blocks.js';
-import { registerListTools } from './tools/lists.js';
-import { registerTableTools } from './tools/tables.js';
-import { registerVMarkTools } from './tools/vmark.js';
-import { registerWorkspaceTools } from './tools/workspace.js';
-import { registerTabTools } from './tools/tabs.js';
-import { registerSuggestionTools } from './tools/suggestions.js';
 import { registerProtocolTools } from './tools/protocol.js';
-import { registerStructureTools } from './tools/structure.js';
-import { registerMutationTools } from './tools/mutations.js';
-import { registerSectionTools } from './tools/sections.js';
-import { registerBatchOpTools } from './tools/batch-ops.js';
-import { registerParagraphTools } from './tools/paragraphs.js';
-import { registerSmartInsertTool } from './tools/smart-insert.js';
-import { registerGenieTools } from './tools/genies.js';
-import { registerMediaTools } from './tools/media.js';
+import { registerDocumentTool } from './tools/document.js';
+import { registerStructureTool } from './tools/structure.js';
+import { registerSelectionTool } from './tools/selection.js';
+import { registerFormatTool } from './tools/format.js';
+import { registerTableTool } from './tools/table.js';
+import { registerEditorTool } from './tools/editor.js';
+import { registerWorkspaceTool } from './tools/workspace.js';
+import { registerTabsTool } from './tools/tabs.js';
+import { registerMediaTool } from './tools/media.js';
+import { registerSuggestionsTool } from './tools/suggestions.js';
 import { registerDocumentResources } from './resources/document.js';
 import type { Bridge } from './bridge/types.js';
 
@@ -165,29 +146,18 @@ import type { Bridge } from './bridge/types.js';
 export function createVMarkMcpServer(bridge: Bridge): VMarkMcpServer {
   const server = new VMarkMcpServer({ bridge });
 
-  // Register all tool categories
-  registerDocumentTools(server);
-  registerSelectionTools(server);
-  registerEditorTools(server);
-  registerFormattingTools(server);
-  registerBlockTools(server);
-  registerListTools(server);
-  registerTableTools(server);
-  registerVMarkTools(server);
-  registerWorkspaceTools(server);
-  registerTabTools(server);
-  registerSuggestionTools(server);
-
-  // Register AI-Oriented MCP Design tools
-  registerProtocolTools(server);
-  registerStructureTools(server);
-  registerMutationTools(server);
-  registerSectionTools(server);
-  registerBatchOpTools(server);
-  registerParagraphTools(server);
-  registerSmartInsertTool(server);
-  registerGenieTools(server);
-  registerMediaTools(server);
+  // Register all composite tools (2 standalone + 10 composite = 12 total)
+  registerProtocolTools(server);      // get_capabilities, get_document_revision
+  registerDocumentTool(server);       // document (12 actions)
+  registerStructureTool(server);      // structure (8 actions)
+  registerSelectionTool(server);      // selection (5 actions)
+  registerFormatTool(server);         // format (10 actions)
+  registerTableTool(server);          // table (3 actions)
+  registerEditorTool(server);         // editor (3 actions)
+  registerWorkspaceTool(server);      // workspace (12 actions)
+  registerTabsTool(server);           // tabs (6 actions)
+  registerMediaTool(server);          // media (11 actions)
+  registerSuggestionsTool(server);    // suggestions (5 actions)
 
   // Register resources
   registerDocumentResources(server);
@@ -201,181 +171,58 @@ export function createVMarkMcpServer(bridge: Bridge): VMarkMcpServer {
 export const TOOL_CATEGORIES = [
   {
     name: 'Protocol Tools',
-    description: 'Capabilities discovery and revision tracking (AI-Oriented MCP Design)',
-    tools: [
-      'get_capabilities',
-      'get_document_revision',
-    ],
+    description: 'Capabilities discovery and revision tracking',
+    tools: ['get_capabilities', 'get_document_revision'],
   },
   {
-    name: 'Structure Tools',
-    description: 'AST access and document structure queries (AI-Oriented MCP Design)',
-    tools: [
-      'get_document_ast',
-      'get_document_digest',
-      'list_blocks',
-      'resolve_targets',
-      'get_section',
-    ],
+    name: 'Document Tool',
+    description: 'Read, write, search, and transform document content (12 actions)',
+    tools: ['document'],
   },
   {
-    name: 'Mutation Tools',
-    description: 'Declarative document modifications (AI-Oriented MCP Design)',
-    tools: [
-      'batch_edit',
-      'apply_diff',
-      'replace_text_anchored',
-    ],
+    name: 'Structure Tool',
+    description: 'AST access, structure queries, and section operations (8 actions)',
+    tools: ['structure'],
   },
   {
-    name: 'Section Tools',
-    description: 'Section-level operations (AI-Oriented MCP Design)',
-    tools: [
-      'update_section',
-      'insert_section',
-      'move_section',
-    ],
+    name: 'Selection Tool',
+    description: 'Read and manipulate text selection and cursor (5 actions)',
+    tools: ['selection'],
   },
   {
-    name: 'Batch Operation Tools',
-    description: 'Table and list batch operations (AI-Oriented MCP Design)',
-    tools: [
-      'table_modify',
-      'list_modify',
-    ],
+    name: 'Format Tool',
+    description: 'Text formatting, block types, lists, and list batch operations (10 actions)',
+    tools: ['format'],
   },
   {
-    name: 'Paragraph Tools',
-    description: 'Paragraph-level operations for flat documents without headings',
-    tools: [
-      'read_paragraph',
-      'write_paragraph',
-      'smart_insert',
-    ],
+    name: 'Table Tool',
+    description: 'Table insert, delete, and batch modify (3 actions)',
+    tools: ['table'],
   },
   {
-    name: 'Document Tools',
-    description: 'Read and write document content',
-    tools: [
-      'document_get_content',
-      'document_set_content',
-      'document_insert_at_cursor',
-      'document_insert_at_position',
-      'document_search',
-      'document_replace_in_source',
-    ],
+    name: 'Editor Tool',
+    description: 'Editor state operations: undo, redo, focus (3 actions)',
+    tools: ['editor'],
   },
   {
-    name: 'Selection Tools',
-    description: 'Read and manipulate text selection',
-    tools: [
-      'selection_get',
-      'selection_set',
-      'selection_replace',
-      'cursor_get_context',
-      'cursor_set_position',
-    ],
+    name: 'Workspace Tool',
+    description: 'Window and document management (12 actions)',
+    tools: ['workspace'],
   },
   {
-    name: 'Editor Tools',
-    description: 'Editor state operations',
-    tools: ['editor_undo', 'editor_redo', 'editor_focus'],
+    name: 'Tabs Tool',
+    description: 'Manage editor tabs within windows (6 actions)',
+    tools: ['tabs'],
   },
   {
-    name: 'Formatting Tools',
-    description: 'Apply text formatting marks',
-    tools: ['format_toggle', 'format_set_link', 'format_remove_link', 'format_clear'],
+    name: 'Media Tool',
+    description: 'Math, diagrams, media, wiki links, CJK formatting (11 actions)',
+    tools: ['media'],
   },
   {
-    name: 'Block Tools',
-    description: 'Manage block-level elements',
-    tools: ['block_set_type', 'block_insert_horizontal_rule'],
-  },
-  {
-    name: 'List Tools',
-    description: 'Manage list elements',
-    tools: ['list_toggle', 'list_indent', 'list_outdent'],
-  },
-  {
-    name: 'Table Tools',
-    description: 'Manage table elements',
-    tools: [
-      'table_insert',
-      'table_delete',
-    ],
-  },
-  {
-    name: 'VMark Tools',
-    description: 'VMark-specific features (math, diagrams, wiki links, CJK)',
-    tools: [
-      'insert_math_inline',
-      'insert_math_block',
-      'insert_mermaid',
-      'insert_markmap',
-      'insert_svg',
-      'insert_wiki_link',
-      'cjk_punctuation_convert',
-      'cjk_spacing_fix',
-    ],
-  },
-  {
-    name: 'Media Tools',
-    description: 'Insert video, audio, and video embeds',
-    tools: [
-      'insert_video',
-      'insert_audio',
-      'insert_video_embed',
-    ],
-  },
-  {
-    name: 'Workspace Tools',
-    description: 'Window and document management',
-    tools: [
-      'workspace_list_windows',
-      'workspace_get_focused',
-      'workspace_focus_window',
-      'workspace_new_document',
-      'workspace_open_document',
-      'workspace_save_document',
-      'workspace_save_document_as',
-      'workspace_get_document_info',
-      'workspace_close_window',
-      'workspace_list_recent_files',
-      'workspace_get_info',
-      'workspace_reload_document',
-    ],
-  },
-  {
-    name: 'Tab Tools',
-    description: 'Manage editor tabs within windows',
-    tools: [
-      'tabs_list',
-      'tabs_switch',
-      'tabs_close',
-      'tabs_create',
-      'tabs_get_info',
-      'tabs_reopen_closed',
-    ],
-  },
-  {
-    name: 'Genie Tools',
-    description: 'Discover and invoke AI genies (prompt templates)',
-    tools: [
-      'list_genies',
-      'read_genie',
-      'invoke_genie',
-    ],
-  },
-  {
-    name: 'Suggestion Tools',
-    description: 'Manage AI-generated edit suggestions pending user approval',
-    tools: [
-      'suggestion_list',
-      'suggestion_accept',
-      'suggestion_reject',
-      'suggestion_accept_all',
-      'suggestion_reject_all',
-    ],
+    name: 'Suggestions Tool',
+    description: 'Manage AI-generated edit suggestions (5 actions)',
+    tools: ['suggestions'],
   },
 ] as const;
 
