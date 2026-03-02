@@ -24,6 +24,13 @@ const hasVersions = computed(() => {
   return stats.value && stats.value.versions && Object.keys(stats.value.versions).length > 0
 })
 
+const recentVersions = computed(() => {
+  if (!hasVersions.value) return {}
+  const entries = Object.entries(stats.value.versions)
+  entries.sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
+  return Object.fromEntries(entries.slice(0, 4))
+})
+
 onMounted(async () => {
   try {
     const res = await fetch('https://log.vmark.app/api/stats')
@@ -72,7 +79,7 @@ onMounted(async () => {
       <div v-if="hasVersions" class="stats-breakdown">
         <h4 class="breakdown-title">Versions</h4>
         <div class="breakdown-list">
-          <div v-for="(count, version) in stats.versions" :key="version" class="breakdown-item">
+          <div v-for="(count, version) in recentVersions" :key="version" class="breakdown-item">
             <span class="breakdown-label">v{{ version }}</span>
             <span class="breakdown-value">{{ count }}</span>
           </div>

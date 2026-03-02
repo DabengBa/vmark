@@ -16,6 +16,10 @@ For most writing tasks, you only need a handful of actions:
 The remaining actions provide fine-grained control for advanced automation scenarios.
 :::
 
+::: tip Mermaid Diagrams
+When using AI to generate Mermaid diagrams via MCP, consider installing the [mermaid-validator MCP server](/guide/mermaid#mermaid-validator-mcp-server-syntax-checking) — it catches syntax errors using the same Mermaid v11 parsers before diagrams reach your document.
+:::
+
 ---
 
 ## `document`
