@@ -467,4 +467,301 @@ describe("useUpdateChecker hook", () => {
     expect(mockRestartWithHotExit).not.toHaveBeenCalled();
     expect(mockEmit).toHaveBeenCalledWith("update:restart-cancelled");
   });
+
+  it("skips startup check when hasChecked is already true (second render guard)", async () => {
+    // On first render with startup frequency, shouldCheckNow returns true → sets hasChecked.current=true
+    // and schedules a 2s timer. Changing a dependency triggers effect cleanup (clears timer) and re-run.
+    // The re-run hits the hasChecked.current guard (line 99) and returns early — no new timer is scheduled.
+    renderHook(() => useUpdateChecker());
+
+    // First render: hasChecked.current is false → timer is scheduled, hasChecked.current = true
+    expect(mockDoCheckForUpdates).not.toHaveBeenCalled();
+
+    // Change lastCheckTimestamp — triggers effect cleanup (cancels timer) and re-run
+    // Re-run: hasChecked.current is now true → line 99 fires → returns early (no new timer)
+    await act(async () => {
+      useSettingsStore.getState().updateUpdateSetting("lastCheckTimestamp", Date.now());
+    });
+
+    // Advance time past startup delay — timer was cancelled by cleanup, no new timer was set
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+      await Promise.resolve();
+    });
+
+    // No check happened because the timer was cancelled and the early return prevented a new one
+    expect(mockDoCheckForUpdates).toHaveBeenCalledTimes(0);
+  });
+
+  it("handles doCheckForUpdates rejection in startup timer (catch path)", async () => {
+    mockDoCheckForUpdates.mockRejectedValueOnce(new Error("network error"));
+
+    renderHook(() => useUpdateChecker());
+
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+      // Flush the rejected promise
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; error is caught and logged
+    expect(mockDoCheckForUpdates).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries on error after checking (retry logic with backoff)", async () => {
+    renderHook(() => useUpdateChecker());
+
+    // Transition: idle -> checking -> error (triggers retry)
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+
+    // Retry timer fires after BASE_RETRY_DELAY_MS (5000ms)
+    await act(async () => {
+      vi.advanceTimersByTime(5100);
+      await Promise.resolve();
+    });
+
+    // doCheckForUpdates called by retry
+    expect(mockDoCheckForUpdates).toHaveBeenCalled();
+  });
+
+  it("retries up to MAX_RETRIES times then gives up", async () => {
+    renderHook(() => useUpdateChecker());
+
+    // First retry: checking -> error
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5100);
+      await Promise.resolve();
+    });
+
+    // Second retry: checking -> error
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(10100);
+      await Promise.resolve();
+    });
+
+    // Third retry: checking -> error (maxed out)
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20100);
+      await Promise.resolve();
+    });
+
+    // After max retries: checking -> error — no more retries
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+
+    // Should stop scheduling retries (max 3 reached); ensure no extra timers fire
+    const callsBefore = mockDoCheckForUpdates.mock.calls.length;
+    await act(async () => {
+      vi.advanceTimersByTime(40100);
+      await Promise.resolve();
+    });
+    expect(mockDoCheckForUpdates.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("does not retry when autoCheckEnabled is false", async () => {
+    useSettingsStore.getState().updateUpdateSetting("autoCheckEnabled", false);
+
+    renderHook(() => useUpdateChecker());
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+
+    const callsBefore = mockDoCheckForUpdates.mock.calls.length;
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+      await Promise.resolve();
+    });
+
+    expect(mockDoCheckForUpdates.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("handles doCheckForUpdates rejection in retry (retry catch path)", async () => {
+    mockDoCheckForUpdates.mockRejectedValueOnce(new Error("retry network error"));
+
+    renderHook(() => useUpdateChecker());
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+    await act(async () => {
+      useUpdateStore.getState().setStatus("error");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5100);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; retry error is caught and logged
+    expect(mockDoCheckForUpdates).toHaveBeenCalled();
+  });
+
+  it("handles doDownloadAndInstall rejection in auto-download (catch path)", async () => {
+    useSettingsStore.getState().updateUpdateSetting("autoDownload", true);
+    mockDoDownloadAndInstall.mockRejectedValueOnce(new Error("download failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("available");
+      useUpdateStore.getState().setUpdateInfo({
+        version: "2.0.0",
+        notes: "test",
+        pubDate: "2025-01-01",
+        currentVersion: "1.0.0",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; error is caught and logged
+    expect(mockDoDownloadAndInstall).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles doCheckForUpdates rejection in REQUEST_CHECK listener (catch path)", async () => {
+    mockDoCheckForUpdates.mockRejectedValueOnce(new Error("check failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    const handler = listenHandlers.get("update:request-check");
+    await act(async () => {
+      handler!();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; error is caught and logged
+    expect(mockDoCheckForUpdates).toHaveBeenCalled();
+  });
+
+  it("handles doDownloadAndInstall rejection in REQUEST_DOWNLOAD listener (catch path)", async () => {
+    mockDoDownloadAndInstall.mockRejectedValueOnce(new Error("download failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    const handler = listenHandlers.get("update:request-download");
+    await act(async () => {
+      handler!();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; error is caught and logged
+    expect(mockDoDownloadAndInstall).toHaveBeenCalled();
+  });
+
+  it("handles emit rejection in REQUEST_STATE listener (catch path)", async () => {
+    mockEmit.mockRejectedValueOnce(new Error("emit failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    const handler = listenHandlers.get("update:request-state");
+    await act(async () => {
+      handler!();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw; error is caught and logged
+    expect(mockEmit).toHaveBeenCalledWith(
+      "update:state-changed",
+      expect.any(Object)
+    );
+  });
+
+  it("handles emit rejection in restart error path (nested catch path)", async () => {
+    vi.spyOn(useDocumentStore.getState(), "getAllDirtyDocuments").mockReturnValue([]);
+    mockRestartWithHotExit.mockRejectedValue(new Error("restart failed"));
+    mockEmit.mockRejectedValueOnce(new Error("emit also failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    const handler = listenHandlers.get("app:restart-for-update");
+
+    await act(async () => {
+      handler!();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should not throw even if emit fails in the catch block
+    expect(mockRestartWithHotExit).toHaveBeenCalled();
+  });
+
+  it("does not show toast when status changes to ready but updateInfo is null", async () => {
+    const { toast } = await import("sonner");
+
+    renderHook(() => useUpdateChecker());
+
+    // Transition to checking first, then to ready without updateInfo
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    // Set status to ready but ensure updateInfo is null (default state)
+    await act(async () => {
+      useUpdateStore.getState().setStatus("ready");
+    });
+
+    // toast.success should NOT be called because updateInfo is null
+    expect(toast.success).not.toHaveBeenCalledWith(
+      expect.stringContaining("ready to install"),
+      expect.any(Object)
+    );
+  });
+
+  it("auto-dismisses when available version matches skipVersion (dismiss called)", async () => {
+    // Ensure update info is set before skipVersion check triggers
+    useSettingsStore.getState().updateUpdateSetting("skipVersion", "3.0.0");
+
+    renderHook(() => useUpdateChecker());
+
+    await act(async () => {
+      useUpdateStore.getState().setUpdateInfo({
+        version: "3.0.0",
+        notes: "test",
+        pubDate: "2025-01-01",
+        currentVersion: "1.0.0",
+      });
+      useUpdateStore.getState().setStatus("available");
+    });
+
+    expect(useUpdateStore.getState().dismissed).toBe(true);
+    expect(mockClearPendingUpdate).toHaveBeenCalled();
+  });
 });

@@ -811,6 +811,24 @@ describe("batchOpHandlers", () => {
       };
     }
 
+    it("applies add_item with text (splitListItem + replaceSelection)", async () => {
+      const editor = makeListEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-40a", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "add_item", at: 0, text: "new item text" }],
+      });
+
+      expect(editor.commands.splitListItem).toHaveBeenCalledWith("listItem");
+      expect(editor.state.tr.replaceSelection).toHaveBeenCalled();
+      expect(editor.view.dispatch).toHaveBeenCalled();
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+    });
+
     it("applies delete_item operation", async () => {
       const editor = makeListEditor();
       mockGetEditor.mockReturnValue(editor);
@@ -1242,6 +1260,295 @@ describe("batchOpHandlers", () => {
       const call = mockRespond.mock.calls[0][0];
       expect(call.success).toBe(true);
       expect(mockParagraphCreate).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe("handleTableBatchModify — update_cell cellPos is null (out-of-bounds row/col)", () => {
+    it("warns when cell position not found (row out of bounds)", async () => {
+      // Table with only 1 row, but we request row 99
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 7 },
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({ nodeSize: 5 })),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return false; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // Request row 99 — findCellPosition returns null
+      await handleTableBatchModify("req-uc-oob", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "update_cell", row: 99, col: 99, content: "text" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("cell not found"))).toBe(true);
+    });
+  });
+
+  describe("handleTableBatchModify — table disappears after structural ops", () => {
+    it("warns when table not found after structural ops for cell updates", async () => {
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 0,
+        child: vi.fn(),
+        firstChild: null,
+        content: { size: 0 },
+        nodeSize: 2,
+        forEach: vi.fn(),
+        descendants: vi.fn(),
+      };
+
+      let callCount = 0;
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            // First call (findTable for structural phase) finds table,
+            // second call (findTable after structural ops) returns nothing
+            descendants: vi.fn((cb: (node: unknown, pos: number) => boolean | undefined) => {
+              callCount++;
+              if (callCount === 1) {
+                cb(tableNode, 0);
+              }
+              // Second call finds nothing — table "disappeared"
+            }),
+            nodeAt: vi.fn(() => ({ nodeSize: 5 })),
+          },
+          tr: {
+            replaceWith: vi.fn().mockReturnThis(),
+            get docChanged() { return false; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          addRowAfter: vi.fn(),
+        },
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // Mix structural op + update_cell so phase 2 runs and re-searches for table
+      await handleTableBatchModify("req-uc-gone", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [
+          { action: "add_row", at: 0, cells: [] },
+          { action: "update_cell", row: 0, col: 0, content: "text" },
+        ],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(
+        call.data.warnings.some((w: string) => w.includes("Table not found after structural operations"))
+      ).toBe(true);
+    });
+  });
+
+  describe("handleTableBatchModify — update_cell nodeAt returns null", () => {
+    it("warns when nodeAt returns null for a found cell position", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 7 },
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            // nodeAt returns null — simulates cell not resolvable
+            nodeAt: vi.fn(() => null),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return false; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-uc-null", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "update_cell", row: 0, col: 0, content: "text" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("could not resolve cell node"))).toBe(true);
+    });
+  });
+
+  describe("handleTableBatchModify — multi-cell sort order", () => {
+    it("processes multiple update_cell ops in reverse position order", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 2,
+        child: (i: number) => cellNode,
+        nodeSize: 12,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+          cb(cellNode, 5);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 12 },
+        nodeSize: 14,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      // nodeAt returns a node so both cells get processed
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({ nodeSize: 5 })),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return true; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // Two update_cell ops at different positions — triggers sort comparator
+      await handleTableBatchModify("req-uc-sort", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [
+          { action: "update_cell", row: 0, col: 0, content: "first" },
+          { action: "update_cell", row: 0, col: 1, content: "second" },
+        ],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      // Both cells applied
+      expect(call.data.appliedCount).toBe(2);
     });
   });
 

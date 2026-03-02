@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { parseMarkdownToMdast, normalizeBareListMarkers } from "./parser";
+import { serializeMdastToMarkdown } from "./serializer";
 import type { Paragraph, Text, Heading, Code, Link, Image } from "mdast";
 
 describe("parseMarkdownToMdast", () => {
@@ -147,6 +148,49 @@ Content`;
       const result = parseMarkdownToMdast("See ![[embed]]");
       const para = result.children[0] as Paragraph;
       // Wiki embeds are no longer supported - the syntax is preserved as text
+      const hasWikiLink = para.children.some((c) => c.type === "wikiLink");
+      expect(hasWikiLink).toBe(false);
+    });
+
+    it("parses wiki link without alias (plain [[Page]])", () => {
+      const result = parseMarkdownToMdast("See [[SimplePage]]");
+      const para = result.children[0] as Paragraph;
+      const wikiNode = para.children.find((c) => c.type === "wikiLink") as {
+        type: string;
+        value: string;
+        alias?: string;
+      };
+      expect(wikiNode).toBeDefined();
+      expect(wikiNode.value).toBe("SimplePage");
+      expect(wikiNode.alias).toBeUndefined();
+    });
+
+    it("parses wiki link with pipe but empty alias ([[Page|]]) as plain value", () => {
+      // [[target|]] — pipe present but alias empty: returns { value } with no alias
+      const result = parseMarkdownToMdast("See [[MyPage|]]");
+      const para = result.children[0] as Paragraph;
+      const wikiNode = para.children.find((c) => c.type === "wikiLink") as {
+        type: string;
+        value: string;
+        alias?: string;
+      } | undefined;
+      expect(wikiNode).toBeDefined();
+      expect(wikiNode!.value).toBe("MyPage");
+      expect(wikiNode!.alias).toBeUndefined();
+    });
+
+    it("ignores wiki link with empty value before pipe ([[|alias]])", () => {
+      // [[|alias]] — empty value before pipe: parseWikiTarget returns null, kept as text
+      const result = parseMarkdownToMdast("See [[|alias]]");
+      const para = result.children[0] as Paragraph;
+      const hasWikiLink = para.children.some((c) => c.type === "wikiLink");
+      expect(hasWikiLink).toBe(false);
+    });
+
+    it("ignores wiki link with only whitespace inside ([[   ]])", () => {
+      // [[   ]] — inner content trims to "": parseWikiTarget returns null (line 81 branch)
+      const result = parseMarkdownToMdast("See [[   ]]");
+      const para = result.children[0] as Paragraph;
       const hasWikiLink = para.children.some((c) => c.type === "wikiLink");
       expect(hasWikiLink).toBe(false);
     });
@@ -555,5 +599,20 @@ Content`;
       const li = list.children[0];
       expect(li.spread).toBe(false);
     });
+  });
+});
+
+describe("serializeMdastToMarkdown — wiki link round-trip", () => {
+  it("serializes wiki link with alias back to [[Page|Alias]] syntax", () => {
+    // Parse to get wikiLink MDAST node, then serialize back
+    const mdast = parseMarkdownToMdast("See [[Page|Alias]]");
+    const result = serializeMdastToMarkdown(mdast);
+    expect(result).toContain("[[Page|Alias]]");
+  });
+
+  it("serializes plain wiki link (no alias) back to [[Page]] syntax", () => {
+    const mdast = parseMarkdownToMdast("See [[SimplePage]]");
+    const result = serializeMdastToMarkdown(mdast);
+    expect(result).toContain("[[SimplePage]]");
   });
 });

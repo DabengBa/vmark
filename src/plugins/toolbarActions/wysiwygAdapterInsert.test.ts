@@ -1030,3 +1030,175 @@ describe("handleInsertAudio — async paths", () => {
     });
   });
 });
+
+describe("handleInsertImage — view disconnect after copy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(withReentryGuard).mockImplementation((_label, _guard, fn) => fn());
+    vi.mocked(getActiveFilePath).mockReturnValue("/path/to/doc.md");
+  });
+
+  it("does not insert when view disconnects after image copy to assets", async () => {
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/Users/test/photo.png",
+      needsCopy: true,
+      resolvedPath: "/Users/test/photo.png",
+    } as never);
+    vi.mocked(copyImageToAssets).mockResolvedValue("assets/photo.png");
+    // Connected initially, disconnected after copy
+    vi.mocked(isViewConnected)
+      .mockReturnValueOnce(true)  // first check after clipboard read
+      .mockReturnValueOnce(false); // second check after image copy
+
+    const imageCreate = vi.fn();
+    const mockView = {
+      state: {
+        selection: { from: 0, to: 0, $from: { nodeAfter: null, nodeBefore: null } },
+        doc: { textBetween: vi.fn(() => "") },
+        schema: { nodes: { image: { create: imageCreate } } },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: { isConnected: true },
+    };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertImage(context);
+
+    await vi.waitFor(() => {
+      expect(wysiwygAdapterWarn).toHaveBeenCalledWith("View disconnected after image copy");
+    });
+    expect(imageCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleInsertVideo — view disconnect after copy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(withReentryGuard).mockImplementation((_label, _guard, fn) => fn());
+    vi.mocked(getActiveFilePath).mockReturnValue("/path/to/doc.md");
+  });
+
+  it("does not insert when view disconnects after video copy", async () => {
+    vi.mocked(open).mockResolvedValue("/Users/test/video.mp4" as never);
+    vi.mocked(copyMediaToAssets).mockResolvedValue("assets/video.mp4");
+    vi.mocked(isViewConnected).mockReturnValue(false);
+
+    const mockView = { dom: { isConnected: false } };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertVideo(context);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(insertBlockVideoNode).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleInsertImage — error handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isViewConnected).mockReturnValue(true);
+    vi.mocked(getActiveFilePath).mockReturnValue("/path/to/doc.md");
+  });
+
+  it("handles error in async image insertion with non-Error throw", async () => {
+    vi.mocked(withReentryGuard).mockRejectedValue("string error");
+
+    const mockView = {
+      state: {
+        selection: { from: 0, to: 0, $from: { nodeAfter: null, nodeBefore: null } },
+        doc: { textBetween: vi.fn(() => "") },
+        schema: { nodes: { image: { create: vi.fn() } } },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: { isConnected: true },
+    };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertImage(context);
+
+    await vi.waitFor(() => {
+      expect(wysiwygAdapterWarn).toHaveBeenCalledWith(
+        "Image insertion failed:",
+        "string error"
+      );
+    });
+  });
+
+  it("handles error in async video insertion", async () => {
+    vi.mocked(withReentryGuard).mockRejectedValue(new Error("video guard fail"));
+
+    const mockView = { dom: { isConnected: true } };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertVideo(context);
+
+    await vi.waitFor(() => {
+      expect(wysiwygAdapterWarn).toHaveBeenCalledWith(
+        "Video insertion failed:",
+        "video guard fail"
+      );
+    });
+  });
+
+  it("handles file picker returning empty array for image", async () => {
+    vi.mocked(withReentryGuard).mockImplementation((_label, _guard, fn) => fn());
+    vi.mocked(readClipboardImagePath).mockResolvedValue(null);
+    vi.mocked(open).mockResolvedValue([] as never);
+
+    const mockView = {
+      state: {
+        selection: { from: 0, to: 0, $from: { nodeAfter: null, nodeBefore: null } },
+        doc: { textBetween: vi.fn(() => "") },
+        schema: { nodes: { image: { create: vi.fn() } } },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: { isConnected: true },
+    };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertImage(context);
+
+    // normalizeDialogPath returns null for empty array
+    await new Promise((r) => setTimeout(r, 20));
+    expect(insertBlockImageNode).not.toHaveBeenCalled();
+  });
+
+  it("uses clipboard path (no resolvedPath) when needsCopy and no resolvedPath", async () => {
+    vi.mocked(withReentryGuard).mockImplementation((_label, _guard, fn) => fn());
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/Users/test/photo.png",
+      needsCopy: true,
+      // No resolvedPath set — should fall back to path
+    } as never);
+    vi.mocked(copyImageToAssets).mockResolvedValue("assets/photo.png");
+
+    const imageCreate = vi.fn(() => ({ type: "image" }));
+    const mockTr = { replaceWith: vi.fn().mockReturnThis() };
+
+    const mockView = {
+      state: {
+        selection: { from: 0, to: 0, $from: { nodeAfter: null, nodeBefore: null } },
+        doc: { textBetween: vi.fn(() => "") },
+        schema: { nodes: { image: { create: imageCreate } }, text: vi.fn() },
+        tr: mockTr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: { isConnected: true },
+    };
+    const context = createBaseContext({ view: mockView as never });
+
+    handleInsertImage(context);
+
+    await vi.waitFor(() => {
+      expect(copyImageToAssets).toHaveBeenCalledWith("/Users/test/photo.png", "/path/to/doc.md");
+    });
+  });
+});

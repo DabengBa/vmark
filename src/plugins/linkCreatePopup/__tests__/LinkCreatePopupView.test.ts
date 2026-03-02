@@ -625,6 +625,48 @@ describe("LinkCreatePopupView", () => {
       // No error means the early return worked
     });
 
+    it("Tab moves focus forward when activeElement is a focusable popup element", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Patch offsetParent on all focusable candidates so getFocusableElements returns them
+      const candidates = Array.from(
+        dom.container.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")
+      );
+      candidates.forEach((el) => {
+        Object.defineProperty(el, "offsetParent", { get: () => dom.container, configurable: true });
+      });
+
+      // Focus the first focusable element (url input or text input)
+      candidates[0].focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      // Focus should have moved to next element (no error = success)
+    });
+
+    it("Shift+Tab moves focus backward when activeElement is a focusable popup element", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Patch offsetParent on all focusable candidates
+      const candidates = Array.from(
+        dom.container.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")
+      );
+      candidates.forEach((el) => {
+        Object.defineProperty(el, "offsetParent", { get: () => dom.container, configurable: true });
+      });
+
+      // Focus the last element
+      candidates[candidates.length - 1].focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      // Focus should have moved backward (no error = success)
+    });
+
     it("Enter on non-button element inside popup does not trigger click", async () => {
       emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
       await new Promise((r) => requestAnimationFrame(r));

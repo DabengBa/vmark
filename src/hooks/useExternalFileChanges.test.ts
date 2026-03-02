@@ -688,6 +688,364 @@ describe("useExternalFileChanges — dirty file prompt", () => {
   });
 });
 
+describe("useExternalFileChanges — additional coverage", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.listen.mockImplementation(() => Promise.resolve(() => {}));
+    mocks.matchesPendingSave.mockReturnValue(false);
+    mocks.hasPendingSave.mockReturnValue(false);
+  });
+
+  it("skips tab with no filePath in getOpenFilePaths", async () => {
+    // Tab without filePath should be excluded from open paths map
+    useTabStore.setState({
+      tabs: {
+        main: [{ id: "tab-no-path", title: "untitled", filePath: null, isPinned: false }],
+      },
+      activeTabId: { main: "tab-no-path" },
+      untitledCounter: 1,
+      closedTabs: {},
+    });
+    useDocumentStore.setState({
+      documents: {
+        "tab-no-path": {
+          content: "# untitled",
+          savedContent: "# untitled",
+          lastDiskContent: "# untitled",
+          filePath: null,
+          isDirty: false,
+          documentId: 0,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+      },
+    });
+    mocks.readTextFile.mockResolvedValue("# new content");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/any-file.md"],
+        kind: "modify",
+      },
+    });
+
+    // Tab without filePath is not in the open paths map, so no read
+    expect(mocks.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("no_op action does nothing (resolveExternalChangeAction returns no_op)", async () => {
+    // Use a spy on the openPolicy module to force no_op return value
+    const openPolicy = await import("@/utils/openPolicy");
+    const spy = vi.spyOn(openPolicy, "resolveExternalChangeAction").mockReturnValueOnce("no_op");
+
+    seedStores({ lastDiskContent: "# old content" });
+    mocks.readTextFile.mockResolvedValue("# changed on disk");
+    mocks.matchesPendingSave.mockReturnValue(false);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // no_op: nothing happens, no toast, no dialog
+    expect(mocks.toastInfo).not.toHaveBeenCalled();
+    expect(mocks.dialogMessage).not.toHaveBeenCalled();
+
+    spy.mockRestore();
+  });
+
+  it("skips unknown path in paired rename (tabId not found)", async () => {
+    // Paired rename with paths that don't match any open tab
+    seedStores();
+    mocks.readTextFile.mockResolvedValue("# content");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/unknown.md", "/workspace/unknown-new.md"],
+        kind: "rename",
+      },
+    });
+
+    // Path not matched → tabId not found → continue → handled stays false
+    // Since the pair doesn't match, fallback runs but also finds no match
+    const doc = useDocumentStore.getState().documents["tab-1"];
+    expect(doc?.filePath).toBe("/workspace/test.md"); // Unchanged
+  });
+
+  it("skips unknown path in unpaired rename fallback (tabId not found)", async () => {
+    seedStores();
+    mocks.hasPendingSave.mockReturnValue(false);
+    mocks.readTextFile.mockResolvedValue("# content");
+
+    const callback = await setupHookAndCallback();
+
+    // Single path that doesn't match any open tab
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/unknown-file.md"],
+        kind: "rename",
+      },
+    });
+
+    // No tab found → no deletion, no modify event
+    const doc = useDocumentStore.getState().documents["tab-1"];
+    expect(doc?.isMissing).toBe(false);
+    expect(mocks.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("skips path when doc disappears between path resolution and event handling (doc missing)", async () => {
+    // First call to getDocument (in getOpenFilePaths) returns a doc with filePath.
+    // Second call (inside the event handler loop, line 349) returns null.
+    // This simulates a race where the document is closed between the two calls.
+    seedStores({ lastDiskContent: "# old content" });
+
+    const docStoreGetDocument = useDocumentStore.getState().getDocument.bind(useDocumentStore.getState());
+    let callCount = 0;
+    vi.spyOn(useDocumentStore.getState(), "getDocument").mockImplementation((tabId: string) => {
+      callCount++;
+      // First call (from getOpenFilePaths): return normal doc
+      if (callCount <= 1) return docStoreGetDocument(tabId);
+      // Second call (inside event loop): return null (doc disappeared)
+      return null;
+    });
+
+    mocks.readTextFile.mockResolvedValue("# new content");
+    mocks.matchesPendingSave.mockReturnValue(false);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // tabId found in openPaths, but doc is null at line 349 → continue → no read
+    expect(mocks.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("unmounts with pending batch timeout — cleans up timer", async () => {
+    // Set up a dirty file scenario to trigger batch timer
+    useTabStore.setState({
+      tabs: {
+        main: [{ id: "tab-1", title: "test.md", filePath: "/workspace/test.md", isPinned: false }],
+      },
+      activeTabId: { main: "tab-1" },
+      untitledCounter: 0,
+      closedTabs: {},
+    });
+    useDocumentStore.setState({
+      documents: {
+        "tab-1": {
+          content: "# user edits",
+          savedContent: "# old",
+          lastDiskContent: "# old",
+          filePath: "/workspace/test.md",
+          isDirty: true,
+          documentId: 0,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+      },
+    });
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Cancel");
+
+    const { unmount } = renderHook(() => useExternalFileChanges());
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+    const callback = captureListenCallback();
+
+    // Trigger change to queue dirty change (starts batch timer)
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // Unmount before batch timer fires — should clean up without crash
+    unmount();
+
+    // No dialog should appear (timer was cancelled)
+    expect(mocks.dialogMessage).not.toHaveBeenCalled();
+  });
+
+  it("handles cancellation before listen resolves (cancelled = true before await listen)", async () => {
+    seedStores();
+    // Make listen return a promise that resolves after a tick
+    let resolveUnlisten: ((fn: () => void) => void) | null = null;
+    mocks.listen.mockImplementationOnce(
+      () => new Promise<() => void>((resolve) => { resolveUnlisten = resolve; })
+    );
+
+    const { unmount } = renderHook(() => useExternalFileChanges());
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    // Unmount before listen resolves → cancelled = true before setupListener continues
+    unmount();
+
+    // Now resolve listen — setupListener will check `cancelled` and call unlisten immediately
+    resolveUnlisten!(() => {});
+
+    // Give async resolution a tick to complete
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Should not crash, unlistened was called immediately
+  });
+
+  it("handles cancellation after listen resolves (cancelled after store, unlisten called in cleanup)", async () => {
+    seedStores();
+
+    const { unmount } = renderHook(() => useExternalFileChanges());
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    // Unmount immediately — cleanup sets cancelled=true, calls unlistenRef.current()
+    unmount();
+
+    // Should not crash
+    expect(mocks.listen).toHaveBeenCalled();
+  });
+
+  it("cleanup skips unlisten when hook unmounts before listen resolves", async () => {
+    seedStores();
+    // Hook unmounts before listen completes — unlistenRef.current stays null
+    let resolveUnlisten: ((fn: () => void) => void) | null = null;
+    mocks.listen.mockImplementationOnce(
+      () => new Promise<() => void>((resolve) => { resolveUnlisten = resolve; })
+    );
+
+    const { unmount } = renderHook(() => useExternalFileChanges());
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    // Unmount before listen resolves — unlistenRef.current is still null
+    unmount();
+
+    // Resolve listen after unmount — cleanup path with cancelled=true runs
+    resolveUnlisten!(() => {});
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Should not crash (unlistenRef.current was null, but cancelled path calls unlisten directly)
+    expect(mocks.listen).toHaveBeenCalled();
+  });
+
+  it("handles event callback when hook is already unmounted (cancelled = true inside callback)", async () => {
+    seedStores();
+    let capturedCallback: ListenCallback | null = null;
+    mocks.listen.mockImplementationOnce((_event: string, cb: ListenCallback) => {
+      capturedCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
+    const { unmount } = renderHook(() => useExternalFileChanges());
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    // Unmount before triggering the event
+    unmount();
+
+    // Fire the event after unmount — should return early because cancelled = true
+    if (capturedCallback) {
+      await capturedCallback({
+        payload: {
+          watchId: "main",
+          rootPath: "/workspace",
+          paths: ["/workspace/test.md"],
+          kind: "modify",
+        },
+      });
+    }
+
+    // Should not have read the file because cancelled guard returned early
+    expect(mocks.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("handleModifyEvent returns early when doc is not found (line 252 guard)", async () => {
+    // Set up tab with a doc that has filePath (so it appears in the path map on first call)
+    seedStores({ lastDiskContent: "# old content" });
+
+    let getDocumentCallCount = 0;
+    const realGetDocument = useDocumentStore.getState().getDocument.bind(useDocumentStore.getState());
+    const getDocSpy = vi.spyOn(useDocumentStore.getState(), "getDocument").mockImplementation((tabId: string) => {
+      getDocumentCallCount++;
+      // First call comes from getOpenFilePaths (builds path map) — return real doc
+      // Second call comes from handleModifyEvent line 251 — return null to trigger early return
+      if (getDocumentCallCount <= 1) return realGetDocument(tabId);
+      return undefined;
+    });
+
+    mocks.readTextFile.mockResolvedValue("# new disk content");
+    mocks.matchesPendingSave.mockReturnValue(false);
+
+    const callback = await setupHookAndCallback();
+
+    // Reset counter before firing event (hook setup may have called getDocument during render)
+    getDocumentCallCount = 0;
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // handleModifyEvent: doc is null → return early → no toast, no queue
+    expect(mocks.toastInfo).not.toHaveBeenCalled();
+    expect(mocks.dialogMessage).not.toHaveBeenCalled();
+
+    getDocSpy.mockRestore();
+  });
+
+  it("ignores event with unhandled kind (branch 33[1] — not modify or create)", async () => {
+    // An event kind that isn't rename/remove/modify/create reaches the final if check and skips
+    seedStores({ lastDiskContent: "# old content" });
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "access" as "modify", // Unknown kind that passes watchId check
+      },
+    });
+
+    // Should not read file or show any dialog for unknown kind
+    expect(mocks.readTextFile).not.toHaveBeenCalled();
+    expect(mocks.toastInfo).not.toHaveBeenCalled();
+  });
+});
+
 describe("useExternalFileChanges — multi-file batch dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();

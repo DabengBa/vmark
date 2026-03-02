@@ -667,6 +667,21 @@ describe("setSourceHeadingLevel", () => {
     expect(result).toBe(false);
     view.destroy();
   });
+
+  it("applies heading to multiple selections via applyMultiSelectionHeading", () => {
+    const view = createView("First\nSecond", [
+      { from: 0, to: 0 },
+      { from: 6, to: 6 },
+    ]);
+    const result = setSourceHeadingLevel(
+      { surface: "source", view, context: null, multiSelection: { ...multiSelection, enabled: true } },
+      2
+    );
+    expect(result).toBe(true);
+    const doc = view.state.doc.toString();
+    expect(doc).toContain("## ");
+    view.destroy();
+  });
 });
 
 describe("performSourceToolbarAction — additional actions", () => {
@@ -1015,6 +1030,34 @@ describe("performSourceToolbarAction — additional actions", () => {
     });
     // nestBlockquote should work on a blockquote line
     expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+
+  it("creates ordered list from paragraph via orderedList action", () => {
+    const view = createView("item text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("orderedList", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("1. ");
+    view.destroy();
+  });
+
+  it("returns false for unknown action when not in a list", () => {
+    const view = createView("plain text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("unknownListAction", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("returns false for unknown blockquote action when in a blockquote", () => {
+    const view = createView("> hello", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("unknownBlockquoteAction", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
     view.destroy();
   });
 });

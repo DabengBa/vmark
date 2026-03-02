@@ -445,5 +445,64 @@ describe("useFileShortcuts", () => {
 
       removeListenerSpy.mockRestore();
     });
+
+    it("does not call save when no shortcut matches", async () => {
+      mockMatchesShortcutEvent.mockReturnValue(false);
+
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalled();
+      });
+
+      const event = new KeyboardEvent("keydown", { key: "z", metaKey: true });
+      Object.defineProperty(event, "target", {
+        value: document.createElement("div"),
+      });
+      window.dispatchEvent(event);
+
+      expect(mockHandleSave).not.toHaveBeenCalled();
+      expect(mockHandleSaveAs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cancelled guard on early unmount", () => {
+    it("cleans up listeners that were set up before unmount during async setup", async () => {
+      // Make the first listen resolve, then unmount before the rest complete
+      let resolveSecond: ((fn: () => void) => void) | undefined;
+      let callCount = 0;
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount === 1) {
+          // First listener resolves immediately
+          return Promise.resolve(vi.fn());
+        }
+        // Second listener is delayed
+        return new Promise<() => void>((resolve) => {
+          resolveSecond = resolve;
+        });
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      // Wait for first listen to be called
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(2);
+      });
+
+      // Unmount while second listen is still pending
+      unmount();
+
+      // Now resolve the second listen — it should call the unlisten immediately
+      // because cancelled is now true
+      const unlisten2 = vi.fn();
+      if (resolveSecond) {
+        resolveSecond(unlisten2);
+      }
+
+      await vi.waitFor(() => {
+        expect(unlisten2).toHaveBeenCalled();
+      });
+    });
   });
 });
