@@ -2,11 +2,8 @@
  * Source Table Context Menu Tests
  *
  * Tests for the CodeMirror 6 source mode table context menu including:
- * - Menu construction and actions
- * - Show/hide lifecycle
- * - Escape key handling
- * - Click outside handling
- * - Mounting in popup host
+ * - Module exports
+ * - Table action function integration
  */
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
@@ -148,27 +145,21 @@ describe("SourceTableContextMenu", () => {
     dom.cleanup();
   });
 
-  describe("SourceTableContextMenuView", () => {
-    it("creates container element on construction", async () => {
-      // Using the class directly is complex due to private constructor
-      // Instead test via the exported handler
-      const { createTableContextMenuHandler } = await importContextMenu();
-      const handler = createTableContextMenuHandler();
-
-      expect(handler).toBeDefined();
-    });
-  });
-
-  describe("Menu actions via handler", () => {
-    it("exports extensions array", async () => {
+  describe("Module exports", () => {
+    it("exports sourceTableContextMenuExtensions as an array", async () => {
       const { sourceTableContextMenuExtensions } = await importContextMenu();
       expect(Array.isArray(sourceTableContextMenuExtensions)).toBe(true);
+      expect(sourceTableContextMenuExtensions.length).toBeGreaterThan(0);
     });
 
-    it("creates handler function", async () => {
-      const { createTableContextMenuHandler } = await importContextMenu();
-      const handler = createTableContextMenuHandler();
-      expect(handler).toBeDefined();
+    it("does not export createTableContextMenuHandler (replaced by ViewPlugin)", async () => {
+      const mod = await importContextMenu();
+      expect((mod as Record<string, unknown>).createTableContextMenuHandler).toBeUndefined();
+    });
+
+    it("does not export createSourceTableContextMenuPlugin (removed)", async () => {
+      const mod = await importContextMenu();
+      expect((mod as Record<string, unknown>).createSourceTableContextMenuPlugin).toBeUndefined();
     });
   });
 
@@ -231,18 +222,6 @@ describe("SourceTableContextMenu", () => {
     it("formatTable is callable", () => {
       formatTable(view as unknown as EditorView, mockTableInfo);
       expect(formatTable).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-  });
-
-  describe("Plugin creation", () => {
-    it("exports createTableContextMenuHandler", async () => {
-      const mod = await importContextMenu();
-      expect(typeof mod.createTableContextMenuHandler).toBe("function");
-    });
-
-    it("does not export createSourceTableContextMenuPlugin (removed)", async () => {
-      const mod = await importContextMenu();
-      expect((mod as Record<string, unknown>).createSourceTableContextMenuPlugin).toBeUndefined();
     });
   });
 });
