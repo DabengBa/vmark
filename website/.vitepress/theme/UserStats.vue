@@ -24,11 +24,16 @@ const hasVersions = computed(() => {
   return stats.value && stats.value.versions && Object.keys(stats.value.versions).length > 0
 })
 
-const recentVersions = computed(() => {
-  if (!hasVersions.value) return {}
+const versionRows = computed(() => {
+  if (!hasVersions.value) return []
   const entries = Object.entries(stats.value.versions)
   entries.sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
-  return Object.fromEntries(entries.slice(0, 4))
+  const rows = entries.slice(0, 3).map(([v, c]) => ({ label: `v${v}`, count: c }))
+  if (entries.length > 3) {
+    const olderSum = entries.slice(3).reduce((sum, [, c]) => sum + c, 0)
+    rows.push({ label: 'Older', count: olderSum })
+  }
+  return rows
 })
 
 onMounted(async () => {
@@ -79,9 +84,9 @@ onMounted(async () => {
       <div v-if="hasVersions" class="stats-breakdown">
         <h4 class="breakdown-title">Versions</h4>
         <div class="breakdown-list">
-          <div v-for="(count, version) in recentVersions" :key="version" class="breakdown-item">
-            <span class="breakdown-label">v{{ version }}</span>
-            <span class="breakdown-value">{{ count }}</span>
+          <div v-for="row in versionRows" :key="row.label" class="breakdown-item">
+            <span class="breakdown-label">{{ row.label }}</span>
+            <span class="breakdown-value">{{ row.count }}</span>
           </div>
         </div>
       </div>
