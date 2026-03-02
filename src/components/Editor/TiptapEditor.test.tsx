@@ -1287,4 +1287,99 @@ describe("TiptapEditorInner — cleanup all pending timers", () => {
 
     clearTimeoutSpy.mockRestore();
   });
+
+  it("cancels internalChangeRaf on unmount when flushToStore ran (lines 327-329)", () => {
+    // flushToStore schedules an internalChangeRaf RAF after serializing.
+    // Call it via the registered flusher, then unmount before RAF fires.
+    const editor = createMockEditor();
+    editor.state.doc.content.size = 50;
+    mocks.useEditor.mockReturnValue(editor);
+
+    let nextRafId = 0;
+    const cancelledIds: number[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => ++nextRafId);
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      cancelledIds.push(id as number);
+    });
+
+    let capturedFlusher: (() => void) | null = null;
+    mocks.registerActiveWysiwygFlusher.mockImplementation((fn: (() => void) | null) => {
+      if (fn !== null) capturedFlusher = fn;
+    });
+
+    const { unmount } = render(<TiptapEditorInner hidden={false} />);
+    expect(capturedFlusher).not.toBeNull();
+    capturedFlusher!();
+    const internalRafId = nextRafId;
+    unmount();
+
+    expect(cancelledIds).toContain(internalRafId);
+    vi.restoreAllMocks();
+  });
+});
+
+// ── registerActiveWysiwygFlusher callback invocation (line 342) ──────
+
+describe("TiptapEditorInner — flusher callback directly calls flushToStore", () => {
+  it("the flusher callback calls flushToStore synchronously (line 342)", () => {
+    const editor = createMockEditor();
+    editor.state.doc.content.size = 50;
+    mocks.useEditor.mockReturnValue(editor);
+
+    let capturedFlusher: (() => void) | null = null;
+    mocks.registerActiveWysiwygFlusher.mockImplementation((fn: (() => void) | null) => {
+      if (fn !== null) capturedFlusher = fn;
+    });
+    vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+
+    render(<TiptapEditorInner hidden={false} />);
+
+    expect(capturedFlusher).not.toBeNull();
+
+    // Invoke flusher — this executes `flushToStore(editor)` (line 342)
+    capturedFlusher!();
+
+    // flushToStore calls serializeMarkdown and setContent synchronously
+    expect(mocks.serializeMarkdown).toHaveBeenCalled();
+    expect(mocks.setContent).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+});
+
+// ── Visibility transition: cursorInfoRef lambda (line 424) ───────────
+
+describe("TiptapEditorInner — visibility transition cursorInfoRef lambda", () => {
+  it("passes a cursorInfoRef getter lambda to scheduleTiptapFocusAndRestore on hidden→visible (line 424)", async () => {
+    const cursorValue = { line: 5, col: 3 };
+    mocks.useDocumentCursorInfo.mockReturnValue(cursorValue);
+
+    let capturedGetCursor: (() => unknown) | null = null;
+    mocks.scheduleTiptapFocusAndRestore.mockImplementation(
+      (_ed: unknown, getCursor: () => unknown) => { capturedGetCursor = getCursor; }
+    );
+
+    setupUseEditorWithCallbacks();
+    mocks.getTiptapEditorView.mockReturnValue(null);
+    mocks.parseMarkdown.mockReturnValue({ type: "doc", content: [] });
+
+    // Render hidden — onCreate fires async, sets editorInitialized.current = true
+    const { rerender } = render(<TiptapEditorInner hidden={true} />);
+    await vi.waitFor(() => expect(mocks.parseMarkdown).toHaveBeenCalled());
+
+    vi.clearAllMocks();
+    mocks.scheduleTiptapFocusAndRestore.mockImplementation(
+      (_ed: unknown, getCursor: () => unknown) => { capturedGetCursor = getCursor; }
+    );
+    mocks.parseMarkdown.mockReturnValue({ type: "doc", content: [] });
+
+    // Transition to visible — triggers the hidden → visible useEffect (line 413-428)
+    rerender(<TiptapEditorInner hidden={false} />);
+
+    expect(mocks.scheduleTiptapFocusAndRestore).toHaveBeenCalled();
+
+    // The lambda at line 424: () => cursorInfoRef.current
+    expect(capturedGetCursor).not.toBeNull();
+    expect(capturedGetCursor!()).toEqual(cursorValue);
+  });
 });

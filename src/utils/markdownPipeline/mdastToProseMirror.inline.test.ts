@@ -115,4 +115,18 @@ describe("mdastToProseMirror inline", () => {
     const htmlNode = para?.content.content.find((child) => child.type.name === "html_inline");
     expect(htmlNode).toBeDefined();
   });
+
+  it("serializeInlineHtmlNode default branch handles nodes with children via deep nesting", () => {
+    // Triple-nested same-tag triggers the default branch in serializeInlineHtmlNode
+    // when the inner html has children of a type other than text/html/break
+    const doc = parseDoc("<span><span><span>deep</span></span></span>");
+    expect(doc).toBeDefined();
+    const para = doc.firstChild;
+    expect(para?.childCount).toBeGreaterThan(0);
+  });
+
+  it("handles alert node in block context via convertNode", () => {
+    const doc = parseDoc("> [!NOTE]\n> Note text");
+    expect(doc.firstChild?.type.name).toBe("alertBlock");
+  });
 });

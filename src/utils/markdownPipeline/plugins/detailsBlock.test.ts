@@ -172,5 +172,59 @@ Back to outer content.
       expect(innerDetails?.type).toBe("details");
       expect(innerDetails?.summary).toBe("Inner details");
     });
+
+    it("treats unclosed details block as plain html (pushes opening tag as-is)", () => {
+      // If the </details> closing tag is never found, the opening tag is pushed as-is
+      const md = `<details>
+<summary>Unclosed</summary>
+
+Content without closing tag.`;
+      const result = parseWithDetails(md);
+
+      // The unclosed <details> should NOT become a details node; it stays as html
+      const types = result.children.map(c => c.type);
+      expect(types).not.toContain("details");
+    });
+
+    it("does not parse single-block html when content surrounds details tags", () => {
+      // parseDetailsHtmlBlock returns null when prefix or suffix exists
+      const md = `Before <details><summary>S</summary></details> After`;
+      const result = parseWithDetails(md);
+
+      // Because prefix/suffix exist, parseDetailsHtmlBlock returns null
+      // and the fallback sees no multi-block close tag, stays as paragraph
+      expect(result.children[0].type).toBe("paragraph");
+    });
+
+    it("extractSummaryFromChildren returns unchanged when first child is not html", () => {
+      // When the first content after <details> is a paragraph (not html with <summary>)
+      const md = `<details>
+
+No summary paragraph here.
+
+</details>`;
+      const result = parseWithDetails(md);
+
+      const details = result.children[0] as Details;
+      expect(details.type).toBe("details");
+      // Uses the default "Details" summary since no html <summary> was found
+      expect(details.summary).toBe("Details");
+    });
+
+    it("extractSummaryFromChildren returns unchanged when first html has no summary tag", () => {
+      // When the first child is html but doesn't contain <summary>
+      const md = `<details>
+<div>Not a summary</div>
+
+Body content.
+
+</details>`;
+      const result = parseWithDetails(md);
+
+      const details = result.children[0] as Details;
+      expect(details.type).toBe("details");
+      // Uses the default "Details" summary since the html node has no <summary>
+      expect(details.summary).toBe("Details");
+    });
   });
 });
