@@ -218,4 +218,119 @@ describe("openLinkEditor", () => {
     // Should not have tried to open any popup
     expect(resolveLinkPopupPayload).not.toHaveBeenCalled();
   });
+
+  it("applies clipboard URL with word expansion when no selection", async () => {
+    const { findWordAtCursor } = await import("@/plugins/syntaxReveal/marks");
+    vi.mocked(readClipboardUrl).mockResolvedValue("https://example.com");
+    vi.mocked(isViewConnected).mockReturnValue(true);
+    vi.mocked(findWordAtCursor).mockReturnValue({ from: 5, to: 10 });
+
+    const ctx = createContext({ selectionFrom: 7, selectionTo: 7 }); // collapsed cursor
+    openLinkEditor(ctx);
+
+    await vi.waitFor(() => {
+      // Should call addMark on the word range
+      expect(ctx.view!.state.tr.addMark).toHaveBeenCalled();
+      expect(ctx.view!.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  it("inserts URL as linked text when no selection and no word at cursor", async () => {
+    const { findWordAtCursor } = await import("@/plugins/syntaxReveal/marks");
+    vi.mocked(readClipboardUrl).mockResolvedValue("https://example.com");
+    vi.mocked(isViewConnected).mockReturnValue(true);
+    vi.mocked(findWordAtCursor).mockReturnValue(null);
+
+    const ctx = createContext({ selectionFrom: 5, selectionTo: 5 }); // collapsed cursor
+    openLinkEditor(ctx);
+
+    await vi.waitFor(() => {
+      // Should call insert (insertLinkAtCursor path)
+      expect(ctx.view!.state.tr.insert).toHaveBeenCalled();
+      expect(ctx.view!.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  it("skips smart link when already in a link", async () => {
+    vi.mocked(readClipboardUrl).mockResolvedValue("https://example.com");
+    vi.mocked(isViewConnected).mockReturnValue(true);
+    vi.mocked(resolveLinkPopupPayload).mockReturnValue({
+      href: "https://existing.com",
+      linkFrom: 5,
+      linkTo: 15,
+    } as never);
+
+    const openPopup = vi.fn();
+    vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    const ctx = createContext();
+    ctx.context = { inLink: { href: "https://existing.com" } } as never;
+    openLinkEditor(ctx);
+
+    await vi.waitFor(() => {
+      // Should fall back to popup since inLink is true
+      expect(openPopup).toHaveBeenCalled();
+    });
+  });
+
+  it("skips smart link when view disconnects during clipboard read", async () => {
+    vi.mocked(readClipboardUrl).mockResolvedValue("https://example.com");
+    // First call (from trySmartLinkInsertion) returns false
+    vi.mocked(isViewConnected).mockReturnValue(false);
+
+    const ctx = createContext();
+    openLinkEditor(ctx);
+
+    await new Promise((r) => setTimeout(r, 10));
+    // dispatch should NOT have been called because view is disconnected
+    expect(ctx.view!.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("falls back to expandedToggleMarkTiptap when coordsAtPos throws", async () => {
+    vi.mocked(readClipboardUrl).mockResolvedValue(null);
+    vi.mocked(isViewConnected).mockReturnValue(true);
+    vi.mocked(resolveLinkPopupPayload).mockReturnValue({
+      href: "https://test.com",
+      linkFrom: 5,
+      linkTo: 15,
+    } as never);
+
+    const ctx = createContext();
+    (ctx.view! as { coordsAtPos: ReturnType<typeof vi.fn> }).coordsAtPos = vi.fn(() => {
+      throw new Error("coordsAtPos failed");
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    openLinkEditor(ctx);
+
+    await vi.waitFor(() => {
+      expect(expandedToggleMarkTiptap).toHaveBeenCalledWith(ctx.view, "link");
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it("handles wiki link with null value attr", () => {
+    const openPopup = vi.fn();
+    vi.mocked(useWikiLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    // Create a view where the wikiLink node has value: null
+    const ctx = createContext({ inWikiLink: true });
+    // Override the node mock to return null value
+    const mockView = ctx.view!;
+    const $from = (mockView.state.selection as { $from: { node: ReturnType<typeof vi.fn> } }).$from;
+    $from.node = vi.fn((d: number) => {
+      if (d === 1) {
+        return { type: { name: "wikiLink" }, attrs: { value: null }, nodeSize: 8 };
+      }
+      return { type: { name: "doc" } };
+    });
+
+    openLinkEditor(ctx);
+
+    expect(openPopup).toHaveBeenCalledWith(
+      expect.any(Object),
+      "", // null coerced to empty string
+      5
+    );
+  });
 });

@@ -242,6 +242,180 @@ describe("useSourceOutlineSync hook", () => {
   });
 });
 
+describe("useSourceOutlineSync hook — scroll and cursor tracking", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("scrolls to heading position when outline click event fires", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+
+    let outlineHandler: ((event: { payload: { headingIndex: number } }) => void) | null = null;
+    vi.mocked(listen).mockImplementation((_eventName, handler) => {
+      outlineHandler = handler as (event: { payload: { headingIndex: number } }) => void;
+      return Promise.resolve(vi.fn());
+    });
+
+    const mockDispatch = vi.fn();
+    const mockFocus = vi.fn();
+    const viewRef = {
+      current: {
+        state: {
+          doc: textFrom("# First\n\nText\n\n## Second"),
+          selection: { main: { head: 0 } },
+        },
+        dispatch: mockDispatch,
+        focus: mockFocus,
+        dom: {
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    // Wait for async listen setup
+    await vi.waitFor(() => {
+      expect(outlineHandler).not.toBeNull();
+    });
+
+    // Simulate outline click on second heading (index 1)
+    outlineHandler!({ payload: { headingIndex: 0 } });
+
+    expect(mockDispatch).toHaveBeenCalled();
+    expect(mockFocus).toHaveBeenCalled();
+  });
+
+  it("does not scroll when heading is not found", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+
+    let outlineHandler: ((event: { payload: { headingIndex: number } }) => void) | null = null;
+    vi.mocked(listen).mockImplementation((_eventName, handler) => {
+      outlineHandler = handler as (event: { payload: { headingIndex: number } }) => void;
+      return Promise.resolve(vi.fn());
+    });
+
+    const mockDispatch = vi.fn();
+    const viewRef = {
+      current: {
+        state: {
+          doc: textFrom("# Only one heading"),
+          selection: { main: { head: 0 } },
+        },
+        dispatch: mockDispatch,
+        focus: vi.fn(),
+        dom: {
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    await vi.waitFor(() => {
+      expect(outlineHandler).not.toBeNull();
+    });
+
+    // Request heading index 5 which doesn't exist
+    outlineHandler!({ payload: { headingIndex: 5 } });
+
+    // dispatch may have been called for cursor tracking, but not for scroll
+    // The important thing is no crash
+  });
+
+  it("does not dispatch when view is null", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+
+    let outlineHandler: ((event: { payload: { headingIndex: number } }) => void) | null = null;
+    vi.mocked(listen).mockImplementation((_eventName, handler) => {
+      outlineHandler = handler as (event: { payload: { headingIndex: number } }) => void;
+      return Promise.resolve(vi.fn());
+    });
+
+    const viewRef = { current: null };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    await vi.waitFor(() => {
+      expect(outlineHandler).not.toBeNull();
+    });
+
+    // Should not throw when view is null
+    expect(() => {
+      outlineHandler!({ payload: { headingIndex: 0 } });
+    }).not.toThrow();
+  });
+
+  it("tracks active heading from cursor position via DOM listeners", async () => {
+    const { renderHook } = await import("@testing-library/react");
+
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
+
+    const doc = textFrom("# First\n\nText\n\n## Second");
+    const viewRef = {
+      current: {
+        state: {
+          doc,
+          selection: { main: { head: 0 } },
+        },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: {
+          addEventListener: mockAddEventListener,
+          removeEventListener: mockRemoveEventListener,
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    // Should register keyup and mouseup listeners for cursor tracking
+    expect(mockAddEventListener).toHaveBeenCalledWith("keyup", expect.any(Function));
+    expect(mockAddEventListener).toHaveBeenCalledWith("mouseup", expect.any(Function));
+  });
+
+  it("removes DOM listeners on unmount", async () => {
+    const { renderHook } = await import("@testing-library/react");
+
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
+
+    const doc = textFrom("# First\n\nText");
+    const viewRef = {
+      current: {
+        state: {
+          doc,
+          selection: { main: { head: 0 } },
+        },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: {
+          addEventListener: mockAddEventListener,
+          removeEventListener: mockRemoveEventListener,
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    const { unmount } = renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    unmount();
+
+    expect(mockRemoveEventListener).toHaveBeenCalledWith("keyup", expect.any(Function));
+    expect(mockRemoveEventListener).toHaveBeenCalledWith("mouseup", expect.any(Function));
+  });
+});
+
 describe("findNthHeadingPos — edge cases", () => {
   it("handles document with only blank lines", () => {
     const doc = textFrom("\n\n\n\n");

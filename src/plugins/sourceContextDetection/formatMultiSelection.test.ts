@@ -117,4 +117,68 @@ describe("applyInlineFormatToSelections", () => {
     expect(view.state.doc.toString()).toBe("one two three");
     view.destroy();
   });
+
+  it("handles empty cursor selections (no text selected)", () => {
+    // Two cursor positions (collapsed selections) at word boundaries
+    const view = createView("one two three", [
+      { from: 1, to: 1 },
+      { from: 5, to: 5 },
+    ]);
+    applyInlineFormatToSelections(view, "bold");
+    // Should expand to word at cursor and wrap
+    const result = view.state.doc.toString();
+    expect(result).toContain("**");
+    view.destroy();
+  });
+
+  it("wraps with superscript markers", () => {
+    const view = createView("one two three", [
+      { from: 0, to: 3 },
+      { from: 4, to: 7 },
+    ]);
+    applyInlineFormatToSelections(view, "superscript");
+    expect(view.state.doc.toString()).toBe("^one^ ^two^ three");
+    view.destroy();
+  });
+
+  it("wraps with subscript markers", () => {
+    const view = createView("one two three", [
+      { from: 0, to: 3 },
+      { from: 4, to: 7 },
+    ]);
+    applyInlineFormatToSelections(view, "subscript");
+    expect(view.state.doc.toString()).toBe("~one~ ~two~ three");
+    view.destroy();
+  });
+
+  it("handles adjacent selections", () => {
+    const view = createView("ab cd", [
+      { from: 0, to: 2 },
+      { from: 3, to: 5 },
+    ]);
+    applyInlineFormatToSelections(view, "italic");
+    expect(view.state.doc.toString()).toBe("*ab* *cd*");
+    view.destroy();
+  });
+
+  it("unwraps surrounding markers (prefix outside selection)", () => {
+    // Selection is inside the markers: **|one|** **|two|** with cursor inside
+    const view = createView("**one** **two**", [
+      { from: 2, to: 5 },
+      { from: 10, to: 13 },
+    ]);
+    applyInlineFormatToSelections(view, "bold");
+    expect(view.state.doc.toString()).toBe("one two");
+    view.destroy();
+  });
+
+  it("handles link format wrapping", () => {
+    const view = createView("one two three", [
+      { from: 0, to: 3 },
+      { from: 4, to: 7 },
+    ]);
+    applyInlineFormatToSelections(view, "link");
+    expect(view.state.doc.toString()).toBe("[one](url) [two](url) three");
+    view.destroy();
+  });
 });

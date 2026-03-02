@@ -2,7 +2,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { EditorState } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { Editor, getSchema } from "@tiptap/core";
-import { codePreviewExtension, clearPreviewCache, refreshPreviews } from "./tiptap";
+import {
+  codePreviewExtension,
+  clearPreviewCache,
+  refreshPreviews,
+  codePreviewPluginKey,
+  EDITING_STATE_CHANGED,
+  SETTINGS_CHANGED,
+} from "./tiptap";
 
 function createStateWithCodeBlock(language: string, text: string) {
   const schema = getSchema([StarterKit]);
@@ -247,5 +254,185 @@ describe("clearPreviewCache and refreshPreviews", () => {
     clearPreviewCache();
     refreshPreviews();
     // Should not throw
+  });
+});
+
+describe("exported constants", () => {
+  it("exports codePreviewPluginKey", () => {
+    expect(codePreviewPluginKey).toBeDefined();
+  });
+
+  it("exports EDITING_STATE_CHANGED meta key", () => {
+    expect(EDITING_STATE_CHANGED).toBe("codePreviewEditingChanged");
+  });
+
+  it("exports SETTINGS_CHANGED meta key", () => {
+    expect(SETTINGS_CHANGED).toBe("codePreviewSettingsChanged");
+  });
+});
+
+describe("codePreview plugin state apply", () => {
+  it("maps decorations through when doc does not change and no editing/settings meta", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState1 = plugins[0].getState(state);
+    expect(pluginState1.decorations.find().length).toBeGreaterThan(0);
+
+    // Apply empty transaction (no doc change)
+    const nextState = state.apply(state.tr);
+    const pluginState2 = plugins[0].getState(nextState);
+    expect(pluginState2).toBeDefined();
+    expect(pluginState2.decorations.find().length).toBeGreaterThan(0);
+    expect(pluginState2.editingPos).toBeNull();
+  });
+
+  it("recomputes decorations when SETTINGS_CHANGED meta is set", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState1 = plugins[0].getState(state);
+    expect(pluginState1.decorations.find().length).toBeGreaterThan(0);
+
+    // Apply transaction with SETTINGS_CHANGED meta
+    const tr = state.tr.setMeta(SETTINGS_CHANGED, true);
+    const nextState = state.apply(tr);
+    const pluginState2 = plugins[0].getState(nextState);
+    expect(pluginState2).toBeDefined();
+    expect(pluginState2.decorations.find().length).toBeGreaterThan(0);
+  });
+
+  it("recomputes decorations when EDITING_STATE_CHANGED meta is set", () => {
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+    const pluginState1 = plugins[0].getState(state);
+    expect(pluginState1.decorations.find().length).toBeGreaterThan(0);
+
+    // Apply transaction with EDITING_STATE_CHANGED meta
+    const tr = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const nextState = state.apply(tr);
+    const pluginState2 = plugins[0].getState(nextState);
+    expect(pluginState2).toBeDefined();
+  });
+
+  it("recomputes decorations when doc changes", () => {
+    const { state, plugins, schema } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+
+    // Insert text to change the document
+    const nextState = state.apply(state.tr.insertText("X", 1));
+    const pluginState = plugins[0].getState(nextState);
+    expect(pluginState).toBeDefined();
+  });
+});
+
+describe("codePreview plugin view lifecycle", () => {
+  it("plugin spec has a view factory", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins[0].spec.view).toBeTypeOf("function");
+  });
+
+  it("view factory returns update and destroy methods", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const mockView = { state: {} };
+    const viewResult = plugins[0].spec.view!(mockView as never);
+
+    expect(viewResult).toBeDefined();
+    expect(viewResult.update).toBeTypeOf("function");
+    expect(viewResult.destroy).toBeTypeOf("function");
+  });
+
+  it("view update does not throw", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const mockView = { state: {} };
+    const viewResult = plugins[0].spec.view!(mockView as never);
+
+    expect(() => viewResult.update!({ state: {} } as never, {} as never)).not.toThrow();
+  });
+
+  it("view destroy does not throw", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const mockView = { state: {} };
+    const viewResult = plugins[0].spec.view!(mockView as never);
+
+    expect(() => viewResult.destroy!()).not.toThrow();
+  });
+});
+
+describe("codePreview decoration widget rendering", () => {
+  it("creates preview-only node decoration with contenteditable=false", () => {
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2 + y^2");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+
+    // Find the node decoration with preview-only class
+    const nodeDecoration = allDecorations.find(
+      (d: DecorationLike) => d.type?.attrs?.class?.includes("code-block-preview-only")
+    );
+    expect(nodeDecoration).toBeDefined();
+    expect(nodeDecoration!.type?.attrs?.contenteditable).toBe("false");
+    expect(nodeDecoration!.type?.attrs?.["data-language"]).toBe("latex");
+  });
+
+  it("creates widget decoration for non-empty preview content", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+
+    // Should have node decoration + widget decoration
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("creates placeholder widget for whitespace-only svg content", () => {
+    const { state, plugins } = createStateWithCodeBlock("svg", "   ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    // Should have node decoration + placeholder widget
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("creates placeholder widget for whitespace-only $$math$$ content", () => {
+    const { state, plugins } = createStateWithCodeBlock("$$math$$", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not create any decorations for typescript code blocks", () => {
+    const { state, plugins } = createStateWithCodeBlock("typescript", "const x: number = 1;");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+
+  it("does not create any decorations for json code blocks", () => {
+    const { state, plugins } = createStateWithCodeBlock("json", '{"key": "value"}');
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
   });
 });

@@ -138,6 +138,32 @@ describe("pixelsToRatio — edge cases", () => {
   });
 });
 
+describe("pixelsToRatio — additional precision", () => {
+  it("handles very large pixel values", () => {
+    expect(pixelsToRatio(10000, 1000)).toBe(0.8);
+  });
+
+  it("handles negative pixel values (clamped to 0.1)", () => {
+    expect(pixelsToRatio(-100, 1000)).toBe(0.1);
+  });
+
+  it("returns exact mid-range ratio", () => {
+    expect(pixelsToRatio(500, 1000)).toBeCloseTo(0.5);
+  });
+});
+
+describe("getAvailableDimension — additional edge cases", () => {
+  it("handles very large sidebar width (exceeds window)", () => {
+    const result = getAvailableDimension("right", 1000, 800, true, 1500);
+    expect(result).toBe(1000 - 1500); // -500
+  });
+
+  it("handles zero window dimensions for bottom", () => {
+    const result = getAvailableDimension("bottom", 0, 0, false, 0);
+    expect(result).toBe(0 - 40 - 40); // negative
+  });
+});
+
 describe("computeTerminalPosition — additional edge cases", () => {
   it("handles very small window (1x1)", () => {
     // ratio = 1.0, in ambiguous zone. w=1 < threshold (1440 or 1390) → bottom

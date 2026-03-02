@@ -367,6 +367,92 @@ describe("useSourceEditorLineNumbersSync", () => {
   });
 });
 
+describe("useSourceEditorContentSync — pending content and rerender", () => {
+  let viewRef: { current: ReturnType<typeof createMockView> | null };
+  let isInternalChange: { current: boolean };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    viewRef = { current: null };
+    isInternalChange = { current: false };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("applies pending content after internal change completes via polling", () => {
+    const mockView = createMockView("old");
+    viewRef.current = mockView;
+    isInternalChange.current = true;
+
+    const { rerender } = renderHook(
+      ({ content }) =>
+        useSourceEditorContentSync(viewRef as never, isInternalChange, content),
+      { initialProps: { content: "pending content" } }
+    );
+
+    // Should not dispatch while internal change is in progress
+    expect((mockView as { dispatch: ReturnType<typeof vi.fn> }).dispatch).not.toHaveBeenCalled();
+
+    // Internal change completes
+    isInternalChange.current = false;
+
+    // Advance past the polling interval (100ms)
+    vi.advanceTimersByTime(150);
+
+    // Pending content should have been applied by the polling interval
+    expect((mockView as { dispatch: ReturnType<typeof vi.fn> }).dispatch).toHaveBeenCalled();
+
+    rerender({ content: "pending content" });
+  });
+
+  it("skips dispatch when content matches last applied content", () => {
+    const mockView = createMockView("old content");
+    viewRef.current = mockView;
+
+    const { rerender } = renderHook(
+      ({ content }) =>
+        useSourceEditorContentSync(viewRef as never, isInternalChange, content),
+      { initialProps: { content: "new content" } }
+    );
+
+    const dispatch = (mockView as { dispatch: ReturnType<typeof vi.fn> }).dispatch;
+    const firstCallCount = dispatch.mock.calls.length;
+
+    // Rerender with same content — should not dispatch again
+    rerender({ content: "new content" });
+
+    expect(dispatch.mock.calls.length).toBe(firstCallCount);
+  });
+
+  it("does not apply pending content when hidden ref is true during polling", () => {
+    const mockView = createMockView("old");
+    viewRef.current = mockView;
+    isInternalChange.current = true;
+    const hiddenRef = { current: false };
+
+    renderHook(() =>
+      useSourceEditorContentSync(
+        viewRef as never,
+        isInternalChange,
+        "pending",
+        undefined,
+        hiddenRef
+      )
+    );
+
+    // Internal change done, but now hidden
+    isInternalChange.current = false;
+    hiddenRef.current = true;
+
+    vi.advanceTimersByTime(150);
+
+    // Should not dispatch because hidden
+    expect((mockView as { dispatch: ReturnType<typeof vi.fn> }).dispatch).not.toHaveBeenCalled();
+  });
+});
+
 describe("useSourceEditorSync (combined)", () => {
   beforeEach(() => {
     mockLineWrapReconfigure.mockClear();

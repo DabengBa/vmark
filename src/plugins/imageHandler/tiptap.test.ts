@@ -104,6 +104,8 @@ vi.mock("@/utils/multiImageParsing", () => ({
 
 // --- Imports (after mocks) ---
 
+import { Schema } from "@tiptap/pm/model";
+import { EditorState } from "@tiptap/pm/state";
 import { imageHandlerExtension } from "./tiptap";
 
 // --- Helpers ---
@@ -536,5 +538,305 @@ describe("handleDrop edge cases", () => {
     const result = (view as unknown as { posAtCoords: (c: { left: number; top: number }) => null }).posAtCoords({ left: -1, top: -1 });
     expect(result).toBeNull();
     // Fallback should use view.state.selection.from
+  });
+});
+
+describe("imageHandler plugin handler integration", () => {
+  let handlePaste: (view: unknown, event: ClipboardEvent) => boolean;
+  let handleDrop: (view: unknown, event: DragEvent, slice: unknown, moved: boolean) => boolean;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsGetState.mockReturnValue({ image: { copyToAssets: true } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+    mockSaveImageToAssets.mockResolvedValue(".assets/saved.png");
+    mockTryTextImagePaste.mockReturnValue(false);
+
+    // Extract plugin handlers from the extension
+    const extensionContext = {
+      name: imageHandlerExtension.name,
+      options: imageHandlerExtension.options,
+      storage: imageHandlerExtension.storage,
+      editor: {} as import("@tiptap/core").Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = imageHandlerExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const plugin = plugins[0];
+    handlePaste = plugin.props.handlePaste!;
+    handleDrop = plugin.props.handleDrop!;
+  });
+
+  describe("handlePaste", () => {
+    it("returns true and calls processClipboardImage for image clipboard item", () => {
+      const file = new File(["img-data"], "test.png", { type: "image/png" });
+      const event = createMockClipboardEvent([{ type: "image/png", file }]);
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it("returns true when tryTextImagePaste returns true", () => {
+      mockTryTextImagePaste.mockReturnValue(true);
+      const event = createMockClipboardEvent([
+        { type: "text/plain", data: "/path/to/image.png" },
+      ]);
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it("returns false when no image items and tryTextImagePaste returns false", () => {
+      const event = createMockClipboardEvent([
+        { type: "text/plain", data: "just regular text" },
+      ]);
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(false);
+    });
+
+    it("returns false when clipboardData is null", () => {
+      const event = {
+        clipboardData: null,
+        preventDefault: vi.fn(),
+      } as unknown as ClipboardEvent;
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(false);
+    });
+
+    it("returns false when clipboardData.items is undefined", () => {
+      const event = {
+        clipboardData: { getData: () => "" },
+        preventDefault: vi.fn(),
+      } as unknown as ClipboardEvent;
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(false);
+    });
+
+    it("prioritizes binary image over text items", () => {
+      const file = new File(["img"], "photo.png", { type: "image/png" });
+      const event = createMockClipboardEvent([
+        { type: "text/plain", data: "some text" },
+        { type: "image/png", file },
+      ]);
+      const view = createMockView();
+
+      const result = handlePaste(view, event);
+      expect(result).toBe(true);
+      // Should NOT have called tryTextImagePaste since image was found first
+      expect(mockTryTextImagePaste).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handleDrop", () => {
+    it("returns false for internal editor moves (moved=true)", () => {
+      const event = createMockDragEvent({
+        dataTransfer: { files: [], getData: () => "" },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, true);
+      expect(result).toBe(false);
+    });
+
+    it("returns false when no dataTransfer", () => {
+      const event = createMockDragEvent({ dataTransfer: null });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(false);
+    });
+
+    it("returns true and processes image files when dropped", () => {
+      const file = new File(["img"], "photo.png", { type: "image/png" });
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [file],
+          getData: () => "",
+        },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it("uses posAtCoords to determine drop position", () => {
+      const file = new File(["img"], "photo.png", { type: "image/png" });
+      const view = createMockView();
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [file],
+          getData: () => "",
+        },
+      });
+
+      handleDrop(view, event, null, false);
+      expect((view as Record<string, unknown>).posAtCoords).toHaveBeenCalled();
+    });
+
+    it("falls back to selection.from when posAtCoords returns null", () => {
+      const file = new File(["img"], "photo.png", { type: "image/png" });
+      const view = createMockView({ posAtCoords: vi.fn(() => null) });
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [file],
+          getData: () => "",
+        },
+      });
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(true);
+    });
+
+    it("handles file:// URI drops when copyToAssets is disabled", () => {
+      mockSettingsGetState.mockReturnValue({ image: { copyToAssets: false } });
+
+      const file = new File(["img"], "photo.png", { type: "image/png" });
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [file],
+          getData: (type: string) =>
+            type === "text/uri-list" ? "file:///Users/test/photo.png" : "",
+        },
+      });
+      // Use a real EditorState so Selection.near works
+      const realSchema = new Schema({
+        nodes: {
+          doc: { content: "paragraph+" },
+          paragraph: { content: "text*" },
+          text: { inline: true },
+        },
+      });
+      const realState = EditorState.create({
+        doc: realSchema.node("doc", null, [
+          realSchema.node("paragraph", null, [realSchema.text("hello world")]),
+        ]),
+        schema: realSchema,
+      });
+      const view = {
+        ...createMockView(),
+        state: realState,
+        dispatch: vi.fn(),
+        posAtCoords: vi.fn(() => ({ pos: 5 })),
+      };
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+      // .map passes (value, index, array) — the mock receives all three
+      expect(mockFileUrlToPath).toHaveBeenCalled();
+      expect(mockFileUrlToPath.mock.calls[0][0]).toBe("file:///Users/test/photo.png");
+    });
+
+    it("handles text drop with image paths", () => {
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [] as File[],
+          getData: (type: string) =>
+            type === "text/plain" ? "/Users/test/photo.png" : "",
+        },
+      });
+      // Use a real EditorState so Selection.near works
+      const realSchema = new Schema({
+        nodes: {
+          doc: { content: "paragraph+" },
+          paragraph: { content: "text*" },
+          text: { inline: true },
+        },
+      });
+      const realState = EditorState.create({
+        doc: realSchema.node("doc", null, [
+          realSchema.node("paragraph", null, [realSchema.text("hello world")]),
+        ]),
+        schema: realSchema,
+      });
+      const view = {
+        ...createMockView(),
+        state: realState,
+        dispatch: vi.fn(),
+        posAtCoords: vi.fn(() => ({ pos: 5 })),
+      };
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(true);
+      expect(mockInsertMultipleImages).toHaveBeenCalled();
+    });
+
+    it("returns false for text drop with non-image paths", () => {
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [] as File[],
+          getData: (type: string) =>
+            type === "text/plain" ? "/Users/test/document.pdf" : "",
+        },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(false);
+    });
+
+    it("returns false when no files and no text data", () => {
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [] as File[],
+          getData: () => "",
+        },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(false);
+    });
+
+    it("filters non-image files from dropped files", () => {
+      const files = [
+        new File(["img"], "photo.png", { type: "image/png" }),
+        new File(["doc"], "file.pdf", { type: "application/pdf" }),
+      ];
+      mockIsImageFile.mockImplementation((f: File) => f.type.startsWith("image/"));
+
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files,
+          getData: () => "",
+        },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(true);
+    });
+
+    it("returns false when all dropped files are non-image", () => {
+      const files = [
+        new File(["doc"], "file.pdf", { type: "application/pdf" }),
+        new File(["txt"], "readme.txt", { type: "text/plain" }),
+      ];
+      mockIsImageFile.mockImplementation(() => false);
+
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files,
+          getData: () => "",
+        },
+      });
+      const view = createMockView();
+
+      const result = handleDrop(view, event, null, false);
+      expect(result).toBe(false);
+    });
   });
 });

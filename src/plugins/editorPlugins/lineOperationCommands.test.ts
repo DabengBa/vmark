@@ -423,4 +423,152 @@ describe("lineOperationCommands", () => {
       view.destroy();
     });
   });
+
+  describe("doWysiwygMoveLineUp — with wrapper", () => {
+    // Use a schema with blockquote so getBlockRange finds blocks at depth > 1
+    const wrapperSchema = new Schema({
+      nodes: {
+        doc: { content: "block+", toDOM: () => ["div", 0] },
+        blockquote: {
+          group: "block",
+          content: "block+",
+          toDOM: () => ["blockquote", 0],
+        },
+        paragraph: {
+          group: "block",
+          content: "text*",
+          toDOM: () => ["p", 0],
+        },
+        text: { inline: true },
+      },
+    });
+
+    function createWrappedView(texts: string[], cursorPos: number): EditorView {
+      const paragraphs = texts.map((t) =>
+        wrapperSchema.node("paragraph", null, t ? [wrapperSchema.text(t)] : [])
+      );
+      const bq = wrapperSchema.node("blockquote", null, paragraphs);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, cursorPos))
+      );
+      const container = document.createElement("div");
+      return new EditorView(container, { state });
+    }
+
+    /**
+     * Layout for blockquote with ["aaa", "bbb", "ccc"]:
+     *   0<bq>
+     *     1<p> 2:a 3:a 4:a </p>5
+     *     6<p> 7:b 8:b 9:b </p>10
+     *    11<p> 12:c 13:c 14:c </p>15
+     *   </bq>16
+     */
+
+    it("returns false when $from resolves at wrapper boundary (guard path)", () => {
+      // blockRange.from resolves at blockquote depth, causing the
+      // "already at top" guard to trigger. This exercises the guard path.
+      const view = createWrappedView(["aaa", "bbb", "ccc"], 7);
+      const result = doWysiwygMoveLineUp(view);
+      expect(result).toBe(false);
+      view.destroy();
+    });
+
+    it("returns false for first paragraph in blockquote", () => {
+      const view = createWrappedView(["aaa", "bbb"], 2);
+      const result = doWysiwygMoveLineUp(view);
+      expect(result).toBe(false);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygMoveLineDown — with wrapper", () => {
+    const wrapperSchema = new Schema({
+      nodes: {
+        doc: { content: "block+", toDOM: () => ["div", 0] },
+        blockquote: {
+          group: "block",
+          content: "block+",
+          toDOM: () => ["blockquote", 0],
+        },
+        paragraph: {
+          group: "block",
+          content: "text*",
+          toDOM: () => ["p", 0],
+        },
+        text: { inline: true },
+      },
+    });
+
+    function createWrappedView(texts: string[], cursorPos: number): EditorView {
+      const paragraphs = texts.map((t) =>
+        wrapperSchema.node("paragraph", null, t ? [wrapperSchema.text(t)] : [])
+      );
+      const bq = wrapperSchema.node("blockquote", null, paragraphs);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, cursorPos))
+      );
+      const container = document.createElement("div");
+      return new EditorView(container, { state });
+    }
+
+    it("returns false when $to resolves at wrapper boundary (guard path)", () => {
+      // blockRange.to resolves at the blockquote level, triggering the
+      // "already at bottom" guard because $to.index at that depth equals
+      // parentNode.childCount - 1. This exercises the guard path.
+      const view = createWrappedView(["aaa", "bbb", "ccc"], 7);
+      const result = doWysiwygMoveLineDown(view);
+      // The function returns false due to depth resolution at boundary
+      expect(result).toBe(false);
+      view.destroy();
+    });
+
+    it("returns false for last paragraph in blockquote", () => {
+      const view = createWrappedView(["aaa", "bbb"], 7);
+      const result = doWysiwygMoveLineDown(view);
+      expect(result).toBe(false);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygJoinLines — with selection spanning blocks in wrapper", () => {
+    const wrapperSchema = new Schema({
+      nodes: {
+        doc: { content: "block+", toDOM: () => ["div", 0] },
+        blockquote: {
+          group: "block",
+          content: "block+",
+          toDOM: () => ["blockquote", 0],
+        },
+        paragraph: {
+          group: "block",
+          content: "text*",
+          toDOM: () => ["p", 0],
+        },
+        text: { inline: true },
+      },
+    });
+
+    it("joins selected text across blocks with spaces", () => {
+      const paragraphs = ["hello", "world"].map((t) =>
+        wrapperSchema.node("paragraph", null, [wrapperSchema.text(t)])
+      );
+      const bq = wrapperSchema.node("blockquote", null, paragraphs);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      // Select from inside "hello" (pos 3) to inside "world" (pos 9)
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3, 9))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygJoinLines(view);
+      expect(result).toBe(true);
+      view.destroy();
+    });
+  });
 });

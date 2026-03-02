@@ -257,3 +257,126 @@ describe("handleOpenFile — edge cases", () => {
     expect(mockReadTextFile).toHaveBeenCalledWith("/docs/fresh.md");
   });
 });
+
+describe("handleOpen — dialog and routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useTabStore.getState().removeWindow(WINDOW);
+    Object.keys(useDocumentStore.getState().documents).forEach((id) =>
+      useDocumentStore.getState().removeDocument(id)
+    );
+  });
+
+  it("does nothing when dialog is cancelled (no path selected)", async () => {
+    mockOpen.mockResolvedValue(null);
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(mockResolveOpenAction).not.toHaveBeenCalled();
+    expect(mockReadTextFile).not.toHaveBeenCalled();
+  });
+
+  it("activates existing tab when action is activate_tab", async () => {
+    mockOpen.mockResolvedValue("/docs/existing.md");
+    mockResolveOpenAction.mockReturnValue({ action: "activate_tab", tabId: "tab-42" });
+    const setActiveSpy = vi.spyOn(useTabStore.getState(), "setActiveTab");
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(setActiveSpy).toHaveBeenCalledWith(WINDOW, "tab-42");
+  });
+
+  it("creates new tab when action is create_tab", async () => {
+    mockOpen.mockResolvedValue("/docs/new.md");
+    mockFindExistingTabForPath.mockReturnValue(null);
+    mockResolveOpenAction.mockReturnValue({ action: "create_tab" });
+    mockReadTextFile.mockResolvedValue("# New Content");
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(mockReadTextFile).toHaveBeenCalledWith("/docs/new.md");
+  });
+
+  it("replaces tab when action is replace_tab", async () => {
+    mockOpen.mockResolvedValue("/docs/replace.md");
+    mockResolveOpenAction.mockReturnValue({
+      action: "replace_tab",
+      tabId: "empty-tab",
+      filePath: "/docs/replace.md",
+      workspaceRoot: "/docs",
+    });
+    mockReadTextFile.mockResolvedValue("# Replaced");
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(mockReadTextFile).toHaveBeenCalledWith("/docs/replace.md");
+    expect(mockOpenWorkspaceWithConfig).toHaveBeenCalledWith("/docs");
+  });
+
+  it("handles replace_tab read failure gracefully", async () => {
+    mockOpen.mockResolvedValue("/docs/broken.md");
+    mockResolveOpenAction.mockReturnValue({
+      action: "replace_tab",
+      tabId: "empty-tab",
+      filePath: "/docs/broken.md",
+      workspaceRoot: "/docs",
+    });
+    mockReadTextFile.mockRejectedValue(new Error("read fail"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("opens workspace in new window when action is open_workspace_in_new_window", async () => {
+    mockOpen.mockResolvedValue("/other/file.md");
+    mockResolveOpenAction.mockReturnValue({
+      action: "open_workspace_in_new_window",
+      workspaceRoot: "/other",
+      filePath: "/other/file.md",
+    });
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(mockInvoke).toHaveBeenCalledWith("open_workspace_in_new_window", {
+      workspaceRoot: "/other",
+      filePath: "/other/file.md",
+    });
+  });
+
+  it("handles open_workspace_in_new_window invoke failure", async () => {
+    mockOpen.mockResolvedValue("/other/file.md");
+    mockResolveOpenAction.mockReturnValue({
+      action: "open_workspace_in_new_window",
+      workspaceRoot: "/other",
+      filePath: "/other/file.md",
+    });
+    mockInvoke.mockRejectedValue(new Error("invoke fail"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("does nothing when action is no_op", async () => {
+    mockOpen.mockResolvedValue("/docs/noop.md");
+    mockResolveOpenAction.mockReturnValue({ action: "no_op" });
+
+    const { handleOpen } = await import("./useFileOpen");
+    await handleOpen(WINDOW);
+
+    expect(mockReadTextFile).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+});

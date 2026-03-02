@@ -334,6 +334,99 @@ describe("useFileShortcuts", () => {
       expect(mockHandleSave).not.toHaveBeenCalled();
     });
 
+    it("does not match unrelated keyboard events", async () => {
+      mockMatchesShortcutEvent.mockReturnValue(false);
+
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalled();
+      });
+
+      const event = new KeyboardEvent("keydown", { key: "a" });
+      Object.defineProperty(event, "target", {
+        value: document.createElement("div"),
+      });
+      window.dispatchEvent(event);
+
+      expect(mockHandleSave).not.toHaveBeenCalled();
+      expect(mockHandleSaveAs).not.toHaveBeenCalled();
+    });
+
+    it("calls handleOpen when menu:open event matches window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:open"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:open"]({ payload: "main" });
+
+      await vi.waitFor(() => {
+        expect(mockHandleOpen).toHaveBeenCalledWith("main");
+      });
+    });
+
+    it("ignores menu:open event for different window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:open"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:open"]({ payload: "doc-1" });
+
+      expect(mockHandleOpen).not.toHaveBeenCalled();
+    });
+
+    it("ignores menu:save event for different window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:save"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:save"]({ payload: "doc-1" });
+
+      expect(mockHandleSave).not.toHaveBeenCalled();
+    });
+
+    it("ignores menu:save-as event for different window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:save-as"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:save-as"]({ payload: "doc-1" });
+
+      expect(mockHandleSaveAs).not.toHaveBeenCalled();
+    });
+
+    it("ignores menu:move-to event for different window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:move-to"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:move-to"]({ payload: "doc-1" });
+
+      expect(mockHandleMoveTo).not.toHaveBeenCalled();
+    });
+
+    it("ignores menu:save-all-quit event for different window", async () => {
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(listenCallbacks["menu:save-all-quit"]).toBeDefined();
+      });
+
+      listenCallbacks["menu:save-all-quit"]({ payload: "doc-1" });
+
+      expect(mockHandleSaveAllQuit).not.toHaveBeenCalled();
+    });
+
     it("removes keyboard listener on unmount", async () => {
       const removeListenerSpy = vi.spyOn(window, "removeEventListener");
 

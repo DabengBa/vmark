@@ -322,6 +322,47 @@ describe("createTerminalInstance — different settings", () => {
   });
 });
 
+describe("createTerminalInstance — copy-on-select", () => {
+  let selectionHandler: () => void;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOpenUrl.mockResolvedValue(undefined);
+
+    const inst = makeInstance();
+
+    // Capture the selection change handler
+    selectionHandler = inst.term.onSelectionChange.mock.calls[0][0];
+  });
+
+  it("calls onSelectionChange handler without crashing", () => {
+    // Default: copyOnSelect is false, hasSelection returns false
+    expect(() => selectionHandler()).not.toThrow();
+  });
+});
+
+describe("createTerminalInstance — IME textarea not found", () => {
+  it("logs warning when xterm-helper-textarea is not found", () => {
+    // The default mock terminal doesn't create a real .xterm-helper-textarea
+    // in the container, so the code path for textarea === null is exercised
+    makeInstance();
+    expect(mockTerminalLog).toHaveBeenCalledWith(
+      expect.stringContaining("xterm-helper-textarea not found"),
+    );
+  });
+});
+
+describe("createTerminalInstance — file link provider callback", () => {
+  it("registers file link provider with callback", () => {
+    const inst = makeInstance();
+    // registerLinkProvider is called with the file link provider
+    expect(inst.term.registerLinkProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ provideLinks: expect.any(Function) })
+    );
+    inst.dispose();
+  });
+});
+
 describe("createTerminalInstance — dispose edge cases", () => {
   it("handles dispose when container already removed from DOM", () => {
     const parentEl = document.createElement("div");

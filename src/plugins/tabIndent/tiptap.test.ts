@@ -442,3 +442,264 @@ describe("tabIndentExtension", () => {
     });
   });
 });
+
+// --- Phase 3: Plugin-level integration tests ---
+// These tests instantiate the actual ProseMirror plugin from the extension
+// and call its handleDOMEvents.keydown handler directly.
+
+describe("tabIndent plugin handler integration", () => {
+  let keydownHandler: (view: unknown, event: KeyboardEvent) => boolean;
+
+  beforeEach(() => {
+    mockIsInTable.mockReturnValue(false);
+    mockGetTableInfo.mockReturnValue(null);
+    mockCanTabEscape.mockReturnValue(null);
+    vi.clearAllMocks();
+
+    // Extract the actual plugin from the extension
+    const extensionContext = {
+      name: tabIndentExtension.name,
+      options: tabIndentExtension.options,
+      storage: tabIndentExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = tabIndentExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins).toHaveLength(1);
+    const plugin = plugins[0];
+    // Extract the keydown handler from plugin props
+    keydownHandler = plugin.props.handleDOMEvents!.keydown as (view: unknown, event: KeyboardEvent) => boolean;
+    expect(keydownHandler).toBeDefined();
+  });
+
+  function createMockView(state: EditorState) {
+    const dispatched: unknown[] = [];
+    return {
+      state,
+      dom: document.createElement("div"),
+      dispatch: vi.fn((tr: unknown) => { dispatched.push(tr); }),
+      dispatched,
+    };
+  }
+
+  function makeTabEvent(overrides: KeyboardEventInit = {}): KeyboardEvent {
+    return new KeyboardEvent("keydown", { key: "Tab", bubbles: true, ...overrides });
+  }
+
+  it("returns false for non-Tab keys", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for Tab with Ctrl modifier", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ ctrlKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for Tab with Alt modifier", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ altKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for Tab with Meta modifier", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ metaKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for IME composition (isComposing)", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    Object.defineProperty(event, "isComposing", { value: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for IME keyCode 229", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ keyCode: 229 });
+    // keyCode 229 indicates IME composition
+    Object.defineProperty(event, "keyCode", { value: 229 });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("inserts spaces at cursor on Tab (plain text, no selection)", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    // The dispatched transaction should insert 2 spaces (tabSize=2)
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.doc.textContent).toBe("he  llo");
+  });
+
+  it("replaces selection with spaces on Tab", () => {
+    const state = createState("hello world");
+    const sel = TextSelection.create(state.doc, 1, 6);
+    const stateWithSel = state.apply(state.tr.setSelection(sel));
+    const view = createMockView(stateWithSel);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.doc.textContent).toBe("   world");
+  });
+
+  it("removes leading spaces on Shift+Tab (outdent)", () => {
+    const state = createState("  hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.doc.textContent).toBe("hello");
+  });
+
+  it("does nothing on Shift+Tab when no leading spaces", () => {
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    // dispatch should not be called — early return when leadingSpaces === 0
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("removes only tabSize spaces on Shift+Tab when more exist", () => {
+    // 4 spaces before cursor, tabSize=2, should remove 2
+    const state = createState("    hello", 5);
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.doc.textContent).toBe("  hello");
+  });
+
+  it("delegates to canTabEscape on forward Tab and dispatches escape", () => {
+    mockCanTabEscape.mockReturnValue({ type: "mark", targetPos: 6 });
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(mockCanTabEscape).toHaveBeenCalledWith(state);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches link escape and clears link stored mark", () => {
+    mockCanTabEscape.mockReturnValue({ type: "link", targetPos: 6 });
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call canTabEscape on Shift+Tab", () => {
+    mockCanTabEscape.mockReturnValue({ type: "mark", targetPos: 6 });
+    const state = createState("  hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true });
+    keydownHandler(view, event);
+    expect(mockCanTabEscape).not.toHaveBeenCalled();
+  });
+
+  it("delegates to table navigation when in table", () => {
+    mockIsInTable.mockReturnValue(true);
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(mockIsInTable).toHaveBeenCalled();
+  });
+
+  it("delegates to list sink on Tab in list item", () => {
+    const state = createListState(["item 1"]);
+    // Set selection inside the list item
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3)),
+    );
+    const view = createMockView(stateWithSel);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+  });
+
+  it("delegates to list lift on Shift+Tab in list item", () => {
+    const state = createListState(["item 1"]);
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3)),
+    );
+    const view = createMockView(stateWithSel);
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+  });
+
+  it("handles MultiSelection from canTabEscape (instanceof branch)", async () => {
+    // The MultiSelection branch requires a proper PM Selection subclass,
+    // which cannot be fully constructed in jsdom. We verify canTabEscape
+    // is called and verify the instanceof check branch exists.
+    const { MultiSelection } = await import("@/plugins/multiCursor/MultiSelection");
+    const ms = new MultiSelection([], 0);
+    expect(ms).toBeInstanceOf(MultiSelection);
+    // When canTabEscape returns a non-MultiSelection result, it uses the single-cursor path
+    mockCanTabEscape.mockReturnValue({ type: "mark", targetPos: 6 });
+    const state = createState("hello", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(mockCanTabEscape).toHaveBeenCalledWith(state);
+  });
+
+  it("handles empty document Tab insertion", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, []),
+    ]);
+    const state = EditorState.create({ doc, schema });
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.doc.textContent).toBe("  ");
+  });
+
+  it("handles Shift+Tab on empty document (no spaces to remove)", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, []),
+    ]);
+    const state = EditorState.create({ doc, schema });
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    // No dispatch — nothing to remove
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});

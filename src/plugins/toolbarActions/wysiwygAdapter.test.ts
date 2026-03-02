@@ -1,7 +1,94 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Editor as TiptapEditor } from "@tiptap/core";
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/plugins/editorPlugins.tiptap", () => ({
+  expandedToggleMarkTiptap: vi.fn(() => true),
+}));
+vi.mock("@/plugins/formatToolbar/nodeActions.tiptap", () => ({
+  handleBlockquoteNest: vi.fn(),
+  handleBlockquoteUnnest: vi.fn(),
+  handleRemoveBlockquote: vi.fn(),
+  handleListIndent: vi.fn(),
+  handleListOutdent: vi.fn(),
+  handleRemoveList: vi.fn(),
+  handleToBulletList: vi.fn(),
+  handleToOrderedList: vi.fn(),
+}));
+vi.mock("@/plugins/tableUI/tableActions.tiptap", () => ({
+  addColLeft: vi.fn(() => true),
+  addColRight: vi.fn(() => true),
+  addRowAbove: vi.fn(() => true),
+  addRowBelow: vi.fn(() => true),
+  alignColumn: vi.fn(() => true),
+  deleteCurrentColumn: vi.fn(() => true),
+  deleteCurrentRow: vi.fn(() => true),
+  deleteCurrentTable: vi.fn(() => true),
+  formatTable: vi.fn(() => true),
+}));
+vi.mock("@/plugins/footnotePopup/tiptapInsertFootnote", () => ({
+  insertFootnoteAndOpenPopup: vi.fn(),
+}));
+vi.mock("@/plugins/taskToggle/tiptapTaskListUtils", () => ({
+  toggleTaskList: vi.fn(),
+}));
+vi.mock("@/plugins/toolbarActions/tiptapSelectionActions", () => ({
+  selectWordInView: vi.fn(() => true),
+  selectLineInView: vi.fn(() => true),
+  selectBlockInView: vi.fn(() => true),
+  expandSelectionInView: vi.fn(() => true),
+}));
+vi.mock("./multiSelectionPolicy", () => ({
+  canRunActionInMultiSelection: vi.fn(() => true),
+}));
+vi.mock("./wysiwygMultiSelection", () => ({
+  applyMultiSelectionBlockquoteAction: vi.fn(() => false),
+  applyMultiSelectionHeading: vi.fn(() => false),
+  applyMultiSelectionListAction: vi.fn(() => false),
+}));
+vi.mock("./wysiwygAdapterLinks", () => ({
+  insertWikiLink: vi.fn(() => true),
+  insertBookmarkLink: vi.fn(() => true),
+}));
+vi.mock("./wysiwygAdapterFormatting", () => ({
+  clearFormattingInView: vi.fn(() => true),
+  increaseHeadingLevel: vi.fn(() => true),
+  decreaseHeadingLevel: vi.fn(() => true),
+  toggleBlockquote: vi.fn(() => true),
+  handleWysiwygTransformCase: vi.fn(() => true),
+  toggleQuoteStyleAtCursor: vi.fn(() => true),
+}));
+vi.mock("./wysiwygAdapterInsert", () => ({
+  handleInsertImage: vi.fn(() => true),
+  handleInsertVideo: vi.fn(() => true),
+  handleInsertAudio: vi.fn(() => true),
+  insertMathBlock: vi.fn(() => true),
+  insertDiagramBlock: vi.fn(() => true),
+  insertMarkmapBlock: vi.fn(() => true),
+  insertInlineMath: vi.fn(() => true),
+}));
+vi.mock("./wysiwygAdapterLinkEditor", () => ({
+  openLinkEditor: vi.fn(() => true),
+}));
+vi.mock("./wysiwygAdapterCjk", () => ({
+  handleFormatCJK: vi.fn(() => true),
+  handleFormatCJKFile: vi.fn(() => true),
+  handleRemoveTrailingSpaces: vi.fn(() => true),
+  handleCollapseBlankLines: vi.fn(() => true),
+  handleLineEndings: vi.fn(() => true),
+}));
+vi.mock("./wysiwygAdapterBlockOps", () => ({
+  handleWysiwygMoveBlockUp: vi.fn(() => true),
+  handleWysiwygMoveBlockDown: vi.fn(() => true),
+  handleWysiwygDuplicateBlock: vi.fn(() => true),
+  handleWysiwygDeleteBlock: vi.fn(() => true),
+  handleWysiwygJoinBlocks: vi.fn(() => true),
+  handleWysiwygRemoveBlankLines: vi.fn(() => true),
+}));
+
 import { performWysiwygToolbarAction, setWysiwygHeadingLevel } from "./wysiwygAdapter";
 import type { WysiwygToolbarContext, MultiSelectionContext } from "./types";
+import { canRunActionInMultiSelection } from "./multiSelectionPolicy";
 
 const baseContext: WysiwygToolbarContext = {
   surface: "wysiwyg",
@@ -263,6 +350,7 @@ describe("performWysiwygToolbarAction", () => {
   });
 
   it("returns false when multi-selection disallows the action", () => {
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(false);
     const editor = createMockEditor();
     const multi: MultiSelectionContext = {
       ...disabledMultiSelection,
@@ -276,6 +364,7 @@ describe("performWysiwygToolbarAction", () => {
       multiSelection: multi,
     });
     expect(result).toBe(false);
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(true);
   });
 });
 
@@ -319,10 +408,313 @@ describe("setWysiwygHeadingLevel", () => {
       reason: "multi",
       inCodeBlock: true, // code block disallows conditional actions
     };
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(false);
     const result = setWysiwygHeadingLevel(
       { ...baseContext, editor, multiSelection: multi },
       2
     );
+    expect(result).toBe(false);
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(true);
+  });
+});
+
+describe("performWysiwygToolbarAction (with view)", () => {
+  const mockView = {} as import("@tiptap/pm/view").EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(true);
+  });
+
+  it("handles inline formatting with view", () => {
+    const formats = ["bold", "italic", "underline", "strikethrough", "highlight", "superscript", "subscript", "code"];
+    for (const format of formats) {
+      const result = performWysiwygToolbarAction(format, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles clearFormatting with view", () => {
+    const result = performWysiwygToolbarAction("clearFormatting", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles link action", () => {
+    const result = performWysiwygToolbarAction("link", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles link:wiki action", () => {
+    const result = performWysiwygToolbarAction("link:wiki", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles link:bookmark action", () => {
+    const result = performWysiwygToolbarAction("link:bookmark", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles increaseHeading with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("increaseHeading", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles decreaseHeading with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("decreaseHeading", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles bulletList with view", () => {
+    const result = performWysiwygToolbarAction("bulletList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles orderedList with view", () => {
+    const result = performWysiwygToolbarAction("orderedList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles taskList with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("taskList", {
+      ...baseContext,
+      view: mockView,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns false for taskList without editor", () => {
+    const result = performWysiwygToolbarAction("taskList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("handles indent with view", () => {
+    const result = performWysiwygToolbarAction("indent", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles outdent with view", () => {
+    const result = performWysiwygToolbarAction("outdent", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles removeList with view", () => {
+    const result = performWysiwygToolbarAction("removeList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles table row/col operations with view", () => {
+    const actions = ["addRowAbove", "addRow", "addColLeft", "addCol",
+      "deleteRow", "deleteCol", "deleteTable"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles table alignment operations with view", () => {
+    const actions = ["alignLeft", "alignCenter", "alignRight",
+      "alignAllLeft", "alignAllCenter", "alignAllRight"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles formatTable with view and shows toast", () => {
+    const result = performWysiwygToolbarAction("formatTable", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles blockquote operations with view", () => {
+    const actions = ["nestBlockquote", "unnestBlockquote", "removeBlockquote"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles insertBlockquote with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("insertBlockquote", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles insert media actions", () => {
+    const actions = ["insertImage", "insertVideo", "insertAudio"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles insert math/diagram/markmap actions", () => {
+    const actions = ["insertMath", "insertDiagram", "insertMarkmap", "insertInlineMath"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles insertBulletList with view", () => {
+    const result = performWysiwygToolbarAction("insertBulletList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles insertOrderedList with view", () => {
+    const result = performWysiwygToolbarAction("insertOrderedList", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles insertTaskList with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("insertTaskList", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles insertFootnote with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("insertFootnote", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles toggleQuoteStyle with editor", () => {
+    const editor = createMockEditor();
+    const result = performWysiwygToolbarAction("toggleQuoteStyle", {
+      ...baseContext,
+      editor,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("handles CJK formatting actions", () => {
+    const actions = ["formatCJK", "formatCJKFile", "removeTrailingSpaces",
+      "collapseBlankLines", "lineEndingsLF", "lineEndingsCRLF"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles selection actions with view", () => {
+    const actions = ["selectWord", "selectLine", "selectBlock", "expandSelection"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles block operations", () => {
+    const actions = ["moveLineUp", "moveLineDown", "duplicateLine",
+      "deleteLine", "joinLines", "removeBlankLines"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("handles text transformation actions", () => {
+    const actions = ["transformUppercase", "transformLowercase",
+      "transformTitleCase", "transformToggleCase"];
+    for (const action of actions) {
+      const result = performWysiwygToolbarAction(action, {
+        ...baseContext,
+        view: mockView,
+      });
+      expect(result).toBe(true);
+    }
+  });
+
+  it("returns false when multi-selection disallows action", () => {
+    vi.mocked(canRunActionInMultiSelection).mockReturnValue(false);
+    const result = performWysiwygToolbarAction("bold", {
+      ...baseContext,
+      view: mockView,
+    });
     expect(result).toBe(false);
   });
 });

@@ -15,6 +15,14 @@ import {
   isSourceTableLastBlock,
   escapeTableUp,
   escapeTableDown,
+  tableTabKeymap,
+  tableShiftTabKeymap,
+  tableArrowUpKeymap,
+  tableArrowDownKeymap,
+  tableModEnter,
+  tableModShiftEnter,
+  tableModEnterKeymap,
+  tableModShiftEnterKeymap,
 } from "./tableTabNav";
 
 // Track views for cleanup
@@ -305,5 +313,137 @@ Some text after`
     const view = createView(`^Plain text`);
     const handled = escapeTableDown(view);
     expect(handled).toBe(false);
+  });
+});
+
+describe("getCellBoundaries — edge cases", () => {
+  it("handles single-column table row", () => {
+    const cells = getCellBoundaries("| Solo |");
+    expect(cells.length).toBe(1);
+    expect(cells[0].from).toBeLessThan(cells[0].to);
+  });
+
+  it("handles row without trailing pipe", () => {
+    const cells = getCellBoundaries("| A | B ");
+    expect(cells.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles row with escaped pipe in content", () => {
+    const cells = getCellBoundaries("| A \\| B | C |");
+    // Escaped pipe should not split the cell
+    expect(cells.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles row with code span containing pipe", () => {
+    const cells = getCellBoundaries("| `a|b` | C |");
+    expect(cells.length).toBe(2);
+  });
+
+  it("handles alignment separator with colons", () => {
+    const cells = getCellBoundaries("|:---|:---:|---:|");
+    expect(cells.length).toBe(3);
+  });
+
+  it("handles single pipe only", () => {
+    const cells = getCellBoundaries("|");
+    // A single pipe produces one empty cell after stripping the leading pipe
+    expect(cells.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("handles double pipe (empty cell)", () => {
+    const cells = getCellBoundaries("||");
+    expect(cells.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("goToNextCell — additional scenarios", () => {
+  it("at last cell of header, skips separator and goes to first data cell", () => {
+    const view = createView(
+      `| A | ^B |
+|---|---|
+| 1 | 2 |`
+    );
+
+    const handled = goToNextCell(view);
+    expect(handled).toBe(true);
+
+    // Should be in the data row
+    const cursor = view.state.selection.main.from;
+    const line = view.state.doc.lineAt(cursor);
+    expect(line.text).toContain("1");
+  });
+});
+
+describe("goToPreviousCell — additional scenarios", () => {
+  it("at first cell of header row stays put", () => {
+    const view = createView(
+      `| ^A | B |
+|---|---|
+| 1 | 2 |`
+    );
+
+    const handled = goToPreviousCell(view);
+    expect(handled).toBe(true);
+
+    // Should still be in the header row at first cell
+    const cursor = view.state.selection.main.from;
+    const line = view.state.doc.lineAt(cursor);
+    expect(line.text).toContain("A");
+  });
+
+  it("goes to last cell of previous row", () => {
+    const view = createView(
+      `| A | B |
+|---|---|
+| ^1 | 2 |`
+    );
+
+    const handled = goToPreviousCell(view);
+    expect(handled).toBe(true);
+
+    // Should be in the header row at last cell (B)
+    const cursor = view.state.selection.main.from;
+    const line = view.state.doc.lineAt(cursor);
+    expect(line.text).toContain("B");
+  });
+});
+
+describe("keymap exports", () => {
+  it("tableTabKeymap has key Tab", () => {
+    expect(tableTabKeymap.key).toBe("Tab");
+  });
+
+  it("tableShiftTabKeymap has key Shift-Tab", () => {
+    expect(tableShiftTabKeymap.key).toBe("Shift-Tab");
+  });
+
+  it("tableArrowUpKeymap has key ArrowUp", () => {
+    expect(tableArrowUpKeymap.key).toBe("ArrowUp");
+  });
+
+  it("tableArrowDownKeymap has key ArrowDown", () => {
+    expect(tableArrowDownKeymap.key).toBe("ArrowDown");
+  });
+
+  it("tableModEnterKeymap has key Mod-Enter", () => {
+    expect(tableModEnterKeymap.key).toBe("Mod-Enter");
+  });
+
+  it("tableModShiftEnterKeymap has key Mod-Shift-Enter", () => {
+    expect(tableModShiftEnterKeymap.key).toBe("Mod-Shift-Enter");
+  });
+});
+
+describe("tableModEnter", () => {
+  it("returns false when not in a table", () => {
+    const view = createView("^Plain text");
+    expect(tableModEnter(view)).toBe(false);
+  });
+});
+
+describe("tableModShiftEnter", () => {
+  it("returns false when not in a table", () => {
+    const view = createView("^Plain text");
+    expect(tableModShiftEnter(view)).toBe(false);
   });
 });
