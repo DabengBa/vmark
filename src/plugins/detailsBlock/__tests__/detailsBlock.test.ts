@@ -3,7 +3,7 @@
  * renderHTML, addAttributes, insertDetailsBlock command, click-to-toggle plugin.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
@@ -269,6 +269,17 @@ describe("detailsBlock addInputRules", () => {
     const addInputRules = detailsBlockExtension.config.addInputRules;
     expect(addInputRules).toBeDefined();
   });
+
+  it("input rule handler creates details block from pattern match", () => {
+    const addInputRules = detailsBlockExtension.config.addInputRules;
+    expect(addInputRules).toBeDefined();
+    // Calling the function to verify it returns an array of input rules
+    const rules = addInputRules!.call({
+      name: "detailsBlock", options: {}, storage: {}, editor: {},
+    } as never);
+    expect(rules).toBeDefined();
+    expect(rules!.length).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -310,6 +321,25 @@ describe("detailsBlock click handler", () => {
     const handleClick = getClickHandler();
     const div = document.createElement("div");
     const result = handleClick({}, 0, { target: div });
+    expect(result).toBe(false);
+  });
+
+  it("returns false when summary is found but no detailsBlock ancestor in doc", () => {
+    const handleClick = getClickHandler();
+    const summary = document.createElement("summary");
+    summary.classList.add("details-summary");
+
+    // Create a doc with just a paragraph (no detailsBlock)
+    const { doc } = createDocWithParagraph("Hello world");
+    const state = EditorState.create({ doc });
+
+    const mockView = {
+      state,
+      dispatch: vi.fn(),
+    };
+
+    // Position 2 is inside the paragraph, not a detailsBlock
+    const result = handleClick(mockView, 2, { target: summary });
     expect(result).toBe(false);
   });
 

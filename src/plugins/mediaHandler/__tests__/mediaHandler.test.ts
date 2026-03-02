@@ -8,11 +8,21 @@ import { mediaHandlerExtension } from "../tiptap";
 import type { EditorView } from "@tiptap/pm/view";
 
 // Mock external dependencies
+const mockCopyMediaToAssets = vi.fn(() => Promise.resolve("./assets/media.mp4"));
+const mockSaveMediaToAssets = vi.fn(() => Promise.resolve("./assets/media.mp4"));
+const mockInsertBlockVideoNode = vi.fn();
+const mockInsertBlockAudioNode = vi.fn();
+
 vi.mock("@/hooks/useMediaOperations", () => ({
-  copyMediaToAssets: vi.fn(() => Promise.resolve("./assets/media.mp4")),
-  saveMediaToAssets: vi.fn(() => Promise.resolve("./assets/media.mp4")),
-  insertBlockVideoNode: vi.fn(),
-  insertBlockAudioNode: vi.fn(),
+  copyMediaToAssets: (...args: unknown[]) => mockCopyMediaToAssets(...args),
+  saveMediaToAssets: (...args: unknown[]) => mockSaveMediaToAssets(...args),
+  insertBlockVideoNode: (...args: unknown[]) => mockInsertBlockVideoNode(...args),
+  insertBlockAudioNode: (...args: unknown[]) => mockInsertBlockAudioNode(...args),
+}));
+
+const mockMessage = vi.fn(() => Promise.resolve());
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  message: (...args: unknown[]) => mockMessage(...args),
 }));
 
 vi.mock("@/hooks/useWindowFocus", () => ({
@@ -499,6 +509,281 @@ describe("mediaHandler drop — mixed files", () => {
     } as unknown as ClipboardEvent;
     expect(handlePaste(mockView, event, null as never)).toBe(true);
     expect(event.preventDefault).toHaveBeenCalled();
+  });
+});
+
+function getPlugins() {
+  return mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+    name: "mediaHandler",
+    options: {},
+    storage: {},
+    parent: null as never,
+    editor: {} as never,
+    type: "extension" as never,
+  });
+}
+
+describe("handleDroppedMediaFile async flow", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = {
+      state: {
+        doc: { nodeSize: 10 },
+        selection: { from: 0, to: 0 },
+      },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("saves dropped video file and inserts video node", async () => {
+    const file = new File(["video-data"], "clip.mp4", { type: "video/mp4" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(8))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockSaveMediaToAssets).toHaveBeenCalled();
+    }, { timeout: 200 });
+
+    expect(mockInsertBlockVideoNode).toHaveBeenCalledWith(mockView, "./assets/media.mp4");
+  });
+
+  it("saves dropped audio file and inserts audio node", async () => {
+    const file = new File(["audio-data"], "song.mp3", { type: "audio/mpeg" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(8))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockSaveMediaToAssets).toHaveBeenCalled();
+    }, { timeout: 200 });
+
+    expect(mockInsertBlockAudioNode).toHaveBeenCalledWith(mockView, "./assets/media.mp4");
+  });
+
+  it("shows warning when file is too large", async () => {
+    const file = new File(["x"], "big.mp4", { type: "video/mp4" });
+    // Override size to exceed MAX_DROP_FILE_SIZE (500 MB)
+    Object.defineProperty(file, "size", { value: 600 * 1024 * 1024 });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(8))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining("too large"),
+        expect.objectContaining({ kind: "warning" })
+      );
+    }, { timeout: 200 });
+
+    expect(mockSaveMediaToAssets).not.toHaveBeenCalled();
+  });
+
+  it("shows save required message when no document path", async () => {
+    // Override to return no filePath
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    (useDocumentStore.getState as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      getDocument: vi.fn(() => ({ filePath: null })),
+    });
+
+    const file = new File(["v"], "clip.mp4", { type: "video/mp4" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(4))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining("save the document"),
+        expect.objectContaining({ kind: "info" })
+      );
+    }, { timeout: 200 });
+  });
+
+  it("catches error from saveMediaToAssets and shows error dialog", async () => {
+    mockSaveMediaToAssets.mockRejectedValueOnce(new Error("disk full"));
+
+    const file = new File(["v"], "clip.mp4", { type: "video/mp4" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(4))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining("disk full"),
+        expect.objectContaining({ kind: "error" })
+      );
+    }, { timeout: 200 });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("handles getDocumentPath error (catch branch)", async () => {
+    // Make getWindowLabel throw to trigger the catch in getDocumentPath
+    const { getWindowLabel } = await import("@/hooks/useWindowFocus");
+    (getWindowLabel as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error("no window");
+    });
+
+    const file = new File(["v"], "clip.mp4", { type: "video/mp4" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(4))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining("save the document"),
+        expect.objectContaining({ kind: "info" })
+      );
+    }, { timeout: 200 });
+  });
+});
+
+describe("handlePaste copyMediaToAssets catch fallback", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = {
+      state: {
+        doc: { nodeSize: 10 },
+        selection: { from: 0, to: 0 },
+      },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("falls back to original video path when copyMediaToAssets rejects", async () => {
+    mockCopyMediaToAssets.mockRejectedValueOnce(new Error("copy failed"));
+
+    const plugins = getPlugins();
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) =>
+          type === "text/plain" ? "/path/to/video.mp4" : ""
+        ),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = handlePaste(mockView, event, null as never);
+    expect(result).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to copy media from pasted path:",
+        expect.any(Error)
+      );
+    }, { timeout: 200 });
+
+    expect(mockInsertBlockVideoNode).toHaveBeenCalledWith(mockView, "/path/to/video.mp4");
+    consoleSpy.mockRestore();
+  });
+
+  it("falls back to original audio path when copyMediaToAssets rejects", async () => {
+    mockCopyMediaToAssets.mockRejectedValueOnce(new Error("copy failed"));
+
+    const plugins = getPlugins();
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) =>
+          type === "text/plain" ? "/path/to/song.mp3" : ""
+        ),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    handlePaste(mockView, event, null as never);
+
+    await vi.waitFor(() => {
+      expect(mockInsertBlockAudioNode).toHaveBeenCalledWith(mockView, "/path/to/song.mp3");
+    }, { timeout: 200 });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("inserts via copyMediaToAssets success path for local audio", async () => {
+    mockCopyMediaToAssets.mockResolvedValueOnce("./assets/copied-song.mp3");
+
+    const plugins = getPlugins();
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) =>
+          type === "text/plain" ? "/path/to/song.mp3" : ""
+        ),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    handlePaste(mockView, event, null as never);
+
+    await vi.waitFor(() => {
+      expect(mockInsertBlockAudioNode).toHaveBeenCalledWith(mockView, "./assets/copied-song.mp3");
+    }, { timeout: 200 });
   });
 });
 

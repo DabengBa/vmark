@@ -554,6 +554,86 @@ describe("suggestionHandlers", () => {
       expect(call.data.applied).toBe(false);
       expect(call.data.suggestionIds).toBeDefined();
     });
+
+    it("uses normalized matching when exact match fails due to whitespace", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      // Content has extra spaces that won't exactly match the search
+      vi.mocked(serializeMarkdown).mockReturnValue("Hello   World\n\nFoo");
+      const editor = createMockEditor({ docSize: 50 });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleDocumentReplaceInSourceWithSuggestion("req-48", {
+        search: "Hello World",
+        replace: "Hi Globe",
+      });
+
+      expect(editor.view.dispatch).toHaveBeenCalled();
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.count).toBe(1);
+      expect(call.data.applied).toBe(true);
+
+      // Reset mock
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
+    });
+
+    it("replaces all with normalized matching", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      vi.mocked(serializeMarkdown).mockReturnValue("Hello   World and Hello   World again");
+      const editor = createMockEditor({ docSize: 80 });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleDocumentReplaceInSourceWithSuggestion("req-49", {
+        search: "Hello World",
+        replace: "Hi Globe",
+        all: true,
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.count).toBe(2);
+      expect(call.data.applied).toBe(true);
+
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
+    });
+
+    it("replaces all exact matches using parts.join", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      vi.mocked(serializeMarkdown).mockReturnValue("foo bar foo bar foo");
+      const editor = createMockEditor({ docSize: 50 });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleDocumentReplaceInSourceWithSuggestion("req-50", {
+        search: "foo",
+        replace: "baz",
+        all: true,
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.count).toBe(3);
+
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
+    });
+
+    it("replaces first exact occurrence using indexOf", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      vi.mocked(serializeMarkdown).mockReturnValue("foo bar foo bar");
+      const editor = createMockEditor({ docSize: 50 });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleDocumentReplaceInSourceWithSuggestion("req-51", {
+        search: "foo",
+        replace: "baz",
+        all: false,
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.count).toBe(1);
+
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
+    });
   });
 
   // ── handleSuggestionAccept ──────────────────────────────────────────

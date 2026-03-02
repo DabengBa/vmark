@@ -18,10 +18,10 @@ vi.mock("./link-popup.css", () => ({}));
 
 // Mock LinkPopupView
 vi.mock("./LinkPopupView", () => ({
-  LinkPopupView: vi.fn().mockImplementation(() => ({
-    update: vi.fn(),
-    destroy: vi.fn(),
-  })),
+  LinkPopupView: class MockLinkPopupView {
+    update = vi.fn();
+    destroy = vi.fn();
+  },
 }));
 
 // Mock stores
@@ -606,6 +606,79 @@ describe("linkPopupExtension", () => {
 
       const result = findLinkMarkRange(view, 2);
       expect(result).toBeNull();
+    });
+
+    it("finds second link when cursor is past the first link (skip-ahead path)", () => {
+      // Two links with same href, separated by plain text
+      // This exercises lines 96-98 (continue after skipping past first link)
+      const href = "http://example.com";
+      const linkMark = schema.marks.link.create({ href });
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("first", [linkMark]),
+          schema.text(" gap "),
+          schema.text("second", [linkMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      // Position inside "second" — should skip past "first" link and find "second"
+      // "first" = pos 1-6, " gap " = pos 6-11, "second" = pos 11-17
+      const result = findLinkMarkRange(view, 13);
+      expect(result).not.toBeNull();
+      expect(result!.from).toBe(11);
+      expect(result!.to).toBe(17);
+    });
+
+    it("skips link range when cursor is after it (position outside found range)", () => {
+      // Cursor past the end of a link — the found link range doesn't contain the position
+      // This exercises the `continue` at line 98
+      const href = "http://example.com";
+      const linkMark = schema.marks.link.create({ href });
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("link", [linkMark]),
+          schema.text(" plain text here"),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      // Position in plain text after the link — should return null
+      const result = findLinkMarkRange(view, 10);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("LinkPopupPluginView lifecycle", () => {
+    it("creates and destroys the plugin view", () => {
+      const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({
+        name: "linkPopup",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      });
+
+      const plugin = plugins[0];
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [schema.text("hello")]),
+      ]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+      const mockView = createMockView(state);
+
+      // Instantiate the view
+      const viewResult = plugin.spec.view!(mockView as never);
+      expect(viewResult).toBeDefined();
+      expect(viewResult.destroy).toBeTypeOf("function");
+
+      // update should be callable
+      if (viewResult.update) viewResult.update(mockView as never, state);
+
+      // destroy should clean up
+      viewResult.destroy!();
     });
   });
 });

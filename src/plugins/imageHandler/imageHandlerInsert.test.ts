@@ -307,6 +307,25 @@ describe("insertImageFromPath", () => {
     );
   });
 
+  it("shows error when copyToAssets is disabled and home path expansion fails (lines 65-66)", async () => {
+    mockGetState.mockReturnValue({ image: { copyToAssets: false } });
+    mockExpandHomePath.mockResolvedValue(null);
+    const view = createMockView();
+    const detection = makeDetection({
+      type: "homePath",
+      path: "~/Pictures/photo.png",
+      needsCopy: true,
+    });
+
+    await insertImageFromPath(view, detection, 0, 0, "");
+
+    expect(mockMessage).toHaveBeenCalledWith(
+      "Failed to resolve home directory path.",
+      { kind: "error" }
+    );
+    expect(mockInsertBlockImageNode).not.toHaveBeenCalled();
+  });
+
   it("clamps selection positions to doc size", async () => {
     // Use a real ProseMirror doc so TextSelection.create works
     const { Schema } = await import("@tiptap/pm/model");

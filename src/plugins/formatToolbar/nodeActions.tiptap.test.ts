@@ -311,6 +311,73 @@ describe("list operation functions", () => {
     expect(view.focus).not.toHaveBeenCalled();
   });
 
+  it("handleListIndent calls sinkListItem when in a list (lines 87-88)", async () => {
+    const { handleListIndent } = await import("./nodeActions.tiptap");
+
+    // Need a nested list to be able to sink
+    const innerLi = testSchema.node("listItem", null, [p("Inner")]);
+    const outerLi = testSchema.node("listItem", null, [p("Outer")]);
+    const bulletList = testSchema.node("bulletList", null, [outerLi, innerLi]);
+    const doc = testSchema.node("doc", null, [bulletList]);
+
+    // Position cursor in the second list item
+    let secondTextPos = 0;
+    let count = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText) {
+        count++;
+        if (count === 2) {
+          secondTextPos = pos;
+          return false;
+        }
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, secondTextPos))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleListIndent(view);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it("handleListOutdent lifts list item when in a list (lines 94-95)", async () => {
+    const { handleListOutdent } = await import("./nodeActions.tiptap");
+
+    const li = testSchema.node("listItem", null, [p("Item")]);
+    const bulletList = testSchema.node("bulletList", null, [li]);
+    const doc = testSchema.node("doc", null, [bulletList]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleListOutdent(view);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
   it("handleListOutdent does nothing without listItem type", async () => {
     const { handleListOutdent } = await import("./nodeActions.tiptap");
 
@@ -355,6 +422,77 @@ describe("list operation functions", () => {
     // dispatch should not have been called since not in a list
     expect(view.dispatch).not.toHaveBeenCalled();
   });
+
+  it("handleRemoveList lifts list items when cursor is in a list (lines 155-156,160)", async () => {
+    const { handleRemoveList } = await import("./nodeActions.tiptap");
+
+    const li = testSchema.node("listItem", null, [p("Item")]);
+    const bulletList = testSchema.node("bulletList", null, [li]);
+    const doc = testSchema.node("doc", null, [bulletList]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    // handleRemoveList needs a real dispatch loop because liftListItem
+    // reads view.state after dispatch. We need to update state on dispatch.
+    let currentState = stateWithSel;
+    const view = {
+      get state() { return currentState; },
+      focus: vi.fn(),
+      dispatch: vi.fn((tr: import("@tiptap/pm/state").Transaction) => {
+        currentState = currentState.apply(tr);
+      }),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleRemoveList(view);
+    expect(view.focus).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+});
+
+describe("getNodeContext — table with zero rows (numCols branch, line 34/41)", () => {
+  it("handles table with empty row (covers numCols fallback)", () => {
+    // Create a table with a single row containing 3 cells to verify numCols
+    const cell1 = testSchema.node("tableCell", null, [p("A")]);
+    const cell2 = testSchema.node("tableCell", null, [p("B")]);
+    const cell3 = testSchema.node("tableCell", null, [p("C")]);
+    const row = testSchema.node("tableRow", null, [cell1, cell2, cell3]);
+    const table = testSchema.node("table", null, [row]);
+    const doc = testSchema.node("doc", null, [table]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const view = createViewWithState(stateWithSel);
+    const ctx = getNodeContext(view);
+
+    expect(ctx).not.toBeNull();
+    expect(ctx!.type).toBe("table");
+    if (ctx!.type === "table") {
+      expect(ctx!.numRows).toBe(1);
+      expect(ctx!.numCols).toBe(3);
+    }
+  });
 });
 
 describe("handleToBulletList", () => {
@@ -388,6 +526,25 @@ describe("handleToBulletList", () => {
     expect(view.focus).toHaveBeenCalled();
     // Should not dispatch since already bullet
     expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("wraps plain paragraph in bullet list (lines 117-118)", async () => {
+    const { handleToBulletList } = await import("./nodeActions.tiptap");
+
+    const doc = testSchema.node("doc", null, [p("Plain text")]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleToBulletList(view);
+    expect(view.focus).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalled();
   });
 
   it("converts ordered list to bullet list", async () => {
@@ -452,6 +609,25 @@ describe("handleToOrderedList", () => {
     handleToOrderedList(view);
     expect(view.focus).toHaveBeenCalled();
     expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("wraps plain paragraph in ordered list (lines 140-141)", async () => {
+    const { handleToOrderedList } = await import("./nodeActions.tiptap");
+
+    const doc = testSchema.node("doc", null, [p("Plain text")]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleToOrderedList(view);
+    expect(view.focus).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalled();
   });
 
   it("converts bullet list to ordered list", async () => {

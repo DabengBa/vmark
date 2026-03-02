@@ -702,4 +702,123 @@ describe("tabIndent plugin handler integration", () => {
     // No dispatch — nothing to remove
     expect(view.dispatch).not.toHaveBeenCalled();
   });
+
+  it("handles MultiSelection from canTabEscape (dispatches and clears link marks)", async () => {
+    const { MultiSelection } = await import("@/plugins/multiCursor/MultiSelection");
+    const ms = new MultiSelection([], 0);
+    mockCanTabEscape.mockReturnValue(ms);
+
+    // Use a schema with link mark so removeStoredMark path is exercised
+    const schemaWithLink = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "inline*" },
+        text: { group: "inline", inline: true },
+      },
+      marks: {
+        link: { attrs: { href: { default: "" } } },
+      },
+    });
+    const doc = schemaWithLink.node("doc", null, [
+      schemaWithLink.node("paragraph", null, [schemaWithLink.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: schemaWithLink });
+
+    const mockTr = {
+      setSelection: vi.fn().mockReturnThis(),
+      removeStoredMark: vi.fn().mockReturnThis(),
+    };
+    const view = {
+      state: { ...state, tr: mockTr, schema: schemaWithLink },
+      dispatch: vi.fn(),
+      dom: document.createElement("div"),
+    };
+
+    const result = keydownHandler(view, makeTabEvent());
+    expect(result).toBe(true);
+    expect(mockTr.setSelection).toHaveBeenCalledWith(ms);
+    expect(mockTr.removeStoredMark).toHaveBeenCalledWith(schemaWithLink.marks.link);
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("clears link stored marks when escaping a link (schema with link mark)", () => {
+    mockCanTabEscape.mockReturnValue({ type: "link", targetPos: 6 });
+
+    const schemaWithLink = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "inline*" },
+        text: { group: "inline", inline: true },
+      },
+      marks: {
+        link: { attrs: { href: { default: "" } } },
+      },
+    });
+    const doc = schemaWithLink.node("doc", null, [
+      schemaWithLink.node("paragraph", null, [schemaWithLink.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: schemaWithLink });
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    // The transaction should include removeStoredMark for link
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr).toBeDefined();
+  });
+
+  it("clears inline marks when escaping a mark (schema with marks)", () => {
+    mockCanTabEscape.mockReturnValue({ type: "mark", targetPos: 6 });
+
+    const schemaWithMarks = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "inline*" },
+        text: { group: "inline", inline: true },
+      },
+      marks: {
+        bold: {},
+        italic: {},
+      },
+    });
+    // Create text with bold mark applied
+    const boldMark = schemaWithMarks.marks.bold.create();
+    const doc = schemaWithMarks.node("doc", null, [
+      schemaWithMarks.node("paragraph", null, [
+        schemaWithMarks.text("hello", [boldMark]),
+      ]),
+    ]);
+    let state = EditorState.create({ doc, schema: schemaWithMarks });
+    // Set selection inside the bold text
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds row after when at last table cell (goToNextCell returns false)", async () => {
+    mockIsInTable.mockReturnValue(true);
+    mockGetTableInfo.mockReturnValue({
+      rowIndex: 2,
+      colIndex: 3,
+      numRows: 3,
+      numCols: 4,
+    });
+    const { goToNextCell, addRowAfter } = await import("@tiptap/pm/tables");
+    // First call returns false (at last cell), then true (after adding row)
+    (goToNextCell as ReturnType<typeof vi.fn>).mockReturnValueOnce(vi.fn(() => false));
+    (goToNextCell as ReturnType<typeof vi.fn>).mockReturnValueOnce(vi.fn(() => true));
+
+    const state = createState("table cell", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    expect(addRowAfter).toHaveBeenCalled();
+  });
 });

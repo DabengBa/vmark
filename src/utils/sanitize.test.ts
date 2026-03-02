@@ -964,3 +964,82 @@ describe("escapeHtml", () => {
     expect(escapeHtml("Hello 世界")).toBe("Hello 世界");
   });
 });
+
+describe("sanitizeHtmlPreview — additional coverage", () => {
+  it("defaults to inline context when no options provided", () => {
+    const input = "<div>block</div><span>inline</span>";
+    const result = sanitizeHtmlPreview(input);
+    // Inline context strips block-level tags
+    expect(result).not.toContain("<div>");
+    expect(result).toContain("<span>");
+  });
+
+  it("removes style attribute with only unsafe properties", () => {
+    const input = '<span style="position: absolute; display: flex;">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    // position and display are not in the allowlist
+    expect(result).not.toContain("position");
+    expect(result).not.toContain("display");
+  });
+
+  it("handles style with < and > in value", () => {
+    const input = '<span style="color: red<blue>">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).not.toContain("<blue>");
+  });
+
+  it("preserves allowed style properties with colons in value", () => {
+    // e.g., color with hsl notation has colons
+    const input = '<span style="color: rgb(255, 0, 0);">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).toContain("color");
+  });
+
+  it("handles empty style attribute", () => {
+    const input = '<span style="">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).toContain("Text");
+  });
+
+  it("handles style declaration missing colon", () => {
+    const input = '<span style="invalid-property">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).toContain("Text");
+  });
+});
+
+describe("sanitizeSvg — style sanitization", () => {
+  it("removes behavior: CSS property from SVG style", () => {
+    const input = '<svg><rect style="behavior: url(evil.htc)"/></svg>';
+    const result = sanitizeSvg(input);
+    expect(result).not.toContain("behavior");
+  });
+
+  it("preserves valid SVG styles", () => {
+    const input = '<svg><rect style="fill: blue; stroke-width: 2px;"/></svg>';
+    const result = sanitizeSvg(input);
+    expect(result).toContain("style=");
+  });
+});
+
+describe("sanitizeMediaHtml — iframe edge cases", () => {
+  it("allows YouTube iframe without www prefix", () => {
+    const input = '<iframe src="https://youtube.com/embed/abc"></iframe>';
+    const result = sanitizeMediaHtml(input);
+    expect(result).toContain("<iframe");
+    expect(result).toContain("youtube.com");
+  });
+
+  it("strips iframes with no src attribute", () => {
+    const input = '<iframe></iframe>';
+    const result = sanitizeMediaHtml(input);
+    // An iframe with no src has empty string which doesn't match whitelist
+    expect(result).not.toContain("<iframe");
+  });
+
+  it("returns HTML as-is when no iframes present", () => {
+    const input = '<video src="clip.mp4" controls></video>';
+    const result = sanitizeMediaHtml(input);
+    expect(result).toContain("<video");
+  });
+});

@@ -12,6 +12,7 @@ vi.mock("@/plugins/sourceContextDetection/codeFenceDetection", () => ({
   getCodeFenceInfo: vi.fn(() => null),
 }));
 
+import { getCodeFenceInfo } from "@/plugins/sourceContextDetection/codeFenceDetection";
 import {
   addCursorAtPosition,
   removeCursorAtPosition,
@@ -204,6 +205,36 @@ describe("toggleCursorAtPosition", () => {
     const result = toggleCursorAtPosition(view, 3);
     // addCursorAtPosition returns false because it's already primary
     expect(result).toBe(false);
+  });
+});
+
+describe("addCursorAtPosition — code fence boundaries", () => {
+  it("rejects cursor outside code fence when primary is inside", () => {
+    vi.mocked(getCodeFenceInfo).mockReturnValue({
+      fenceStartPos: 4,
+      endLine: 3,
+    } as ReturnType<typeof getCodeFenceInfo>);
+
+    const content = "abc\n```\ncode\n```\nxyz";
+    const view = createView(content, 8); // inside code
+    const result = addCursorAtPosition(view, 0); // outside code fence
+
+    expect(result).toBe(false);
+    vi.mocked(getCodeFenceInfo).mockReturnValue(null);
+  });
+
+  it("allows cursor inside code fence when primary is inside same fence", () => {
+    vi.mocked(getCodeFenceInfo).mockReturnValue({
+      fenceStartPos: 4,
+      endLine: 3,
+    } as ReturnType<typeof getCodeFenceInfo>);
+
+    const content = "abc\n```\ncode here\n```\nxyz";
+    const view = createView(content, 8); // inside code
+    const result = addCursorAtPosition(view, 10); // also inside code
+
+    expect(result).toBe(true);
+    vi.mocked(getCodeFenceInfo).mockReturnValue(null);
   });
 });
 

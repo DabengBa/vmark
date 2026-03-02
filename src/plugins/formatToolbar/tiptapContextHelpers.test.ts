@@ -136,6 +136,49 @@ describe("detectMarksAtCursor", () => {
     // inFormattedRange should still be bold, not overwritten by italic
     expect(ctx.inFormattedRange?.markType).toBe("bold");
   });
+
+  it("detects formatted range when cursor is in a non-link mark (lines 42-44)", () => {
+    const boldMark = schema.marks.bold.create();
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("bold text", [boldMark]),
+        schema.text(" plain"),
+      ]),
+    ]);
+    const state = createState(doc);
+    const $from = state.doc.resolve(3); // Inside "bold text"
+
+    const ctx: CursorContext = {
+      surface: "wysiwyg",
+      contextMode: "insert",
+      hasSelection: false,
+    };
+    detectMarksAtCursor($from, ctx);
+
+    expect(ctx.inFormattedRange).toBeDefined();
+    expect(ctx.inFormattedRange?.markType).toBe("bold");
+    expect(ctx.inFormattedRange?.from).toBe(1);
+    expect(ctx.inFormattedRange?.to).toBe(10);
+  });
+});
+
+describe("findMarkRange (found=true break path)", () => {
+  it("returns range when cursor is inside mark followed by unmarked text (lines 97-98)", () => {
+    const boldMark = schema.marks.bold.create();
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("bold", [boldMark]),
+        schema.text(" plain"),
+      ]),
+    ]);
+    const state = createState(doc);
+    // Cursor inside the bold range at pos 3 (inside "bold")
+    const $pos = state.doc.resolve(3);
+    const result = findMarkRange($pos, schema.marks.bold);
+    expect(result).not.toBeNull();
+    expect(result!.from).toBe(1);
+    expect(result!.to).toBe(5);
+  });
 });
 
 describe("isAtLineStart", () => {
@@ -194,6 +237,17 @@ describe("findWordAtPos", () => {
     const state = createState(doc);
     const $from = state.doc.resolve(1);
     expect(findWordAtPos($from)).toBeNull();
+  });
+
+  it("returns null when cursor is on whitespace (findWordBoundaries returns null, line 158)", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("hello   world")]),
+    ]);
+    const state = createState(doc);
+    // Position inside the whitespace gap: 1 + 6 = 7 (first space)
+    const $from = state.doc.resolve(7);
+    const result = findWordAtPos($from);
+    expect(result).toBeNull();
   });
 
   it("returns word boundaries for cursor in word", () => {

@@ -247,6 +247,89 @@ describe("transferTabFromDragOut", () => {
     });
   });
 
+  it("auto-closes non-main window when no remaining tabs", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce(null); // find_drop_target_window
+    mockInvoke.mockResolvedValueOnce("new-win"); // detach_tab_to_new_window
+
+    // After detach, no remaining tabs
+    mockGetTabsByWindow
+      .mockReturnValueOnce([
+        { id: "tab-1", title: "Doc 1", filePath: "/f1.md", isPinned: false },
+        { id: "tab-2", title: "Doc 2", filePath: "/f2.md", isPinned: false },
+      ])
+      .mockReturnValueOnce([]); // remaining = 0
+
+    const opts = { ...defaultOptions, windowLabel: "secondary" };
+    await transferTabFromDragOut(opts);
+
+    // Should invoke close_window for the secondary window
+    expect(mockInvoke).toHaveBeenCalledWith("close_window", expect.objectContaining({ label: expect.any(String) }));
+  });
+
+  it("does NOT auto-close main window even when no remaining tabs", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce("window-2"); // find_drop_target_window
+    mockInvoke.mockResolvedValueOnce(undefined); // transfer_tab_to_existing_window
+
+    // After detach, no remaining tabs but window is main
+    mockGetTabsByWindow
+      .mockReturnValueOnce([
+        { id: "tab-1", title: "Doc 1", filePath: "/f1.md", isPinned: false },
+        { id: "tab-2", title: "Doc 2", filePath: "/f2.md", isPinned: false },
+      ])
+      .mockReturnValueOnce([]); // remaining = 0
+
+    await transferTabFromDragOut(defaultOptions); // windowLabel = "main"
+
+    // Should NOT call close_window
+    const closeWindowCalls = mockInvoke.mock.calls.filter(
+      (c) => c[0] === "close_window"
+    );
+    expect(closeWindowCalls).toHaveLength(0);
+  });
+
+  it("undo callback on cross-window move calls restoreTransferredTab", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce("window-2"); // find_drop_target_window
+    mockInvoke.mockResolvedValueOnce(undefined); // transfer_tab_to_existing_window
+
+    await transferTabFromDragOut(defaultOptions);
+
+    // Get the toast.message call and extract the onClick callback
+    const { toast } = await import("sonner");
+    const toastCall = vi.mocked(toast.message).mock.calls[0];
+    const action = (toastCall[1] as Record<string, unknown>).action as { onClick: () => void };
+
+    // Reset invoke to track restore calls
+    mockInvoke.mockResolvedValue(undefined);
+    action.onClick();
+
+    // Should invoke remove_tab_from_window
+    await vi.waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("remove_tab_from_window", expect.objectContaining({ targetWindowLabel: "window-2" }));
+    });
+  });
+
+  it("undo callback on detach calls restoreTransferredTab", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce(null); // no drop target
+    mockInvoke.mockResolvedValueOnce("new-win"); // detach
+
+    await transferTabFromDragOut(defaultOptions);
+
+    const { toast } = await import("sonner");
+    const toastCall = vi.mocked(toast.message).mock.calls[0];
+    const action = (toastCall[1] as Record<string, unknown>).action as { onClick: () => void };
+
+    mockInvoke.mockResolvedValue(undefined);
+    action.onClick();
+
+    await vi.waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("remove_tab_from_window", expect.objectContaining({ targetWindowLabel: "new-win" }));
+    });
+  });
+
   it("handles tab with null filePath", async () => {
     mockGetTabsByWindow.mockReturnValue([
       { id: "tab-1", title: "Untitled", filePath: undefined, isPinned: false },

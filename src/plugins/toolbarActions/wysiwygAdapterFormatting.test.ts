@@ -364,6 +364,39 @@ describe("toggleBlockquote", () => {
     expect(toggleBlockquote(editor)).toBe(true);
   });
 
+  it("returns false when tr.wrap throws", () => {
+    const dispatch = vi.fn();
+    const blockRange = { depth: 1 };
+
+    const editor = {
+      isActive: vi.fn(() => false),
+      view: {
+        state: {
+          selection: {
+            $from: {
+              depth: 1,
+              node: vi.fn(() => ({ type: { name: "paragraph" } })),
+              before: vi.fn(() => 0),
+              blockRange: vi.fn(() => blockRange),
+            },
+            $to: {},
+          },
+          schema: { nodes: { blockquote: { name: "blockquote" } } },
+          tr: {
+            wrap: vi.fn(() => {
+              throw new Error("wrap failed");
+            }),
+          },
+        },
+        dispatch,
+        focus: vi.fn(),
+      },
+    } as unknown as TiptapEditor;
+
+    expect(toggleBlockquote(editor)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it("returns false when range is null", () => {
     const editor = {
       isActive: vi.fn(() => false),
@@ -579,6 +612,51 @@ describe("toggleQuoteStyleAtCursor", () => {
     expect(editor.state.tr.insertText).toHaveBeenCalledTimes(2);
     expect(editor.view.dispatch).toHaveBeenCalled();
     expect(editor.view.focus).toHaveBeenCalled();
+  });
+
+  it("handles non-text children (inline atoms) when computing cursor offset", () => {
+    // Simulate: textChild("ab") + atomChild(hardBreak, nodeSize=1) + textChild('"cd"')
+    // parentOffset = 4 means cursor is after the atom, inside the second text child
+    const textChild1 = { isText: true, text: "ab", nodeSize: 2 };
+    const atomChild = { isText: false, text: undefined, nodeSize: 1 };
+    const textChild2 = { isText: true, text: '"cd"', nodeSize: 4 };
+    const children = [textChild1, atomChild, textChild2];
+
+    const parent = {
+      isTextblock: true,
+      childCount: 3,
+      child: vi.fn((i: number) => children[i]),
+      forEach: vi.fn((cb: (child: typeof textChild1, offset: number) => void) => {
+        cb(textChild1, 0);
+        // atomChild is not text, so forEach skips it for text building
+        cb(textChild2, 3); // offset after textChild1(2) + atomChild(1)
+      }),
+    };
+
+    vi.mocked(computeQuoteToggle).mockReturnValue({
+      replacements: [
+        { offset: 2, oldChar: '"', newChar: '\u201C' },
+      ],
+    } as never);
+
+    const insertText = vi.fn().mockReturnThis();
+    const editor = {
+      state: {
+        selection: {
+          $from: {
+            parent,
+            parentOffset: 4, // inside atomChild's range → after textChild1 + into atomChild
+            start: vi.fn(() => 10),
+          },
+        },
+        tr: { insertText, docChanged: true },
+      },
+      view: { dispatch: vi.fn(), focus: vi.fn() },
+    } as unknown as TiptapEditor;
+
+    const result = toggleQuoteStyleAtCursor(editor);
+    expect(result).toBe(true);
+    expect(insertText).toHaveBeenCalled();
   });
 
   it("returns false when transaction has no changes", () => {

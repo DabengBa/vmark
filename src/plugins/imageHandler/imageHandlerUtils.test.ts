@@ -44,6 +44,9 @@ import {
   fileUrlToPath,
   isViewConnected,
   getActiveFilePathForCurrentWindow,
+  showUnsavedDocWarning,
+  validateLocalPath,
+  expandHomePath,
   isImageFile,
   generateClipboardImageFilename,
   generateDroppedImageFilename,
@@ -122,9 +125,87 @@ describe("isViewConnected", () => {
   });
 });
 
+describe("showUnsavedDocWarning", () => {
+  it("calls message with warning", async () => {
+    const { showUnsavedDocWarning } = await import("./imageHandlerUtils");
+    const { message: dialogMessage } = await import("@tauri-apps/plugin-dialog");
+    await showUnsavedDocWarning();
+    expect(dialogMessage).toHaveBeenCalledWith(
+      expect.stringContaining("save the document first"),
+      expect.objectContaining({ kind: "warning" }),
+    );
+  });
+});
+
 describe("getActiveFilePathForCurrentWindow", () => {
   it("returns null when no active tab", () => {
     expect(getActiveFilePathForCurrentWindow()).toBeNull();
+  });
+
+  it("returns filePath when tab and document exist", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    const origTab = useTabStore.getState;
+    const origDoc = useDocumentStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => ({
+      activeTabId: { main: "tab-1" },
+    });
+    (useDocumentStore as unknown as { getState: () => unknown }).getState = () => ({
+      getDocument: (id: string) => id === "tab-1" ? { filePath: "/docs/test.md" } : null,
+    });
+
+    expect(getActiveFilePathForCurrentWindow()).toBe("/docs/test.md");
+
+    (useTabStore as unknown as { getState: typeof origTab }).getState = origTab;
+    (useDocumentStore as unknown as { getState: typeof origDoc }).getState = origDoc;
+  });
+
+  it("returns null and logs warning when store access throws", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const origTab = useTabStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => {
+      throw new Error("store error");
+    };
+
+    expect(getActiveFilePathForCurrentWindow()).toBeNull();
+
+    (useTabStore as unknown as { getState: typeof origTab }).getState = origTab;
+  });
+});
+
+describe("validateLocalPath", () => {
+  it("returns true when exists() returns true", async () => {
+    const { validateLocalPath } = await import("./imageHandlerUtils");
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    vi.mocked(exists).mockResolvedValueOnce(true);
+    const result = await validateLocalPath("/valid/path.png");
+    expect(result).toBe(true);
+  });
+
+  it("returns false when exists() throws", async () => {
+    const { validateLocalPath } = await import("./imageHandlerUtils");
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    vi.mocked(exists).mockRejectedValueOnce(new Error("fs error"));
+    const result = await validateLocalPath("/bad/path");
+    expect(result).toBe(false);
+  });
+});
+
+describe("expandHomePath", () => {
+  it("returns path unchanged when not starting with ~/", async () => {
+    const { expandHomePath } = await import("./imageHandlerUtils");
+    const result = await expandHomePath("/absolute/path.md");
+    expect(result).toBe("/absolute/path.md");
+  });
+
+  it("returns null when homeDir throws for ~/ path", async () => {
+    const { expandHomePath } = await import("./imageHandlerUtils");
+    const pathMod = await import("@tauri-apps/api/path");
+    vi.mocked(pathMod.homeDir).mockRejectedValueOnce(new Error("no home"));
+    const result = await expandHomePath("~/Documents/file.md");
+    expect(result).toBeNull();
   });
 });
 

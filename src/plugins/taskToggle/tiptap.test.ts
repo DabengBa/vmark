@@ -498,6 +498,62 @@ describe("taskListItem toggle logic", () => {
     expect(foundListItem).toBe(true);
   });
 
+  it("Enter shortcut calls splitListItem", () => {
+    const { state } = createStateInListItem(false, "Task");
+    const splitMock = vi.fn(() => true);
+
+    const shortcuts = taskListItemExtension.config.addKeyboardShortcuts!.call({
+      name: "listItem",
+      editor: {
+        view: { state, dispatch: vi.fn() },
+        commands: { splitListItem: splitMock },
+      },
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+
+    const result = shortcuts["Enter"]({} as never);
+    expect(result).toBe(true);
+    expect(splitMock).toHaveBeenCalledWith("listItem");
+  });
+
+  it("click handler returns false when clicked checkbox is not inside a listItem", () => {
+    // Extract the handleClick from the ProseMirror plugin
+    const plugins = taskListItemExtension.config.addProseMirrorPlugins!.call({
+      name: "listItem",
+      editor: { view: { state: EditorState.create({ doc: createSchema().nodes.doc.create(null, [createSchema().nodes.paragraph.create()]) }) } },
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+
+    const handleClick = plugins[0].props.handleClick!;
+    const schema = createSchema();
+    const paragraph = schema.nodes.paragraph.create(null, schema.text("Not in list"));
+    const doc = schema.nodes.doc.create(null, [paragraph]);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+
+    const mockView = {
+      state,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    };
+
+    const mockEvent = {
+      target: { closest: (sel: string) => sel.includes("data-task-checkbox") ? {} : null },
+      preventDefault: vi.fn(),
+    };
+
+    const result = handleClick(mockView as never, 1, mockEvent as never);
+    expect(result).toBe(false);
+  });
+
   it("handles mixed task and non-task items in same list", () => {
     const schema = createSchema();
     const taskParagraph = schema.nodes.paragraph.create(null, schema.text("Task"));

@@ -592,6 +592,163 @@ describe("getNodeTypeFromAncestors — extended coverage via getCursorInfoFromTi
   });
 });
 
+// Tests for additional node types: taskItem, taskList, detailsSummary, tableCell, alertBlock
+describe("getNodeTypeFromAncestors — taskItem/taskList/detailsSummary/table/alert", () => {
+  const taskSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      paragraph: {
+        content: "text*",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "p" }],
+        toDOM() { return ["p", 0]; },
+      },
+      taskList: {
+        content: "taskItem+",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "ul.task-list" }],
+        toDOM() { return ["ul", { class: "task-list" }, 0]; },
+      },
+      taskItem: {
+        content: "paragraph+",
+        attrs: { sourceLine: { default: null }, checked: { default: false } },
+        parseDOM: [{ tag: "li.task-item" }],
+        toDOM() { return ["li", { class: "task-item" }, 0]; },
+      },
+      detailsBlock: {
+        content: "detailsSummary block*",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "details" }],
+        toDOM() { return ["details", 0]; },
+      },
+      detailsSummary: {
+        content: "text*",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "summary" }],
+        toDOM() { return ["summary", 0]; },
+      },
+      alertBlock: {
+        content: "block+",
+        group: "block",
+        attrs: { sourceLine: { default: null }, kind: { default: "note" } },
+        parseDOM: [{ tag: "div.alert" }],
+        toDOM() { return ["div", { class: "alert" }, 0]; },
+      },
+      table: {
+        content: "tableRow+",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "table" }],
+        toDOM() { return ["table", 0]; },
+      },
+      tableRow: {
+        content: "(tableCell | tableHeader)+",
+        parseDOM: [{ tag: "tr" }],
+        toDOM() { return ["tr", 0]; },
+      },
+      tableCell: {
+        content: "paragraph+",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "td" }],
+        toDOM() { return ["td", 0]; },
+      },
+      tableHeader: {
+        content: "paragraph+",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "th" }],
+        toDOM() { return ["th", 0]; },
+      },
+      text: { inline: true },
+    },
+  });
+
+  it("detects list_item for taskItem", () => {
+    const ti = taskSchema.node("taskItem", { checked: false }, [
+      taskSchema.node("paragraph", { sourceLine: 1 }, [taskSchema.text("task")]),
+    ]);
+    const tl = taskSchema.node("taskList", {}, [ti]);
+    const doc = taskSchema.node("doc", null, [tl]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 4))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("list_item");
+  });
+
+  it("detects details_block for detailsSummary", () => {
+    const summary = taskSchema.node("detailsSummary", { sourceLine: 1 }, [taskSchema.text("Summary")]);
+    const details = taskSchema.node("detailsBlock", { sourceLine: 1 }, [
+      summary,
+      taskSchema.node("paragraph", { sourceLine: 2 }, [taskSchema.text("body")]),
+    ]);
+    const doc = taskSchema.node("doc", null, [details]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    // cursor inside detailsSummary text
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("details_block");
+  });
+
+  it("detects alert_block for alertBlock", () => {
+    const alert = taskSchema.node("alertBlock", { sourceLine: 1 }, [
+      taskSchema.node("paragraph", { sourceLine: 2 }, [taskSchema.text("alert text")]),
+    ]);
+    const doc = taskSchema.node("doc", null, [alert]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 4))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("alert_block");
+  });
+
+  it("detects table_cell for tableCell", () => {
+    const cell = taskSchema.node("tableCell", {}, [
+      taskSchema.node("paragraph", { sourceLine: 1 }, [taskSchema.text("cell")]),
+    ]);
+    const row = taskSchema.node("tableRow", null, [cell]);
+    const table = taskSchema.node("table", {}, [row]);
+    const doc = taskSchema.node("doc", null, [table]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 4))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("table_cell");
+  });
+
+  it("detects table_cell for tableHeader", () => {
+    const header = taskSchema.node("tableHeader", {}, [
+      taskSchema.node("paragraph", { sourceLine: 1 }, [taskSchema.text("header")]),
+    ]);
+    const row = taskSchema.node("tableRow", null, [header]);
+    const table = taskSchema.node("table", {}, [row]);
+    const doc = taskSchema.node("doc", null, [table]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 4))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("table_cell");
+  });
+});
+
 // Tests for container node restoration (alertBlock, detailsBlock)
 describe("restoreCursorInTiptap — container node handling", () => {
   // Schema with alertBlock and detailsBlock container nodes

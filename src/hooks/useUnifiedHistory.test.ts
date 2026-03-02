@@ -517,5 +517,106 @@ describe("useUnifiedHistory", () => {
       expect(history.undoStack).toHaveLength(1);
       expect(history.undoStack[0].markdown).toBe("# Hello World");
     });
+
+    it("returns false when document not found", () => {
+      useEditorStore.setState({ sourceMode: false });
+      useTiptapEditorStore.setState({
+        editor: {
+          can: () => ({ undo: () => false, redo: () => false }),
+          commands: { redo: vi.fn(() => false) },
+        } as never,
+      });
+
+      useDocumentStore.setState({ documents: {} });
+
+      useUnifiedHistoryStore.getState().pushRedo("tab-1", {
+        markdown: "redo content",
+        mode: "wysiwyg",
+        cursorInfo: null,
+      });
+
+      expect(performUnifiedRedo("main")).toBe(false);
+    });
+  });
+
+  describe("doNativeRedo — source mode edge cases", () => {
+    it("returns false in source mode when redoDepth is 0", () => {
+      useEditorStore.setState({ sourceMode: true });
+      mockRedoDepth.mockReturnValue(0);
+      const mockView = { state: {} };
+      useActiveEditorStore.setState({ activeSourceView: mockView as never });
+
+      expect(doNativeRedo()).toBe(false);
+    });
+  });
+
+  describe("doNativeUndo — source mode with null view", () => {
+    it("returns false in source mode when view exists but undoDepth is 0", () => {
+      useEditorStore.setState({ sourceMode: true });
+      mockUndoDepth.mockReturnValue(0);
+      const mockView = { state: {} };
+      useActiveEditorStore.setState({ activeSourceView: mockView as never });
+
+      expect(doNativeUndo()).toBe(false);
+    });
+  });
+
+  describe("doNativeRedo — WYSIWYG with null editor", () => {
+    it("returns false in WYSIWYG mode when no editor", () => {
+      useEditorStore.setState({ sourceMode: false });
+      useTiptapEditorStore.setState({ editor: null });
+
+      expect(doNativeRedo()).toBe(false);
+    });
+
+    it("returns false in WYSIWYG mode when editor cannot redo", () => {
+      useEditorStore.setState({ sourceMode: false });
+      useTiptapEditorStore.setState({
+        editor: {
+          can: () => ({ undo: () => false, redo: () => false }),
+          commands: { redo: vi.fn() },
+        } as never,
+      });
+
+      expect(doNativeRedo()).toBe(false);
+    });
+  });
+
+  describe("performUnifiedUndo — source mode checkpoint restore", () => {
+    it("restores from checkpoint in source mode", () => {
+      useEditorStore.setState({ sourceMode: true });
+      useActiveEditorStore.setState({ activeSourceView: null });
+
+      useUnifiedHistoryStore.getState().createCheckpoint("tab-1", {
+        markdown: "previous source content",
+        mode: "source",
+        cursorInfo: null,
+      });
+
+      const result = performUnifiedUndo("main");
+      expect(result).toBe(true);
+      expect(useDocumentStore.getState().getDocument("tab-1")?.content).toBe(
+        "previous source content"
+      );
+    });
+  });
+
+  describe("performUnifiedRedo — source mode checkpoint restore", () => {
+    it("restores from redo checkpoint in source mode", () => {
+      useEditorStore.setState({ sourceMode: true });
+      useActiveEditorStore.setState({ activeSourceView: null });
+
+      useUnifiedHistoryStore.getState().pushRedo("tab-1", {
+        markdown: "redo source content",
+        mode: "source",
+        cursorInfo: null,
+      });
+
+      const result = performUnifiedRedo("main");
+      expect(result).toBe(true);
+      expect(useDocumentStore.getState().getDocument("tab-1")?.content).toBe(
+        "redo source content"
+      );
+    });
   });
 });

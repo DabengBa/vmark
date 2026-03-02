@@ -447,3 +447,104 @@ describe("tableModShiftEnter", () => {
     expect(tableModShiftEnter(view)).toBe(false);
   });
 });
+
+describe("tableModEnter — in table", () => {
+  it("inserts row below when in data row", () => {
+    const view = createView(
+      `| A | B |
+|---|---|
+| ^1 | 2 |`
+    );
+
+    const handled = tableModEnter(view);
+    expect(handled).toBe(true);
+
+    // Should have more lines now
+    const doc = view.state.doc.toString();
+    const lines = doc.split("\n");
+    expect(lines.length).toBeGreaterThan(3);
+  });
+
+  it("inserts row below when in header row", () => {
+    const view = createView(
+      `| ^A | B |
+|---|---|
+| 1 | 2 |`
+    );
+
+    const handled = tableModEnter(view);
+    expect(handled).toBe(true);
+  });
+});
+
+describe("tableModShiftEnter — in table", () => {
+  it("inserts row above when in data row", () => {
+    const view = createView(
+      `| A | B |
+|---|---|
+| ^1 | 2 |`
+    );
+
+    const handled = tableModShiftEnter(view);
+    expect(handled).toBe(true);
+
+    const doc = view.state.doc.toString();
+    const lines = doc.split("\n");
+    expect(lines.length).toBeGreaterThan(3);
+  });
+});
+
+describe("goToNextCell — last cell inserts new row", () => {
+  it("inserts new row when at last cell of last row", () => {
+    const view = createView(
+      `| A | B |
+|---|---|
+| 1 | ^2 |`
+    );
+
+    const handled = goToNextCell(view);
+    expect(handled).toBe(true);
+
+    // Should have a new row
+    const doc = view.state.doc.toString();
+    const lines = doc.split("\n");
+    expect(lines.length).toBeGreaterThan(3);
+  });
+});
+
+describe("goToPreviousCell — from data row first cell with empty target", () => {
+  it("navigates from data row to last cell of header", () => {
+    const view = createView(
+      `| A | B | C |
+|---|---|---|
+| ^1 | 2 | 3 |`
+    );
+
+    const handled = goToPreviousCell(view);
+    expect(handled).toBe(true);
+
+    const cursor = view.state.selection.main.from;
+    const line = view.state.doc.lineAt(cursor);
+    // Should be in header row at last cell "C"
+    expect(line.text).toContain("C");
+  });
+});
+
+describe("getCellBoundaries — more edge cases", () => {
+  it("handles cells with only spaces (empty cell midpoint)", () => {
+    const cells = getCellBoundaries("|   |   |   |");
+    expect(cells.length).toBe(3);
+    // Empty cells should have from === to (midpoint)
+    for (const cell of cells) {
+      expect(cell.from).toBe(cell.to);
+    }
+  });
+
+  it("handles mixed empty and non-empty cells", () => {
+    const cells = getCellBoundaries("| A |   | C |");
+    expect(cells.length).toBe(3);
+    expect(cells[0].from).toBeLessThan(cells[0].to); // "A" has content
+    expect(cells[1].from).toBe(cells[1].to); // empty
+    expect(cells[2].from).toBeLessThan(cells[2].to); // "C" has content
+  });
+});

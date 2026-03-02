@@ -429,4 +429,90 @@ describe("handlePopupTabNavigation", () => {
     const result = handlePopupTabNavigation(event, container);
     expect(result).toBe(false);
   });
+
+  // Helper to make elements visible to getFocusableElements (jsdom offsetParent is null)
+  function makeVisible(el: HTMLElement) {
+    Object.defineProperty(el, "offsetParent", { value: container, configurable: true });
+  }
+
+  it("cycles forward on Tab from first to second element", () => {
+    const btn1 = document.createElement("button");
+    btn1.textContent = "A";
+    const btn2 = document.createElement("button");
+    btn2.textContent = "B";
+    container.appendChild(btn1);
+    container.appendChild(btn2);
+    makeVisible(btn1);
+    makeVisible(btn2);
+
+    btn1.focus();
+    const focusSpy = vi.spyOn(btn2, "focus");
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    const result = handlePopupTabNavigation(event, container);
+
+    expect(result).toBe(true);
+    expect(focusSpy).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("wraps forward Tab from last to first element", () => {
+    const btn1 = document.createElement("button");
+    btn1.textContent = "A";
+    const btn2 = document.createElement("button");
+    btn2.textContent = "B";
+    container.appendChild(btn1);
+    container.appendChild(btn2);
+    makeVisible(btn1);
+    makeVisible(btn2);
+
+    btn2.focus();
+    const focusSpy = vi.spyOn(btn1, "focus");
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    const result = handlePopupTabNavigation(event, container);
+
+    expect(result).toBe(true);
+    expect(focusSpy).toHaveBeenCalled();
+  });
+
+  it("cycles backward on Shift+Tab from second to first element", () => {
+    const btn1 = document.createElement("button");
+    btn1.textContent = "A";
+    const btn2 = document.createElement("button");
+    btn2.textContent = "B";
+    container.appendChild(btn1);
+    container.appendChild(btn2);
+    makeVisible(btn1);
+    makeVisible(btn2);
+
+    btn2.focus();
+    const focusSpy = vi.spyOn(btn1, "focus");
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, cancelable: true });
+    const result = handlePopupTabNavigation(event, container);
+
+    expect(result).toBe(true);
+    expect(focusSpy).toHaveBeenCalled();
+  });
+
+  it("wraps backward Shift+Tab from first to last element", () => {
+    const btn1 = document.createElement("button");
+    btn1.textContent = "A";
+    const btn2 = document.createElement("button");
+    btn2.textContent = "B";
+    container.appendChild(btn1);
+    container.appendChild(btn2);
+    makeVisible(btn1);
+    makeVisible(btn2);
+
+    btn1.focus();
+    const focusSpy = vi.spyOn(btn2, "focus");
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, cancelable: true });
+    const result = handlePopupTabNavigation(event, container);
+
+    expect(result).toBe(true);
+    expect(focusSpy).toHaveBeenCalled();
+  });
 });

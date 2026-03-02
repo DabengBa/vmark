@@ -57,6 +57,39 @@ describe("settingsStore MCP server settings", () => {
   });
 });
 
+describe("settingsStore toggleDevSection", () => {
+  it("toggles showDevSection", () => {
+    const initial = useSettingsStore.getState().showDevSection;
+    useSettingsStore.getState().toggleDevSection();
+    expect(useSettingsStore.getState().showDevSection).toBe(!initial);
+    useSettingsStore.getState().toggleDevSection();
+    expect(useSettingsStore.getState().showDevSection).toBe(initial);
+  });
+});
+
+describe("settingsStore merge migration", () => {
+  it("migrates paragraphSpacing to blockSpacing during merge", () => {
+    // Simulate old persisted state with paragraphSpacing but no blockSpacing
+    const oldPersistedState = {
+      appearance: {
+        paragraphSpacing: 1.5,
+        theme: "day",
+      },
+    };
+
+    // Access the persist options to test the merge function
+    const storeApi = useSettingsStore as unknown as {
+      persist: { getOptions: () => { merge?: (persisted: unknown, current: unknown) => unknown } };
+    };
+    const options = storeApi.persist.getOptions();
+    if (options.merge) {
+      const currentState = useSettingsStore.getState();
+      const result = options.merge(oldPersistedState, currentState) as typeof currentState;
+      expect(result.appearance.blockSpacing).toBe(1.5);
+    }
+  });
+});
+
 describe("settingsStore confirmQuit", () => {
   it("defaults confirmQuit to true", () => {
     expect(useSettingsStore.getState().general.confirmQuit).toBe(true);

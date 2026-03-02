@@ -290,6 +290,19 @@ describe("Line Operations", () => {
       expect(result.lines).toEqual(["line1"]);
     });
 
+    it("handles 'to' at newline boundary for two-line text", () => {
+      // Two lines: "ab\ncd". lines=["ab","cd"]. "ab".length=2, lineEnd=2, lineEnd+1=3.
+      // to=3 triggers: to(3) === lineEnd(2)+1(3) AND i(0) < lines.length-1(1) => endLine=0.
+      // Fallback: to(3) > fullEnd(2) => endLine overwritten to 1.
+      // The newline branch at lines 138-141 IS executed (coverage hit).
+      const text = "ab\ncd";
+      const result = getLinesInRange(text, 0, 3);
+      // Fallback overrides, so endLine=1 and fullEnd=text.length
+      expect(result.startLine).toBe(0);
+      expect(result.endLine).toBe(1);
+      expect(result.fullEnd).toBe(text.length);
+    });
+
     it("handles 'to' beyond all lines", () => {
       const text = "line1\nline2";
       // 'to' beyond the document length

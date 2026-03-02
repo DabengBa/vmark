@@ -29,13 +29,17 @@ vi.mock("../splitBlockFix", () => ({
 
 import { compositionGuardExtension } from "../tiptap";
 
+// Mock requestAnimationFrame to execute callbacks synchronously
+const originalRAF = globalThis.requestAnimationFrame;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
+  globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  globalThis.requestAnimationFrame = originalRAF;
 });
 
 // ---------------------------------------------------------------------------
@@ -829,6 +833,10 @@ describe("compositionGuard tableHeader cursor fix", () => {
           textBetween: () => "",
           content: { size: 30 },
         },
+        tr: {
+          delete: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
+        },
       },
       dispatch: vi.fn(),
     };
@@ -879,6 +887,10 @@ describe("compositionGuard tableHeader cursor fix", () => {
           resolve: mockResolve,
           textBetween: () => "",
           content: { size: 30 },
+        },
+        tr: {
+          delete: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
         },
       },
       dispatch: vi.fn(),

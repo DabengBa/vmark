@@ -145,6 +145,24 @@ describe("recentFilesStore", () => {
     });
   });
 
+  describe("updateNativeMenu error handling", () => {
+    it("handles invoke rejection gracefully", async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { recentWarn } = await import("@/utils/debug");
+
+      vi.mocked(invoke).mockRejectedValueOnce(new Error("native error"));
+      useRecentFilesStore.getState().addFile("/fail.md");
+
+      // Wait for the async updateNativeMenu to settle
+      await vi.waitFor(() => {
+        expect(recentWarn).toHaveBeenCalledWith(
+          "Failed to update recent files native menu:",
+          expect.any(Error)
+        );
+      });
+    });
+  });
+
   describe("removeFile calls native menu update", () => {
     it("syncs native menu after removal", async () => {
       const { invoke } = await import("@tauri-apps/api/core");

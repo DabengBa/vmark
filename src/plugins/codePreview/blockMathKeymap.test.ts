@@ -397,6 +397,75 @@ describe("blockMathKeymap — plugin handleKeyDown", () => {
     expect(view.dispatch).toHaveBeenCalled();
   });
 
+  it("exitEditing returns false when node at editingPos is null (lines 58-60)", () => {
+    const store = useBlockMathEditingStore.getState();
+    store.originalContent = "hello";
+
+    const plugin = getPlugin();
+    const handleKeyDown = (plugin as { props: { handleKeyDown: (view: unknown, event: unknown) => boolean } }).props.handleKeyDown;
+
+    // Create a state and find a position where nodeAt returns null
+    const state = createEditorState("hello", "latex", 1);
+
+    // Use a mock view where state.doc.nodeAt always returns null for editingPos
+    const mockState = {
+      ...state,
+      doc: {
+        ...state.doc,
+        nodeAt: () => null,
+        resolve: state.doc.resolve.bind(state.doc),
+        content: state.doc.content,
+      },
+      tr: state.tr,
+    };
+    store.editingPos = 0;
+
+    const view = {
+      state: mockState,
+      dispatch: vi.fn(),
+      posAtCoords: vi.fn(),
+    } as unknown as EditorView & { dispatch: ReturnType<typeof vi.fn> };
+
+    const result = handleKeyDown(view, { key: "Escape", preventDefault: vi.fn() });
+    expect(store.exitEditing).toHaveBeenCalled();
+    expect(result).toBe(false);
+  });
+
+  it("exitEditing reverts content when revert=true and content differs (lines 70-72)", () => {
+    const store = useBlockMathEditingStore.getState();
+    store.editingPos = 0;
+    store.originalContent = "original";
+
+    const plugin = getPlugin();
+    const handleKeyDown = (plugin as { props: { handleKeyDown: (view: unknown, event: unknown) => boolean } }).props.handleKeyDown;
+
+    const state = createEditorState("modified", "latex", 1);
+    // Create a mock transaction that chains properly without doc validation
+    const mockTr = {
+      replaceWith: vi.fn().mockReturnThis(),
+      setSelection: vi.fn().mockReturnThis(),
+      setMeta: vi.fn().mockReturnThis(),
+    };
+    const mockState = {
+      ...state,
+      tr: mockTr,
+      schema: state.schema,
+      doc: state.doc,
+    };
+    const view = {
+      state: mockState,
+      dispatch: vi.fn(),
+      posAtCoords: vi.fn(),
+    } as unknown as EditorView & { dispatch: ReturnType<typeof vi.fn> };
+
+    const result = handleKeyDown(view, { key: "Escape", preventDefault: vi.fn() });
+    expect(result).toBe(true);
+    expect(store.exitEditing).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalled();
+    // Verify replaceWith was called (the revert path, lines 70-72)
+    expect(mockTr.replaceWith).toHaveBeenCalledWith(1, 9, expect.anything());
+  });
+
   it("exitEditing handles same content (no replaceWith needed)", () => {
     const store = useBlockMathEditingStore.getState();
     store.editingPos = 0;
@@ -485,6 +554,35 @@ describe("blockMathKeymap — plugin handleClick", () => {
     const result = handleClick(view, 2, { clientX: 100, clientY: 100 });
     expect(result).toBe(false);
     expect(store.exitEditing).not.toHaveBeenCalled();
+  });
+
+  it("handleClick exits editing when node at editingPos is null (lines 130-131)", () => {
+    const store = useBlockMathEditingStore.getState();
+    store.editingPos = 0;
+    store.originalContent = "hello";
+
+    const plugin = getPlugin();
+    const handleClick = (plugin as { props: { handleClick: (view: unknown, pos: number, event: unknown) => boolean } }).props.handleClick;
+
+    const state = createEditorState("hello", "latex", 1);
+    // Mock state.doc.nodeAt to return null
+    const mockState = {
+      ...state,
+      doc: {
+        ...state.doc,
+        nodeAt: () => null,
+        content: state.doc.content,
+      },
+    };
+    const view = {
+      state: mockState,
+      dispatch: vi.fn(),
+      posAtCoords: vi.fn(),
+    } as unknown as EditorView & { dispatch: ReturnType<typeof vi.fn> };
+
+    const result = handleClick(view, 1, { clientX: 100, clientY: 100 });
+    expect(result).toBe(false);
+    expect(store.exitEditing).toHaveBeenCalled();
   });
 
   it("handleClick returns false when posAtCoords returns null", () => {

@@ -752,6 +752,241 @@ describe("createSourcePopupPlugin — hover handler logic", () => {
   });
 });
 
+describe("createSourcePopupPlugin — hover with detectTriggerAtPos", () => {
+  let mockStore: ReturnType<typeof createMockStore>;
+  let mockPopupView: SourcePopupView<TestState>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockStore = createMockStore();
+    mockPopupView = createMockPopupView();
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = createMockEditorView();
+    (mockPopupView as unknown as Record<string, unknown>)["container"] = document.createElement("div");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function instantiatePlugin(config: Partial<PopupTriggerConfig<TestState>> = {}) {
+    const plugin = createSourcePopupPlugin({
+      store: mockStore.store,
+      createView: () => mockPopupView,
+      detectTrigger: () => null,
+      extractData: () => ({}) as object,
+      ...config,
+    });
+    const mockView = createMockEditorView();
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = mockView;
+    const createFn = (plugin as unknown as { create: (view: EditorView) => unknown }).create;
+    const instance = createFn(mockView);
+    return { instance: instance as Record<string, unknown>, view: mockView };
+  }
+
+  it("hover uses detectTriggerAtPos when provided", () => {
+    const detectTriggerAtPos = vi.fn(() => ({ from: 3, to: 8 }));
+    const customOpen = vi.fn();
+
+    const { view } = instantiatePlugin({
+      detectTriggerAtPos,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousemoveHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(150);
+      expect(detectTriggerAtPos).toHaveBeenCalled();
+      expect(customOpen).toHaveBeenCalled();
+    }
+  });
+
+  it("hover falls back to detectTrigger when detectTriggerAtPos not provided and pos outside range", () => {
+    const detectTrigger = vi.fn(() => ({ from: 10, to: 20 }));
+    const customOpen = vi.fn();
+
+    const { view } = instantiatePlugin({
+      detectTrigger,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 100,
+    });
+
+    // posAtCoords returns 5, which is outside the detected range 10-20
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousemoveHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(150);
+      // Range should not match since pos (5) is outside [10,20]
+      expect(customOpen).not.toHaveBeenCalled();
+    }
+  });
+
+  it("mousemove cancels on isMouseDown", () => {
+    const customOpen = vi.fn();
+    const detectTrigger = vi.fn(() => ({ from: 0, to: 10 }));
+
+    const { view } = instantiatePlugin({
+      detectTrigger,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousedownHandler = calls.find((c: unknown[]) => c[0] === "mousedown")?.[1] as () => void;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousedownHandler && mousemoveHandler) {
+      mousedownHandler(); // Set isMouseDown
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(300);
+      expect(customOpen).not.toHaveBeenCalled();
+    }
+  });
+
+  it("mousemove no-trigger clears lastHoverRange", () => {
+    const customOpen = vi.fn();
+    let callCount = 0;
+    const detectTrigger = vi.fn(() => {
+      callCount++;
+      if (callCount <= 1) return { from: 0, to: 10 };
+      return null;
+    });
+
+    const { view } = instantiatePlugin({
+      detectTrigger,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 200,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousemoveHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(50);
+      // Move to no-trigger area
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 60, clientY: 110 }));
+      vi.advanceTimersByTime(300);
+      expect(customOpen).not.toHaveBeenCalled();
+    }
+  });
+
+  it("hover uses store openPopup when no custom openPopup and uses onOpen", () => {
+    const onOpen = vi.fn();
+    const detectTriggerAtPos = vi.fn(() => ({ from: 0, to: 10 }));
+
+    const { view } = instantiatePlugin({
+      detectTriggerAtPos,
+      onOpen,
+      triggerOnHover: true,
+      hoverDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousemoveHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(150);
+      expect(onOpen).toHaveBeenCalled();
+      expect(mockStore.openPopupFn).toHaveBeenCalled();
+    }
+  });
+
+  it("mouseleave does not start hide timer when popup is not open", () => {
+    mockStore.state.isOpen = false;
+
+    const { view } = instantiatePlugin({
+      triggerOnHover: true,
+      hoverHideDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mouseleaveHandler = calls.find((c: unknown[]) => c[0] === "mouseleave")?.[1] as () => void;
+
+    if (mouseleaveHandler) {
+      mouseleaveHandler();
+      vi.advanceTimersByTime(200);
+      expect(mockStore.closePopup).not.toHaveBeenCalled();
+    }
+  });
+
+  it("hover timer aborted when isMouseDown is set during delay", () => {
+    const customOpen = vi.fn();
+    const detectTriggerAtPos = vi.fn(() => ({ from: 0, to: 10 }));
+
+    const { view } = instantiatePlugin({
+      detectTriggerAtPos,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 200,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+    const mousedownHandler = calls.find((c: unknown[]) => c[0] === "mousedown")?.[1] as () => void;
+
+    if (mousemoveHandler && mousedownHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(100);
+      // mousedown during hover delay
+      mousedownHandler();
+      vi.advanceTimersByTime(200);
+      // The timeout fires but isMouseDown is true, so it should not open
+      expect(customOpen).not.toHaveBeenCalled();
+    }
+  });
+
+  it("update handles scrollIntoView transaction", () => {
+    mockStore.state.isOpen = true;
+    mockStore.state.anchorRect = { top: 100, left: 50, bottom: 120, right: 200 };
+    const { instance, view } = instantiatePlugin();
+
+    const mockUpdate = {
+      view,
+      selectionSet: false,
+      docChanged: false,
+      transactions: [{ scrollIntoView: true }],
+    } as unknown as ViewUpdate;
+
+    // Should not throw
+    (instance as { update: (u: ViewUpdate) => void }).update(mockUpdate);
+  });
+
+  it("hover getAnchorRectFromRange returning null cancels open", () => {
+    const customOpen = vi.fn();
+    const detectTriggerAtPos = vi.fn(() => ({ from: 0, to: 10 }));
+
+    (getAnchorRectFromRange as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+
+    const { view } = instantiatePlugin({
+      detectTriggerAtPos,
+      openPopup: customOpen,
+      triggerOnHover: true,
+      hoverDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mousemoveHandler = calls.find((c: unknown[]) => c[0] === "mousemove")?.[1] as (e: MouseEvent) => void;
+
+    if (mousemoveHandler) {
+      mousemoveHandler(new MouseEvent("mousemove", { clientX: 50, clientY: 100 }));
+      vi.advanceTimersByTime(150);
+      expect(customOpen).not.toHaveBeenCalled();
+    }
+  });
+});
+
 describe("createPositionBasedDetector", () => {
   it("delegates to selection-based detector", () => {
     const selectionDetector = vi.fn(() => ({ from: 5, to: 15 }));

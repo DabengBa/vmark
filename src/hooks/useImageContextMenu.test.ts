@@ -366,4 +366,111 @@ describe("useImageContextMenu", () => {
       errorSpy.mockRestore();
     });
   });
+
+  // --- resolveImagePath error path ---
+
+  describe("resolveImagePath error", () => {
+    it("handles dirname/join error for relative path by returning null", async () => {
+      const { dirname } = await import("@tauri-apps/api/path");
+      vi.mocked(dirname).mockRejectedValueOnce(new Error("dirname failed"));
+
+      useImageContextMenuStore.setState({ imageSrc: "relative/path.png" });
+      const view = makeEditorView();
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await act(async () => {
+        await result.current("copyPath");
+      });
+
+      // resolveImagePath returns null, so clipboard.writeText NOT called
+      expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+  });
+
+  // --- change action: node not found at position ---
+
+  describe("change action — node guard", () => {
+    it("does nothing when node at position is not an image", async () => {
+      mockOpen.mockResolvedValue("/new/image.png");
+      mockCopyImageToAssets.mockResolvedValue("assets/new.png");
+
+      const view = makeEditorView();
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "paragraph" },
+        attrs: {},
+        nodeSize: 1,
+      }));
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      await act(async () => {
+        await result.current("change");
+      });
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when nodeAt returns null for change action", async () => {
+      mockOpen.mockResolvedValue("/new/image.png");
+      mockCopyImageToAssets.mockResolvedValue("assets/new.png");
+
+      const view = makeEditorView();
+      view.state.doc.nodeAt = vi.fn(() => null);
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      await act(async () => {
+        await result.current("change");
+      });
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- change action: block_image type ---
+
+  describe("change action — block_image type", () => {
+    it("updates block_image node src successfully", async () => {
+      mockOpen.mockResolvedValue("/new/image.png");
+      mockCopyImageToAssets.mockResolvedValue("assets/new.png");
+
+      const view = makeEditorView();
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "block_image" },
+        attrs: { src: "old.png" },
+        nodeSize: 1,
+      }));
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      await act(async () => {
+        await result.current("change");
+      });
+
+      expect(view.state.tr.setNodeMarkup).toHaveBeenCalled();
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  // --- relative path with ./ prefix ---
+
+  describe("copyPath with ./ prefix", () => {
+    it("strips ./ prefix when resolving relative path", async () => {
+      useImageContextMenuStore.setState({ imageSrc: "./assets/photo.png" });
+      const view = makeEditorView();
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      await act(async () => {
+        await result.current("copyPath");
+      });
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining("assets/photo.png")
+      );
+    });
+  });
 });
