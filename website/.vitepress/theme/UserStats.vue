@@ -36,9 +36,23 @@ const versionRows = computed(() => {
   return rows
 })
 
+const platformOrder = [
+  'darwin-aarch64',
+  'darwin-x86_64',
+  'windows-x86_64',
+  'linux-x86_64',
+  'linux-aarch64',
+]
+
 const detailRows = computed(() => {
   const platforms = hasPlatforms.value
-    ? Object.entries(stats.value.platforms).map(([k, v]) => ({ label: label(k), count: v }))
+    ? Object.entries(stats.value.platforms)
+        .sort(([a], [b]) => {
+          const ai = platformOrder.indexOf(a)
+          const bi = platformOrder.indexOf(b)
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+        })
+        .map(([k, v]) => ({ label: label(k), count: v }))
     : []
   const versions = versionRows.value
   const len = Math.max(platforms.length, versions.length)
@@ -73,19 +87,26 @@ onMounted(async () => {
           <span class="header-label">This Month</span>
           <span class="header-label">All Time</span>
         </div>
+        <div class="stat-row" v-if="stats.today.devices != null">
+          <span class="row-label">Unique Devices</span>
+          <span class="stat-number">{{ stats.today.devices }}</span>
+          <span class="stat-number">{{ stats.week.devices }}</span>
+          <span class="stat-number">{{ stats.month.devices }}</span>
+          <span class="stat-number">{{ stats.total.devices }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="row-label">Unique IPs</span>
+          <span :class="stats.today.devices != null ? 'stat-sub' : 'stat-number'">{{ stats.today.ips }}</span>
+          <span :class="stats.today.devices != null ? 'stat-sub' : 'stat-number'">{{ stats.week.ips }}</span>
+          <span :class="stats.today.devices != null ? 'stat-sub' : 'stat-number'">{{ stats.month.ips }}</span>
+          <span :class="stats.today.devices != null ? 'stat-sub' : 'stat-number'">{{ stats.total.ips }}</span>
+        </div>
         <div class="stat-row">
           <span class="row-label">Update Pings</span>
           <span class="stat-sub">{{ stats.today.pings }}</span>
           <span class="stat-sub">{{ stats.week.pings }}</span>
           <span class="stat-sub">{{ stats.month.pings }}</span>
           <span class="stat-sub">{{ stats.total.pings }}</span>
-        </div>
-        <div class="stat-row">
-          <span class="row-label">Unique IPs</span>
-          <span class="stat-number">{{ stats.today.ips }}</span>
-          <span class="stat-number">{{ stats.week.ips }}</span>
-          <span class="stat-number">{{ stats.month.ips }}</span>
-          <span class="stat-number">{{ stats.total.ips }}</span>
         </div>
       </div>
     </div>
@@ -108,7 +129,7 @@ onMounted(async () => {
     </div>
 
     <p class="stats-note">
-      Unique IPs / update check pings — actual users may be higher (shared IPs).
+      Anonymous device counts and unique IPs from update check pings.
       <a href="/guide/privacy">Privacy →</a>
     </p>
   </div>
