@@ -287,4 +287,121 @@ describe("focusModeExtension", () => {
       expect($pos.after(1)).toBe(3);
     });
   });
+
+  describe("plugin state integration (full flow)", () => {
+    function getPlugin() {
+      return focusModeExtension.config.addProseMirrorPlugins!.call({
+        name: "focusMode",
+        options: {},
+        storage: {},
+        parent: null as never,
+        editor: {} as never,
+        type: "extension" as never,
+      })[0];
+    }
+
+    it("init returns null when focusMode is disabled", () => {
+      mockEditorStoreState.focusModeEnabled = false;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello", "world"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+      const pluginState = plugin.getState(state);
+      expect(pluginState).toBeNull();
+    });
+
+    it("init returns decoration when focusMode is enabled", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello", "world"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+      const pluginState = plugin.getState(state);
+      expect(pluginState).toBeDefined();
+      expect(pluginState).not.toBeNull();
+      // Should have one decoration (the active block)
+      const decorations = pluginState!.find();
+      expect(decorations.length).toBe(1);
+    });
+
+    it("apply rebuilds decorations on selection change", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello", "world"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      // Move cursor to second paragraph
+      const tr = state.tr.setSelection(TextSelection.create(state.doc, 9));
+      const newState = state.apply(tr);
+      const pluginState = plugin.getState(newState);
+      expect(pluginState).not.toBeNull();
+      const decorations = pluginState!.find();
+      expect(decorations.length).toBe(1);
+      // Decoration should cover the second paragraph (positions 7-14)
+      expect(decorations[0].from).toBe(7);
+    });
+
+    it("apply maps decorations on doc change without selection change", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello", "world"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      // First, set selection in first paragraph
+      const state2 = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 2))
+      );
+
+      // Now insert text without changing selection
+      const tr = state2.tr.insertText("X", 1);
+      const state3 = state2.apply(tr);
+      const pluginState = plugin.getState(state3);
+      expect(pluginState).not.toBeNull();
+    });
+
+    it("apply returns old decorations when no change", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      // Empty transaction
+      const state2 = state.apply(state.tr);
+      const pluginState = plugin.getState(state2);
+      expect(pluginState).not.toBeNull();
+    });
+
+    it("props.decorations returns plugin state", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      const decorations = plugin.props.decorations!(state);
+      expect(decorations).not.toBeNull();
+    });
+
+    it("props.decorations returns null when focusMode is disabled", () => {
+      mockEditorStoreState.focusModeEnabled = false;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      const decorations = plugin.props.decorations!(state);
+      expect(decorations).toBeNull();
+    });
+
+    it("createFocusDecoration returns null for depth 0", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      // Create a doc and use position 0 (doc level, depth 0)
+      const doc = createDoc(["hello"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      // Set selection at doc boundary (pos 0 = before first paragraph)
+      const tr = state.tr.setSelection(TextSelection.create(state.doc, 0, 0));
+      const newState = state.apply(tr);
+      const pluginState = plugin.getState(newState);
+      // $from.depth is 0 at position 0, so should return null
+      expect(pluginState).toBeNull();
+    });
+  });
 });

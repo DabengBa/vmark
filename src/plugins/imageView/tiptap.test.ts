@@ -77,6 +77,39 @@ describe("imageViewExtension", () => {
   it("defines addNodeView", () => {
     expect(imageViewExtension.config.addNodeView).toBeDefined();
   });
+
+  it("addNodeView factory creates an ImageNodeView instance", () => {
+    const factory = imageViewExtension.config.addNodeView!.call({
+      name: "image",
+      options: { inline: true },
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "node" as never,
+    });
+    const mockNode = {
+      attrs: { src: "https://example.com/img.png", alt: "a", title: "t" },
+      type: { name: "image" },
+    };
+    const mockGetPos = () => 0;
+    const mockEditor = {
+      view: {
+        state: { doc: { nodeSize: 10 }, tr: { setSelection: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() } },
+        dispatch: vi.fn(),
+      },
+    };
+    const nodeView = factory!({
+      node: mockNode as never,
+      getPos: mockGetPos as never,
+      editor: mockEditor as never,
+      HTMLAttributes: {},
+      decorations: [] as never,
+      innerDecorations: {} as never,
+      extension: imageViewExtension as never,
+    });
+    expect(nodeView).toBeDefined();
+    expect((nodeView as unknown as { dom: HTMLElement }).dom).toBeInstanceOf(HTMLImageElement);
+  });
 });
 
 describe("ImageNodeView", () => {

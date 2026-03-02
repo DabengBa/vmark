@@ -376,6 +376,68 @@ describe("workspaceHandlers", () => {
     });
   });
 
+  describe("handleWorkspaceSaveDocumentAs — success path", () => {
+    it("saves document to new path and updates tab/doc stores", async () => {
+      mockDocStoreState.getDocument.mockReturnValue({
+        filePath: "/old/path.md",
+        isDirty: true,
+        content: "# Saved As Content",
+      });
+
+      await handleWorkspaceSaveDocumentAs("req-55", {
+        path: "/new/path.md",
+      });
+
+      expect(mockTabStoreState.updateTabPath).toHaveBeenCalledWith("tab-1", "/new/path.md");
+      expect(mockTabStoreState.updateTabTitle).toHaveBeenCalledWith("tab-1", "path.md");
+      expect(mockDocStoreState.setFilePath).toHaveBeenCalledWith("tab-1", "/new/path.md");
+      expect(mockDocStoreState.markSaved).toHaveBeenCalledWith("tab-1", "# Saved As Content");
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-55",
+        success: true,
+        data: null,
+      });
+    });
+  });
+
+  describe("handleWorkspaceGetInfo — edge cases", () => {
+    it("returns null workspaceName when rootPath is null", async () => {
+      const { useWorkspaceStore } = await import("@/stores/workspaceStore");
+      const origGetState = useWorkspaceStore.getState;
+      (useWorkspaceStore as unknown as { getState: () => unknown }).getState = () => ({
+        isWorkspaceMode: false,
+        rootPath: null,
+      });
+
+      await handleWorkspaceGetInfo("req-66");
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.workspaceName).toBeNull();
+      expect(call.data.rootPath).toBeNull();
+
+      (useWorkspaceStore as unknown as { getState: typeof origGetState }).getState = origGetState;
+    });
+
+    it("returns null workspaceName when rootPath ends with /", async () => {
+      const { useWorkspaceStore } = await import("@/stores/workspaceStore");
+      const origGetState = useWorkspaceStore.getState;
+      (useWorkspaceStore as unknown as { getState: () => unknown }).getState = () => ({
+        isWorkspaceMode: true,
+        rootPath: "/Users/test/project/",
+      });
+
+      await handleWorkspaceGetInfo("req-67");
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      // trailing slash means last segment is empty string → null
+      expect(call.data.workspaceName).toBeNull();
+
+      (useWorkspaceStore as unknown as { getState: typeof origGetState }).getState = origGetState;
+    });
+  });
+
   describe("handleWorkspaceReloadDocument", () => {
     it("returns error when no active document", async () => {
       mockTabStoreState.activeTabId = {};

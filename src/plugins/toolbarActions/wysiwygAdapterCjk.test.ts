@@ -192,6 +192,23 @@ describe("handleFormatCJK", () => {
     const ctx = createMockContext({ selectionEmpty: true, depth: 0 });
     expect(handleFormatCJK(ctx)).toBe(false);
   });
+
+  it("returns false and logs error when block serialization throws", () => {
+    const ctx = createMockContext({ selectionEmpty: true });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.mocked(serializeMarkdown).mockImplementation(() => {
+      throw new Error("serialize failed");
+    });
+
+    const result = handleFormatCJK(ctx);
+    expect(result).toBe(false);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to format CJK block"),
+      expect.any(Error),
+    );
+    consoleSpy.mockRestore();
+  });
 });
 
 describe("handleFormatCJKFile", () => {

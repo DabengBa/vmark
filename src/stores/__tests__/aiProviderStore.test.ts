@@ -440,6 +440,85 @@ describe("aiProviderStore", () => {
     expect(provider?.endpoint).toBe("https://custom.openai.com");
   });
 
+  // ── migrate ────────────────────────────────────────────────────────
+
+  describe("persist migrate", () => {
+    it("strips enabled field from REST providers when migrating from v1", () => {
+      const options = useAiProviderStore.persist.getOptions();
+      const migrate = options.migrate!;
+      const v1Data = {
+        activeProvider: "anthropic",
+        restProviders: [
+          { type: "anthropic", name: "Anthropic", endpoint: "", apiKey: "k", model: "m", enabled: true },
+          { type: "openai", name: "OpenAI", endpoint: "", apiKey: "", model: "m", enabled: false },
+        ],
+      };
+      const result = migrate(v1Data, 1) as Record<string, unknown>;
+      const providers = result.restProviders as Array<Record<string, unknown>>;
+      expect(providers[0]).not.toHaveProperty("enabled");
+      expect(providers[1]).not.toHaveProperty("enabled");
+      expect(providers[0].apiKey).toBe("k");
+    });
+
+    it("skips migration when version is already 2", () => {
+      const options = useAiProviderStore.persist.getOptions();
+      const migrate = options.migrate!;
+      const v2Data = {
+        activeProvider: null,
+        restProviders: [
+          { type: "anthropic", name: "Anthropic", endpoint: "", apiKey: "", model: "m" },
+        ],
+      };
+      const result = migrate(v2Data, 2) as Record<string, unknown>;
+      expect(result).toEqual(v2Data);
+    });
+
+    it("handles v1 data with no restProviders array", () => {
+      const options = useAiProviderStore.persist.getOptions();
+      const migrate = options.migrate!;
+      const v1Data = { activeProvider: null };
+      const result = migrate(v1Data, 1) as Record<string, unknown>;
+      expect(result.activeProvider).toBeNull();
+    });
+  });
+
+  // ── onRehydrateStorage ────────────────────────────────────────────
+
+  describe("persist onRehydrateStorage", () => {
+    it("merges new default REST providers after rehydration", () => {
+      // Simulate a state with only 2 of the 4 default providers
+      useAiProviderStore.setState({
+        restProviders: [
+          { type: "anthropic", name: "Anthropic", endpoint: "https://api.anthropic.com", apiKey: "", model: "claude-sonnet-4-5-20250929" },
+          { type: "openai", name: "OpenAI", endpoint: "https://api.openai.com", apiKey: "", model: "gpt-4o" },
+        ],
+      });
+
+      const options = useAiProviderStore.persist.getOptions();
+      const onRehydrate = options.onRehydrateStorage!;
+      const postHydrate = onRehydrate(useAiProviderStore.getState());
+
+      // Call the post-hydrate callback
+      postHydrate!();
+
+      const { restProviders } = useAiProviderStore.getState();
+      const types = restProviders.map((p) => p.type);
+      expect(types).toContain("google-ai");
+      expect(types).toContain("ollama-api");
+    });
+
+    it("does not duplicate existing providers on rehydration", () => {
+      // All 4 defaults already present
+      const options = useAiProviderStore.persist.getOptions();
+      const onRehydrate = options.onRehydrateStorage!;
+      const postHydrate = onRehydrate(useAiProviderStore.getState());
+      postHydrate!();
+
+      const { restProviders } = useAiProviderStore.getState();
+      expect(restProviders).toHaveLength(4);
+    });
+  });
+
   // ── SSR guard ───────────────────────────────────────────────────────
 
   it("store is functional (SSR guard does not break initialization)", () => {

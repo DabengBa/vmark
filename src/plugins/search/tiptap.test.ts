@@ -1139,6 +1139,136 @@ describe("search plugin view lifecycle", () => {
     viewResult.destroy!();
   });
 
+  it("handleReplaceCurrent calls findNext after rAF", () => {
+    vi.useFakeTimers();
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.replaceText = "hi";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-current"));
+    expect(mockDispatch).toHaveBeenCalled();
+
+    // findNext is called inside rAF
+    vi.runAllTimers();
+    expect(mockSearchState.findNext).toHaveBeenCalled();
+
+    viewResult.destroy!();
+    vi.useRealTimers();
+  });
+
+  it("scrollToMatch scrolls when match is outside viewport", () => {
+    vi.useFakeTimers();
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.classList.add("editor-content");
+    scrollContainer.getBoundingClientRect = vi.fn(() => ({
+      top: 0, bottom: 200, left: 0, right: 500, width: 500, height: 200, x: 0, y: 0, toJSON: () => {},
+    }));
+    scrollContainer.scrollTo = vi.fn();
+    Object.defineProperty(scrollContainer, "scrollTop", { value: 0 });
+
+    const editorDom = document.createElement("div");
+    scrollContainer.appendChild(editorDom);
+
+    const mockView: Record<string, unknown> = {
+      state: state2,
+      dom: editorDom,
+      dispatch: vi.fn((tr: { apply: unknown }) => {
+        // Update the view state so scrollToMatch can read plugin state
+        mockView.state = (mockView.state as { apply: (t: unknown) => unknown }).apply(tr);
+      }),
+      coordsAtPos: vi.fn(() => ({ top: 300, bottom: 320, left: 50 })),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Trigger a state change to call scrollToMatch via rAF
+    // Need to change something so JSON.stringify differs
+    mockSearchState.currentIndex = 0;
+    mockSearchState.caseSensitive = true; // force state change
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // Run rAF callbacks
+    vi.runAllTimers();
+
+    expect(scrollContainer.scrollTo).toHaveBeenCalled();
+
+    viewResult.destroy!();
+    vi.useRealTimers();
+  });
+
+  it("scrollToMatch does not scroll when match is within viewport", () => {
+    vi.useFakeTimers();
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+    mockSearchState.caseSensitive = false;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.classList.add("editor-content");
+    scrollContainer.getBoundingClientRect = vi.fn(() => ({
+      top: 0, bottom: 500, left: 0, right: 500, width: 500, height: 500, x: 0, y: 0, toJSON: () => {},
+    }));
+    scrollContainer.scrollTo = vi.fn();
+
+    const editorDom = document.createElement("div");
+    scrollContainer.appendChild(editorDom);
+
+    const mockView: Record<string, unknown> = {
+      state: state2,
+      dom: editorDom,
+      dispatch: vi.fn((tr: unknown) => {
+        mockView.state = (mockView.state as { apply: (t: unknown) => unknown }).apply(tr);
+      }),
+      coordsAtPos: vi.fn(() => ({ top: 100, bottom: 120, left: 50 })),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Trigger a state change
+    mockSearchState.caseSensitive = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    vi.runAllTimers();
+
+    // Match is within viewport, no scrollTo
+    expect(scrollContainer.scrollTo).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+    vi.useRealTimers();
+  });
+
   it("scrollToMatch does not scroll when search is closed", () => {
     const plugin = getPlugin();
     const doc = createDoc(["hello world"]);

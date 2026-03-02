@@ -468,6 +468,60 @@ describe("usePromptHistory — comprehensive", () => {
     expect(result.current.dropdownSelectedIndex).toBe(0);
   });
 
+  // --- ArrowDown decrement while cycling deeper ---
+
+  it("decrements cycle index with ArrowDown when not at first entry", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // Enter cycling and advance twice
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    expect(result.current.displayValue).toBe("help me");
+
+    // ArrowDown goes back one
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowDown", keyCode: 40 }));
+    });
+    expect(result.current.displayValue).toBe("hello world");
+  });
+
+  // --- Dropdown passthrough for typing keys ---
+
+  it("passes through non-navigation keys when dropdown is open", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    act(() => {
+      result.current.openDropdown();
+    });
+
+    // Typing a letter — should not be intercepted (returns without action)
+    const e = makeKeyEvent({ key: "a" });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+    // Dropdown stays open, no preventDefault
+    expect(e.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.isDropdownOpen).toBe(true);
+  });
+
+  // --- IME guard / isComposing guard ---
+
+  it("skips handling when isComposing callback returns true", () => {
+    const { result } = renderHook(() => usePromptHistory(() => true));
+
+    const e = makeKeyEvent({ key: "ArrowUp", keyCode: 38 });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+    // Should not enter cycling because isComposing returns true
+    expect(e.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.displayValue).toBe("");
+  });
+
   // --- Dropdown hides ghost text ---
 
   it("hides ghost text when dropdown is open", () => {

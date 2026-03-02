@@ -356,4 +356,93 @@ describe("runOrphanCleanup", () => {
       expect.objectContaining({ kind: "info" }),
     );
   });
+
+  it("returns -1 when user cancels deletion", async () => {
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "orphan.png", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+    vi.mocked(confirm).mockResolvedValue(false);
+
+    const { runOrphanCleanup } = await import("./orphanAssetCleanup");
+    const result = await runOrphanCleanup("/doc/test.md", "no images here");
+    expect(result).toBe(-1);
+  });
+
+  it("deletes orphans and returns count on confirmation", async () => {
+    const { exists, readDir, remove } = await import("@tauri-apps/plugin-fs");
+    const { confirm, message } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "orphan1.png", isFile: true, isDirectory: false, isSymlink: false },
+      { name: "orphan2.jpg", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+    vi.mocked(confirm).mockResolvedValue(true);
+    vi.mocked(remove).mockResolvedValue(undefined);
+
+    const { runOrphanCleanup } = await import("./orphanAssetCleanup");
+    const result = await runOrphanCleanup("/doc/test.md", "no images");
+    expect(result).toBe(2);
+    expect(message).toHaveBeenCalledWith(
+      expect.stringContaining("Deleted 2"),
+      expect.objectContaining({ kind: "info" }),
+    );
+  });
+
+  it("shows more text for more than 10 orphans", async () => {
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    const entries = Array.from({ length: 12 }, (_, i) => ({
+      name: `img${i}.png`,
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+    }));
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue(entries);
+    vi.mocked(confirm).mockResolvedValue(false);
+
+    const { runOrphanCleanup } = await import("./orphanAssetCleanup");
+    await runOrphanCleanup("/doc/test.md", "no images");
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("and 2 more"),
+      expect.anything(),
+    );
+  });
+
+  it("shows auto-cleanup hint when autoCleanupEnabled is true", async () => {
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "orphan.png", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+    vi.mocked(confirm).mockResolvedValue(false);
+
+    const { runOrphanCleanup } = await import("./orphanAssetCleanup");
+    await runOrphanCleanup("/doc/test.md", "no images", true);
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("automatically deleted"),
+      expect.anything(),
+    );
+  });
+
+  it("shows tip hint when autoCleanupEnabled is false", async () => {
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "orphan.png", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+    vi.mocked(confirm).mockResolvedValue(false);
+
+    const { runOrphanCleanup } = await import("./orphanAssetCleanup");
+    await runOrphanCleanup("/doc/test.md", "no images", false);
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("Tip:"),
+      expect.anything(),
+    );
+  });
 });

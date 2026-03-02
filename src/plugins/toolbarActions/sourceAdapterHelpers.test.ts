@@ -159,6 +159,16 @@ describe("applyInlineFormat", () => {
     expect(result).toBe(true);
     view.destroy();
   });
+
+  it("unwraps format when word is already wrapped with markers", () => {
+    // **hello** — cursor at position 4 is inside "hello" (positions: **=0,1 h=2 e=3 l=4 l=5 o=6 **=7,8)
+    const view = createView("**hello** world", [{ from: 4, to: 4 }]);
+    const result = applyInlineFormat(view, "bold");
+    expect(result).toBe(true);
+    // After unwrap, the ** markers should be removed
+    expect(view.state.doc.toString()).toBe("hello world");
+    view.destroy();
+  });
 });
 
 describe("clearFormattingSelections", () => {

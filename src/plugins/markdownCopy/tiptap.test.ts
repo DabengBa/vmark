@@ -489,6 +489,117 @@ describe("ensureBlockContent and createDocFromSlice via clipboardTextSerializer"
   });
 });
 
+describe("ensureBlockContent and createDocFromSlice edge cases", () => {
+  it("handles inline-only content slice for markdown serialization", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: false },
+    } as never);
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { Slice, Fragment } = await import("@tiptap/pm/model");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    // Inline-only content (text node without paragraph wrapper)
+    const inlineContent = Fragment.from(testSchema.text("just inline text"));
+    const slice = new Slice(inlineContent, 0, 0);
+    const { EditorState } = await import("@tiptap/pm/state");
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    const mockView = { state };
+
+    const result = plugin.props.clipboardTextSerializer(slice, mockView);
+    expect(typeof result).toBe("string");
+  });
+
+  it("handles empty fragment slice", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: false },
+    } as never);
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { Slice, Fragment } = await import("@tiptap/pm/model");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    const emptySlice = new Slice(Fragment.empty, 0, 0);
+    const { EditorState } = await import("@tiptap/pm/state");
+    const doc = testSchema.node("doc", null, [testSchema.node("paragraph")]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const result = plugin.props.clipboardTextSerializer(emptySlice, { state });
+    expect(typeof result).toBe("string");
+  });
+});
+
+describe("mouseup handler with copyOnSelect and markdown format", () => {
+  it("copies markdown on mouseup when copyOnSelect and copyFormat=markdown", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: true },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: testSchema });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 6)));
+
+    const mockView = {
+      state,
+      isDestroyed: false,
+    };
+
+    const result = plugin.props.handleDOMEvents.mouseup(mockView);
+    expect(result).toBe(false);
+  });
+});
+
 describe("mouseup handler with copyOnSelect enabled", () => {
   it("copies selected text on mouseup when copyOnSelect is enabled", async () => {
     const { useSettingsStore } = await import("@/stores/settingsStore");

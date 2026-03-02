@@ -628,4 +628,147 @@ describe("buildEditorKeymapBindings handler execution", () => {
       expect(result).toBe(false);
     }
   });
+
+  it("Escape closes source peek when it is open", async () => {
+    const { useSourcePeekStore } = await import("@/stores/sourcePeekStore");
+    useSourcePeekStore.setState({ isOpen: true });
+
+    const { Schema } = require("@tiptap/pm/model");
+    const { EditorState } = require("@tiptap/pm/state");
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const bindings = buildEditorKeymapBindings();
+    const mockView = { dom: {}, state, dispatch: vi.fn(), focus: vi.fn() };
+    const result = bindings.Escape(state as never, vi.fn(), mockView);
+    expect(result).toBe(true);
+
+    // Restore
+    useSourcePeekStore.setState({ isOpen: false });
+  });
+
+  it("sourcePeek binding closes when source peek is open", async () => {
+    const { useSourcePeekStore } = await import("@/stores/sourcePeekStore");
+    useSourcePeekStore.setState({ isOpen: true });
+
+    const { Schema } = require("@tiptap/pm/model");
+    const { EditorState } = require("@tiptap/pm/state");
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const bindings = buildEditorKeymapBindings();
+    const mockView = { dom: {}, state, dispatch: vi.fn(), focus: vi.fn() };
+    if (bindings.F5) {
+      const result = bindings.F5(state as never, vi.fn(), mockView);
+      expect(result).toBe(true);
+    }
+
+    useSourcePeekStore.setState({ isOpen: false });
+  });
+
+  it("blockquote binding wraps list inside blockquote", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const { Schema } = require("@tiptap/pm/model");
+      const { EditorState, TextSelection } = require("@tiptap/pm/state");
+      const testSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          blockquote: { group: "block", content: "block+" },
+          bulletList: { group: "block", content: "listItem+" },
+          listItem: { content: "paragraph block*" },
+          text: { group: "inline" },
+        },
+      });
+      const doc = testSchema.node("doc", null, [
+        testSchema.node("bulletList", null, [
+          testSchema.node("listItem", null, [
+            testSchema.node("paragraph", null, [testSchema.text("item")]),
+          ]),
+        ]),
+      ]);
+      // Position cursor inside the list item paragraph
+      const state = EditorState.create({
+        doc,
+        schema: testSchema,
+        selection: TextSelection.create(doc, 4),
+      });
+
+      const mockEditor = {
+        isActive: vi.fn(() => false),
+      };
+      const mockDom = document.createElement("div");
+      (mockDom as unknown as Record<string, unknown>).editor = mockEditor;
+      const mockView = {
+        dom: mockDom,
+        state,
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+      };
+
+      const result = bindings[key](state as never, vi.fn(), mockView);
+      expect(result).toBe(true);
+      // dispatch should have been called (wrapping the list)
+      expect(mockView.dispatch).toHaveBeenCalled();
+    }
+  });
+
+  it("blockquote binding handles wrap failure gracefully", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const { Schema } = require("@tiptap/pm/model");
+      const { EditorState } = require("@tiptap/pm/state");
+      const testSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          blockquote: { group: "block", content: "block+" },
+          text: { group: "inline" },
+        },
+      });
+      const doc = testSchema.node("doc", null, [
+        testSchema.node("paragraph", null, [testSchema.text("hello")]),
+      ]);
+      const state = EditorState.create({ doc, schema: testSchema });
+
+      const mockEditor = {
+        isActive: vi.fn(() => false),
+      };
+      const mockDom = document.createElement("div");
+      (mockDom as unknown as Record<string, unknown>).editor = mockEditor;
+      // Make dispatch throw to test the catch block
+      const mockView = {
+        dom: mockDom,
+        state,
+        dispatch: vi.fn(() => { throw new Error("Wrap failed"); }),
+        focus: vi.fn(),
+      };
+
+      // Should not throw despite dispatch failure
+      expect(() => bindings[key](state as never, vi.fn(), mockView)).not.toThrow();
+    }
+  });
 });

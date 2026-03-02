@@ -246,6 +246,25 @@ describe("setupDiagramExport - event prevention", () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it("prevents default and stops propagation on menu item mousedown (lines 156-157)", () => {
+    setupDiagramExport(container, vi.fn());
+    const btn = container.querySelector<HTMLElement>(".mermaid-export-btn")!;
+    btn.click(); // open menu
+
+    const menuItem = document.querySelector<HTMLElement>(".mermaid-export-menu-item")!;
+    expect(menuItem).not.toBeNull();
+
+    const event = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    const spy = vi.spyOn(event, "stopPropagation");
+    menuItem.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(spy).toHaveBeenCalled();
+  });
+
   it("stops propagation on button pointerdown", () => {
     setupDiagramExport(container, vi.fn());
     const btn = container.querySelector<HTMLElement>(".mermaid-export-btn")!;

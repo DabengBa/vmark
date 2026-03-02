@@ -11,6 +11,11 @@ vi.mock("@/utils/saveToPath", () => ({
   saveToPath: vi.fn(),
 }));
 
+vi.mock("@/utils/orphanAssetCleanup", () => ({
+  findOrphanedImages: vi.fn().mockResolvedValue({ orphanedImages: [], referencedImages: [] }),
+  deleteOrphanedImages: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/hooks/workspaceSession", () => ({
   persistWorkspaceSession: vi.fn().mockResolvedValue(undefined),
 }));
@@ -248,5 +253,129 @@ describe("closeTabsWithDirtyCheck", () => {
   it("returns true for empty tab list", async () => {
     const result = await closeTabsWithDirtyCheck(WINDOW_LABEL, []);
     expect(result).toBe(true);
+  });
+});
+
+describe("closeTabWithDirtyCheck — orphan cleanup", () => {
+  beforeEach(async () => {
+    resetStores();
+    vi.clearAllMocks();
+    vi.mocked(isMacPlatform).mockReturnValue(true);
+
+    // Reset orphan mock defaults
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+    vi.mocked(findOrphanedImages).mockResolvedValue({ orphanedImages: [], referencedImages: [] });
+  });
+
+  it("runs orphan cleanup for clean tab with cleanupOrphansOnClose enabled", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages, deleteOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+    vi.mocked(findOrphanedImages).mockResolvedValue({
+      orphanedImages: ["/tmp/assets/orphan.png"],
+      referencedImages: [],
+    });
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/test.md");
+    useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/other.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/test.md");
+    const otherTabId = useTabStore.getState().tabs[WINDOW_LABEL]![1].id;
+    useDocumentStore.getState().initDocument(otherTabId, "other", "/tmp/other.md");
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(findOrphanedImages).toHaveBeenCalledWith("/tmp/test.md", "hello");
+    expect(deleteOrphanedImages).toHaveBeenCalledWith(["/tmp/assets/orphan.png"]);
+  });
+
+  it("silently handles orphan cleanup errors", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+    vi.mocked(findOrphanedImages).mockRejectedValue(new Error("fs error"));
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/test.md");
+    useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/other.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/test.md");
+    const otherTabId = useTabStore.getState().tabs[WINDOW_LABEL]![1].id;
+    useDocumentStore.getState().initDocument(otherTabId, "other", "/tmp/other.md");
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(result).toBe(true);
+    errorSpy.mockRestore();
+  });
+
+  it("skips orphan cleanup when cleanupOrphansOnClose is disabled", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: false } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/test.md");
+    useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/other.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/test.md");
+    const otherTabId = useTabStore.getState().tabs[WINDOW_LABEL]![1].id;
+    useDocumentStore.getState().initDocument(otherTabId, "other", "/tmp/other.md");
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(findOrphanedImages).not.toHaveBeenCalled();
+  });
+
+  it("skips orphan cleanup for unsaved tab (no filePath)", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, null);
+    useDocumentStore.getState().initDocument(tabId, "hello", null);
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(findOrphanedImages).not.toHaveBeenCalled();
+  });
+
+  it("runs orphan cleanup after save for dirty tab (saved path)", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+    vi.mocked(findOrphanedImages).mockResolvedValue({
+      orphanedImages: [],
+      referencedImages: [],
+    });
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/dirty.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/dirty.md");
+    useDocumentStore.getState().setContent(tabId, "changed");
+
+    vi.mocked(message).mockResolvedValueOnce("Yes");
+    vi.mocked(saveToPath).mockResolvedValueOnce(true);
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(findOrphanedImages).toHaveBeenCalled();
+  });
+
+  it("does NOT run orphan cleanup when dirty tab is discarded", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/dirty.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/dirty.md");
+    useDocumentStore.getState().setContent(tabId, "changed");
+
+    vi.mocked(message).mockResolvedValueOnce("No");
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    expect(findOrphanedImages).not.toHaveBeenCalled();
   });
 });

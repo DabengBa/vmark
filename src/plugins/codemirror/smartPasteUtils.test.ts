@@ -132,6 +132,44 @@ describe("getActiveFilePath", () => {
     // Default store state has no active tab
     expect(getActiveFilePath()).toBeNull();
   });
+
+  it("returns filePath when active tab has a document with filePath", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    const origTabState = useTabStore.getState;
+    const origDocState = useDocumentStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => ({
+      activeTabId: { main: "tab-1" },
+    });
+    (useDocumentStore as unknown as { getState: () => unknown }).getState = () => ({
+      getDocument: (id: string) => id === "tab-1" ? { filePath: "/test/file.md" } : null,
+    });
+
+    expect(getActiveFilePath()).toBe("/test/file.md");
+
+    (useTabStore as unknown as { getState: typeof origTabState }).getState = origTabState;
+    (useDocumentStore as unknown as { getState: typeof origDocState }).getState = origDocState;
+  });
+
+  it("returns null when document has no filePath", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    const origTabState = useTabStore.getState;
+    const origDocState = useDocumentStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => ({
+      activeTabId: { main: "tab-2" },
+    });
+    (useDocumentStore as unknown as { getState: () => unknown }).getState = () => ({
+      getDocument: () => ({ filePath: undefined }),
+    });
+
+    expect(getActiveFilePath()).toBeNull();
+
+    (useTabStore as unknown as { getState: typeof origTabState }).getState = origTabState;
+    (useDocumentStore as unknown as { getState: typeof origDocState }).getState = origDocState;
+  });
 });
 
 describe("getToastAnchorRect", () => {
@@ -158,6 +196,14 @@ describe("getToastAnchorRect", () => {
     const view = createView("");
     const rect = getToastAnchorRect(view, 0);
     expect(rect).toHaveProperty("top");
+  });
+
+  it("returns coords when coordsAtPos succeeds", () => {
+    const view = createView("hello world");
+    const fakeCoords = { top: 10, left: 20, bottom: 30, right: 40 };
+    vi.spyOn(view, "coordsAtPos").mockReturnValue(fakeCoords);
+    const rect = getToastAnchorRect(view, 0);
+    expect(rect).toEqual({ top: 10, left: 20, bottom: 30, right: 40 });
   });
 });
 
@@ -231,6 +277,13 @@ describe("expandHomePath", () => {
     const result = await expandHomePath("~/Documents/file.md");
     // Will return null if homeDir() throws (no Tauri runtime)
     expect(result === null || typeof result === "string").toBe(true);
+  });
+
+  it("returns null when homeDir throws", async () => {
+    const pathMod = await import("@tauri-apps/api/path");
+    vi.mocked(pathMod.homeDir).mockRejectedValueOnce(new Error("no home"));
+    const result = await expandHomePath("~/some/file.md");
+    expect(result).toBeNull();
   });
 });
 

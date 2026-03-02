@@ -542,6 +542,23 @@ describe("deleteAndUpdateFocus edge cases", () => {
     expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id1);
   });
 
+  it("sorts remaining suggestions by position when focused is deleted", () => {
+    // Add 3 suggestions: positions 20, 5, 10
+    const id1 = addTestSuggestion({ from: 20, to: 25 });
+    const id2 = addTestSuggestion({ from: 5, to: 10 });
+    addTestSuggestion({ from: 10, to: 15 });
+
+    // Focus on id1 (from: 20)
+    useAiSuggestionStore.getState().focusSuggestion(id1);
+    expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id1);
+
+    // Delete focused suggestion — sort callback runs on 2 remaining
+    useAiSuggestionStore.getState().acceptSuggestion(id1);
+
+    // Focus should move to the first by position (from: 5 = id2)
+    expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id2);
+  });
+
   it("sets focus to null when removing the last suggestion", () => {
     const id = addTestSuggestion({ from: 0, to: 5 });
 

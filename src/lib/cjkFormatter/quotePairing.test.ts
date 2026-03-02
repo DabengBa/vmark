@@ -357,6 +357,38 @@ describe("quotePairing", () => {
     });
   });
 
+  describe("classifyQuote — stack-based close fallback", () => {
+    test("classifies quote as close when stack has matching opener", () => {
+      // "abc"def" — the third " has no whitespace/punctuation signals
+      // but the stack has an opener, so it should be classified as close.
+      // The second " closes the first, the third becomes open,
+      // and the fourth closes the third.
+      const { pairs } = analyzeQuotes('"abc"def"xyz"');
+      // Should pair successfully
+      expect(pairs.length).toBeGreaterThanOrEqual(2);
+    });
+
+    test("defaults to open when no signals and empty stack", () => {
+      // Single quote char surrounded by non-whitespace, non-punctuation
+      // with empty stack → defaults to open
+      const tokens = tokenizeQuotes('a"b');
+      // leftNeighbor is 'a' (non-whitespace, non-open-bracket) → not strong open
+      // rightNeighbor is 'b' (non-whitespace, non-close-bracket, non-terminal) → not strong close
+      // Stack is empty → defaults to "open"
+      const quoteToken = tokens.find(
+        (t) => t.role === "open" || t.role === "close"
+      );
+      expect(quoteToken?.role).toBe("open");
+    });
+  });
+
+  describe("applyContextualQuotes — single quotes in contextual CJK", () => {
+    test("CJK-involved single quotes become curly in contextual mode", () => {
+      const result = applyContextualQuotes("中文'Hello'", "contextual");
+      expect(result).toBe("中文\u2018Hello\u2019");
+    });
+  });
+
   describe("applyContextualQuotes - unknown mode fallthrough", () => {
     test("handles single quotes in corner-for-cjk mode with CJK", () => {
       const result = applyContextualQuotes("中文'Hello'", "corner-for-cjk");

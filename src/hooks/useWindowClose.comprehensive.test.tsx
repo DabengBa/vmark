@@ -285,3 +285,81 @@ describe("useWindowClose — app:quit-requested", () => {
     expect(invoke).not.toHaveBeenCalledWith("close_window", expect.anything());
   });
 });
+
+describe("useWindowClose — menu:close", () => {
+  beforeEach(() => {
+    listeners.clear();
+    resetStores();
+    vi.clearAllMocks();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+  });
+
+  it("closes active tab via closeTabWithDirtyCheck on menu:close", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "", null);
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("menu:close")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("menu:close")!({ payload: WINDOW });
+    });
+
+    expect(mockCloseTabWithDirtyCheck).toHaveBeenCalledWith(WINDOW, tabId);
+  });
+
+  it("ignores menu:close for a different window", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "", null);
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("menu:close")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("menu:close")!({ payload: "other-window" });
+    });
+
+    expect(mockCloseTabWithDirtyCheck).not.toHaveBeenCalled();
+  });
+
+  it("handles menu:close when no active tab", async () => {
+    // No tabs created
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("menu:close")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("menu:close")!({ payload: WINDOW });
+    });
+
+    expect(mockCloseTabWithDirtyCheck).not.toHaveBeenCalled();
+  });
+
+  it("catches closeTabWithDirtyCheck error gracefully", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "", null);
+    mockCloseTabWithDirtyCheck.mockRejectedValueOnce(new Error("fail"));
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("menu:close")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("menu:close")!({ payload: WINDOW });
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("menu:close"),
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
+  });
+});

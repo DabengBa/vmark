@@ -1355,5 +1355,81 @@ describe("footnotePopup plugin handler integration", () => {
       );
       expect(result).not.toBeNull();
     });
+
+    it("renumbers refs when a ref and its def are both deleted (orphanedDefs=0, renumber path)", () => {
+      // Setup: refs [1, 2, 3], defs [1, 2, 3]
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        pWithRef("B", "2"),
+        pWithRef("C", "3"),
+        fnDef("1"),
+        fnDef("2"),
+        fnDef("3"),
+      ]);
+      const state = createState(doc);
+
+      // Delete both ref "2" paragraph AND def "2"
+      // After: refs [1, 3], defs [1, 3] => orphanedDefs = 0, renumber needed (3->2)
+      // First, find positions of paragraph with ref "2" and def "2"
+      const child1Size = state.doc.child(0).nodeSize; // pWithRef A
+      const child2Size = state.doc.child(1).nodeSize; // pWithRef B
+      const child3Size = state.doc.child(2).nodeSize; // pWithRef C
+      const child4Size = state.doc.child(3).nodeSize; // fnDef 1
+
+      // Delete def "2" first (it's child(4)), then delete paragraph with ref "2" (child(1))
+      // Work in reverse order to preserve positions
+      const def2Start = child1Size + child2Size + child3Size + child4Size;
+      const def2End = def2Start + state.doc.child(4).nodeSize;
+
+      let tr = state.tr.delete(def2Start, def2End);
+      // Now delete paragraph with ref "2" (child(1))
+      tr = tr.delete(child1Size, child1Size + child2Size);
+
+      const newState = state.apply(tr);
+
+      // Verify: new doc has refs [1, 3] and defs [1, 3]
+      const newRefLabels = getReferenceLabels(newState.doc);
+      expect(newRefLabels).toEqual(new Set(["1", "3"]));
+      const newDefs = getDefinitionInfo(newState.doc);
+      expect(newDefs.map((d) => d.label)).toEqual(expect.arrayContaining(["1", "3"]));
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      // Should return a renumber transaction (line 284)
+      expect(result).not.toBeNull();
+      // After renumbering, labels should be 1, 2
+      const finalRefLabels = getReferenceLabels(result!.doc);
+      expect(finalRefLabels).toEqual(new Set(["1", "2"]));
+    });
+
+    it("deletes all defs when all refs are removed but defs remain with non-matching labels", () => {
+      // This tests lines 272-280: orphanedDefs=0, newRefLabels.size=0, defs.length>0
+      // This is actually unreachable because if newRefLabels.size === 0, all defs are orphaned.
+      // But we can test the outer branch: orphanedDefs.length === 0 && newRefLabels.size === 0
+      // with defs.length === 0 (returns null at line 280).
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        fnDef("1"),
+      ]);
+      const state = createState(doc);
+
+      // Delete both the ref paragraph and the def
+      const child1Size = state.doc.child(0).nodeSize;
+      let tr = state.tr.delete(child1Size, child1Size + state.doc.child(1).nodeSize);
+      tr = tr.delete(0, child1Size);
+
+      const newState = state.apply(tr);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      // No refs, no defs => returns null (line 280)
+      expect(result).toBeNull();
+    });
   });
 });

@@ -376,6 +376,56 @@ describe("spawnPty shell selection", () => {
     expect(spawnCalls).toEqual(["/usr/bin/nonexistent", "/bin/zsh"]);
   });
 
+  it("sets VMARK_WORKSPACE env when workspace root is available", async () => {
+    vi.mocked(useSettingsStore.getState).mockReturnValue({
+      terminal: { shell: "" },
+    } as ReturnType<typeof useSettingsStore.getState>);
+    vi.mocked(useWorkspaceStore.getState).mockReturnValue({
+      rootPath: "/my/workspace",
+    } as ReturnType<typeof useWorkspaceStore.getState>);
+
+    await spawnPty({ term: mockTerm, onExit: vi.fn(), disposed: () => false });
+
+    const spawnCallEnv = vi.mocked(spawn).mock.calls[0][2] as { env: Record<string, string> };
+    expect(spawnCallEnv.env.VMARK_WORKSPACE).toBe("/my/workspace");
+  });
+
+  it("throws original error when spawn fails and no configured shell", async () => {
+    vi.mocked(useSettingsStore.getState).mockReturnValue({
+      terminal: { shell: "" },
+    } as ReturnType<typeof useSettingsStore.getState>);
+
+    vi.mocked(spawn).mockImplementation((() => {
+      throw new Error("spawn failed");
+    }) as unknown as typeof spawn);
+
+    await expect(
+      spawnPty({ term: mockTerm, onExit: vi.fn(), disposed: () => false }),
+    ).rejects.toThrow("spawn failed");
+  });
+
+  it("calls onExit callback when PTY exits", async () => {
+    vi.mocked(useSettingsStore.getState).mockReturnValue({
+      terminal: { shell: "" },
+    } as ReturnType<typeof useSettingsStore.getState>);
+
+    let exitHandler: (e: { exitCode: number }) => void = () => {};
+    vi.mocked(spawn).mockReturnValue({
+      onData: vi.fn(),
+      onExit: vi.fn((handler: (e: { exitCode: number }) => void) => {
+        exitHandler = handler;
+      }),
+      write: vi.fn(),
+      resize: vi.fn(),
+      kill: vi.fn(),
+    } as unknown as ReturnType<typeof spawn>);
+
+    const onExit = vi.fn();
+    await spawnPty({ term: mockTerm, onExit, disposed: () => false });
+    exitHandler({ exitCode: 42 });
+    expect(onExit).toHaveBeenCalledWith(42);
+  });
+
   it("throws if disposed during fallback await", async () => {
     vi.mocked(useSettingsStore.getState).mockReturnValue({
       terminal: { shell: "/usr/bin/nonexistent" },

@@ -229,5 +229,63 @@ describe("tabHandlers", () => {
       expect(call.data.tabId).toBe("tab-reopened");
       expect(call.data.filePath).toBe("/reopened.md");
     });
+
+    it("reopens a closed tab without file path (untitled)", async () => {
+      mockTabStoreState.reopenClosedTab.mockReturnValue({
+        id: "tab-untitled",
+        filePath: null,
+        title: "Untitled",
+      });
+
+      await handleTabsReopenClosed("req-16", {});
+
+      expect(mockDocStoreState.initDocument).toHaveBeenCalledWith("tab-untitled", "", null);
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.tabId).toBe("tab-untitled");
+    });
+
+    it("handles file read failure for reopened tab", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockRejectedValueOnce(new Error("file deleted"));
+      mockTabStoreState.reopenClosedTab.mockReturnValue({
+        id: "tab-deleted",
+        filePath: "/deleted.md",
+        title: "Deleted",
+      });
+
+      await handleTabsReopenClosed("req-17", {});
+
+      // Should init with empty content since file was deleted
+      expect(mockDocStoreState.initDocument).toHaveBeenCalledWith("tab-deleted", "", "/deleted.md");
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+    });
+  });
+
+  describe("handleTabsList — error path", () => {
+    it("returns error on exception", async () => {
+      // Force tabs getter to throw
+      const origTabs = mockTabStoreState.tabs;
+      Object.defineProperty(mockTabStoreState, "tabs", {
+        get: () => { throw new Error("store error"); },
+        configurable: true,
+      });
+
+      await handleTabsList("req-err", {});
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err",
+        success: false,
+        error: "store error",
+      });
+
+      // Restore
+      Object.defineProperty(mockTabStoreState, "tabs", {
+        value: origTabs,
+        writable: true,
+        configurable: true,
+      });
+    });
   });
 });

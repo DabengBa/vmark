@@ -481,7 +481,54 @@ describe("videoEmbed other plugin specs", () => {
     expect(videoEmbedExtension.config.addNodeView).toBeDefined();
   });
 
+  it("addNodeView factory creates a VideoEmbedNodeView instance", () => {
+    const schema = createSchema();
+    const node = schema.nodes.video_embed.create({ provider: "youtube", videoId: "test123" });
+    const factory = videoEmbedExtension.config.addNodeView!.call({
+      name: "video_embed",
+      editor: {},
+      options: {},
+      storage: {},
+      type: schema.nodes.video_embed,
+      parent: undefined,
+    } as never);
+
+    // Test with function getPos
+    const result = factory({ node, getPos: () => 0, editor: {} as never, HTMLAttributes: {}, decorations: [], innerDecorations: {} as never, extension: {} as never });
+    expect(result).toBeDefined();
+  });
+
+  it("addNodeView factory handles non-function getPos", () => {
+    const schema = createSchema();
+    const node = schema.nodes.video_embed.create({ provider: "youtube", videoId: "test123" });
+    const factory = videoEmbedExtension.config.addNodeView!.call({
+      name: "video_embed",
+      editor: {},
+      options: {},
+      storage: {},
+      type: schema.nodes.video_embed,
+      parent: undefined,
+    } as never);
+
+    // Test with boolean getPos (Tiptap may pass boolean in some cases)
+    const result = factory({ node, getPos: true as never, editor: {} as never, HTMLAttributes: {}, decorations: [], innerDecorations: {} as never, extension: {} as never });
+    expect(result).toBeDefined();
+  });
+
   it("defines addKeyboardShortcuts", () => {
     expect(videoEmbedExtension.config.addKeyboardShortcuts).toBeDefined();
+  });
+
+  it("addKeyboardShortcuts returns media block shortcuts", () => {
+    const shortcuts = videoEmbedExtension.config.addKeyboardShortcuts!.call({
+      name: "video_embed",
+      editor: {},
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    expect(shortcuts).toBeDefined();
+    expect(typeof shortcuts).toBe("object");
   });
 });

@@ -6,10 +6,16 @@
  * - Non-empty list item: splits into new item
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { Schema } from "@tiptap/pm/model";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { listContinuationExtension } from "./tiptap";
+
+vi.mock("@/utils/imeGuard", () => ({
+  guardProseMirrorCommand: (fn: (...args: unknown[]) => unknown) => fn,
+}));
 
 function createEditor(content: string) {
   return new Editor({
@@ -234,5 +240,163 @@ describe("listContinuationExtension", () => {
 
       editor.destroy();
     });
+  });
+});
+
+describe("listContinuation — direct ProseMirror tests", () => {
+  const taskSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      paragraph: { content: "text*", group: "block" },
+      bulletList: { content: "listItem+", group: "block" },
+      orderedList: { content: "listItem+", group: "block" },
+      listItem: {
+        content: "paragraph block*",
+        attrs: { checked: { default: null } },
+      },
+      text: { inline: true },
+    },
+  });
+
+  function createTaskDoc(text: string, checked: boolean | null = null) {
+    const li = taskSchema.node("listItem", { checked }, [
+      taskSchema.node("paragraph", null, text ? [taskSchema.text(text)] : []),
+    ]);
+    return taskSchema.node("doc", null, [
+      taskSchema.node("bulletList", null, [li]),
+    ]);
+  }
+
+  it("isListItemEmpty returns false for non-list positions (line 19)", () => {
+    // Cursor in a paragraph outside any list
+    const doc = taskSchema.node("doc", null, [
+      taskSchema.node("paragraph", null, [taskSchema.text("Hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: taskSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+    // Get the plugin's keymap Enter handler via the extension
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    expect(plugins).toHaveLength(1);
+    // The Enter handler should return false since not in a list
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch: vi.fn() } as never,
+      mockEvent
+    );
+    expect(result).toBe(false);
+  });
+
+  it("isInTaskItem returns false for non-task list items (line 34)", () => {
+    // List item without checked attribute (checked: null)
+    const doc = createTaskDoc("Normal item", null);
+    const state = EditorState.create({ doc, schema: taskSchema });
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) { textPos = pos; return false; }
+      return true;
+    });
+
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+    const dispatch = vi.fn();
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch } as never,
+      mockEvent
+    );
+    // Should split normally (not via task path) — returns true
+    expect(result).toBe(true);
+    expect(dispatch).toHaveBeenCalled();
+  });
+
+  it("splitTaskListItem resets checked for task items (lines 41-67, 87)", () => {
+    // List item with checked=true — task item
+    const doc = createTaskDoc("Done task", true);
+    const state = EditorState.create({ doc, schema: taskSchema });
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) { textPos = pos; return false; }
+      return true;
+    });
+
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos + 4))
+    );
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+    const dispatch = vi.fn();
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch } as never,
+      mockEvent
+    );
+    // Should use splitTaskListItem path
+    expect(result).toBe(true);
+    expect(dispatch).toHaveBeenCalled();
+  });
+
+  it("splitTaskListItem handles unchecked task items", () => {
+    const doc = createTaskDoc("Pending", false);
+    const state = EditorState.create({ doc, schema: taskSchema });
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) { textPos = pos; return false; }
+      return true;
+    });
+
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos + 3))
+    );
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+    const dispatch = vi.fn();
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch } as never,
+      mockEvent
+    );
+    expect(result).toBe(true);
+    expect(dispatch).toHaveBeenCalled();
   });
 });

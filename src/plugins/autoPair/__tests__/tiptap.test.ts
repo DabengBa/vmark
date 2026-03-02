@@ -250,6 +250,17 @@ describe("autoPair IME composition guard", () => {
     expect(result).toBe(false);
   });
 
+  it("keydown delegates to keyHandler when not composing and not IME (line 80)", () => {
+    mockIsProseMirrorComposing.mockReturnValue(false);
+    mockIsProseMirrorInCompositionGrace.mockReturnValue(false);
+    mockIsImeKeyEvent.mockReturnValue(false);
+    const props = getPluginProps();
+    const handleDOMEvents = props.handleDOMEvents as { keydown: (view: unknown, event: unknown) => boolean };
+    const result = handleDOMEvents.keydown({}, { key: "Tab", keyCode: 9 });
+    // The mockCreateKeyHandler returns a vi.fn(() => false), so keyHandler returns false
+    expect(result).toBe(false);
+  });
+
   it("compositionend marks composition end", () => {
     const props = getPluginProps();
     const handleDOMEvents = props.handleDOMEvents as { compositionend: (view: unknown) => boolean };

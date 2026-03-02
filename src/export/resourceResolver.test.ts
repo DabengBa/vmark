@@ -245,6 +245,7 @@ describe("resolveRelativePath", () => {
     const result = await resolveRelativePath("simple-file.png", "/base");
     expect(result).toBe("/base/simple-file.png");
   });
+
 });
 
 // ---------------------------------------------------------------------------
@@ -300,6 +301,30 @@ describe("fileToDataUri", () => {
     mockReadFile.mockResolvedValue(new Uint8Array([0]));
     const result = await fileToDataUri("/path/to/noext");
     expect(result).toMatch(/^data:application\/octet-stream;base64,/);
+  });
+
+  it("uses correct MIME type for ICO", async () => {
+    mockReadFile.mockResolvedValue(new Uint8Array([0, 0, 1, 0]));
+    const result = await fileToDataUri("/path/to/favicon.ico");
+    expect(result).toMatch(/^data:image\/x-icon;base64,/);
+  });
+
+  it("uses correct MIME type for BMP", async () => {
+    mockReadFile.mockResolvedValue(new Uint8Array([66, 77]));
+    const result = await fileToDataUri("/path/to/image.bmp");
+    expect(result).toMatch(/^data:image\/bmp;base64,/);
+  });
+
+  it("uses correct MIME type for AVIF", async () => {
+    mockReadFile.mockResolvedValue(new Uint8Array([0, 0, 0]));
+    const result = await fileToDataUri("/path/to/image.avif");
+    expect(result).toMatch(/^data:image\/avif;base64,/);
+  });
+
+  it("uses correct MIME type for JPEG extension", async () => {
+    mockReadFile.mockResolvedValue(new Uint8Array([255, 216]));
+    const result = await fileToDataUri("/path/to/photo.jpeg");
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 });
 
@@ -476,6 +501,37 @@ describe("resolveResources", () => {
     });
 
     expect(report.resources).toHaveLength(1);
+  });
+
+  it("keeps original src when fileToDataUri returns null in single mode", async () => {
+    const html = '<img src="photo.png">';
+    mockExists.mockResolvedValue(true);
+    // First readFile (for data URI) fails, second (for size) also fails
+    mockReadFile.mockRejectedValue(new Error("Read error"));
+
+    const { html: result, report } = await resolveResources(html, {
+      baseDir: "/docs",
+      mode: "single",
+    });
+
+    // The src should remain unchanged since data URI creation failed
+    expect(result).toContain("photo.png");
+    expect(report.resolved).toHaveLength(1);
+  });
+
+  it("skips image copy in folder mode when outputDir is not provided", async () => {
+    const html = '<img src="photo.png">';
+    mockExists.mockResolvedValue(true);
+    mockReadFile.mockResolvedValue(new Uint8Array([1, 2]));
+
+    const { report } = await resolveResources(html, {
+      baseDir: "/docs",
+      mode: "folder",
+      // no outputDir
+    });
+
+    expect(mockCopyFile).not.toHaveBeenCalled();
+    expect(report.resolved).toHaveLength(1);
   });
 
   it("handles empty HTML", async () => {

@@ -409,4 +409,56 @@ describe("clearWorkspaceHistory", () => {
     expect(count).toBe(0);
     errorSpy.mockRestore();
   });
+
+  it("skips non-directory entries in workspace clearing", async () => {
+    mockExists.mockResolvedValue(true);
+    mockReadDir.mockResolvedValue([
+      { name: "file.txt", isDirectory: false },
+    ]);
+    const count = await clearWorkspaceHistory("/workspace");
+    expect(count).toBe(0);
+  });
+
+  it("skips entries without index file in workspace clearing", async () => {
+    mockExists
+      .mockResolvedValueOnce(true)  // baseDir
+      .mockResolvedValueOnce(false); // index.json
+    mockReadDir.mockResolvedValue([{ name: "hash1", isDirectory: true }]);
+    const count = await clearWorkspaceHistory("/workspace");
+    expect(count).toBe(0);
+  });
+});
+
+describe("getDeletedDocuments — deletedAt fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses 0 as deletedAt when index has no deletedAt field", async () => {
+    mockExists.mockResolvedValue(true);
+    mockReadDir.mockResolvedValue([{ name: "hash1", isDirectory: true }]);
+    mockReadTextFile.mockResolvedValue(
+      JSON.stringify({
+        pathHash: "hash1",
+        documentName: "doc1.md",
+        documentPath: "/docs/doc1.md",
+        status: "deleted",
+        snapshots: [{ id: "s1", timestamp: 1000, preview: "preview1" }],
+      })
+    );
+
+    const result = await getDeletedDocuments();
+    expect(result).toHaveLength(1);
+    expect(result[0].deletedAt).toBe(0);
+  });
+
+  it("skips entries where parseHistoryIndex returns null", async () => {
+    mockExists.mockResolvedValue(true);
+    mockReadDir.mockResolvedValue([{ name: "hash1", isDirectory: true }]);
+    // Missing required fields — parseHistoryIndex returns null
+    mockReadTextFile.mockResolvedValue(JSON.stringify({ foo: "bar" }));
+
+    const result = await getDeletedDocuments();
+    expect(result).toEqual([]);
+  });
 });
