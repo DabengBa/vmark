@@ -388,4 +388,195 @@ describe("useSourceEditorSearch", () => {
     // The polling interval was cleared, so no init happened via polling
     // (The store subscription would still work though)
   });
+
+  it("recomputes matches when wholeWord changes", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+    mockCountMatches.mockReturnValue(2);
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      useSearchStore.getState().setQuery("hello");
+    });
+
+    mockCountMatches.mockClear();
+    mockCountMatches.mockReturnValue(2);
+
+    act(() => {
+      useSearchStore.getState().toggleWholeWord();
+    });
+
+    expect(mockCountMatches).toHaveBeenCalledWith(
+      "hello world hello",
+      "hello",
+      false,
+      true,
+      false
+    );
+  });
+
+  it("recomputes matches after replace-current via rAF", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+    mockCountMatches.mockReturnValue(2);
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "hello", matchCount: 2, currentIndex: 0 });
+    });
+
+    mockCountMatches.mockClear();
+    mockCountMatches.mockReturnValue(1);
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-current"));
+    });
+
+    expect(mockReplaceNext).toHaveBeenCalledWith(mockView);
+    // After double-rAF, recomputeMatches should be called with preserveIndex=true
+    expect(mockCountMatches).toHaveBeenCalled();
+
+    mockRaf.mockRestore();
+  });
+
+  it("recomputes matches after replace-all via rAF", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+    mockCountMatches.mockReturnValue(2);
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "hello", matchCount: 2, currentIndex: 0 });
+    });
+
+    mockCountMatches.mockClear();
+    mockCountMatches.mockReturnValue(0);
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-all"));
+    });
+
+    expect(mockReplaceAll).toHaveBeenCalledWith(mockView);
+    expect(mockCountMatches).toHaveBeenCalled();
+
+    mockRaf.mockRestore();
+  });
+
+  it("preserves currentIndex when it is valid after replace-current", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    // Set up initial state with 3 matches at index 1
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "hello", matchCount: 3, currentIndex: 1 });
+    });
+
+    // After replace, still 2 matches — index 1 is still valid
+    mockCountMatches.mockReturnValue(2);
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-current"));
+    });
+
+    // The recomputeMatches with preserveIndex=true should keep index at 1
+    const state = useSearchStore.getState();
+    expect(state.matchCount).toBe(2);
+
+    mockRaf.mockRestore();
+  });
+
+  it("resets index to 0 when currentIndex exceeds new matchCount", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    // Set up initial state with 3 matches at index 2
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "hello", matchCount: 3, currentIndex: 2 });
+    });
+
+    // After replace-all, only 1 match — index 2 is out of bounds
+    mockCountMatches.mockReturnValue(1);
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-all"));
+    });
+
+    const state = useSearchStore.getState();
+    expect(state.matchCount).toBe(1);
+    expect(state.currentIndex).toBe(0);
+
+    mockRaf.mockRestore();
+  });
+
+  it("sets index to -1 when no matches remain after replace-all", () => {
+    const mockView = createMockView("hello world hello");
+    viewRef.current = mockView;
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "hello", matchCount: 2, currentIndex: 0 });
+    });
+
+    mockCountMatches.mockReturnValue(0);
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-all"));
+    });
+
+    const state = useSearchStore.getState();
+    expect(state.matchCount).toBe(0);
+    expect(state.currentIndex).toBe(-1);
+
+    mockRaf.mockRestore();
+  });
+
+  it("does not recompute matches after replace if view becomes null", () => {
+    const mockView = createMockView("hello");
+    viewRef.current = mockView;
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { rafCallbacks.push(cb); return rafCallbacks.length; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-current"));
+    });
+
+    // Set view to null before rAF fires
+    viewRef.current = null;
+    mockCountMatches.mockClear();
+
+    // Run all queued rAF callbacks
+    rafCallbacks.forEach(cb => cb(0));
+
+    // recomputeMatches should not be called because viewRef.current is null
+    expect(mockCountMatches).not.toHaveBeenCalled();
+
+    mockRaf.mockRestore();
+  });
 });

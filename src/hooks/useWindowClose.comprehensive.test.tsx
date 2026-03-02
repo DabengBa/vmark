@@ -272,6 +272,73 @@ describe("useWindowClose — app:quit-requested", () => {
     expect(invoke).toHaveBeenCalledWith("cancel_quit");
   });
 
+  it("skips duplicate quit-requested when already closing (lines 202-204)", async () => {
+    // Create a dirty tab so handleCloseRequest blocks on the save prompt
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "initial", null);
+    useDocumentStore.getState().setContent(tabId, "dirty");
+
+    // Make the save prompt hang so isClosingRef stays true
+    let resolvePrompt!: (v: { action: string }) => void;
+    mockPromptSaveForDirtyDocument.mockReturnValue(
+      new Promise((resolve) => { resolvePrompt = resolve; })
+    );
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("app:quit-requested")).toBe(true));
+
+    // Fire first quit-requested — this starts handleCloseRequest and blocks
+    const firstQuit = act(async () => {
+      await listeners.get("app:quit-requested")!({ payload: WINDOW });
+    });
+
+    // Wait for the prompt to be called (isClosingRef is now true)
+    await waitFor(() => expect(mockPromptSaveForDirtyDocument).toHaveBeenCalled());
+
+    // Fire second quit-requested — should hit the isClosingRef guard (lines 202-204)
+    await act(async () => {
+      await listeners.get("app:quit-requested")!({ payload: WINDOW });
+    });
+
+    // The second call should NOT have triggered another save prompt
+    expect(mockPromptSaveForDirtyDocument).toHaveBeenCalledTimes(1);
+
+    // Resolve the hanging prompt so the test can finish
+    resolvePrompt({ action: "saved" });
+    await firstQuit;
+  });
+
+  it("handles cancel_quit invoke rejection (lines 210-211)", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "initial", null);
+    useDocumentStore.getState().setContent(tabId, "dirty");
+
+    mockPromptSaveForDirtyDocument.mockResolvedValue({ action: "cancelled" });
+
+    // Make cancel_quit reject
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === "cancel_quit") throw new Error("cancel_quit failed");
+      return undefined;
+    });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("app:quit-requested")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("app:quit-requested")!({ payload: WINDOW });
+    });
+
+    // cancel_quit was called and rejected — the catch block ran (lines 210-211)
+    expect(invoke).toHaveBeenCalledWith("cancel_quit");
+    warnSpy.mockRestore();
+  });
+
   it("ignores quit request for a different window", async () => {
     await act(async () => {
       render(<TestHarness />);
@@ -360,6 +427,120 @@ describe("useWindowClose — menu:close", () => {
       expect.stringContaining("menu:close"),
       expect.any(Error)
     );
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("useWindowClose — handleCloseRequest re-entry guard (lines 74-76)", () => {
+  beforeEach(() => {
+    listeners.clear();
+    resetStores();
+    vi.clearAllMocks();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+  });
+
+  it("ignores duplicate close-requested while first is still processing", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "initial", null);
+    useDocumentStore.getState().setContent(tabId, "dirty");
+
+    // Make the save prompt hang
+    let resolvePrompt!: (v: { action: string }) => void;
+    mockPromptSaveForDirtyDocument.mockReturnValue(
+      new Promise((resolve) => { resolvePrompt = resolve; })
+    );
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("window:close-requested")).toBe(true));
+
+    // First close-requested — blocks on save prompt
+    const first = act(async () => {
+      await listeners.get("window:close-requested")!({ payload: WINDOW });
+    });
+
+    await waitFor(() => expect(mockPromptSaveForDirtyDocument).toHaveBeenCalled());
+
+    // Second close-requested — should be ignored (isClosingRef is true, lines 74-76)
+    await act(async () => {
+      await listeners.get("window:close-requested")!({ payload: WINDOW });
+    });
+
+    // Only one prompt should have been shown
+    expect(mockPromptSaveForDirtyDocument).toHaveBeenCalledTimes(1);
+
+    // Resolve to unblock
+    resolvePrompt({ action: "saved" });
+    await first;
+  });
+});
+
+describe("useWindowClose — closeLog debug_log catch (line 50)", () => {
+  beforeEach(() => {
+    listeners.clear();
+    resetStores();
+    vi.clearAllMocks();
+  });
+
+  it("catches debug_log invoke failure and warns", async () => {
+    // Make debug_log reject, but all other invokes succeed
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === "debug_log") throw new Error("debug_log failed");
+      return undefined;
+    });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    // The setup() function calls closeLog which invokes debug_log
+    // Wait for the catch to process
+    await waitFor(() => expect(listeners.has("window:close-requested")).toBe(true));
+
+    // Give time for the catch handler to run (it's async fire-and-forget)
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[closeLog] debug_log invoke failed:",
+      expect.any(Error)
+    );
+    warnSpy.mockRestore();
+  });
+});
+
+describe("useWindowClose — handleCloseRequest catch block (lines 144-146)", () => {
+  beforeEach(() => {
+    listeners.clear();
+    resetStores();
+    vi.clearAllMocks();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+  });
+
+  it("catches and logs error when persistWorkspaceSession throws", async () => {
+    // Clean tabs (no dirty) so it goes straight to persistWorkspaceSession
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "", null);
+
+    mockPersistWorkspaceSession.mockRejectedValueOnce(new Error("persist error"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("window:close-requested")).toBe(true));
+
+    await act(async () => {
+      await listeners.get("window:close-requested")!({ payload: WINDOW });
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Failed to close window:",
+      expect.any(Error)
+    );
+    // close_window should NOT have been called since the error was caught
+    expect(invoke).not.toHaveBeenCalledWith("close_window", expect.anything());
     consoleSpy.mockRestore();
   });
 });

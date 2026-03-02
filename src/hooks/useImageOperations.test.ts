@@ -400,4 +400,74 @@ describe("insertBlockImageNode", () => {
     // insertImageNode also won't find image type — no dispatch
     expect(view.dispatch).not.toHaveBeenCalled();
   });
+
+  it("uses block-level image fallback when schema has non-inline image and no block_image", () => {
+    // Schema where image is a block node (not inline)
+    const blockImageOnlySchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "text*", group: "block" },
+        image: {
+          group: "block",
+          attrs: { src: { default: "" }, alt: { default: "" }, title: { default: "" } },
+          parseDOM: [{ tag: "img" }],
+          toDOM(node) { return ["img", node.attrs]; },
+        },
+        text: { inline: true },
+      },
+    });
+    const state = EditorState.create({
+      doc: blockImageOnlySchema.node("doc", null, [
+        blockImageOnlySchema.node("paragraph", null, [blockImageOnlySchema.text("hello")]),
+      ]),
+    });
+    const view = createMockEditorView(state);
+
+    insertBlockImageNode(view, "assets/images/photo.png");
+
+    // Should dispatch using the non-inline image node
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("uses block-level image fallback with selection and deletes selected text", () => {
+    const blockImageOnlySchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "text*", group: "block" },
+        image: {
+          group: "block",
+          attrs: { src: { default: "" }, alt: { default: "" }, title: { default: "" } },
+          parseDOM: [{ tag: "img" }],
+          toDOM(node) { return ["img", node.attrs]; },
+        },
+        text: { inline: true },
+      },
+    });
+    const state = EditorState.create({
+      doc: blockImageOnlySchema.node("doc", null, [
+        blockImageOnlySchema.node("paragraph", null, [blockImageOnlySchema.text("hello world")]),
+      ]),
+    });
+    // Create selection of "hello"
+    const sel = TextSelection.create(state.doc, 1, 6);
+    const stateWithSel = state.apply(state.tr.setSelection(sel));
+    const view = createMockEditorView(stateWithSel);
+
+    insertBlockImageNode(view, "assets/images/photo.png");
+
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("inserts block_image node and adjusts position after deleting selected text", () => {
+    const state = createEditorState("hello world");
+    // Select "hello" (positions 1-6)
+    const sel = TextSelection.create(state.doc, 1, 6);
+    const stateWithSel = state.apply(state.tr.setSelection(sel));
+    const view = createMockEditorView(stateWithSel);
+
+    insertBlockImageNode(view, "assets/images/photo.png");
+
+    // Transaction should have both delete and insert
+    expect(view.dispatch).toHaveBeenCalled();
+  });
 });

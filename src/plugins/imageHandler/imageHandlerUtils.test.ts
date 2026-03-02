@@ -200,6 +200,12 @@ describe("expandHomePath", () => {
     expect(result).toBe("/absolute/path.md");
   });
 
+  it("expands ~/ path using homeDir and join (line 96)", async () => {
+    const { expandHomePath } = await import("./imageHandlerUtils");
+    const result = await expandHomePath("~/Documents/file.md");
+    expect(result).toBe("/Users/test/Documents/file.md");
+  });
+
   it("returns null when homeDir throws for ~/ path", async () => {
     const { expandHomePath } = await import("./imageHandlerUtils");
     const pathMod = await import("@tauri-apps/api/path");

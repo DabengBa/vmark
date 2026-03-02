@@ -216,6 +216,71 @@ describe("getSourceTableInfo", () => {
   });
 });
 
+describe("getSourceTableInfo — edge cases", () => {
+  it("handles table at the very end of document (no trailing non-table line)", () => {
+    const content = "| A | B |\n| --- | --- |\n| C | D |";
+    const lines = content.split("\n");
+    // Cursor on last line
+    const lastLineStart = lines[0].length + 1 + lines[1].length + 1;
+    const view = createMockView(content, lastLineStart + 2);
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    expect(info!.lines).toHaveLength(3);
+    expect(info!.endLine).toBe(2);
+  });
+
+  it("handles table at the very start of document", () => {
+    const content = "| A | B |\n| --- | --- |\n| C | D |\nParagraph after";
+    const view = createMockView(content, 3);
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    expect(info!.startLine).toBe(0);
+    expect(info!.lines).toHaveLength(3);
+  });
+
+  it("detects correct colIndex with escaped pipe in cell", () => {
+    const line = "| A \\| B | C |";
+    const content = `${line}\n| --- | --- |\n| D | E |`;
+    const view = createMockView(content, 12); // near "C" in first row
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    // After escaped pipe, "C" is in col 1
+    expect(info!.colIndex).toBe(1);
+  });
+
+  it("detects correct colIndex with backtick code span containing pipe", () => {
+    const line = "| `a|b` | c |";
+    const content = `${line}\n| --- | --- |\n| d | e |`;
+    const view = createMockView(content, 10); // near "c" in first row
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    expect(info!.colIndex).toBe(1);
+  });
+
+  it("detects correct colIndex with multi-backtick code span", () => {
+    const line = "| ``a|b`` | c |";
+    const content = `${line}\n| --- | --- |\n| d | e |`;
+    const view = createMockView(content, 12); // near "c"
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    expect(info!.colIndex).toBe(1);
+  });
+
+  it("returns colIndex 0 when cursor is before first cell boundary", () => {
+    const content = "| Hello | World |\n| --- | --- |\n| A | B |";
+    const view = createMockView(content, 3); // inside "Hello"
+    const info = getSourceTableInfo(view);
+
+    expect(info).not.toBeNull();
+    expect(info!.colIndex).toBe(0);
+  });
+});
+
 describe("isInEditableTableRow", () => {
   it("returns true for header row (rowIndex 0)", () => {
     expect(isInEditableTableRow({ rowIndex: 0 } as any)).toBe(true);

@@ -720,8 +720,57 @@ describe("compositionGuard scheduleImeCleanup", () => {
     expect(() => vi.runAllTimers()).not.toThrow();
   });
 
+  it("scheduleImeCleanup returns early when resolve throws (line 73)", () => {
+    mockFixCompositionSplitBlock.mockReturnValue(null);
+
+    // Capture rAF callback instead of running it synchronously
+    let capturedRafCb: FrameRequestCallback | null = null;
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      capturedRafCb = cb;
+      return 0;
+    };
+
+    const events = getFullPlugin();
+    const workingResolve = () => ({
+      depth: 1,
+      node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
+      end: () => 10,
+    });
+    const mockDoc = {
+      resolve: workingResolve,
+      textBetween: () => "",
+      content: { size: 20 },
+    };
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: mockDoc,
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionupdate(mockView, { data: "ni" });
+    events.compositionend(mockView, { data: "你" });
+
+    // rAF was captured, not yet executed
+    expect(capturedRafCb).not.toBeNull();
+
+    // Swap resolve to throw before running the rAF callback
+    mockDoc.resolve = () => { throw new RangeError("Position out of range"); };
+
+    // Now run the rAF callback — scheduleImeCleanup hits the catch at line 73
+    expect(() => capturedRafCb!(0)).not.toThrow();
+    // dispatch should NOT have been called (cleanup was skipped due to throw)
+    expect(mockView.dispatch).not.toHaveBeenCalled();
+
+    // Restore synchronous rAF for other tests
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
+  });
+
   it("compositionupdate without data preserves previous compositionData", () => {
     const events = getFullPlugin();
+    const mockTr = { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() };
     const mockView = {
       state: {
         selection: { from: 0 },
@@ -734,6 +783,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
           textBetween: () => "",
           content: { size: 20 },
         },
+        tr: mockTr,
       },
       dispatch: vi.fn(),
     };
@@ -749,6 +799,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
 
   it("handles compositionend with empty data string gracefully", () => {
     const events = getFullPlugin();
+    const mockTr2 = { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() };
     const mockView = {
       state: {
         selection: { from: 0 },
@@ -761,6 +812,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
           textBetween: () => "",
           content: { size: 20 },
         },
+        tr: mockTr2,
       },
       dispatch: vi.fn(),
     };

@@ -255,6 +255,20 @@ describe("findOrphanedImages", () => {
     expect(result.orphanedImages).toHaveLength(0);
   });
 
+  it("skips files with no extension (line 41 fallback)", async () => {
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "no-extension", isFile: true, isDirectory: false, isSymlink: false },
+      { name: "photo.png", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+
+    const { findOrphanedImages } = await import("./orphanAssetCleanup");
+    const result = await findOrphanedImages("/doc/test.md", "no refs");
+    // Only photo.png should be counted as an image file
+    expect(result.totalInFolder).toBe(1);
+  });
+
   it("skips directory entries", async () => {
     const { exists, readDir } = await import("@tauri-apps/plugin-fs");
     vi.mocked(exists).mockResolvedValue(true);

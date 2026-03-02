@@ -495,4 +495,163 @@ describe("tryTextImagePaste", () => {
       expect(mockPasteAsText).toHaveBeenCalled();
     });
   });
+
+  // --- Relative path (no validation needed for single image) ---
+
+  it("shows toast for relative path without validating", async () => {
+    const view = createMockView();
+    tryTextImagePaste(view, "./assets/photo.png");
+
+    await vi.waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+    });
+    // Relative paths skip validation entirely
+    expect(mockValidateLocalPath).not.toHaveBeenCalled();
+    expect(mockExpandHomePath).not.toHaveBeenCalled();
+  });
+
+  // --- Home path validation with expand + validate ---
+
+  it("validates expanded home path before showing toast", async () => {
+    mockExpandHomePath.mockResolvedValue("/Users/me/Pictures/photo.png");
+    mockValidateLocalPath.mockResolvedValue(true);
+    const view = createMockView();
+
+    tryTextImagePaste(view, "~/Pictures/photo.png");
+
+    await vi.waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalled();
+    });
+    expect(mockExpandHomePath).toHaveBeenCalledWith("~/Pictures/photo.png");
+    expect(mockValidateLocalPath).toHaveBeenCalledWith("/Users/me/Pictures/photo.png");
+  });
+
+  it("pastes as text when home path is valid but file does not exist", async () => {
+    mockExpandHomePath.mockResolvedValue("/Users/me/Pictures/photo.png");
+    mockValidateLocalPath.mockResolvedValue(false);
+    const view = createMockView();
+
+    tryTextImagePaste(view, "~/Pictures/photo.png");
+
+    await vi.waitFor(() => {
+      expect(mockPasteAsText).toHaveBeenCalled();
+    });
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  it("does not paste as text when view disconnects during home path validation", async () => {
+    mockExpandHomePath.mockImplementation(async () => {
+      mockIsViewConnected.mockReturnValue(false);
+      return null;
+    });
+    const view = createMockView();
+
+    tryTextImagePaste(view, "~/Pictures/photo.png");
+
+    await vi.waitFor(() => {
+      expect(mockExpandHomePath).toHaveBeenCalled();
+    });
+    // View disconnected, so pasteAsText should NOT be called
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+  });
+
+  // --- Multi-image: home path and relative path branches ---
+
+  it("validates home paths in multi-image and shows multi-toast", async () => {
+    mockExpandHomePath.mockResolvedValue("/Users/me/a.png");
+    mockValidateLocalPath.mockResolvedValue(true);
+    const view = createMockView();
+    const text = "~/a.png\n~/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockShowMultiToast).toHaveBeenCalled();
+    });
+  });
+
+  it("pastes as text when home path expansion fails in multi-image", async () => {
+    mockExpandHomePath.mockResolvedValue(null);
+    const view = createMockView();
+    const text = "~/a.png\n~/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockPasteAsText).toHaveBeenCalled();
+    });
+    expect(mockShowMultiToast).not.toHaveBeenCalled();
+  });
+
+  it("accepts relative paths in multi-image without validation", async () => {
+    const view = createMockView();
+    const text = "./img/a.png\n./img/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockShowMultiToast).toHaveBeenCalled();
+    });
+    expect(mockValidateLocalPath).not.toHaveBeenCalled();
+  });
+
+  it("does not show multi-toast if view disconnects during validation", async () => {
+    mockValidateLocalPath.mockImplementation(async () => {
+      mockIsViewConnected.mockReturnValue(false);
+      return true;
+    });
+    const view = createMockView();
+    const text = "/Users/test/a.png\n/Users/test/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockValidateLocalPath).toHaveBeenCalled();
+    });
+    expect(mockShowMultiToast).not.toHaveBeenCalled();
+  });
+
+  it("falls back to pasteAsText on multi-image validation error (catch path)", async () => {
+    mockValidateLocalPath.mockRejectedValue(new Error("FS error"));
+    const view = createMockView();
+    const text = "/Users/test/a.png\n/Users/test/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockPasteAsText).toHaveBeenCalled();
+    });
+  });
+
+  it("does not paste as text on multi-image error when view is disconnected", async () => {
+    mockIsViewConnected.mockReturnValue(false);
+    mockValidateLocalPath.mockRejectedValue(new Error("FS error"));
+    const view = createMockView();
+    const text = "/Users/test/a.png\n/Users/test/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockValidateLocalPath).toHaveBeenCalled();
+    });
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+  });
+
+  it("multi-toast onDismiss does nothing when view is disconnected", async () => {
+    mockValidateLocalPath.mockResolvedValue(true);
+    const view = createMockView();
+    const text = "/Users/test/a.png\n/Users/test/b.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockShowMultiToast).toHaveBeenCalled();
+    });
+
+    mockIsViewConnected.mockReturnValue(false);
+    const toastArgs = mockShowMultiToast.mock.calls[0][0];
+    toastArgs.onDismiss();
+
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+  });
 });

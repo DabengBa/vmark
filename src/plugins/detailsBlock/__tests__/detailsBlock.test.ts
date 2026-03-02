@@ -280,6 +280,39 @@ describe("detailsBlock addInputRules", () => {
     expect(rules).toBeDefined();
     expect(rules!.length).toBe(1);
   });
+
+  it("input rule handler invokes commands to insert details block (lines 120-130)", () => {
+    const addInputRules = detailsBlockExtension.config.addInputRules;
+    const rules = addInputRules!.call({
+      name: "detailsBlock", options: {}, storage: {}, editor: {},
+    } as never);
+    const rule = rules![0];
+
+    // Access the handler from the InputRule
+    const handler = (rule as unknown as { handler: Function }).handler;
+    expect(handler).toBeDefined();
+
+    const { doc } = createDocWithParagraph(":::details");
+    const state = EditorState.create({ doc });
+
+    const mockInsertContentAt = vi.fn();
+    const mockSetTextSelection = vi.fn();
+
+    // Simulate what Tiptap passes to the handler
+    const result = handler({
+      state,
+      range: { from: 1, to: 11 },  // range of ":::details" inside the paragraph
+      match: [":::details"],
+      commands: {
+        insertContentAt: mockInsertContentAt,
+        setTextSelection: mockSetTextSelection,
+      },
+    });
+
+    expect(result).toBeNull();
+    expect(mockInsertContentAt).toHaveBeenCalled();
+    expect(mockSetTextSelection).toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------

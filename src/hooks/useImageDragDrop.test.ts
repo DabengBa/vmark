@@ -324,4 +324,147 @@ describe("useImageDragDrop", () => {
     );
     errorSpy.mockRestore();
   });
+
+  it("uses original path when copyToAssets is disabled", async () => {
+    // Override settings to disable copyToAssets
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    const origGetState = useSettingsStore.getState;
+    useSettingsStore.getState = () => ({
+      image: { copyToAssets: false },
+    }) as never;
+
+    const mockInsertContent = vi.fn().mockReturnThis();
+    const mockRun = vi.fn();
+    const mockFocus = vi.fn(() => ({ insertContent: mockInsertContent, run: mockRun }));
+    const tiptapEditor = {
+      state: {
+        schema: {
+          nodes: { block_image: {} },
+        },
+      },
+      chain: vi.fn(() => ({
+        focus: mockFocus,
+      })),
+    };
+
+    renderHook(() =>
+      useImageDragDrop({
+        tiptapEditor: tiptapEditor as never,
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/photo.png"] },
+    });
+
+    // Should NOT call saveImageToAssets when copyToAssets is disabled
+    expect(mockSaveImageToAssets).not.toHaveBeenCalled();
+
+    useSettingsStore.getState = origGetState;
+  });
+
+  it("inserts multiple images in WYSIWYG mode as block images", async () => {
+    const mockInsertContent = vi.fn().mockReturnThis();
+    const mockRun = vi.fn();
+    const mockFocus = vi.fn(() => ({ insertContent: mockInsertContent, run: mockRun }));
+    const tiptapEditor = {
+      state: {
+        schema: {
+          nodes: { block_image: {} },
+        },
+      },
+      chain: vi.fn(() => ({
+        focus: mockFocus,
+      })),
+    };
+
+    renderHook(() =>
+      useImageDragDrop({
+        tiptapEditor: tiptapEditor as never,
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/a.png", "/tmp/b.jpg"] },
+    });
+
+    // Both images should be saved
+    expect(mockSaveImageToAssets).toHaveBeenCalledTimes(2);
+  });
+
+  it("inserts multiple images as markdown in source mode", async () => {
+    const mockDispatch = vi.fn();
+    const mockFocus = vi.fn();
+    const cmView = {
+      current: {
+        state: { selection: { main: { head: 0 } } },
+        dispatch: mockDispatch,
+        focus: mockFocus,
+      },
+    };
+
+    renderHook(() =>
+      useImageDragDrop({
+        cmViewRef: cmView as never,
+        isSourceMode: true,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/a.png", "/tmp/b.jpg"] },
+    });
+
+    expect(mockSaveImageToAssets).toHaveBeenCalledTimes(2);
+    expect(mockDispatch).toHaveBeenCalled();
+  });
+
+  it("uses fallback inline image when block_image is not in schema", async () => {
+    const mockRun = vi.fn();
+    const mockSetImage = vi.fn(() => ({ run: mockRun }));
+    const mockFocus = vi.fn(() => ({ setImage: mockSetImage }));
+    const tiptapEditor = {
+      state: {
+        schema: {
+          nodes: {}, // no block_image
+        },
+      },
+      chain: vi.fn(() => ({
+        focus: mockFocus,
+      })),
+    };
+
+    renderHook(() =>
+      useImageDragDrop({
+        tiptapEditor: tiptapEditor as never,
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/photo.png"] },
+    });
+
+    expect(mockSaveImageToAssets).toHaveBeenCalled();
+  });
+
+  it("does nothing for drop event with unknown type", async () => {
+    renderHook(() =>
+      useImageDragDrop({
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "unknown" },
+    });
+
+    expect(mockSaveImageToAssets).not.toHaveBeenCalled();
+  });
 });

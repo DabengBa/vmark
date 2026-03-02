@@ -987,6 +987,85 @@ describe("createSourcePopupPlugin — hover with detectTriggerAtPos", () => {
   });
 });
 
+describe("createSourcePopupPlugin — cancelHoverTimeout with hideTimeout (lines 302-304)", () => {
+  let mockStore: ReturnType<typeof createMockStore>;
+  let mockPopupView: SourcePopupView<TestState>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockStore = createMockStore();
+    mockPopupView = createMockPopupView();
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = createMockEditorView();
+    (mockPopupView as unknown as Record<string, unknown>)["container"] = document.createElement("div");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function instantiatePlugin(config: Partial<PopupTriggerConfig<TestState>> = {}) {
+    const plugin = createSourcePopupPlugin({
+      store: mockStore.store,
+      createView: () => mockPopupView,
+      detectTrigger: () => null,
+      extractData: () => ({}) as object,
+      ...config,
+    });
+    const mockView = createMockEditorView();
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = mockView;
+    const createFn = (plugin as unknown as { create: (view: EditorView) => unknown }).create;
+    const instance = createFn(mockView);
+    return { instance: instance as Record<string, unknown>, view: mockView };
+  }
+
+  it("mousedown cancels hideTimeout set by mouseleave (lines 302-304)", () => {
+    mockStore.state.isOpen = true;
+
+    const { view } = instantiatePlugin({
+      triggerOnHover: true,
+      hoverHideDelay: 200,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mouseleaveHandler = calls.find((c: unknown[]) => c[0] === "mouseleave")?.[1] as () => void;
+    const mousedownHandler = calls.find((c: unknown[]) => c[0] === "mousedown")?.[1] as () => void;
+
+    if (mouseleaveHandler && mousedownHandler) {
+      // mouseleave sets hideTimeout
+      mouseleaveHandler();
+      // mousedown calls cancelHoverTimeout which clears hideTimeout (lines 302-304)
+      mousedownHandler();
+      // Advance past hideDelay — should NOT close because hideTimeout was cancelled
+      vi.advanceTimersByTime(300);
+      expect(mockStore.closePopup).not.toHaveBeenCalled();
+    }
+  });
+
+  it("mouseleave hide timer skips close when popup is hovered (line 281)", () => {
+    mockStore.state.isOpen = true;
+    const popupContainer = document.createElement("div");
+    // Mock matches to return true (popup is hovered)
+    popupContainer.matches = vi.fn(() => true);
+    (mockPopupView as unknown as Record<string, unknown>)["container"] = popupContainer;
+
+    const { view } = instantiatePlugin({
+      triggerOnHover: true,
+      hoverHideDelay: 100,
+    });
+
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const mouseleaveHandler = calls.find((c: unknown[]) => c[0] === "mouseleave")?.[1] as () => void;
+
+    if (mouseleaveHandler) {
+      mouseleaveHandler();
+      vi.advanceTimersByTime(150);
+      // Should NOT close because popup container matches :hover
+      expect(mockStore.closePopup).not.toHaveBeenCalled();
+    }
+  });
+});
+
 describe("createPositionBasedDetector", () => {
   it("delegates to selection-based detector", () => {
     const selectionDetector = vi.fn(() => ({ from: 5, to: 15 }));

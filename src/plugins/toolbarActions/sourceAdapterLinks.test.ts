@@ -340,4 +340,56 @@ describe("insertLink", () => {
     );
     view.destroy();
   });
+
+  it("opens create popup for word at cursor when no clipboard URL", async () => {
+    const openPopup = vi.fn();
+    vi.mocked(useLinkCreatePopupStore.getState).mockReturnValue({
+      isOpen: false,
+      openPopup,
+    } as never);
+
+    const view = createView("click hello world", 8);
+    await insertLink(view);
+    expect(openPopup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "hello",
+        showTextInput: false,
+      }),
+    );
+    view.destroy();
+  });
+
+  it("does not open link popup when cursor is not inside a link", async () => {
+    const openPopup = vi.fn();
+    vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    const view = createView("plain text here", 5);
+    await insertLink(view);
+
+    // openPopup should NOT have been called (no link at cursor)
+    expect(openPopup).not.toHaveBeenCalled();
+    view.destroy();
+  });
+
+  it("handles link with angle bracket URL", async () => {
+    const openPopup = vi.fn();
+    vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    const view = createView("[text](<https://example.com/path with spaces>)", 3);
+    const result = await insertLink(view);
+    expect(result).toBe(true);
+    expect(openPopup).toHaveBeenCalled();
+    view.destroy();
+  });
+
+  it("handles link with title attribute in link popup", async () => {
+    const openPopup = vi.fn();
+    vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    const view = createView('[text](https://example.com "My Title")', 3);
+    const result = await insertLink(view);
+    expect(result).toBe(true);
+    expect(openPopup).toHaveBeenCalled();
+    view.destroy();
+  });
 });

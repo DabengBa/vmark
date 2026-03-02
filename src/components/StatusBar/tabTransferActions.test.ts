@@ -330,6 +330,85 @@ describe("transferTabFromDragOut", () => {
     });
   });
 
+  it("undo callback for cross-window move logs error when restoreTransferredTab fails", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce("window-2"); // find_drop_target_window
+    mockInvoke.mockResolvedValueOnce(undefined); // transfer_tab_to_existing_window
+
+    await transferTabFromDragOut(defaultOptions);
+
+    const { toast } = await import("sonner");
+    const toastCall = vi.mocked(toast.message).mock.calls[0];
+    const action = (toastCall[1] as Record<string, unknown>).action as { onClick: () => void };
+
+    // Make restoreTransferredTab's invoke reject
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockInvoke.mockRejectedValue(new Error("restore failed"));
+    action.onClick();
+
+    await vi.waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[StatusBar] Undo cross-window move failed:",
+        expect.any(Error),
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it("undo callback for detach logs error when restoreTransferredTab fails", async () => {
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce(null); // no drop target
+    mockInvoke.mockResolvedValueOnce("new-win"); // detach
+
+    await transferTabFromDragOut(defaultOptions);
+
+    const { toast } = await import("sonner");
+    const toastCall = vi.mocked(toast.message).mock.calls[0];
+    const action = (toastCall[1] as Record<string, unknown>).action as { onClick: () => void };
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockInvoke.mockRejectedValue(new Error("detach undo failed"));
+    action.onClick();
+
+    await vi.waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[StatusBar] Undo detach failed:",
+        expect.any(Error),
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it("close_window catch logs error via windowCloseWarn", async () => {
+    setupTabsAndDoc();
+
+    // After detach, no remaining tabs in non-main window
+    mockGetTabsByWindow
+      .mockReturnValueOnce([
+        { id: "tab-1", title: "Doc 1", filePath: "/f1.md", isPinned: false },
+        { id: "tab-2", title: "Doc 2", filePath: "/f2.md", isPinned: false },
+      ])
+      .mockReturnValueOnce([]);
+
+    mockInvoke
+      .mockResolvedValueOnce(null)  // find_drop_target_window
+      .mockResolvedValueOnce("new-win")  // detach_tab_to_new_window
+      .mockRejectedValueOnce(new Error("close failed"));  // close_window
+
+    const { windowCloseWarn } = await import("@/utils/debug");
+
+    const opts = { ...defaultOptions, windowLabel: "secondary" };
+    await transferTabFromDragOut(opts);
+
+    // close_window is called with .catch, so we need a tick
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(windowCloseWarn)).toHaveBeenCalledWith(
+      "Failed to close window:",
+      "close failed",
+    );
+  });
+
   it("handles tab with null filePath", async () => {
     mockGetTabsByWindow.mockReturnValue([
       { id: "tab-1", title: "Untitled", filePath: undefined, isPinned: false },

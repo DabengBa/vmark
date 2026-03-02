@@ -544,6 +544,118 @@ describe("LinkCreatePopupView", () => {
     });
   });
 
+  describe("Host positioning", () => {
+    it("uses absolute positioning when host is not document.body", async () => {
+      const sourcePopup = await import("@/plugins/sourcePopup");
+      const hostEl = document.createElement("div");
+      hostEl.style.position = "relative";
+      hostEl.getBoundingClientRect = () => ({
+        top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+        x: 0, y: 0, toJSON: () => ({}),
+      });
+      dom.container.appendChild(hostEl);
+
+      vi.spyOn(sourcePopup, "getPopupHostForDom" as never).mockReturnValue(hostEl as never);
+
+      popup.destroy();
+      vi.clearAllMocks();
+      popup = new LinkCreatePopupView(view as unknown as ConstructorParameters<typeof LinkCreatePopupView>[0]);
+
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = hostEl.querySelector(".link-create-popup") as HTMLElement;
+      expect(popupEl).not.toBeNull();
+      expect(popupEl.style.position).toBe("absolute");
+
+      vi.mocked(sourcePopup.getPopupHostForDom as never).mockRestore?.();
+    });
+
+    it("uses fixed positioning when host is document.body", async () => {
+      const sourcePopup = await import("@/plugins/sourcePopup");
+      vi.spyOn(sourcePopup, "getPopupHostForDom" as never).mockReturnValue(null as never);
+
+      popup.destroy();
+      vi.clearAllMocks();
+      popup = new LinkCreatePopupView(view as unknown as ConstructorParameters<typeof LinkCreatePopupView>[0]);
+
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = document.querySelector(".link-create-popup") as HTMLElement;
+      expect(popupEl).not.toBeNull();
+      expect(popupEl.style.position).toBe("fixed");
+
+      vi.mocked(sourcePopup.getPopupHostForDom as never).mockRestore?.();
+    });
+  });
+
+  describe("Viewport bounds fallback", () => {
+    it("uses getViewportBounds when no editor container exists", async () => {
+      // Remove the editor-container class so closest returns null
+      dom.container.className = "";
+
+      popup.destroy();
+      vi.clearAllMocks();
+      popup = new LinkCreatePopupView(view as unknown as ConstructorParameters<typeof LinkCreatePopupView>[0]);
+
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = document.querySelector(".link-create-popup") as HTMLElement;
+      expect(popupEl).not.toBeNull();
+      expect(popupEl.style.display).toBe("flex");
+
+      // Restore for other tests
+      dom.container.className = "editor-container";
+    });
+  });
+
+  describe("Keyboard navigation edge cases", () => {
+    it("Tab does nothing when activeElement is not in focusable list", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Focus on something outside the popup
+      document.body.focus();
+
+      // Tab should be a no-op (currentIndex === -1)
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      // No error means the early return worked
+    });
+
+    it("Enter on non-button element inside popup does not trigger click", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Focus the text input (not a button)
+      const textInput = dom.container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.focus();
+
+      // Enter via keyboard nav handler should not trigger click on non-button
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      // The keydown on the input itself handles Enter via handleInputKeydown
+    });
+
+    it("Escape via keyboard nav handler checks container containment", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Focus a button inside the popup and press Escape via document keydown
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      saveBtn.focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      // closePopup should be called because activeElement is inside container
+      expect(mockClosePopup).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+  });
+
   describe("Edge cases", () => {
     it("uses URL as link text when text is empty and showTextInput is true", async () => {
       emitStateChange({

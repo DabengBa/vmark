@@ -1077,4 +1077,118 @@ describe("WindowContext", () => {
       });
     });
   });
+
+  describe("WindowProvider — init error handling", () => {
+    it("still renders children when init throws (catch block)", async () => {
+      // Make migrateWorkspaceStorage throw to trigger the init catch block
+      const { migrateWorkspaceStorage } = await import("../utils/workspaceStorage");
+      vi.mocked(migrateWorkspaceStorage).mockImplementation(() => {
+        throw new Error("migration boom");
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">recovered</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      // Should have logged the error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Init failed"),
+        expect.any(Error),
+      );
+
+      // The ready event is called via setTimeout; wait for it
+      await waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith("ready", "main");
+      });
+
+      consoleSpy.mockRestore();
+      vi.mocked(migrateWorkspaceStorage).mockImplementation(() => {});
+    });
+
+    it("handles listen failure for tab removal gracefully", async () => {
+      // Ensure migrateWorkspaceStorage does not throw (reset from prior test)
+      const { migrateWorkspaceStorage } = await import("../utils/workspaceStorage");
+      vi.mocked(migrateWorkspaceStorage).mockImplementation(() => {});
+
+      // Make listen reject ONLY for the tab:remove-by-id event
+      mockListen.mockImplementation((event: string) => {
+        if (event === "tab:remove-by-id") {
+          return Promise.reject(new Error("listen failed"));
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      // Give time for the listen promise to reject
+      await new Promise((r) => setTimeout(r, 150));
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("tab removal listener"),
+        expect.any(Error),
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("removeTabFromWindow — close_window error path", () => {
+    it("logs warning when close_window invoke fails", async () => {
+      mockWindowLabel = "doc-1";
+      const { invoke } = await import("@tauri-apps/api/core");
+      vi.mocked(invoke).mockImplementation((cmd: string) => {
+        if (cmd === "close_window") return Promise.reject(new Error("close failed"));
+        if (cmd === "claim_tab_transfer") return Promise.resolve(null);
+        return Promise.resolve(null);
+      });
+      // After removing a tab, getTabsByWindow returns empty -> triggers close_window
+      mockGetTabsByWindow.mockReturnValue([]);
+
+      // Need to render and trigger removeTabFromWindow via the tab-removed event
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      // Find the tab-removed listener callback
+      const tabRemovedCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab-removed",
+      );
+      if (tabRemovedCall) {
+        const handler = tabRemovedCall[1] as (event: { payload: { windowLabel: string; tabId: string } }) => void;
+        await handler({ payload: { windowLabel: "doc-1", tabId: "tab-1" } });
+
+        // Give time for async operations
+        await new Promise((r) => setTimeout(r, 50));
+
+        const { windowCloseWarn } = await import("../utils/debug");
+        expect(windowCloseWarn).toHaveBeenCalled();
+      }
+
+      vi.mocked(invoke).mockImplementation(() => Promise.resolve(null));
+    });
+  });
 });

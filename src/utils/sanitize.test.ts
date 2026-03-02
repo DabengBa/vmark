@@ -1022,6 +1022,30 @@ describe("sanitizeSvg — style sanitization", () => {
   });
 });
 
+describe("sanitize — isSafeStyleValue angle brackets branch", () => {
+  it("blocks style values containing < character", () => {
+    const input = '<span style="color: red<script>alert(1)</script>;">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    // The < in the style value should cause isSafeStyleValue to return false
+    expect(result).not.toContain("red<script>");
+  });
+
+  it("blocks style values containing > character", () => {
+    const input = '<span style="color: >red;">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).not.toContain(">red");
+  });
+});
+
+describe("sanitizeMediaHtml — no-DOM stripNonWhitelistedIframes branch", () => {
+  it("strips self-closing iframe forms when DOM is available", () => {
+    // In jsdom, the DOM path is taken, which exercises the DOM-based stripping
+    const input = '<iframe src="https://evil.com/page"></iframe>';
+    const result = sanitizeMediaHtml(input);
+    expect(result).not.toContain("evil.com");
+  });
+});
+
 describe("sanitizeMediaHtml — iframe edge cases", () => {
   it("allows YouTube iframe without www prefix", () => {
     const input = '<iframe src="https://youtube.com/embed/abc"></iframe>';

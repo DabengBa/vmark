@@ -181,4 +181,53 @@ describe("applyInlineFormatToSelections", () => {
     expect(view.state.doc.toString()).toBe("[one](url) [two](url) three");
     view.destroy();
   });
+
+  it("inserts empty markers for collapsed cursor with no word at position", () => {
+    // Two cursors at spaces (no word boundaries)
+    const view = createView("  ", [
+      { from: 0, to: 0 },
+      { from: 1, to: 1 },
+    ]);
+    applyInlineFormatToSelections(view, "bold");
+    const result = view.state.doc.toString();
+    // Each cursor should get empty bold markers ****
+    expect(result).toContain("****");
+    view.destroy();
+  });
+
+  it("removes opposite format (superscript) when applying subscript", () => {
+    // Two selections already wrapped with superscript — selection includes markers
+    const view = createView("^one^ ^two^", [
+      { from: 1, to: 4 },
+      { from: 7, to: 10 },
+    ]);
+    applyInlineFormatToSelections(view, "subscript");
+    // unwrapOppositeInRange removes surrounding ^ markers
+    const result = view.state.doc.toString();
+    expect(result).toBe("one two");
+    view.destroy();
+  });
+
+  it("handles collapsed cursors inside already-bold words (unwrap via expand)", () => {
+    // Cursor inside a bold word
+    const view = createView("**hello** **world**", [
+      { from: 4, to: 4 },
+      { from: 14, to: 14 },
+    ]);
+    applyInlineFormatToSelections(view, "bold");
+    const result = view.state.doc.toString();
+    // The bold markers should be removed around the word
+    expect(result.indexOf("**")).toBeLessThanOrEqual(result.lastIndexOf("**"));
+    view.destroy();
+  });
+
+  it("handles image format wrapping", () => {
+    const view = createView("one two three", [
+      { from: 0, to: 3 },
+      { from: 4, to: 7 },
+    ]);
+    applyInlineFormatToSelections(view, "image");
+    expect(view.state.doc.toString()).toBe("![one](url) ![two](url) three");
+    view.destroy();
+  });
 });

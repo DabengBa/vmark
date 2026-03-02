@@ -19,8 +19,24 @@ vi.mock("@/plugins/syntaxReveal/marks", () => ({
   findWordAtCursor: (...args: unknown[]) => mockFindWordAtCursor(...args),
 }));
 
+// Create a hoisted class so vi.mock can reference it
+const { MockMultiSelection } = vi.hoisted(() => {
+  class MockMultiSelection {
+    ranges: Array<{ $from: { pos: number }; $to: { pos: number } }>;
+    primaryIndex: number;
+    constructor(
+      ranges: Array<{ $from: { pos: number }; $to: { pos: number } }>,
+      primaryIndex = 0
+    ) {
+      this.ranges = ranges;
+      this.primaryIndex = primaryIndex;
+    }
+  }
+  return { MockMultiSelection };
+});
+
 vi.mock("@/plugins/multiCursor", () => ({
-  MultiSelection: class MultiSelection {},
+  MultiSelection: MockMultiSelection,
 }));
 
 import { expandedToggleMark } from "./expandedToggleMark";
@@ -350,6 +366,135 @@ describe("expandedToggleMark", () => {
       mockFindWordAtCursor.mockReturnValue({ from: 1, to: 6 });
 
       const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("MultiSelection branch", () => {
+    function createMultiState(text: string) {
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, text ? [schema.text(text)] : []),
+      ]);
+      return EditorState.create({ doc, schema });
+    }
+
+    function makeMultiSelectionState(
+      state: EditorState,
+      ranges: Array<{ from: number; to: number }>
+    ) {
+      // Create a state whose selection is an instance of MockMultiSelection
+      const multiRanges = ranges.map((r) => ({
+        $from: { pos: r.from, doc: state.doc, start: () => 0 } as unknown,
+        $to: { pos: r.to } as unknown,
+      })) as Array<{ $from: { pos: number }; $to: { pos: number } }>;
+
+      const multiSel = new MockMultiSelection(multiRanges, 0);
+      // Return a view-like object with the multi selection
+      return {
+        state: {
+          ...state,
+          selection: multiSel,
+          schema: state.schema,
+          doc: state.doc,
+          tr: state.tr,
+          storedMarks: null,
+        },
+        dispatch: vi.fn(),
+      } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("adds mark to all ranges in multi-selection (non-empty ranges)", () => {
+      const state = createMultiState("hello world");
+      // Select "hello" (1-6) and "world" (7-12)
+      const view = makeMultiSelectionState(state, [
+        { from: 1, to: 6 },
+        { from: 7, to: 12 },
+      ]);
+
+      const result = expandedToggleMark(view, "bold");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("expands collapsed cursors to words in multi-selection", () => {
+      const state = createMultiState("hello world");
+      // Two collapsed cursors — inside "hello" and "world"
+      const view = makeMultiSelectionState(state, [
+        { from: 3, to: 3 },
+        { from: 9, to: 9 },
+      ]);
+
+      mockFindWordAtCursor
+        .mockReturnValueOnce({ from: 1, to: 6 }) // primary: "hello"
+        .mockReturnValueOnce({ from: 1, to: 6 }) // first range
+        .mockReturnValueOnce({ from: 7, to: 12 }); // second range
+
+      const result = expandedToggleMark(view, "bold");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("skips collapsed cursors with no word in multi-selection and falls through", () => {
+      const state = createMultiState("  ");
+      const view = makeMultiSelectionState(state, [
+        { from: 1, to: 1 },
+        { from: 2, to: 2 },
+      ]);
+
+      // No word found at any cursor
+      mockFindWordAtCursor.mockReturnValue(null);
+
+      const result = expandedToggleMark(view, "bold");
+      // No ranges applied in MultiSelection, falls through to stored marks fallback
+      // which always returns true
+      expect(result).toBe(true);
+    });
+
+    it("removes opposing mark in multi-selection", () => {
+      const state = createMultiState("hello world");
+      const view = makeMultiSelectionState(state, [
+        { from: 1, to: 6 },
+        { from: 7, to: 12 },
+      ]);
+
+      const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("removes mark when primary range already has the mark", () => {
+      const boldMark = schema.marks.bold.create();
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("hello", [boldMark]),
+          schema.text(" "),
+          schema.text("world", [boldMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = makeMultiSelectionState(state, [
+        { from: 1, to: 6 },
+        { from: 7, to: 12 },
+      ]);
+
+      const result = expandedToggleMark(view, "bold");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("mixes collapsed and non-empty ranges in multi-selection", () => {
+      const state = createMultiState("hello world test");
+      const view = makeMultiSelectionState(state, [
+        { from: 1, to: 6 }, // select "hello"
+        { from: 10, to: 10 }, // cursor inside "world"
+      ]);
+
+      mockFindWordAtCursor
+        .mockReturnValueOnce(null) // primary is non-empty, no word check
+        .mockReturnValueOnce({ from: 7, to: 12 }); // second cursor: "world"
+
+      const result = expandedToggleMark(view, "italic");
       expect(result).toBe(true);
       expect(view.dispatch).toHaveBeenCalled();
     });

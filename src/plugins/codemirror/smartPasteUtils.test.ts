@@ -152,6 +152,19 @@ describe("getActiveFilePath", () => {
     (useDocumentStore as unknown as { getState: typeof origDocState }).getState = origDocState;
   });
 
+  it("returns null when store access throws (line 49)", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const origTabState = useTabStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => {
+      throw new Error("store error");
+    };
+
+    expect(getActiveFilePath()).toBeNull();
+
+    (useTabStore as unknown as { getState: typeof origTabState }).getState = origTabState;
+  });
+
   it("returns null when document has no filePath", async () => {
     const { useTabStore } = await import("@/stores/tabStore");
     const { useDocumentStore } = await import("@/stores/documentStore");

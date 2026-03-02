@@ -566,4 +566,67 @@ describe("workspaceHandlers", () => {
       expect(call.data.charCount).toBe(0);
     });
   });
+
+  describe("handleWorkspaceCloseWindow — error path (line 208)", () => {
+    it("returns error when closeTab throws", async () => {
+      mockTabStoreState.closeTab.mockImplementationOnce(() => {
+        throw new Error("close window error");
+      });
+
+      await handleWorkspaceCloseWindow("req-err-close", {});
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-close",
+        success: false,
+        error: "close window error",
+      });
+    });
+  });
+
+  describe("handleWorkspaceListRecentFiles — error path (line 328)", () => {
+    it("returns error when store throws", async () => {
+      // We need to make the recentFilesStore throw. Since it's mocked at module level,
+      // we temporarily override by making the import throw via respond.
+      // Simpler: make respond throw on first call to trigger the catch
+      // Actually, we need the try block to throw. The simplest way is to mock
+      // the recentFilesStore getter to throw.
+      const origRecentFiles = await import("@/stores/recentFilesStore");
+      const origGetState = origRecentFiles.useRecentFilesStore.getState;
+      (origRecentFiles.useRecentFilesStore as unknown as Record<string, unknown>).getState = () => {
+        throw new Error("recent files error");
+      };
+
+      await handleWorkspaceListRecentFiles("req-err-recent");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-recent",
+        success: false,
+        error: "recent files error",
+      });
+
+      // Restore
+      (origRecentFiles.useRecentFilesStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+  });
+
+  describe("handleWorkspaceGetInfo — error path (line 362)", () => {
+    it("returns error when workspaceStore throws", async () => {
+      const origWorkspace = await import("@/stores/workspaceStore");
+      const origGetState = origWorkspace.useWorkspaceStore.getState;
+      (origWorkspace.useWorkspaceStore as unknown as Record<string, unknown>).getState = () => {
+        throw new Error("workspace info error");
+      };
+
+      await handleWorkspaceGetInfo("req-err-info");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-info",
+        success: false,
+        error: "workspace info error",
+      });
+
+      // Restore
+      (origWorkspace.useWorkspaceStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+  });
 });

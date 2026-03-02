@@ -389,6 +389,45 @@ describe("focusModeExtension", () => {
       expect(decorations).toBeNull();
     });
 
+    it("createFocusDecoration returns null when $from.before throws (line 48)", () => {
+      mockEditorStoreState.focusModeEnabled = true;
+      const plugin = getPlugin();
+      const doc = createDoc(["hello"]);
+      const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+      // Move selection into the paragraph
+      const state2 = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 2))
+      );
+
+      // Create a patched state where $from.before throws
+      const patchedState = {
+        ...state2,
+        selection: {
+          ...state2.selection,
+          $from: new Proxy(state2.selection.$from, {
+            get(target, prop) {
+              if (prop === "depth") return 1; // depth >= 1 to pass the guard
+              if (prop === "before") return () => { throw new RangeError("Invalid position"); };
+              return Reflect.get(target, prop);
+            },
+          }),
+        },
+      };
+
+      // Apply a transaction that triggers rebuild via toggle meta
+      const tr = state2.tr.setMeta(plugin.key, "toggle");
+      // Manually invoke the apply
+      const result = plugin.spec.state!.apply.call(
+        null,
+        tr,
+        plugin.getState(state2),
+        state2,
+        patchedState as unknown as EditorState
+      );
+      expect(result).toBeNull();
+    });
+
     it("createFocusDecoration returns null for depth 0", () => {
       mockEditorStoreState.focusModeEnabled = true;
       const plugin = getPlugin();

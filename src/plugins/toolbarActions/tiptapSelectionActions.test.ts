@@ -397,6 +397,96 @@ describe("dispatchSelectionOnly", () => {
   });
 });
 
+describe("selectBlockInView — non-textblock block node first", () => {
+  it("selects non-textblock block (blockquote) before hitting textblock", () => {
+    // In a blockquote > paragraph, cursor at depth 2 (paragraph), depth 1 is blockquote.
+    // The while loop should first find paragraph (textblock) and select it.
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("inside quote")]),
+      ]),
+    ]);
+    const view = createView(doc, 3);
+    const result = selectBlockInView(view);
+    expect(result).toBe(true);
+    // The paragraph at innermost depth is a textblock, so it gets selected first
+    const sel = getSelection(view);
+    expect(sel.from).toBe(2);
+    expect(sel.to).toBe(14);
+    view.destroy();
+  });
+});
+
+describe("expandSelectionInView — depth walk and full doc fallback", () => {
+  it("walks through depths and eventually selects full document", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("hi")]),
+    ]);
+    // Start with full paragraph already selected (from=1, to=3)
+    const view = createView(doc, 1, 3);
+
+    // Mock coords to keep line boundaries the same as current selection
+    vi.spyOn(view, "coordsAtPos").mockImplementation(() => ({
+      top: 100, bottom: 120, left: 50, right: 60,
+    }));
+
+    // First expand: line boundaries equal selection, depth walk finds no expansion,
+    // falls through to the full document fallback
+    const result = expandSelectionInView(view);
+    expect(result).toBe(true);
+    const sel = getSelection(view);
+    expect(sel.from).toBe(0);
+    expect(sel.to).toBe(doc.content.size);
+    view.destroy();
+  });
+
+  it("expands through multiple depths in blockquote before reaching doc", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("inner")]),
+      ]),
+    ]);
+    // Select inner paragraph fully (from=2, to=7)
+    const view = createView(doc, 2, 7);
+
+    vi.spyOn(view, "coordsAtPos").mockImplementation(() => ({
+      top: 100, bottom: 120, left: 50, right: 60,
+    }));
+
+    // Should expand to blockquote content (depth walk finds blockquote expands range)
+    const result = expandSelectionInView(view);
+    expect(result).toBe(true);
+    const sel = getSelection(view);
+    // Should have expanded beyond paragraph to blockquote or doc level
+    expect(sel.to - sel.from).toBeGreaterThan(5);
+    view.destroy();
+  });
+
+  it("reaches full document when all depths exhausted", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("x")]),
+      ]),
+    ]);
+    const view = createView(doc, 2, 3);
+
+    vi.spyOn(view, "coordsAtPos").mockImplementation(() => ({
+      top: 100, bottom: 120, left: 50, right: 60,
+    }));
+
+    // Expand multiple times until we reach full doc
+    expandSelectionInView(view); // word -> line -> depth
+    expandSelectionInView(view);
+    expandSelectionInView(view);
+    expandSelectionInView(view);
+
+    const sel = getSelection(view);
+    expect(sel.from).toBe(0);
+    expect(sel.to).toBe(doc.content.size);
+    view.destroy();
+  });
+});
+
 describe("findWordBoundaries edge cases", () => {
   it("handles cursor at start of text", () => {
     const doc = schema.node("doc", null, [
