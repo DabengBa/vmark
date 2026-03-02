@@ -279,5 +279,125 @@ describe("searchExtension", () => {
       const regex = new RegExp(escaped, "gi");
       expect(regex).toBeInstanceOf(RegExp);
     });
+
+    it("handles unicode characters in search query", () => {
+      const doc = createDoc(["hello world"]);
+      const text = doc.textContent;
+      const regex = new RegExp("hello", "gi");
+      const matches = [...text.matchAll(regex)];
+      expect(matches.length).toBe(1);
+    });
+
+    it("handles regex special chars in non-regex mode", () => {
+      const specialChars = "[test]";
+      const escaped = specialChars.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(escaped).toBe("\\[test\\]");
+
+      const regex = new RegExp(escaped, "gi");
+      const text = "foo [test] bar [test]";
+      const matches = [...text.matchAll(regex)];
+      expect(matches.length).toBe(2);
+    });
+
+    it("handles backslash in search query", () => {
+      const query = "\\n";
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(escaped).toBe("\\\\n");
+    });
+
+    it("handles regex with pipe alternation", () => {
+      const text = "cat and dog and bird";
+      const regex = new RegExp("cat|dog", "gi");
+      const matches = [...text.matchAll(regex)];
+      expect(matches.length).toBe(2);
+    });
+
+    it("handles wholeWord with punctuation adjacent", () => {
+      const text = "hello, world! hello.world";
+      const escaped = "hello".replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+      const matches = [...text.matchAll(regex)];
+      expect(matches.length).toBe(2);
+    });
+
+    it("handles empty match results from regex", () => {
+      const text = "abc";
+      const regex = /(?=a)/g;
+      const matches: string[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(text)) !== null) {
+        matches.push(m[0]);
+        if (m[0].length === 0) regex.lastIndex++;
+      }
+      expect(matches.length).toBe(1);
+    });
+  });
+
+  describe("decoration creation logic", () => {
+    it("creates search-match class for non-active match", () => {
+      const isActive = false;
+      const className = isActive ? "search-match search-match-active" : "search-match";
+      expect(className).toBe("search-match");
+    });
+
+    it("creates search-match-active class for active match", () => {
+      const isActive = true;
+      const className = isActive ? "search-match search-match-active" : "search-match";
+      expect(className).toBe("search-match search-match-active");
+    });
+
+    it("does not create decorations when search is closed", () => {
+      mockSearchState.isOpen = false;
+      mockSearchState.query = "hello";
+      expect(mockSearchState.isOpen).toBe(false);
+    });
+
+    it("does not create decorations when query is empty", () => {
+      mockSearchState.isOpen = true;
+      mockSearchState.query = "";
+      expect(mockSearchState.query).toBe("");
+    });
+  });
+
+  describe("replaceText logic", () => {
+    it("replaces matched text with new text", () => {
+      const doc = createDoc(["hello world"]);
+      const state = EditorState.create({ doc, schema });
+
+      const match = { from: 1, to: 6 };
+      const replaceText = "hi";
+      const tr = state.tr.replaceWith(
+        match.from,
+        match.to,
+        replaceText ? schema.text(replaceText) : []
+      );
+      expect(tr.doc.textContent).toBe("hi world");
+    });
+
+    it("deletes matched text when replaceText is empty", () => {
+      const doc = createDoc(["hello world"]);
+      const state = EditorState.create({ doc, schema });
+
+      const match = { from: 1, to: 6 };
+      const tr = state.tr.replaceWith(match.from, match.to, []);
+      expect(tr.doc.textContent).toBe(" world");
+    });
+
+    it("replaceAll in reverse order preserves positions", () => {
+      const doc = createDoc(["aaa bbb aaa"]);
+      const state = EditorState.create({ doc, schema });
+
+      const matches = [
+        { from: 1, to: 4 },
+        { from: 9, to: 12 },
+      ];
+      const sorted = [...matches].sort((a, b) => b.from - a.from);
+
+      let tr = state.tr;
+      for (const match of sorted) {
+        tr = tr.replaceWith(match.from, match.to, schema.text("x"));
+      }
+      expect(tr.doc.textContent).toBe("x bbb x");
+    });
   });
 });

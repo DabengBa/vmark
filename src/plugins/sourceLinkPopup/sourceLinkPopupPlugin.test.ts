@@ -227,3 +227,144 @@ describe("extractLinkData (via plugin config)", () => {
     expect(result.linkTo).toBe(5);
   });
 });
+
+describe("CmdClick handler", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("CmdClick plugin is in the returned array", () => {
+    const result = createSourceLinkPopupPlugin();
+    expect(Array.isArray(result)).toBe(true);
+    expect((result as unknown[]).length).toBe(2);
+  });
+
+  function getCmdClickHandler(): {
+    handler: (e: MouseEvent) => void;
+    mockView: Record<string, unknown>;
+  } {
+    const result = createSourceLinkPopupPlugin();
+    const cmdClickPlugin = (result as unknown[])[0];
+    const create = (cmdClickPlugin as { create?: (view: EditorView) => unknown }).create;
+
+    let capturedHandler: ((e: MouseEvent) => void) | null = null;
+    const mockDom = document.createElement("div");
+    mockDom.addEventListener = vi.fn((event: string, handler: unknown, capture?: boolean) => {
+      if (event === "click" && capture) capturedHandler = handler as (e: MouseEvent) => void;
+    }) as unknown as typeof mockDom.addEventListener;
+    mockDom.removeEventListener = vi.fn();
+
+    const mockView = {
+      dom: mockDom,
+      posAtCoords: vi.fn(() => 5),
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      state: {
+        doc: {
+          lineAt: () => ({ from: 0, to: 30, text: "[link](https://example.com)" }),
+          toString: () => "[link](https://example.com)",
+        },
+      },
+    };
+
+    create!(mockView as unknown as EditorView);
+    return { handler: capturedHandler!, mockView };
+  }
+
+  it("registers click listener at capture phase", () => {
+    const result = createSourceLinkPopupPlugin();
+    const cmdClickPlugin = (result as unknown[])[0];
+    const create = (cmdClickPlugin as { create?: (view: EditorView) => unknown }).create;
+
+    const addSpy = vi.fn();
+    const removeSpy = vi.fn();
+    const mockDom = document.createElement("div");
+    mockDom.addEventListener = addSpy;
+    mockDom.removeEventListener = removeSpy;
+
+    const mockView = {
+      dom: mockDom,
+      state: { doc: { lineAt: () => ({}), toString: () => "" } },
+    } as unknown as EditorView;
+
+    const instance = create!(mockView);
+
+    expect(addSpy).toHaveBeenCalledWith("click", expect.any(Function), true);
+
+    (instance as { destroy: () => void }).destroy();
+    expect(removeSpy).toHaveBeenCalledWith("click", expect.any(Function), true);
+  });
+
+  it("ignores non-Cmd/Ctrl clicks", () => {
+    const { handler } = getCmdClickHandler();
+    const event = new MouseEvent("click", { metaKey: false, ctrlKey: false });
+    const stopProp = vi.spyOn(event, "stopPropagation");
+    handler(event);
+    expect(stopProp).not.toHaveBeenCalled();
+  });
+
+  it("opens external link in browser on Cmd+click", async () => {
+    vi.mocked(findMarkdownLinkAtPosition).mockReturnValue({
+      from: 0, to: 24, text: "link", url: "https://example.com",
+      fullMatch: "[link](https://example.com)",
+    });
+
+    const { handler } = getCmdClickHandler();
+    const event = new MouseEvent("click", { metaKey: true, clientX: 50, clientY: 50 });
+    const stopProp = vi.spyOn(event, "stopPropagation");
+    const preventDefault = vi.spyOn(event, "preventDefault");
+
+    handler(event);
+
+    expect(stopProp).toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalled();
+
+    await new Promise((r) => setTimeout(r, 10));
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    expect(openUrl).toHaveBeenCalledWith("https://example.com");
+  });
+
+  it("navigates to heading for bookmark links", async () => {
+    vi.mocked(findMarkdownLinkAtPosition).mockReturnValue({
+      from: 0, to: 20, text: "link", url: "#my-heading",
+      fullMatch: "[link](#my-heading)",
+    });
+
+    const { extractMarkdownHeadings } = await import("@/plugins/toolbarActions/sourceAdapterLinks");
+    vi.mocked(extractMarkdownHeadings).mockReturnValue([
+      { id: "my-heading", text: "My Heading", level: 1, pos: 0 },
+    ]);
+
+    const { handler, mockView } = getCmdClickHandler();
+    const event = new MouseEvent("click", { metaKey: true, clientX: 50, clientY: 50 });
+
+    handler(event);
+
+    expect(mockView.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: { anchor: 0 }, scrollIntoView: true })
+    );
+    expect(mockView.focus).toHaveBeenCalled();
+  });
+
+  it("does nothing when posAtCoords returns null", () => {
+    const { handler, mockView } = getCmdClickHandler();
+    (mockView.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const event = new MouseEvent("click", { metaKey: true, clientX: 50, clientY: 50 });
+    const stopProp = vi.spyOn(event, "stopPropagation");
+
+    handler(event);
+    expect(stopProp).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no link at position", () => {
+    vi.mocked(findMarkdownLinkAtPosition).mockReturnValue(null);
+
+    const { handler } = getCmdClickHandler();
+    const event = new MouseEvent("click", { metaKey: true, clientX: 50, clientY: 50 });
+    const stopProp = vi.spyOn(event, "stopPropagation");
+
+    handler(event);
+    expect(stopProp).not.toHaveBeenCalled();
+  });
+});

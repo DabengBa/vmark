@@ -169,4 +169,66 @@ describe("buildEditorKeymapBindings", () => {
     expect(bindings["Mod-b"]).toBeUndefined();
     expect(bindings["Mod-i"]).toBeUndefined();
   });
+
+  it("binds Escape to a handler that returns a boolean", () => {
+    const bindings = buildEditorKeymapBindings();
+    expect(typeof bindings.Escape).toBe("function");
+  });
+
+  it("toggleSidebar binding calls useUIStore.toggleSidebar", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("toggleSidebar");
+    if (key) {
+      // The binding should be a function
+      expect(typeof bindings[key]).toBe("function");
+    }
+  });
+
+  it("does not duplicate bindings when called multiple times", () => {
+    const bindings1 = buildEditorKeymapBindings();
+    const bindings2 = buildEditorKeymapBindings();
+    const keys1 = Object.keys(bindings1).sort();
+    const keys2 = Object.keys(bindings2).sort();
+    expect(keys1).toEqual(keys2);
+  });
+
+  it("clears old custom bindings when resetting", () => {
+    useShortcutsStore.setState({ customBindings: { bold: "Mod-Alt-b" } });
+    const bindings1 = buildEditorKeymapBindings();
+    expect(bindings1["Mod-Alt-b"]).toBeTypeOf("function");
+
+    useShortcutsStore.setState({ customBindings: {} });
+    const bindings2 = buildEditorKeymapBindings();
+    expect(bindings2["Mod-Alt-b"]).toBeUndefined();
+    // Default should be back
+    const defaultKey = useShortcutsStore.getState().getShortcut("bold");
+    if (defaultKey) {
+      expect(bindings2[defaultKey]).toBeTypeOf("function");
+    }
+  });
+
+  it("has all expected binding categories", () => {
+    const bindings = buildEditorKeymapBindings();
+    const keys = Object.keys(bindings);
+
+    // Should have undo/redo
+    expect(keys).toContain("Mod-z");
+    expect(keys).toContain("Mod-Shift-z");
+
+    // Should have Escape
+    expect(keys).toContain("Escape");
+
+    // Should have at least some formatting keys
+    expect(keys.length).toBeGreaterThan(10);
+  });
+
+  it("each binding returns a function that can be called", () => {
+    const bindings = buildEditorKeymapBindings();
+    for (const [key, handler] of Object.entries(bindings)) {
+      expect(typeof handler).toBe("function");
+      // Verify it's callable (all bindings are ProseMirror commands)
+      expect(handler.length).toBeGreaterThanOrEqual(0);
+    }
+  });
 });

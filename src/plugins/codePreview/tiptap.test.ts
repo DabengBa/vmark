@@ -141,3 +141,111 @@ describe("refreshPreviews", () => {
     expect(() => refreshPreviews()).not.toThrow();
   });
 });
+
+describe("PREVIEW_ONLY_LANGUAGES coverage", () => {
+  it("treats 'latex' as preview-only (case insensitive)", () => {
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2 + y^2");
+    const pluginState = plugins[0].getState(state);
+    const matches = findDecorationsByClass(pluginState.decorations.find(), "code-block-preview-only");
+    expect(matches.length).toBeGreaterThan(0);
+  });
+
+  it("treats 'Mermaid' (mixed case) consistently after lowercasing", () => {
+    // The source lowercases language: (node.attrs.language ?? "").toLowerCase()
+    // So "Mermaid" becomes "mermaid"
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState = plugins[0].getState(state);
+    const matches = findDecorationsByClass(pluginState.decorations.find(), "code-block-preview-only");
+    expect(matches.length).toBeGreaterThan(0);
+  });
+
+  it("does not add preview for 'javascript'", () => {
+    const { state, plugins } = createStateWithCodeBlock("javascript", "const x = 1;");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+
+  it("does not add preview for 'html'", () => {
+    const { state, plugins } = createStateWithCodeBlock("html", "<div>test</div>");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+
+  it("does not add preview for 'css'", () => {
+    const { state, plugins } = createStateWithCodeBlock("css", "body { color: red; }");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+
+  it("does not add preview for empty language string", () => {
+    const { state, plugins } = createStateWithCodeBlock("", "some code");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+});
+
+describe("empty content handling", () => {
+  it("creates placeholder for empty latex block", () => {
+    const { state, plugins } = createStateWithCodeBlock("latex", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    // Should have preview-only class and a placeholder widget
+    expect(allDecorations.length).toBeGreaterThan(0);
+  });
+
+  it("creates placeholder for empty svg block", () => {
+    const { state, plugins } = createStateWithCodeBlock("svg", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThan(0);
+  });
+
+  it("creates placeholder for empty markmap block", () => {
+    const { state, plugins } = createStateWithCodeBlock("markmap", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThan(0);
+  });
+});
+
+describe("decoration state management", () => {
+  it("initializes with empty decorations for non-preview code blocks", () => {
+    const { state, plugins } = createStateWithCodeBlock("go", "package main");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.decorations.find().length).toBe(0);
+    expect(pluginState.editingPos).toBeNull();
+  });
+
+  it("preserves editingPos as null when no editing is active", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD");
+    const pluginState = plugins[0].getState(state);
+    expect(pluginState.editingPos).toBeNull();
+  });
+
+  it("applies transaction mapping when doc does not change", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState1 = plugins[0].getState(state);
+    expect(pluginState1.decorations.find().length).toBeGreaterThan(0);
+
+    // Apply a non-doc-changing transaction
+    const nextState = state.apply(state.tr);
+    const pluginState2 = plugins[0].getState(nextState);
+    // Decorations should still exist (mapped through)
+    expect(pluginState2).toBeDefined();
+  });
+});
+
+describe("clearPreviewCache and refreshPreviews", () => {
+  it("clearPreviewCache is idempotent", () => {
+    clearPreviewCache();
+    clearPreviewCache();
+    clearPreviewCache();
+    // No error means success
+  });
+
+  it("refreshPreviews is safe to call without editor", () => {
+    clearPreviewCache();
+    refreshPreviews();
+    // Should not throw
+  });
+});

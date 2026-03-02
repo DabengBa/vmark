@@ -471,4 +471,122 @@ describe("aiSuggestionExtension", () => {
       expect(mockAiState.suggestions.size).toBe(2);
     });
   });
+
+  describe("isValidPosition", () => {
+    it("returns true for from=0, to=0 (empty insert)", () => {
+      expect(isValidPosition(makeSuggestion({ from: 0, to: 0 }), 100)).toBe(true);
+    });
+
+    it("returns false when from is negative", () => {
+      expect(isValidPosition(makeSuggestion({ from: -1, to: 5 }), 100)).toBe(false);
+    });
+
+    it("returns false when to exceeds docSize", () => {
+      expect(isValidPosition(makeSuggestion({ from: 0, to: 101 }), 100)).toBe(false);
+    });
+
+    it("returns false when from > to", () => {
+      expect(isValidPosition(makeSuggestion({ from: 10, to: 5 }), 100)).toBe(false);
+    });
+
+    it("returns true when from equals to (insert position)", () => {
+      expect(isValidPosition(makeSuggestion({ from: 50, to: 50 }), 100)).toBe(true);
+    });
+
+    it("returns true when to equals docSize exactly", () => {
+      expect(isValidPosition(makeSuggestion({ from: 0, to: 100 }), 100)).toBe(true);
+    });
+
+    it("returns true for a valid range in the middle", () => {
+      expect(isValidPosition(makeSuggestion({ from: 10, to: 50 }), 100)).toBe(true);
+    });
+
+    it("returns false for from=0, to=-1", () => {
+      expect(isValidPosition(makeSuggestion({ from: 0, to: -1 }), 100)).toBe(false);
+    });
+  });
+
+  describe("getDecorationClass", () => {
+    it("returns base class for unfocused insert suggestion", () => {
+      const s = makeSuggestion({ type: "insert" });
+      expect(getDecorationClass(s, false)).toBe("ai-suggestion ai-suggestion-insert");
+    });
+
+    it("returns focused class for focused insert suggestion", () => {
+      const s = makeSuggestion({ type: "insert" });
+      expect(getDecorationClass(s, true)).toBe("ai-suggestion ai-suggestion-insert ai-suggestion-focused");
+    });
+
+    it("returns base class for unfocused replace suggestion", () => {
+      const s = makeSuggestion({ type: "replace" });
+      expect(getDecorationClass(s, false)).toBe("ai-suggestion ai-suggestion-replace");
+    });
+
+    it("returns focused class for focused replace suggestion", () => {
+      const s = makeSuggestion({ type: "replace" });
+      expect(getDecorationClass(s, true)).toBe("ai-suggestion ai-suggestion-replace ai-suggestion-focused");
+    });
+
+    it("returns base class for unfocused delete suggestion", () => {
+      const s = makeSuggestion({ type: "delete" });
+      expect(getDecorationClass(s, false)).toBe("ai-suggestion ai-suggestion-delete");
+    });
+
+    it("returns focused class for focused delete suggestion", () => {
+      const s = makeSuggestion({ type: "delete" });
+      expect(getDecorationClass(s, true)).toBe("ai-suggestion ai-suggestion-delete ai-suggestion-focused");
+    });
+  });
+
+  describe("isButtonEvent", () => {
+    it("returns true when target is inside a suggestion button", () => {
+      const btn = document.createElement("button");
+      btn.className = "ai-suggestion-btn";
+      document.body.appendChild(btn);
+
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: btn });
+      expect(isButtonEvent(event)).toBe(true);
+
+      document.body.removeChild(btn);
+    });
+
+    it("returns true when target is a child of a suggestion button", () => {
+      const btn = document.createElement("button");
+      btn.className = "ai-suggestion-btn";
+      const svg = document.createElement("svg");
+      btn.appendChild(svg);
+      document.body.appendChild(btn);
+
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: svg });
+      expect(isButtonEvent(event)).toBe(true);
+
+      document.body.removeChild(btn);
+    });
+
+    it("returns false when target is not inside a suggestion button", () => {
+      const div = document.createElement("div");
+      document.body.appendChild(div);
+
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: div });
+      expect(isButtonEvent(event)).toBe(false);
+
+      document.body.removeChild(div);
+    });
+
+    it("returns false when target is not an Element", () => {
+      const textNode = document.createTextNode("hello");
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: textNode });
+      expect(isButtonEvent(event)).toBe(false);
+    });
+
+    it("returns false when target is null", () => {
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: null });
+      expect(isButtonEvent(event)).toBe(false);
+    });
+  });
 });

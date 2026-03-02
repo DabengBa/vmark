@@ -21,11 +21,12 @@ vi.mock("@/utils/imeGuard", () => ({
   isImeKeyEvent: () => false,
 }));
 
+let matchesShortcutResult = false;
 vi.mock("@/utils/shortcutMatch", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/utils/shortcutMatch")>();
   return {
     ...actual,
-    matchesShortcutEvent: () => false,
+    matchesShortcutEvent: () => matchesShortcutResult,
   };
 });
 
@@ -173,10 +174,40 @@ describe("useTabShortcuts — Cmd+W", () => {
   });
 });
 
+describe("useTabShortcuts — newTab shortcut", () => {
+  beforeEach(() => {
+    resetStores();
+    vi.clearAllMocks();
+    matchesShortcutResult = false;
+  });
+
+  it("creates a new tab when newTab shortcut matches", async () => {
+    // Make matchesShortcutEvent return true for all checks (newTab will match first)
+    matchesShortcutResult = true;
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+
+    const tabsBefore = useTabStore.getState().getTabsByWindow(WINDOW).length;
+
+    act(() => {
+      fireKeydown("t"); // any key, matchesShortcutEvent returns true
+    });
+
+    const tabsAfter = useTabStore.getState().getTabsByWindow(WINDOW).length;
+    // newTab match should have created a tab
+    expect(tabsAfter).toBe(tabsBefore + 1);
+
+    matchesShortcutResult = false;
+  });
+});
+
 describe("useTabShortcuts — cleanup", () => {
   beforeEach(() => {
     resetStores();
     vi.clearAllMocks();
+    matchesShortcutResult = false;
   });
 
   it("cleans up listener on unmount", async () => {

@@ -189,4 +189,71 @@ describe("handleNew", () => {
     handleNew(WINDOW);
     expect(mockCreateUntitledTab).toHaveBeenCalledWith(WINDOW);
   });
+
+  it("can be called multiple times for multiple new tabs", () => {
+    handleNew(WINDOW);
+    handleNew(WINDOW);
+    expect(mockCreateUntitledTab).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("openFileInNewTabCore — edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useTabStore.getState().removeWindow(WINDOW);
+    Object.keys(useDocumentStore.getState().documents).forEach((id) =>
+      useDocumentStore.getState().removeDocument(id)
+    );
+  });
+
+  it("shows toast error with file path on read failure", async () => {
+    mockReadTextFile.mockRejectedValue(new Error("Permission denied"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await openFileInNewTabCore(WINDOW, "/protected/secret.md");
+
+    const { toast } = await import("sonner");
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("Permission denied")
+    );
+    errorSpy.mockRestore();
+  });
+
+  it("handles non-Error rejection", async () => {
+    mockReadTextFile.mockRejectedValue("string error");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await openFileInNewTabCore(WINDOW, "/docs/fail.md");
+
+    const { toast } = await import("sonner");
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("string error")
+    );
+    errorSpy.mockRestore();
+  });
+
+  it("detects and stores linebreak metadata", async () => {
+    mockReadTextFile.mockResolvedValue("line1\r\nline2\r\n");
+    const setLineSpy = vi.spyOn(useDocumentStore.getState(), "setLineMetadata");
+
+    await openFileInNewTabCore(WINDOW, "/docs/crlf.md");
+
+    expect(setLineSpy).toHaveBeenCalled();
+  });
+});
+
+describe("handleOpenFile — edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useTabStore.getState().removeWindow(WINDOW);
+  });
+
+  it("opens file when no tabs exist at all", async () => {
+    mockFindExistingTabForPath.mockReturnValue(null);
+    mockReadTextFile.mockResolvedValue("# New");
+
+    await handleOpenFile(WINDOW, "/docs/fresh.md");
+
+    expect(mockReadTextFile).toHaveBeenCalledWith("/docs/fresh.md");
+  });
 });

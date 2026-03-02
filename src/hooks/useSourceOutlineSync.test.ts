@@ -1,6 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Text } from "@codemirror/state";
 import { findNthHeadingPos, findHeadingIndexAtLine } from "./useSourceOutlineSync";
+
+// Mocks for hook testing
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn())),
+}));
+
+vi.mock("@/utils/safeUnlisten", () => ({
+  safeUnlisten: vi.fn(),
+}));
+
+vi.mock("@/stores/uiStore", () => ({
+  useUIStore: {
+    getState: () => ({
+      setActiveHeadingLine: vi.fn(),
+    }),
+  },
+}));
+
+vi.mock("@/components/Sidebar/outlineUtils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/Sidebar/outlineUtils")>();
+  return actual;
+});
 
 function textFrom(content: string): Text {
   return Text.of(content.split("\n"));
@@ -163,6 +185,60 @@ describe("findHeadingIndexAtLine", () => {
     expect(findHeadingIndexAtLine(doc, 3)).toBe(0); // # B inside
     expect(findHeadingIndexAtLine(doc, 5)).toBe(0); // # C inside
     expect(findHeadingIndexAtLine(doc, 7)).toBe(1); // ## D outside
+  });
+});
+
+describe("useSourceOutlineSync hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sets up outline scroll listener when not hidden", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+
+    const viewRef = { current: null };
+    renderHook(() => useSourceOutlineSync(viewRef, false));
+
+    expect(listen).toHaveBeenCalledWith(
+      "outline:scroll-to-heading",
+      expect.any(Function)
+    );
+  });
+
+  it("does not set up listener when hidden", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+
+    vi.mocked(listen).mockClear();
+    const viewRef = { current: null };
+    renderHook(() => useSourceOutlineSync(viewRef, true));
+
+    expect(listen).not.toHaveBeenCalled();
+  });
+
+  it("cleans up listener on unmount", async () => {
+    const mockUnlisten = vi.fn();
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+    const { safeUnlisten } = await import("@/utils/safeUnlisten");
+
+    vi.mocked(listen).mockResolvedValue(mockUnlisten);
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    const viewRef = { current: null };
+    const { unmount } = renderHook(() => useSourceOutlineSync(viewRef, false));
+
+    // Wait for the async listen to resolve
+    await vi.waitFor(() => {
+      expect(listen).toHaveBeenCalled();
+    });
+
+    unmount();
+    expect(safeUnlisten).toHaveBeenCalled();
   });
 });
 

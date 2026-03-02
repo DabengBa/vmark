@@ -455,4 +455,75 @@ describe("edge cases", () => {
     const event = new Event("blur");
     expect(event.type).toBe("blur");
   });
+
+  it("handles moving text to position before the selection", () => {
+    const doc = createDoc("abcdefghij");
+    const state = EditorState.create({
+      doc,
+      schema,
+      selection: TextSelection.create(doc, 5, 8), // "efg"
+    });
+
+    const from = 5;
+    const to = 8;
+    const dropPos = 2; // before selection
+
+    const slice = state.doc.slice(from, to);
+    let tr = state.tr;
+    tr = tr.delete(from, to);
+    const mappedDropPos = tr.mapping.map(dropPos);
+    tr = tr.replaceRange(mappedDropPos, mappedDropPos, slice);
+
+    expect(mappedDropPos).toBe(2); // Position before deletion unaffected
+    expect(tr.doc.textContent).toContain("efg");
+  });
+
+  it("handles single character selection", () => {
+    const doc = createDoc("abc");
+    const state = EditorState.create({
+      doc,
+      schema,
+      selection: TextSelection.create(doc, 2, 3), // "b"
+    });
+
+    expect(state.selection.from).toBe(2);
+    expect(state.selection.to).toBe(3);
+
+    const slice = state.doc.slice(2, 3);
+    let tr = state.tr;
+    tr = tr.delete(2, 3);
+    const mappedPos = tr.mapping.map(1);
+    tr = tr.replaceRange(mappedPos, mappedPos, slice);
+    expect(tr.doc.textContent).toContain("b");
+    expect(tr.doc.textContent).toContain("a");
+    expect(tr.doc.textContent).toContain("c");
+  });
+
+  it("handles empty text in document", () => {
+    const doc = createDoc("");
+    const state = EditorState.create({ doc, schema });
+    expect(state.selection.empty).toBe(true);
+    // Cannot create non-empty TextSelection on empty text
+  });
+
+  it("handles multiple event listeners cleanup in sequence", () => {
+    const handlers: Array<() => void> = [];
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+
+    const h1 = vi.fn();
+    const h2 = vi.fn();
+    document.addEventListener("mousemove", h1);
+    document.addEventListener("mouseup", h2);
+    handlers.push(() => document.removeEventListener("mousemove", h1));
+    handlers.push(() => document.removeEventListener("mouseup", h2));
+
+    handlers.forEach((cleanup) => cleanup());
+
+    expect(removeSpy).toHaveBeenCalledWith("mousemove", h1);
+    expect(removeSpy).toHaveBeenCalledWith("mouseup", h2);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
 });

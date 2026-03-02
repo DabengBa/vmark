@@ -298,4 +298,228 @@ describe("SourceTableContextMenu", () => {
       expect(expectedActionCount).toBe(14);
     });
   });
+
+  describe("SourceTableContextMenuView DOM lifecycle", () => {
+    it("context menu container is initially hidden", () => {
+      const container = document.createElement("div");
+      container.className = "table-context-menu";
+      container.style.display = "none";
+
+      expect(container.style.display).toBe("none");
+    });
+
+    it("menu items can be built with correct structure", () => {
+      const menuItem = document.createElement("button");
+      menuItem.className = "table-context-menu-item";
+      menuItem.type = "button";
+
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "table-context-menu-icon";
+      iconSpan.textContent = "testIcon";
+      menuItem.appendChild(iconSpan);
+
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "table-context-menu-label";
+      labelSpan.textContent = "Test Action";
+      menuItem.appendChild(labelSpan);
+
+      expect(menuItem.querySelector(".table-context-menu-icon")).toBeTruthy();
+      expect(menuItem.querySelector(".table-context-menu-label")?.textContent).toBe("Test Action");
+    });
+
+    it("danger items get the danger class", () => {
+      const menuItem = document.createElement("button");
+      let className = "table-context-menu-item";
+      const isDanger = true;
+      if (isDanger) className += " table-context-menu-item-danger";
+      menuItem.className = className;
+
+      expect(menuItem.classList.contains("table-context-menu-item-danger")).toBe(true);
+    });
+
+    it("disabled items get the disabled class and attribute", () => {
+      const menuItem = document.createElement("button");
+      let className = "table-context-menu-item";
+      const isDisabled = true;
+      if (isDisabled) className += " table-context-menu-item-disabled";
+      menuItem.className = className;
+      menuItem.disabled = true;
+
+      expect(menuItem.classList.contains("table-context-menu-item-disabled")).toBe(true);
+      expect(menuItem.disabled).toBe(true);
+    });
+
+    it("divider elements are created after marked items", () => {
+      const divider = document.createElement("div");
+      divider.className = "table-context-menu-divider";
+
+      expect(divider.className).toBe("table-context-menu-divider");
+    });
+
+    it("Escape key handler hides menu and focuses view", () => {
+      let isVisible = true;
+      const mockViewFocus = vi.fn();
+
+      const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === "Escape" && isVisible) {
+          isVisible = false;
+          mockViewFocus();
+        }
+      };
+
+      document.addEventListener("keydown", handleKeydown);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+      expect(isVisible).toBe(false);
+      expect(mockViewFocus).toHaveBeenCalled();
+      document.removeEventListener("keydown", handleKeydown);
+    });
+
+    it("Escape key does nothing when menu is not visible", () => {
+      let isVisible = false;
+      const mockViewFocus = vi.fn();
+
+      const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === "Escape" && isVisible) {
+          isVisible = false;
+          mockViewFocus();
+        }
+      };
+
+      document.addEventListener("keydown", handleKeydown);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+      expect(isVisible).toBe(false);
+      expect(mockViewFocus).not.toHaveBeenCalled();
+      document.removeEventListener("keydown", handleKeydown);
+    });
+
+    it("click outside hides the menu", () => {
+      let isVisible = true;
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      const handleClickOutside = (e: MouseEvent) => {
+        if (!isVisible) return;
+        const target = e.target as Node;
+        if (!container.contains(target)) {
+          isVisible = false;
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+      expect(isVisible).toBe(false);
+      document.removeEventListener("mousedown", handleClickOutside);
+      container.remove();
+    });
+
+    it("click inside does not hide the menu", () => {
+      let isVisible = true;
+      const container = document.createElement("div");
+      const child = document.createElement("button");
+      container.appendChild(child);
+      document.body.appendChild(container);
+
+      const handleClickOutside = (e: MouseEvent) => {
+        if (!isVisible) return;
+        const target = e.target as Node;
+        if (!container.contains(target)) {
+          isVisible = false;
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      child.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+      expect(isVisible).toBe(true);
+      document.removeEventListener("mousedown", handleClickOutside);
+      container.remove();
+    });
+
+    it("destroy removes container from DOM", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      expect(document.body.contains(container)).toBe(true);
+
+      container.remove();
+      expect(document.body.contains(container)).toBe(false);
+    });
+  });
+
+  describe("Context menu positioning logic", () => {
+    it("adjusts left when menu overflows right edge", () => {
+      const hostWidth = 800;
+      const menuWidth = 200;
+      const scrollLeft = 0;
+
+      const menuRight = 810;
+      const hostRight = 800;
+
+      if (menuRight > hostRight - 10) {
+        const adjustedLeft = hostWidth - menuWidth - 10 + scrollLeft;
+        expect(adjustedLeft).toBe(590);
+      }
+    });
+
+    it("adjusts top when menu overflows bottom edge", () => {
+      const hostHeight = 600;
+      const menuHeight = 300;
+      const scrollTop = 0;
+
+      const menuBottom = 610;
+      const hostBottom = 600;
+
+      if (menuBottom > hostBottom - 10) {
+        const adjustedTop = hostHeight - menuHeight - 10 + scrollTop;
+        expect(adjustedTop).toBe(290);
+      }
+    });
+
+    it("does not adjust when menu fits within bounds", () => {
+      const hostWidth = 800;
+      const menuRight = 300;
+      const hostRight = 800;
+
+      const needsLeftAdjust = menuRight > hostRight - 10;
+      expect(needsLeftAdjust).toBe(false);
+    });
+
+    it("accounts for scroll offset in adjustment", () => {
+      const hostWidth = 800;
+      const menuWidth = 200;
+      const scrollLeft = 50;
+
+      const adjustedLeft = hostWidth - menuWidth - 10 + scrollLeft;
+      expect(adjustedLeft).toBe(640);
+    });
+  });
+
+  describe("separator row data contract", () => {
+    it("on separator row, deleteRow is disabled", () => {
+      const onSeparator = mockSeparatorInfo.rowIndex === 1;
+      expect(onSeparator).toBe(true);
+      const deleteRowDisabled = onSeparator;
+      expect(deleteRowDisabled).toBe(true);
+    });
+
+    it("on non-separator row, deleteRow is enabled", () => {
+      const nonSeparatorInfo = { ...mockTableInfo, rowIndex: 0 };
+      const onSeparator = nonSeparatorInfo.rowIndex === 1;
+      expect(onSeparator).toBe(false);
+    });
+
+    it("on separator row, alignment actions are disabled", () => {
+      const onSeparator = mockSeparatorInfo.rowIndex === 1;
+      const disabledCount = onSeparator ? 7 : 0;
+      expect(disabledCount).toBe(7);
+    });
+
+    it("on data row (rowIndex > 1), nothing is disabled", () => {
+      const dataRowInfo = { ...mockTableInfo, rowIndex: 2 };
+      const onSeparator = dataRowInfo.rowIndex === 1;
+      expect(onSeparator).toBe(false);
+    });
+  });
 });

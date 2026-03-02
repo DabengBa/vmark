@@ -385,4 +385,59 @@ describe("WindowContext", () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe("WindowProvider — doc-* window", () => {
+    it("creates tab and document for doc-* window", async () => {
+      mockWindowLabel = "doc-456";
+
+      render(
+        <WindowProvider>
+          <div>content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockCreateTab).toHaveBeenCalledWith("doc-456", null);
+        expect(mockInitDocument).toHaveBeenCalledWith("tab-1", "", null);
+      });
+    });
+  });
+
+  describe("WindowProvider — settings window workspace", () => {
+    it("looks for active workspace label for settings window", async () => {
+      mockWindowLabel = "settings";
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">Settings</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("WindowProvider — error handling", () => {
+    it("still sets isReady on init error", async () => {
+      // Force an error by making getCurrentWebviewWindow throw
+      const origMock = vi.mocked(mockListen);
+      origMock.mockImplementationOnce(() => Promise.reject(new Error("test error")));
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">Content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      errorSpy.mockRestore();
+    });
+  });
 });

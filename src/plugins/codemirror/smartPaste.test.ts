@@ -275,5 +275,77 @@ describe("createSmartPastePlugin", () => {
         "[hello\nworld](https://example.com)"
       );
     });
+
+    it("handles URL with unicode characters in selection", () => {
+      const view = createView("你好世界", 0, 4);
+      simulatePaste(view, "https://example.com/page");
+
+      expect(view.state.doc.toString()).toBe(
+        "[你好世界](https://example.com/page)"
+      );
+    });
+
+    it("handles URL with fragment identifier", () => {
+      const view = createView("heading", 0, 7);
+      simulatePaste(view, "https://example.com/page#section");
+
+      expect(view.state.doc.toString()).toBe(
+        "[heading](https://example.com/page#section)"
+      );
+    });
+
+    it("handles URL paste at mid-document selection", () => {
+      const view = createView("before target after", 7, 13);
+      simulatePaste(view, "https://example.com");
+
+      expect(view.state.doc.toString()).toBe(
+        "before [target](https://example.com) after"
+      );
+    });
+
+    it("image paste takes priority over URL paste on selection", () => {
+      mockTryImagePaste.mockReturnValue(true);
+
+      const view = createView("hello", 0, 5);
+      const result = simulatePaste(view, "https://example.com/image.png");
+
+      expect(result).toBe(true);
+      // Doc unchanged because image handler consumed it
+      expect(view.state.doc.toString()).toBe("hello");
+    });
+
+    it("markdown cleanup takes priority over URL link creation", () => {
+      mockCleanPastedMarkdown.mockReturnValue("cleaned URL text");
+
+      const view = createView("hello world", 0, 5);
+      const result = simulatePaste(view, "https://example.com");
+
+      expect(result).toBe(true);
+      // Should use cleaned text, not create a link
+      expect(view.state.doc.toString()).toBe("cleaned URL text world");
+    });
+  });
+
+  describe("createSmartPastePlugin export", () => {
+    it("returns a valid extension from createSmartPastePlugin", async () => {
+      const { createSmartPastePlugin } = await import("./smartPaste");
+      const extension = createSmartPastePlugin();
+      expect(extension).toBeDefined();
+    });
+
+    it("extension can be used in EditorView", async () => {
+      const { createSmartPastePlugin } = await import("./smartPaste");
+      const extension = createSmartPastePlugin();
+      const state = EditorState.create({
+        doc: "hello",
+        extensions: [extension],
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const view = new EditorView({ state, parent: container });
+      createdViews.push(view);
+
+      expect(view.state.doc.toString()).toBe("hello");
+    });
   });
 });

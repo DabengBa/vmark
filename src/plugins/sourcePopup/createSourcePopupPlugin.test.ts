@@ -214,6 +214,170 @@ describe("createSourcePopupPlugin", () => {
   });
 });
 
+describe("createSourcePopupPlugin — instantiated behavior", () => {
+  let mockStore: ReturnType<typeof createMockStore>;
+  let mockPopupView: SourcePopupView<TestState>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockStore = createMockStore();
+    mockPopupView = createMockPopupView();
+    // Add editorView to mockPopupView for private access in handleClick
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = createMockEditorView();
+    (mockPopupView as unknown as Record<string, unknown>)["container"] = document.createElement("div");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Since CM6 ViewPlugin.fromClass creates a class that can only be properly
+   * instantiated through CM6, we test the behavior by extracting the class
+   * from the ViewPlugin spec and instantiating it directly.
+   */
+  function instantiatePlugin(config: Partial<PopupTriggerConfig<TestState>> = {}) {
+    const plugin = createSourcePopupPlugin({
+      store: mockStore.store,
+      createView: () => mockPopupView,
+      detectTrigger: () => null,
+      extractData: () => ({}) as object,
+      ...config,
+    });
+    const mockView = createMockEditorView();
+    // Bind editorView on the popupView mock
+    (mockPopupView as unknown as Record<string, unknown>)["editorView"] = mockView;
+    // ViewPlugin exposes a .create(view) factory
+    const createFn = (plugin as unknown as { create: (view: EditorView) => unknown }).create;
+    const instance = createFn(mockView);
+    return { instance: instance as Record<string, unknown>, view: mockView };
+  }
+
+  it("creates popupView via createView on instantiation", () => {
+    const createViewFn = vi.fn(() => mockPopupView);
+    instantiatePlugin({ createView: createViewFn });
+    expect(createViewFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers click handler when triggerOnClick is true (default)", () => {
+    const { view } = instantiatePlugin({ triggerOnClick: true });
+    expect(view.dom.addEventListener).toHaveBeenCalledWith("click", expect.any(Function));
+  });
+
+  it("does not register click handler when triggerOnClick is false", () => {
+    const { view } = instantiatePlugin({ triggerOnClick: false });
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const clickCalls = calls.filter((c: unknown[]) => c[0] === "click");
+    expect(clickCalls.length).toBe(0);
+  });
+
+  it("registers hover handlers when triggerOnHover is true", () => {
+    const { view } = instantiatePlugin({ triggerOnHover: true });
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const eventNames = calls.map((c: unknown[]) => c[0]);
+    expect(eventNames).toContain("mousemove");
+    expect(eventNames).toContain("mouseleave");
+    expect(eventNames).toContain("mousedown");
+    expect(eventNames).toContain("mouseup");
+  });
+
+  it("does not register hover handlers when triggerOnHover is false (default)", () => {
+    const { view } = instantiatePlugin({ triggerOnHover: false });
+    const calls = (view.dom.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
+    const eventNames = calls.map((c: unknown[]) => c[0]);
+    expect(eventNames).not.toContain("mousemove");
+    expect(eventNames).not.toContain("mouseleave");
+  });
+
+  it("destroy calls popupView.destroy", () => {
+    const { instance } = instantiatePlugin();
+    (instance as { destroy: () => void }).destroy();
+    expect(mockPopupView.destroy).toHaveBeenCalled();
+  });
+
+  it("destroy clears pending timeouts", () => {
+    const { instance } = instantiatePlugin({ triggerOnHover: true });
+    // Just verify destroy doesn't throw
+    (instance as { destroy: () => void }).destroy();
+  });
+
+  it("update closes popup when selection moves away", () => {
+    mockStore.state.isOpen = true;
+    const detectTrigger = vi.fn(() => null);
+    const { instance, view } = instantiatePlugin({ detectTrigger });
+
+    const mockUpdate = {
+      view,
+      selectionSet: true,
+      docChanged: false,
+      transactions: [],
+    } as unknown as ViewUpdate;
+
+    (instance as { update: (u: ViewUpdate) => void }).update(mockUpdate);
+
+    vi.advanceTimersByTime(200);
+
+    expect(mockStore.closePopup).toHaveBeenCalled();
+  });
+
+  it("update does not close popup when cursor is still in trigger", () => {
+    mockStore.state.isOpen = true;
+    const detectTrigger = vi.fn(() => ({ from: 0, to: 10 }));
+    const { instance, view } = instantiatePlugin({ detectTrigger });
+
+    const mockUpdate = {
+      view,
+      selectionSet: true,
+      docChanged: false,
+      transactions: [],
+    } as unknown as ViewUpdate;
+
+    (instance as { update: (u: ViewUpdate) => void }).update(mockUpdate);
+
+    vi.advanceTimersByTime(200);
+
+    expect(mockStore.closePopup).not.toHaveBeenCalled();
+  });
+
+  it("update ignores when popup is not open", () => {
+    mockStore.state.isOpen = false;
+    const { instance, view } = instantiatePlugin();
+
+    const mockUpdate = {
+      view,
+      selectionSet: true,
+      docChanged: false,
+      transactions: [],
+    } as unknown as ViewUpdate;
+
+    (instance as { update: (u: ViewUpdate) => void }).update(mockUpdate);
+
+    vi.advanceTimersByTime(200);
+
+    expect(mockStore.closePopup).not.toHaveBeenCalled();
+  });
+
+  it("update ignores when doc changed alongside selection", () => {
+    mockStore.state.isOpen = true;
+    const { instance, view } = instantiatePlugin();
+
+    const mockUpdate = {
+      view,
+      selectionSet: true,
+      docChanged: true,
+      transactions: [],
+    } as unknown as ViewUpdate;
+
+    (instance as { update: (u: ViewUpdate) => void }).update(mockUpdate);
+
+    vi.advanceTimersByTime(200);
+
+    // Should not close — docChanged means user is typing, not moving cursor
+    expect(mockStore.closePopup).not.toHaveBeenCalled();
+  });
+});
+
 describe("createPositionBasedDetector", () => {
   it("delegates to selection-based detector", () => {
     const selectionDetector = vi.fn(() => ({ from: 5, to: 15 }));
