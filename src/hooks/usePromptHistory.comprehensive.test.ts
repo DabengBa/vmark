@@ -522,6 +522,72 @@ describe("usePromptHistory — comprehensive", () => {
     expect(result.current.displayValue).toBe("");
   });
 
+  // --- Cmd+R (metaKey) opens dropdown ---
+
+  it("opens dropdown with Cmd+R (metaKey branch)", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    const e = makeKeyEvent({ key: "r", metaKey: true });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+    expect(result.current.isDropdownOpen).toBe(true);
+    expect(e.preventDefault).toHaveBeenCalled();
+  });
+
+  // --- Tab does nothing without ghost text ---
+
+  it("Tab does not intercept when there is no ghost text", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // Empty draft — no ghost text
+    const e = makeKeyEvent({ key: "Tab" });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+    expect(e.preventDefault).not.toHaveBeenCalled();
+  });
+
+  // --- ArrowDown when not cycling is a no-op ---
+
+  it("ArrowDown when not cycling passes through to browser", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    const e = makeKeyEvent({ key: "ArrowDown", keyCode: 40 });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+
+    // Should NOT prevent default — let browser handle cursor movement
+    expect(e.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.displayValue).toBe("");
+  });
+
+  // --- Dropdown Enter on empty entry (out of bounds) ---
+
+  it("Enter in dropdown with no entries closes dropdown without changing draft", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // Type something that produces no filtered results
+    act(() => {
+      result.current.handleChange("zzzzzzz");
+    });
+
+    // Open dropdown (entries will be empty because no match)
+    act(() => {
+      result.current.openDropdown();
+    });
+
+    // Press Enter — entry at index 0 is undefined
+    const e = makeKeyEvent({ key: "Enter" });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+
+    expect(result.current.isDropdownOpen).toBe(false);
+    expect(result.current.displayValue).toBe("zzzzzzz"); // Unchanged
+  });
+
   // --- Dropdown hides ghost text ---
 
   it("hides ghost text when dropdown is open", () => {

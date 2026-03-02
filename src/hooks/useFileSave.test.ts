@@ -740,6 +740,51 @@ describe("saveDialogWithFallback — timeout/retry", () => {
 });
 
 // ---------------------------------------------------------------------------
+// moveTabToNewWorkspaceWindow — window with no tabs array
+// ---------------------------------------------------------------------------
+describe("moveTabToNewWorkspaceWindow — empty tabs array fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses empty array fallback when window has no tabs entry (line 117)", async () => {
+    vi.mocked(useWorkspaceStore.getState).mockReturnValue({
+      rootPath: "/workspace",
+    } as ReturnType<typeof useWorkspaceStore.getState>);
+
+    vi.mocked(isWithinRoot).mockReturnValue(false);
+
+    // tabs[windowLabel] is undefined — falls back to []
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      tabs: {},
+      closeTab: vi.fn(),
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    await moveTabToNewWorkspaceWindow("main", "tab-1", "/other/file.md");
+
+    // With empty tabs array, isLastTab would be false (0 === 1 is false),
+    // but since there are 0 tabs, it goes to closeTab branch
+    expect(mockInvoke).toHaveBeenCalledWith("open_workspace_in_new_window", expect.anything());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// saveDialogWithFallback — withTimeout error rejection path (line 58)
+// ---------------------------------------------------------------------------
+describe("saveDialogWithFallback — non-Error rejection propagation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("propagates non-Error object rejection (string) from save dialog", async () => {
+    mockSaveDialog.mockRejectedValueOnce("string rejection");
+
+    await expect(saveDialogWithFallback("/path.md")).rejects.toBe("string rejection");
+    expect(mockSaveDialog).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // handleSave — missing file and workspace opening edge cases
 // ---------------------------------------------------------------------------
 describe("handleSave — additional branches", () => {

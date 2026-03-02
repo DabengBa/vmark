@@ -88,6 +88,18 @@ describe("footnoteReferenceExtension", () => {
     const result = attrs.label.renderHTML({ label: "7" });
     expect(result).toEqual({ "data-label": "7" });
   });
+
+  it("label renderHTML handles null label", () => {
+    const attrs = footnoteReferenceExtension.config.addAttributes!.call({} as never);
+    const result = attrs.label.renderHTML({ label: null });
+    expect(result).toEqual({ "data-label": "" });
+  });
+
+  it("label renderHTML handles undefined label", () => {
+    const attrs = footnoteReferenceExtension.config.addAttributes!.call({} as never);
+    const result = attrs.label.renderHTML({ label: undefined });
+    expect(result).toEqual({ "data-label": "" });
+  });
 });
 
 describe("footnoteDefinitionExtension", () => {
@@ -149,5 +161,35 @@ describe("footnoteDefinitionExtension", () => {
     );
     expect(result[1]["data-label"]).toBe("");
     expect(result[1].id).toBe("fndef-");
+  });
+
+  it("label parseHTML extracts from data-label attribute", () => {
+    const attrs = footnoteDefinitionExtension.config.addAttributes!.call({} as never);
+    const mockElement = { getAttribute: (attr: string) => attr === "data-label" ? "9" : null };
+    expect(attrs.label.parseHTML(mockElement)).toBe("9");
+  });
+
+  it("label parseHTML defaults to '1' when no data-label", () => {
+    const attrs = footnoteDefinitionExtension.config.addAttributes!.call({} as never);
+    const mockElement = { getAttribute: () => null };
+    expect(attrs.label.parseHTML(mockElement)).toBe("1");
+  });
+
+  it("label renderHTML returns data-label string", () => {
+    const attrs = footnoteDefinitionExtension.config.addAttributes!.call({} as never);
+    const result = attrs.label.renderHTML({ label: "4" });
+    expect(result).toEqual({ "data-label": "4" });
+  });
+
+  it("label renderHTML handles null label", () => {
+    const attrs = footnoteDefinitionExtension.config.addAttributes!.call({} as never);
+    const result = attrs.label.renderHTML({ label: null });
+    expect(result).toEqual({ "data-label": "" });
+  });
+
+  it("label renderHTML handles undefined label", () => {
+    const attrs = footnoteDefinitionExtension.config.addAttributes!.call({} as never);
+    const result = attrs.label.renderHTML({ label: undefined });
+    expect(result).toEqual({ "data-label": "" });
   });
 });

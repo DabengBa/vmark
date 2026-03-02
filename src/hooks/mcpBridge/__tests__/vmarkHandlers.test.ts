@@ -418,4 +418,90 @@ describe("vmarkHandlers", () => {
       });
     });
   });
+
+  describe("non-Error thrown values (String(error) branch)", () => {
+    it("handleInsertMathInline handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "raw string error";
+      });
+
+      await handleInsertMathInline("req-str-1", { latex: "x" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-1",
+        success: false,
+        error: "raw string error",
+      });
+    });
+
+    it("handleInsertMathBlock handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw 42;
+      });
+
+      await handleInsertMathBlock("req-str-2", { latex: "x" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-2",
+        success: false,
+        error: "42",
+      });
+    });
+
+    it("handleInsertMermaid handles non-Error thrown value (covers handleInsertCodeBlock catch)", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "code block error";
+      });
+
+      await handleInsertMermaid("req-str-3", { code: "graph LR" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-3",
+        success: false,
+        error: "code block error",
+      });
+    });
+
+    it("handleInsertWikiLink handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw null;
+      });
+
+      await handleInsertWikiLink("req-str-4", { target: "Page" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-4",
+        success: false,
+        error: "null",
+      });
+    });
+
+    it("handleCjkPunctuationConvert handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "punct error";
+      });
+
+      await handleCjkPunctuationConvert("req-str-5", { direction: "to-fullwidth" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-5",
+        success: false,
+        error: "punct error",
+      });
+    });
+
+    it("handleCjkSpacingFix handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "spacing error";
+      });
+
+      await handleCjkSpacingFix("req-str-6", { action: "add" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-6",
+        success: false,
+        error: "spacing error",
+      });
+    });
+  });
 });

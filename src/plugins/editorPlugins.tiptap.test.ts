@@ -1224,4 +1224,39 @@ describe("buildEditorKeymapBindings — inner callback coverage", () => {
       expect(result).toBe(true);
     }
   });
+
+  it("toggleSidebar inner callback toggles sidebar state (covers lines 62-63)", async () => {
+    // The inner callback of bindIfKey for toggleSidebar executes
+    // useUIStore.getState().toggleSidebar() and returns true.
+    // The key is that guardProseMirrorCommand wraps it and we pass a view
+    // so the composing guard passes through.
+    const { useUIStore } = await import("@/stores/uiStore");
+    const before = useUIStore.getState().sidebarVisible;
+
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("toggleSidebar");
+    if (key && bindings[key]) {
+      const mockView = makeMockView();
+      const result = bindings[key](mockView.state as never, mockView.dispatch as never, mockView as never);
+      expect(result).toBe(true);
+      expect(useUIStore.getState().sidebarVisible).toBe(!before);
+      // Restore
+      useUIStore.getState().toggleSidebar();
+    }
+  });
+
+  it("transformToggleCase returns false for empty selection with view (covers lines 309-310)", () => {
+    // Exercises the inner body that calls doWysiwygTransformToggleCase(view)
+    // which returns false when there's no selection to transform
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("transformToggleCase");
+    if (key && bindings[key]) {
+      const mockView = makeMockView();
+      const result = bindings[key](mockView.state as never, mockView.dispatch as never, mockView as never);
+      // No text selected, so transform returns false
+      expect(result).toBe(false);
+    }
+  });
 });

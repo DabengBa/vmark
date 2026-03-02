@@ -57,6 +57,7 @@ vi.mock("@/stores/settingsStore", () => ({
   },
 }));
 
+import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
 import { TiptapTableContextMenu } from "./TiptapTableContextMenu";
 
 function createMockView() {
@@ -165,12 +166,186 @@ describe("TiptapTableContextMenu", () => {
     expect(mockAddRowAbove).toHaveBeenCalled();
   });
 
+  it("clicking each action button triggers the correct handler", () => {
+    mockTableFitToWidth = false;
+    mockIsCurrentTableFitToWidth.mockReturnValue(false);
+    menu.show(100, 200);
+    const container = (menu as unknown as { container: HTMLElement }).container;
+    const buttons = container.querySelectorAll("button");
+
+    // Expected order from buildMenu:
+    // 0: Insert Row Above, 1: Insert Row Below, 2: Insert Col Left, 3: Insert Col Right
+    // 4: Delete Row, 5: Delete Column, 6: Delete Table
+    // 7: Align Column Left, 8: Align Column Center, 9: Align Column Right
+    // 10: Align All Left, 11: Align All Center, 12: Align All Right
+    // 13: Format Table, 14: Fit to Width
+    buttons[1].click();
+    expect(mockAddRowBelow).toHaveBeenCalled();
+
+    buttons[2].click();
+    expect(mockAddColLeft).toHaveBeenCalled();
+
+    buttons[3].click();
+    expect(mockAddColRight).toHaveBeenCalled();
+
+    buttons[4].click();
+    expect(mockDeleteCurrentRow).toHaveBeenCalled();
+
+    buttons[5].click();
+    expect(mockDeleteCurrentColumn).toHaveBeenCalled();
+
+    buttons[6].click();
+    expect(mockDeleteCurrentTable).toHaveBeenCalled();
+
+    // Alignment buttons (column)
+    buttons[7].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "left", false);
+
+    buttons[8].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "center", false);
+
+    buttons[9].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "right", false);
+
+    // Alignment buttons (all columns)
+    buttons[10].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "left", true);
+
+    buttons[11].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "center", true);
+
+    buttons[12].click();
+    expect(mockAlignColumn).toHaveBeenCalledWith(expect.anything(), "right", true);
+
+    // Format table
+    buttons[13].click();
+    expect(mockFormatTable).toHaveBeenCalled();
+
+    // Fit to width
+    buttons[14].click();
+    expect(mockToggleFitToWidth).toHaveBeenCalled();
+  });
+
   it("does not hide on mousedown inside the menu container", () => {
     menu.show(100, 200);
     const container = (menu as unknown as { container: HTMLElement }).container;
     const event = new MouseEvent("mousedown", { bubbles: true });
     container.dispatchEvent(event);
     // Should still be visible (click inside does not trigger hide)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional coverage: show() with popup host (lines 128-143)
+// When getPopupHostForDom returns a real host element (not null/document.body)
+// ---------------------------------------------------------------------------
+
+describe("TiptapTableContextMenu — popup host mounting", () => {
+  let menu3: TiptapTableContextMenu;
+  let view3: ReturnType<typeof createMockView>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTableFitToWidth = false;
+    // Restore default mock implementations
+    vi.mocked(getPopupHostForDom).mockReturnValue(null);
+    vi.mocked(toHostCoordsForDom).mockImplementation((_host: unknown, pos: { top: number; left: number }) => pos);
+    view3 = createMockView();
+    menu3 = new TiptapTableContextMenu(view3 as never);
+  });
+
+  afterEach(() => {
+    menu3.destroy();
+  });
+
+  it("mounts container with absolute positioning when host is not document.body", () => {
+    const hostEl = document.createElement("div");
+    vi.mocked(getPopupHostForDom).mockReturnValue(hostEl);
+
+    menu3.show(50, 60);
+
+    const container = (menu3 as unknown as { container: HTMLElement }).container;
+    expect(container.parentElement).toBe(hostEl);
+    expect(container.style.position).toBe("absolute");
+  });
+
+  it("converts coordinates via toHostCoordsForDom when host is not document.body", () => {
+    const hostEl = document.createElement("div");
+    vi.mocked(getPopupHostForDom).mockReturnValue(hostEl);
+    vi.mocked(toHostCoordsForDom).mockReturnValue({ top: 30, left: 20 });
+
+    menu3.show(50, 60);
+
+    expect(toHostCoordsForDom).toHaveBeenCalledWith(hostEl, { top: 60, left: 50 });
+    const container = (menu3 as unknown as { container: HTMLElement }).container;
+    expect(container.style.left).toBe("20px");
+    expect(container.style.top).toBe("30px");
+  });
+
+  it("uses fixed positioning when host is document.body (fallback)", () => {
+    vi.mocked(getPopupHostForDom).mockReturnValue(null);
+
+    menu3.show(50, 60);
+
+    const container = (menu3 as unknown as { container: HTMLElement }).container;
+    expect(container.style.position).toBe("fixed");
+    expect(container.style.left).toBe("50px");
+    expect(container.style.top).toBe("60px");
+  });
+
+  it("does not re-append when already mounted to the same host", () => {
+    const hostEl = document.createElement("div");
+    vi.mocked(getPopupHostForDom).mockReturnValue(hostEl);
+
+    menu3.show(50, 60);
+    const appendSpy = vi.spyOn(hostEl, "appendChild");
+    // Show again — same host
+    menu3.show(70, 80);
+    // appendChild should not be called again since container is already parented to host
+    expect(appendSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("TiptapTableContextMenu — Escape when editor disconnected", () => {
+  it("does not focus editor when dom is not connected", () => {
+    const view = {
+      dom: { isConnected: false, closest: vi.fn(() => null) },
+      focus: vi.fn(),
+    } as unknown;
+    const menu = new TiptapTableContextMenu(view as never);
+    menu.show(10, 10);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect((view as { focus: ReturnType<typeof vi.fn> }).focus).not.toHaveBeenCalled();
+    menu.destroy();
+  });
+});
+
+describe("TiptapTableContextMenu — fit-to-width label variants", () => {
+  it("shows 'Natural Width' when current table is already fit-to-width", () => {
+    mockTableFitToWidth = false;
+    mockIsCurrentTableFitToWidth.mockReturnValue(true);
+    const view = createMockView();
+    const menu = new TiptapTableContextMenu(view as never);
+    menu.show(100, 100);
+    const container = (menu as unknown as { container: HTMLElement }).container;
+    const labels = Array.from(container.querySelectorAll(".table-context-menu-label"))
+      .map((el) => el.textContent);
+    expect(labels).toContain("Natural Width");
+    menu.destroy();
+  });
+
+  it("shows 'Fit to Width' when current table is not fit-to-width", () => {
+    mockTableFitToWidth = false;
+    mockIsCurrentTableFitToWidth.mockReturnValue(false);
+    const view = createMockView();
+    const menu = new TiptapTableContextMenu(view as never);
+    menu.show(100, 100);
+    const container = (menu as unknown as { container: HTMLElement }).container;
+    const labels = Array.from(container.querySelectorAll(".table-context-menu-label"))
+      .map((el) => el.textContent);
+    expect(labels).toContain("Fit to Width");
+    menu.destroy();
   });
 });
 
@@ -186,6 +361,9 @@ describe("TiptapTableContextMenu — rAF position adjustment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTableFitToWidth = false;
+    // Restore default mock implementations after clearAllMocks resets them
+    vi.mocked(getPopupHostForDom).mockReturnValue(null);
+    vi.mocked(toHostCoordsForDom).mockImplementation((_host: unknown, pos: { top: number; left: number }) => pos);
     view2 = createMockView();
     menu2 = new TiptapTableContextMenu(view2 as never);
   });
@@ -280,5 +458,105 @@ describe("TiptapTableContextMenu — rAF position adjustment", () => {
     // No adjustment needed — position stays as-is (100, 100)
     expect(container.style.left).toBe("100px");
     expect(container.style.top).toBe("100px");
+  });
+
+  it("adjusts left via toHostCoordsForDom when host is not document.body and overflows right", () => {
+    const hostEl = document.createElement("div");
+    vi.mocked(getPopupHostForDom).mockReturnValue(hostEl);
+    vi.mocked(toHostCoordsForDom).mockImplementation((_host, pos) => pos);
+
+    const container = (menu2 as unknown as { container: HTMLElement }).container;
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 100, bottom: 200, left: 750, right: 820,
+      width: 70, height: 100,
+      x: 750, y: 100, toJSON: () => {},
+    } as DOMRect);
+
+    Object.defineProperty(window, "innerWidth", { value: 800, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 600, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    menu2.show(750, 100);
+    if (rafCallback) rafCallback(0);
+
+    // toHostCoordsForDom should have been called for right-edge adjustment
+    expect(toHostCoordsForDom).toHaveBeenCalledWith(hostEl, { top: 0, left: 720 });
+  });
+
+  it("adjusts top via toHostCoordsForDom when host is not document.body and overflows bottom", () => {
+    const hostEl = document.createElement("div");
+    vi.mocked(getPopupHostForDom).mockReturnValue(hostEl);
+    vi.mocked(toHostCoordsForDom).mockImplementation((_host, pos) => pos);
+
+    const container = (menu2 as unknown as { container: HTMLElement }).container;
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 500, bottom: 640, left: 100, right: 200,
+      width: 100, height: 140,
+      x: 100, y: 500, toJSON: () => {},
+    } as DOMRect);
+
+    Object.defineProperty(window, "innerWidth", { value: 1200, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 600, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    menu2.show(100, 500);
+    if (rafCallback) rafCallback(0);
+
+    // maxBottom = 590, newTop = 590 - 140 = 450
+    expect(toHostCoordsForDom).toHaveBeenCalledWith(hostEl, { top: 450, left: 0 });
+  });
+
+  it("uses editorContainer bottom as maxBottom when available", () => {
+    const editorContainer = document.createElement("div");
+    const mockView = {
+      dom: {
+        isConnected: true,
+        closest: vi.fn((selector: string) => selector === ".editor-container" ? editorContainer : null),
+      },
+      focus: vi.fn(),
+    } as unknown;
+
+    const localMenu = new TiptapTableContextMenu(mockView as never);
+    const container = (localMenu as unknown as { container: HTMLElement }).container;
+
+    // Editor container rect: bottom at 400
+    vi.spyOn(editorContainer, "getBoundingClientRect").mockReturnValue({
+      top: 0, bottom: 400, left: 0, right: 800,
+      width: 800, height: 400,
+      x: 0, y: 0, toJSON: () => {},
+    } as DOMRect);
+
+    // Menu rect overflows editor bottom
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 350, bottom: 500, left: 100, right: 200,
+      width: 100, height: 150,
+      x: 100, y: 350, toJSON: () => {},
+    } as DOMRect);
+
+    Object.defineProperty(window, "innerWidth", { value: 1200, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 900, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    localMenu.show(100, 350);
+    if (rafCallback) rafCallback(0);
+
+    // maxBottom = editorRect.bottom - 16 = 384, newTop = 384 - 150 = 234
+    expect(container.style.top).toBe("234px");
+    localMenu.destroy();
   });
 });

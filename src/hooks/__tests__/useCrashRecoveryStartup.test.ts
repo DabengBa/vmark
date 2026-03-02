@@ -291,4 +291,107 @@ describe("useCrashRecoveryStartup", () => {
     // Should still only have been called once due to hasRun ref guard
     expect(mockReadRecoverySnapshots).toHaveBeenCalledTimes(1);
   });
+
+  it("logs non-Error thrown objects as strings in restoreSnapshot catch", async () => {
+    const snapshot = makeSnapshot({ tabId: "t-fail" });
+    mockReadRecoverySnapshots.mockResolvedValue([snapshot]);
+
+    // Make createTab throw a non-Error value (string) — must spy on the prototype
+    const origCreateTab = useTabStore.getState().createTab;
+    useTabStore.setState({
+      createTab: () => {
+        throw "string error"; // eslint-disable-line no-throw-literal
+      },
+    } as never);
+
+    renderHook(() => useCrashRecoveryStartup());
+
+    // Should not crash; toast should NOT be called (0 restored)
+    await vi.waitFor(() => {
+      expect(mockReadRecoverySnapshots).toHaveBeenCalled();
+    });
+
+    // Wait a tick for async flow to complete
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockToastInfo).not.toHaveBeenCalled();
+
+    // Restore original
+    useTabStore.setState({ createTab: origCreateTab } as never);
+  });
+
+  it("handles outer catch with non-Error thrown value", async () => {
+    mockWaitForRestoreComplete.mockRejectedValue("network down");
+    renderHook(() => useCrashRecoveryStartup());
+
+    await vi.waitFor(() => {
+      expect(mockWaitForRestoreComplete).toHaveBeenCalled();
+    });
+    // Wait for async completion
+    await new Promise((r) => setTimeout(r, 50));
+    // Should not throw or crash
+    expect(mockToastInfo).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates keeping newer when older snapshot appears first", async () => {
+    const older = makeSnapshot({
+      tabId: "t-older",
+      filePath: "/dup.md",
+      content: "old",
+      timestamp: 100,
+    });
+    const newer = makeSnapshot({
+      tabId: "t-newer",
+      filePath: "/dup.md",
+      content: "new",
+      timestamp: 200,
+    });
+    // Order: older first, newer second
+    mockReadRecoverySnapshots.mockResolvedValue([older, newer]);
+
+    renderHook(() => useCrashRecoveryStartup());
+
+    await vi.waitFor(() => {
+      expect(mockToastInfo).toHaveBeenCalledWith(expect.stringContaining("1"));
+    });
+
+    // The older duplicate should have been cleaned up
+    expect(mockDeleteRecoverySnapshot).toHaveBeenCalledWith("t-older");
+    expect(mockDeleteRecoverySnapshot).toHaveBeenCalledWith("t-newer");
+
+    const tabs = useTabStore.getState().getTabsByWindow("main");
+    expect(tabs.length).toBe(1);
+    const doc = useDocumentStore.getState().getDocument(tabs[0].id);
+    expect(doc!.content).toBe("new");
+  });
+
+  it("deduplicates keeping existing when newer snapshot appears first", async () => {
+    const newer = makeSnapshot({
+      tabId: "t-newer",
+      filePath: "/dup.md",
+      content: "new",
+      timestamp: 200,
+    });
+    const older = makeSnapshot({
+      tabId: "t-older",
+      filePath: "/dup.md",
+      content: "old",
+      timestamp: 100,
+    });
+    // Order: newer first, older second — the map already has newer, older is skipped
+    mockReadRecoverySnapshots.mockResolvedValue([newer, older]);
+
+    renderHook(() => useCrashRecoveryStartup());
+
+    await vi.waitFor(() => {
+      expect(mockToastInfo).toHaveBeenCalledWith(expect.stringContaining("1"));
+    });
+
+    const tabs = useTabStore.getState().getTabsByWindow("main");
+    expect(tabs.length).toBe(1);
+    const doc = useDocumentStore.getState().getDocument(tabs[0].id);
+    expect(doc!.content).toBe("new");
+
+    // Older duplicate cleaned up
+    expect(mockDeleteRecoverySnapshot).toHaveBeenCalledWith("t-older");
+  });
 });

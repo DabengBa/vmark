@@ -1131,6 +1131,98 @@ describe("useExternalFileChanges — re-queue after batch processing", () => {
     expect(doc2?.isDivergent).toBe(true);
   });
 
+  it("re-queue setTimeout callback fires after batch processing (lines 220-222)", async () => {
+    // Seed two dirty tabs
+    useTabStore.setState({
+      tabs: {
+        main: [
+          { id: "tab-1", title: "test.md", filePath: "/workspace/test.md", isPinned: false },
+          { id: "tab-2", title: "test2.md", filePath: "/workspace/test2.md", isPinned: false },
+        ],
+      },
+      activeTabId: { main: "tab-1" },
+      untitledCounter: 0,
+      closedTabs: {},
+    });
+    useDocumentStore.setState({
+      documents: {
+        "tab-1": {
+          content: "# edits 1",
+          savedContent: "# old 1",
+          lastDiskContent: "# old 1",
+          filePath: "/workspace/test.md",
+          isDirty: true,
+          documentId: 0,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+        "tab-2": {
+          content: "# edits 2",
+          savedContent: "# old 2",
+          lastDiskContent: "# old 2",
+          filePath: "/workspace/test2.md",
+          isDirty: true,
+          documentId: 1,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+      },
+    });
+    mocks.readTextFile.mockResolvedValue("# ext change");
+
+    // The first dialog blocks while we queue more items
+    let resolveFirstDialog!: (value: string) => void;
+    mocks.dialogMessage
+      .mockImplementationOnce(() => new Promise<string>((resolve) => { resolveFirstDialog = resolve; }))
+      .mockResolvedValue("Keep my changes");
+
+    const callback = await setupHookAndCallback();
+
+    // Trigger first change — goes into batch queue
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // Wait for first dialog to appear (batch debounce fires)
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalledTimes(1), { timeout: 1000 });
+
+    // While first dialog is open (isProcessingBatchRef is true),
+    // queue another change — this goes into pendingDirtyChangesRef
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    // Resolve the first dialog — triggers finally block which sees pending items
+    resolveFirstDialog("Keep my changes");
+
+    // Wait for re-queued batch to process (second dialog)
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalledTimes(2), { timeout: 1500 });
+
+    // Both tabs should eventually be marked divergent
+    const doc1 = useDocumentStore.getState().documents["tab-1"];
+    const doc2 = useDocumentStore.getState().documents["tab-2"];
+    expect(doc1?.isDivergent).toBe(true);
+    expect(doc2?.isDivergent).toBe(true);
+  });
+
   it("processBatchedChanges returns early when pending is empty", async () => {
     seedStores({ lastDiskContent: "# old content" });
     mocks.readTextFile.mockResolvedValue("# ext change");

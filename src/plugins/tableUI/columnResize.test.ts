@@ -295,6 +295,91 @@ describe("ColumnResizeManager", () => {
       // Should not throw
     });
 
+    it("pendingTable becoming null before timeout fires (line 72)", () => {
+      // Schedule an update, then forcefully null out pendingTable
+      // before the timeout fires so the `if (targetTable)` guard is falsy.
+      manager.scheduleUpdate(table);
+
+      // Directly null the pendingTable field (simulating a race/clear)
+      (manager as unknown as { pendingTable: HTMLTableElement | null }).pendingTable = null;
+
+      vi.advanceTimersByTime(200);
+
+      // No handles should have been added since targetTable was null
+      expect(table.querySelectorAll(".table-resize-handle").length).toBe(0);
+    });
+
+    it("startResize when headerRow is null (no rows in table)", () => {
+      // Create a table that has rows during addHandlesToTable (so handles are created)
+      // but then remove the rows before mousedown so startResize finds no headerRow
+      manager.scheduleUpdate(table);
+      vi.advanceTimersByTime(200);
+
+      const handle = table.querySelector(".table-resize-handle") as HTMLElement;
+      expect(handle).not.toBeNull();
+
+      // Remove all rows from the table before triggering mousedown
+      while (table.firstChild) table.removeChild(table.firstChild);
+
+      // Mousedown should not throw even though headerRow is now null
+      handle.dispatchEvent(new MouseEvent("mousedown", { clientX: 100, bubbles: true }));
+
+      // The handle should not have "active" class since headerRow was not found
+      expect(handle.classList.contains("active")).toBe(false);
+
+      // Clean up document listeners by triggering mouseup
+      document.dispatchEvent(new MouseEvent("mouseup"));
+    });
+
+    it("handleMouseMove does nothing when not dragging", () => {
+      // Fire mousemove without prior mousedown — should be a no-op
+      expect(() => {
+        document.dispatchEvent(new MouseEvent("mousemove", { clientX: 200 }));
+      }).not.toThrow();
+    });
+
+    it("applyColumnWidth skips cells beyond column count in some rows", () => {
+      // Create a table where the second row has fewer columns
+      const unevenTable = document.createElement("table");
+      const tr1 = document.createElement("tr");
+      for (let c = 0; c < 3; c++) {
+        const th = document.createElement("th");
+        th.textContent = `h${c}`;
+        Object.defineProperty(th, "offsetWidth", { value: 100, configurable: true });
+        tr1.appendChild(th);
+      }
+      unevenTable.appendChild(tr1);
+
+      const tr2 = document.createElement("tr");
+      // Only 1 cell in second row
+      const td = document.createElement("td");
+      td.textContent = "only";
+      Object.defineProperty(td, "offsetWidth", { value: 100, configurable: true });
+      tr2.appendChild(td);
+      unevenTable.appendChild(tr2);
+
+      const unevenView = createMockView(unevenTable);
+      document.body.appendChild(unevenView.dom);
+      const unevenManager = new ColumnResizeManager(unevenView);
+
+      unevenManager.scheduleUpdate(unevenTable);
+      vi.advanceTimersByTime(200);
+
+      // Drag the second handle (column index 1)
+      const handles = unevenTable.querySelectorAll(".table-resize-handle");
+      expect(handles.length).toBe(2); // 3 cols => 2 handles
+      const secondHandle = handles[1] as HTMLElement;
+      secondHandle.dispatchEvent(new MouseEvent("mousedown", { clientX: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent("mousemove", { clientX: 150 }));
+
+      // Should not throw — second row doesn't have cells[1], so `if (cell)` is false
+      const firstRowCell = tr1.querySelectorAll("th, td")[1] as HTMLElement;
+      expect(firstRowCell.style.width).not.toBe("");
+
+      document.dispatchEvent(new MouseEvent("mouseup"));
+      unevenManager.destroy();
+    });
+
     it("applies width to all rows in the column", () => {
       manager.scheduleUpdate(table);
       vi.advanceTimersByTime(200);

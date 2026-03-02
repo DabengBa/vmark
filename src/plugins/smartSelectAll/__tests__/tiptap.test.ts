@@ -460,6 +460,27 @@ describe("handleSmartSelectAll dispatch paths", () => {
     expect(shortcuts["Mod-a"]).toBeDefined();
   });
 
+  it("handleSmartSelectAll returns false when no container found and plugin state has empty stack (line 73)", () => {
+    // Plain paragraph — no container. Plugin state exists but stack is empty.
+    // This should return false to let default select-all handle it.
+    const d = doc(p("plain text"));
+    const { state } = createPluginState(d, 3);
+
+    const dispatched: Transaction[] = [];
+    const mockDispatch = (tr: Transaction) => { dispatched.push(tr); };
+
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: mockDispatch },
+      },
+    } as never);
+
+    const result = shortcuts["Mod-a"]({ editor: { state, view: { dispatch: mockDispatch } } } as never);
+    expect(result).toBe(false);
+    expect(dispatched.length).toBe(0);
+  });
+
   it("handleSmartSelectAll selects entire document when no container and stack is non-empty", () => {
     const d = doc(ul(li(p("item"))));
     const { state, plugins } = createPluginState(d, 4);

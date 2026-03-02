@@ -726,6 +726,112 @@ describe("lineOperationCommands", () => {
     });
   });
 
+  describe("doWysiwygMoveLineUp — exercises swap path (lines 47-65)", () => {
+    // Use doc > outerBq > [p("first"), innerBq > [p("aaa"), p("bbb")]]
+    // to reach a depth where index(depth-1) > 0, allowing the swap logic to execute.
+    const wrapperSchema2 = new Schema({
+      nodes: {
+        doc: { content: "block+", toDOM: () => ["div", 0] },
+        blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+        paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+        text: { inline: true },
+      },
+    });
+
+    it("swaps second paragraph with first in double-nested blockquote (lines 50-56)", () => {
+      // Structure: doc > outerBq > [p("first"), innerBq > [p("aaa"), p("bbb")]]
+      const p0 = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("first")]);
+      const p1 = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("aaa")]);
+      const p2 = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("bbb")]);
+      const innerBq = wrapperSchema2.node("blockquote", null, [p1, p2]);
+      const outerBq = wrapperSchema2.node("blockquote", null, [p0, innerBq]);
+      const docNode = wrapperSchema2.node("doc", null, [outerBq]);
+
+      // Layout:
+      // 0<outerBq> 1<p>2:f..6:t</p>7 8<innerBq> 9<p>10:a..12:a</p>13 14<p>15:b..17:b</p>18 </innerBq>19 </outerBq>20
+      // Cursor at pos 15 (inside "bbb", depth 3)
+      let state = EditorState.create({ doc: docNode, schema: wrapperSchema2 });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 15))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygMoveLineUp(view);
+      expect(result).toBe(true);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygMoveLineDown — exercises swap path (lines 78-84)", () => {
+    const wrapperSchema2 = new Schema({
+      nodes: {
+        doc: { content: "block+", toDOM: () => ["div", 0] },
+        blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+        paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+        text: { inline: true },
+      },
+    });
+
+    it("swaps first paragraph with second in double-nested blockquote (lines 78-84)", () => {
+      // Structure: doc > outerBq > [innerBq > [p("aaa"), p("bbb")], p("last")]
+      const p1 = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("aaa")]);
+      const p2 = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("bbb")]);
+      const pLast = wrapperSchema2.node("paragraph", null, [wrapperSchema2.text("last")]);
+      const innerBq = wrapperSchema2.node("blockquote", null, [p1, p2]);
+      const outerBq = wrapperSchema2.node("blockquote", null, [innerBq, pLast]);
+      const docNode = wrapperSchema2.node("doc", null, [outerBq]);
+
+      // Cursor at pos 3 (inside "aaa", depth 3)
+      let state = EditorState.create({ doc: docNode, schema: wrapperSchema2 });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygMoveLineDown(view);
+      expect(result).toBe(true);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygDuplicateLine — exercises currentNode path (line 102-103)", () => {
+    it("duplicates correctly in a blockquote wrapper", () => {
+      const wrapperSchema = new Schema({
+        nodes: {
+          doc: { content: "block+", toDOM: () => ["div", 0] },
+          blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+          paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+          text: { inline: true },
+        },
+      });
+
+      const p1 = wrapperSchema.node("paragraph", null, [wrapperSchema.text("hello")]);
+      const p2 = wrapperSchema.node("paragraph", null, [wrapperSchema.text("world")]);
+      const bq = wrapperSchema.node("blockquote", null, [p1, p2]);
+      const docNode = wrapperSchema.node("doc", null, [bq]);
+
+      // Cursor at pos 3 (inside "hello")
+      let state = EditorState.create({ doc: docNode, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygDuplicateLine(view);
+      expect(result).toBe(true);
+      const texts: string[] = [];
+      view.state.doc.descendants((node) => {
+        if (node.isTextblock) texts.push(node.textContent);
+        return true;
+      });
+      expect(texts).toEqual(["hello", "hello", "world"]);
+      view.destroy();
+    });
+  });
+
   describe("doWysiwygJoinLines — with selection spanning blocks in wrapper", () => {
     const wrapperSchema = new Schema({
       nodes: {

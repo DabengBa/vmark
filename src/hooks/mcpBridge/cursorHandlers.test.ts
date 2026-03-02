@@ -244,5 +244,60 @@ describe("cursorHandlers", () => {
         error: "No active editor",
       });
     });
+
+    it("handles non-Error thrown value", async () => {
+      vi.mocked(getEditor).mockImplementation(() => {
+        throw "raw string error";
+      });
+
+      await handleCursorSetPosition("req-str-1", { position: 10 });
+
+      expect(respond).toHaveBeenCalledWith({
+        id: "req-str-1",
+        success: false,
+        error: "raw string error",
+      });
+    });
+  });
+
+  describe("handleCursorGetContext — edge cases", () => {
+    it("handles depth=0 (blockDepth fallback)", async () => {
+      const blocks = [createMockNode("Root text")];
+      const parentNode = createMockParentNode(blocks);
+      const $pos = createMock$Pos({
+        parent: blocks[0],
+        depth: 0,
+        blockIndex: 0,
+        parentNode,
+      });
+      // Override index to handle depth=0 case
+      $pos.index = (depth: number) => (depth === 0 ? 0 : 0);
+      const editor = createMockEditor({ from: 0, $pos, doc: parentNode });
+
+      vi.mocked(getEditor).mockReturnValue(editor as never);
+
+      await handleCursorGetContext("req-depth0", {});
+
+      expect(respond).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "req-depth0",
+          success: true,
+        })
+      );
+    });
+
+    it("handles non-Error thrown value in getContext", async () => {
+      vi.mocked(getEditor).mockImplementation(() => {
+        throw "context error";
+      });
+
+      await handleCursorGetContext("req-str-2", {});
+
+      expect(respond).toHaveBeenCalledWith({
+        id: "req-str-2",
+        success: false,
+        error: "context error",
+      });
+    });
   });
 });

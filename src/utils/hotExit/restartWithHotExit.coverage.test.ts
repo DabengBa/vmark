@@ -335,4 +335,51 @@ describe('checkAndRestoreSession — additional coverage', () => {
     await restorePromise;
     // Should not throw on invalid timestamp
   });
+
+  it('handles session with NaN timestamp (formatTimestamp catch branch)', async () => {
+    const session = {
+      version: 2,
+      timestamp: NaN, // triggers !Number.isFinite check in formatTimestamp
+      vmark_version: '0.5.0',
+      windows: [{ window_label: 'main', is_main_window: true, tabs: [] }],
+    };
+
+    mockInvoke
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    const restorePromise = checkAndRestoreSession();
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const completeHandler = eventListeners.get(HOT_EXIT_EVENTS.RESTORE_COMPLETE);
+    completeHandler?.({ payload: {} });
+
+    await restorePromise;
+    // formatTimestamp returns "invalid(NaN)" without throwing
+  });
+
+  it('handles session with Infinity timestamp (formatTimestamp catch branch)', async () => {
+    const session = {
+      version: 2,
+      timestamp: Infinity, // triggers !Number.isFinite check
+      vmark_version: '0.5.0',
+      windows: [{ window_label: 'main', is_main_window: true, tabs: [] }],
+    };
+
+    mockInvoke
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    const restorePromise = checkAndRestoreSession();
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const completeHandler = eventListeners.get(HOT_EXIT_EVENTS.RESTORE_COMPLETE);
+    completeHandler?.({ payload: {} });
+
+    await restorePromise;
+  });
 });

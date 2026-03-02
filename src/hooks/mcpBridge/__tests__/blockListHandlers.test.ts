@@ -312,4 +312,76 @@ describe("blockListHandlers", () => {
       });
     });
   });
+
+  describe("non-Error thrown values (String(error) branch)", () => {
+    it("handleBlockSetType handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "raw string error";
+      });
+
+      await handleBlockSetType("req-str-1", { blockType: "paragraph" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-1",
+        success: false,
+        error: "raw string error",
+      });
+    });
+
+    it("handleListToggle handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw 42;
+      });
+
+      await handleListToggle("req-str-2", { listType: "bullet" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-2",
+        success: false,
+        error: "42",
+      });
+    });
+
+    it("handleInsertHorizontalRule handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "hr error";
+      });
+
+      await handleInsertHorizontalRule("req-str-3");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-3",
+        success: false,
+        error: "hr error",
+      });
+    });
+
+    it("handleListIncreaseIndent handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "indent error";
+      });
+
+      await handleListIncreaseIndent("req-str-4");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-4",
+        success: false,
+        error: "indent error",
+      });
+    });
+
+    it("handleListDecreaseIndent handles non-Error thrown value", async () => {
+      mockGetEditor.mockImplementation(() => {
+        throw "outdent error";
+      });
+
+      await handleListDecreaseIndent("req-str-5");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-str-5",
+        success: false,
+        error: "outdent error",
+      });
+    });
+  });
 });
