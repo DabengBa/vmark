@@ -91,6 +91,7 @@ import {
   revertAndCloseSourcePeek,
 } from "./sourcePeekActions";
 import { cleanupCMView } from "./sourcePeekEditor";
+import { applySourcePeekMarkdown, getExpandedSourcePeekRange } from "@/utils/sourcePeek";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -234,6 +235,38 @@ describe("openSourcePeekInline", () => {
       })
     );
   });
+
+  it("returns false for excluded block types (e.g. codeBlock)", () => {
+    // Create a schema with codeBlock
+    const codeSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        codeBlock: {
+          content: "text*",
+          group: "block",
+          code: true,
+        },
+        text: { group: "inline" },
+      },
+    });
+    const doc = codeSchema.node("doc", null, [
+      codeSchema.node("codeBlock", null, [codeSchema.text("code")]),
+    ]);
+    const state = EditorState.create({ doc, schema: codeSchema });
+
+    // Mock getExpandedSourcePeekRange to return a range pointing to codeBlock
+    vi.mocked(getExpandedSourcePeekRange).mockReturnValueOnce({ from: 0, to: 5 });
+
+    const view = {
+      state,
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as unknown as EditorView;
+
+    const result = openSourcePeekInline(view);
+    expect(result).toBe(false);
+    expect(mockOpen).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -293,6 +326,42 @@ describe("commitSourcePeek", () => {
     const view = createMockView("Hello");
     commitSourcePeek(view);
     expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("replaces with empty paragraph when markdown is empty/whitespace", () => {
+    // "Hello world" doc: <doc><paragraph>"Hello world"</paragraph></doc>
+    // paragraph spans positions 0 to 13 (0=before paragraph, 1=start text, 12=end text, 13=after paragraph)
+    const view = createMockView("Hello world");
+    mockStoreState.range = { from: 0, to: view.state.doc.content.size };
+    mockStoreState.markdown = "   ";
+    mockStoreState.originalMarkdown = "# Hello";
+
+    commitSourcePeek(view);
+    // Should dispatch, close, cleanup, and focus
+    expect(view.dispatch).toHaveBeenCalled();
+    expect(mockClose).toHaveBeenCalled();
+    expect(cleanupCMView).toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it("applies changes when markdown differs from original", () => {
+    mockStoreState.range = { from: 0, to: 10 };
+    mockStoreState.markdown = "# Changed";
+    mockStoreState.originalMarkdown = "# Original";
+
+    const view = createMockView("Hello");
+    commitSourcePeek(view);
+    expect(applySourcePeekMarkdown).toHaveBeenCalled();
+  });
+
+  it("skips apply when markdown matches original", () => {
+    mockStoreState.range = { from: 0, to: 10 };
+    mockStoreState.markdown = "# Same";
+    mockStoreState.originalMarkdown = "# Same";
+
+    const view = createMockView("Hello");
+    commitSourcePeek(view);
+    expect(applySourcePeekMarkdown).not.toHaveBeenCalled();
   });
 });
 

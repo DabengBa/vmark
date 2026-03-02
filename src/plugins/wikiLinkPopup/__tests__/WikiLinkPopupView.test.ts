@@ -732,4 +732,146 @@ describe("WikiLinkPopupView", () => {
       outside.remove();
     });
   });
+
+  describe("Open — resolveWikiLinkPath branches", () => {
+    it("resolves target with / as path", async () => {
+      const mockEmit = vi.fn(() => Promise.resolve());
+      const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      vi.mocked(getCurrentWebviewWindow).mockReturnValue({ emit: mockEmit } as ReturnType<typeof getCurrentWebviewWindow>);
+
+      emitStateChange({ isOpen: true, target: "sub/page", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.value = "sub/page";
+
+      const openBtn = dom.container.querySelector(".wiki-link-popup-btn-open") as HTMLButtonElement;
+      openBtn.click();
+
+      await new Promise((r) => setTimeout(r, 10));
+      // Target with / — appends .md
+      expect(mockEmit).toHaveBeenCalledWith("open-file", { path: "/workspace/sub/page.md" });
+    });
+
+    it("resolves target with .md extension directly", async () => {
+      const mockEmit = vi.fn(() => Promise.resolve());
+      const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      vi.mocked(getCurrentWebviewWindow).mockReturnValue({ emit: mockEmit } as ReturnType<typeof getCurrentWebviewWindow>);
+
+      emitStateChange({ isOpen: true, target: "page.md", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.value = "page.md";
+
+      const openBtn = dom.container.querySelector(".wiki-link-popup-btn-open") as HTMLButtonElement;
+      openBtn.click();
+
+      await new Promise((r) => setTimeout(r, 10));
+      // Target ending in .md — used directly
+      expect(mockEmit).toHaveBeenCalledWith("open-file", { path: "/workspace/page.md" });
+    });
+  });
+
+  describe("Browse — error handling", () => {
+    it("catches and logs error from open dialog", async () => {
+      const { open: mockDialogOpen } = await import("@tauri-apps/plugin-dialog");
+      vi.mocked(mockDialogOpen).mockRejectedValue(new Error("dialog error"));
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      emitStateChange({ isOpen: true, target: "", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const browseBtn = Array.from(dom.container.querySelectorAll("button")).find((b) => b.title === "Browse for file");
+      browseBtn!.click();
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Browse failed"), expect.any(Error));
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe("Copy — error handling", () => {
+    it("catches clipboard write error", async () => {
+      Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.reject(new Error("copy fail"))) } });
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      emitStateChange({ isOpen: true, target: "Target", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.value = "Target";
+
+      const copyBtn = Array.from(dom.container.querySelectorAll("button")).find((b) => b.title === "Copy target");
+      copyBtn!.click();
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to copy"), expect.any(Error));
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe("Mouse leave — close path", () => {
+    it("closes popup when mouse leaves to non-wiki-link and input not focused", async () => {
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Ensure input is NOT focused
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.blur();
+
+      const outsideDiv = document.createElement("div");
+      document.body.appendChild(outsideDiv);
+
+      const popupEl = dom.container.querySelector(".wiki-link-popup") as HTMLElement;
+      const mouseleaveEvent = new MouseEvent("mouseleave", { bubbles: false });
+      Object.defineProperty(mouseleaveEvent, "relatedTarget", { value: outsideDiv });
+      popupEl.dispatchEvent(mouseleaveEvent);
+
+      expect(mockClosePopup).toHaveBeenCalled();
+      outsideDiv.remove();
+    });
+  });
+
+  describe("Open — error handling", () => {
+    it("catches emit error gracefully", async () => {
+      const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      vi.mocked(getCurrentWebviewWindow).mockReturnValue({ emit: vi.fn(() => Promise.reject(new Error("emit fail"))) } as ReturnType<typeof getCurrentWebviewWindow>);
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      emitStateChange({ isOpen: true, target: "Page", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const input = dom.container.querySelector(".wiki-link-popup-target") as HTMLInputElement;
+      input.value = "Page";
+
+      const openBtn = dom.container.querySelector(".wiki-link-popup-btn-open") as HTMLButtonElement;
+      openBtn.click();
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to open file"), expect.any(Error));
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe("Delete — falls back to attrs.value when textContent is empty", () => {
+    it("uses attrs.value when textContent is empty", async () => {
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "wikiLink" },
+        attrs: { value: "FallbackTarget" },
+        textContent: "",
+        nodeSize: 3,
+      }));
+      storeState.nodePos = 10;
+      emitStateChange({ isOpen: true, target: "FallbackTarget", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = Array.from(dom.container.querySelectorAll("button")).find((b) => b.title === "Remove wiki link");
+      deleteBtn!.click();
+
+      // Should use attrs.value ("FallbackTarget") as display text
+      expect(view.state.schema.text).toHaveBeenCalledWith("FallbackTarget");
+      expect(view.state.tr.replaceWith).toHaveBeenCalled();
+    });
+  });
 });

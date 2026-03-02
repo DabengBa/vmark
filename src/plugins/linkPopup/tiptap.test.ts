@@ -631,6 +631,43 @@ describe("linkPopupExtension", () => {
       expect(result!.to).toBe(17);
     });
 
+    it("breaks continuation when next child is non-text (line 88)", () => {
+      // Schema with a non-text inline node (hard_break)
+      const schemaWithBreak = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          hard_break: { inline: true, group: "inline" },
+          text: { inline: true, group: "inline" },
+        },
+        marks: {
+          link: {
+            attrs: { href: { default: "" } },
+            toDOM: (mark) => ["a", { href: mark.attrs.href }, 0] as const,
+          },
+        },
+      });
+      const linkMark = schemaWithBreak.marks.link.create({ href: "http://example.com" });
+      // linked text, then hard_break (non-text), then more linked text
+      const doc = schemaWithBreak.node("doc", null, [
+        schemaWithBreak.node("paragraph", null, [
+          schemaWithBreak.text("click", [linkMark]),
+          schemaWithBreak.nodes.hard_break.create(),
+          schemaWithBreak.text("more", [linkMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema: schemaWithBreak });
+      const view = createMockView(state);
+
+      // Position inside "click" (the first linked text, pos 2)
+      const result = findLinkMarkRange(view, 2);
+      expect(result).not.toBeNull();
+      // Range should stop at hard_break, NOT include "more"
+      // "click" is at pos 1-6, hard_break is at pos 6-7, "more" at 7-11
+      expect(result!.from).toBe(1);
+      expect(result!.to).toBe(6); // stops before hard_break
+    });
+
     it("skips link range when cursor is after it (position outside found range)", () => {
       // Cursor past the end of a link — the found link range doesn't contain the position
       // This exercises the `continue` at line 98

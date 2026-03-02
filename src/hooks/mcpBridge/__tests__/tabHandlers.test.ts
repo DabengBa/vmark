@@ -263,6 +263,38 @@ describe("tabHandlers", () => {
     });
   });
 
+  describe("handleTabsCreate — error path (line 148)", () => {
+    it("returns error when createTab throws", async () => {
+      mockTabStoreState.createTab.mockImplementationOnce(() => {
+        throw new Error("create failed");
+      });
+
+      await handleTabsCreate("req-err-create", {});
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-create",
+        success: false,
+        error: "create failed",
+      });
+    });
+  });
+
+  describe("handleTabsReopenClosed — error path (line 252)", () => {
+    it("returns error when reopenClosedTab throws", async () => {
+      mockTabStoreState.reopenClosedTab.mockImplementationOnce(() => {
+        throw new Error("reopen failed");
+      });
+
+      await handleTabsReopenClosed("req-err-reopen", {});
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-reopen",
+        success: false,
+        error: "reopen failed",
+      });
+    });
+  });
+
   describe("handleTabsList — error path", () => {
     it("returns error on exception", async () => {
       // Force tabs getter to throw

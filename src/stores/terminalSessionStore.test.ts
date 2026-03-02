@@ -76,6 +76,15 @@ describe("terminalSessionStore", () => {
     expect(s.label).toBe("My Shell");
   });
 
+  it("marks session as alive (restores from dead)", () => {
+    const session = useTerminalSessionStore.getState().createSession()!;
+    useTerminalSessionStore.getState().markSessionDead(session.id);
+    expect(useTerminalSessionStore.getState().sessions[0].isAlive).toBe(false);
+
+    useTerminalSessionStore.getState().markSessionAlive(session.id);
+    expect(useTerminalSessionStore.getState().sessions[0].isAlive).toBe(true);
+  });
+
   it("generates non-conflicting labels", () => {
     const store = useTerminalSessionStore.getState();
     const s1 = store.createSession()!;

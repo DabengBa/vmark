@@ -777,7 +777,117 @@ describe("suggestionHandlers", () => {
     });
   });
 
+  // ── error catch branches in list/acceptAll/rejectAll ────────────────
+
+  describe("handleSuggestionList — error catch branch", () => {
+    it("returns error when getSortedSuggestions throws", async () => {
+      mockGetSortedSuggestions.mockImplementation(() => {
+        throw new Error("store error");
+      });
+
+      await handleSuggestionList("req-err-list");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-list",
+        success: false,
+        error: "store error",
+      });
+
+      // Reset
+      mockGetSortedSuggestions.mockReturnValue([]);
+    });
+  });
+
+  describe("handleSuggestionAcceptAll — error catch branch", () => {
+    it("returns error when acceptAll throws", async () => {
+      mockAcceptAll.mockImplementation(() => {
+        throw new Error("accept all error");
+      });
+
+      await handleSuggestionAcceptAll("req-err-aa");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-aa",
+        success: false,
+        error: "accept all error",
+      });
+
+      // Reset
+      mockAcceptAll.mockImplementation(() => {});
+    });
+  });
+
   // ── handleSuggestionRejectAll ───────────────────────────────────────
+
+  describe("handleSuggestionRejectAll — error catch branch", () => {
+    it("returns error when rejectAll throws", async () => {
+      mockRejectAll.mockImplementation(() => {
+        throw new Error("reject all error");
+      });
+
+      await handleSuggestionRejectAll("req-err-ra");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-err-ra",
+        success: false,
+        error: "reject all error",
+      });
+
+      // Reset
+      mockRejectAll.mockImplementation(() => {});
+    });
+  });
+
+  describe("handleSuggestionList — non-Error throw", () => {
+    it("handles non-Error thrown value", async () => {
+      mockGetSortedSuggestions.mockImplementation(() => {
+        throw "string error"; // eslint-disable-line no-throw-literal
+      });
+
+      await handleSuggestionList("req-ne-list");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-ne-list",
+        success: false,
+        error: "string error",
+      });
+      mockGetSortedSuggestions.mockReturnValue([]);
+    });
+  });
+
+  describe("handleSuggestionAcceptAll — non-Error throw", () => {
+    it("handles non-Error thrown value", async () => {
+      mockAcceptAll.mockImplementation(() => {
+        throw 42; // eslint-disable-line no-throw-literal
+      });
+
+      await handleSuggestionAcceptAll("req-ne-aa");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-ne-aa",
+        success: false,
+        error: "42",
+      });
+      mockAcceptAll.mockImplementation(() => {});
+    });
+  });
+
+  describe("handleSuggestionRejectAll — non-Error throw", () => {
+    it("handles non-Error thrown value", async () => {
+      mockRejectAll.mockImplementation(() => {
+        throw null; // eslint-disable-line no-throw-literal
+      });
+
+      await handleSuggestionRejectAll("req-ne-ra");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-ne-ra",
+        success: false,
+        error: "null",
+      });
+      mockRejectAll.mockImplementation(() => {});
+    });
+  });
 
   describe("handleSuggestionRejectAll", () => {
     it("rejects all suggestions", async () => {

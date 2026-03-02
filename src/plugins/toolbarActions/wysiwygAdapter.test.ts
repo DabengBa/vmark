@@ -577,6 +577,16 @@ describe("performWysiwygToolbarAction (with view)", () => {
     expect(result).toBe(true);
   });
 
+  it("returns false for formatTable when formatTable returns false", async () => {
+    const { formatTable } = await import("@/plugins/tableUI/tableActions.tiptap");
+    vi.mocked(formatTable).mockReturnValueOnce(false);
+    const result = performWysiwygToolbarAction("formatTable", {
+      ...baseContext,
+      view: mockView,
+    });
+    expect(result).toBe(false);
+  });
+
   it("handles blockquote operations with view", () => {
     const actions = ["nestBlockquote", "unnestBlockquote", "removeBlockquote"];
     for (const action of actions) {

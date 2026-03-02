@@ -8,6 +8,30 @@ import StarterKit from "@tiptap/starter-kit";
 import { Slice } from "@tiptap/pm/model";
 import { htmlPasteExtension } from "./tiptap";
 
+// Mock paste utils — passthrough by default, overridable per test
+const { mockIsViewMultiSelection, mockCreateMdPasteTx } = vi.hoisted(() => ({
+  mockIsViewMultiSelection: vi.fn(() => false),
+  mockCreateMdPasteTx: vi.fn() as ReturnType<typeof vi.fn> & { _real?: (...args: unknown[]) => unknown },
+}));
+
+vi.mock("@/utils/pasteUtils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/utils/pasteUtils")>();
+  return {
+    ...actual,
+    isViewMultiSelection: (...args: unknown[]) => mockIsViewMultiSelection(...args),
+  };
+});
+
+vi.mock("@/plugins/markdownPaste/tiptap", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/plugins/markdownPaste/tiptap")>();
+  mockCreateMdPasteTx._real = actual.createMarkdownPasteTransaction as unknown as (...args: unknown[]) => unknown;
+  mockCreateMdPasteTx.mockImplementation((...args: unknown[]) => mockCreateMdPasteTx._real?.(...args));
+  return {
+    ...actual,
+    createMarkdownPasteTransaction: (...args: unknown[]) => mockCreateMdPasteTx(...args),
+  };
+});
+
 // Mock the settings store
 vi.mock("@/stores/settingsStore", () => ({
   useSettingsStore: {
@@ -49,6 +73,11 @@ describe("htmlPaste extension", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsViewMultiSelection.mockReturnValue(false);
+    // Restore passthrough to real implementation
+    mockCreateMdPasteTx.mockImplementation(
+      (...args: unknown[]) => mockCreateMdPasteTx._real?.(...args)
+    );
     (useSettingsStore.getState as ReturnType<typeof vi.fn>).mockReturnValue({
       markdown: {
         pasteMode: "smart",
@@ -227,6 +256,40 @@ describe("htmlPaste extension", () => {
       const handled = editor.view.someProp("handlePaste", (f) => f(editor.view, event, Slice.empty));
       // No plain text fallback available
       expect(handled).toBeFalsy();
+    });
+  });
+
+  describe("multi-selection guard (line 90)", () => {
+    it("should return false when multi-selection is active", () => {
+      mockIsViewMultiSelection.mockReturnValue(true);
+
+      editor = createEditor();
+      const event = createClipboardEvent(
+        "bold text",
+        "<p><strong>bold text</strong></p>"
+      );
+
+      const handled = editor.view.someProp("handlePaste", (f) => f(editor.view, event, Slice.empty));
+      expect(handled).toBeFalsy();
+    });
+  });
+
+  describe("transaction creation failure (lines 122-123)", () => {
+    it("should return false when createMarkdownPasteTransaction returns null", () => {
+      mockCreateMdPasteTx.mockReturnValue(null);
+
+      editor = createEditor();
+      const event = createClipboardEvent(
+        "some text",
+        "<table><tr><td>Cell 1</td><td>Cell 2</td></tr></table>"
+      );
+
+      const handled = editor.view.someProp("handlePaste", (f) => f(editor.view, event, Slice.empty));
+      // When createMarkdownPasteTransaction returns null, handlePaste returns false
+      // someProp skips falsy returns, so result is undefined/falsy
+      expect(handled).toBeFalsy();
+      // Verify the warn was called (confirms we hit lines 122-123)
+      expect(mockCreateMdPasteTx).toHaveBeenCalled();
     });
   });
 

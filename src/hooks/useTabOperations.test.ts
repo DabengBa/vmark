@@ -362,6 +362,29 @@ describe("closeTabWithDirtyCheck — orphan cleanup", () => {
     expect(findOrphanedImages).toHaveBeenCalled();
   });
 
+  it("handles savedDoc being null after save (line 134 false branch)", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);
+
+    const { findOrphanedImages } = await import("@/utils/orphanAssetCleanup");
+
+    const tabId = useTabStore.getState().createTab(WINDOW_LABEL, "/tmp/dirty.md");
+    useDocumentStore.getState().initDocument(tabId, "hello", "/tmp/dirty.md");
+    useDocumentStore.getState().setContent(tabId, "changed");
+
+    vi.mocked(message).mockResolvedValueOnce("Yes");
+    vi.mocked(saveToPath).mockImplementationOnce(async (id) => {
+      // Remove the document before returning so savedDoc lookup returns null
+      useDocumentStore.getState().removeDocument(id);
+      return true;
+    });
+
+    await closeTabWithDirtyCheck(WINDOW_LABEL, tabId);
+
+    // findOrphanedImages should NOT be called since savedDoc is null
+    expect(findOrphanedImages).not.toHaveBeenCalled();
+  });
+
   it("does NOT run orphan cleanup when dirty tab is discarded", async () => {
     const { useSettingsStore } = await import("@/stores/settingsStore");
     useSettingsStore.setState({ image: { cleanupOrphansOnClose: true } } as never);

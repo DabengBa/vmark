@@ -36,10 +36,11 @@ vi.mock("@/hooks/useHistoryOperations", () => ({
   getHistoryBaseDir: () => mockGetHistoryBaseDir(),
 }));
 
+const mockHashPath = vi.fn(async (path: string) => `hash_${path.replace(/\//g, "_")}`);
 vi.mock("@/utils/historyTypes", () => ({
   INDEX_FILE: "index.json",
   getDocumentName: (path: string) => path.split("/").pop() || "Untitled",
-  hashPath: async (path: string) => `hash_${path.replace(/\//g, "_")}`,
+  hashPath: (...args: unknown[]) => mockHashPath(...(args as [string])),
   parseHistoryIndex: (raw: unknown) => {
     if (typeof raw !== "object" || raw === null) return null;
     const obj = raw as Record<string, unknown>;
@@ -304,10 +305,14 @@ describe("clearAllHistory", () => {
     vi.clearAllMocks();
   });
 
-  it("removes entire history directory", async () => {
+  it("removes entire history directory and logs", async () => {
     mockExists.mockResolvedValue(true);
+    mockRemove.mockResolvedValue(undefined);
     await clearAllHistory();
     expect(mockRemove).toHaveBeenCalledWith("/appdata/history", { recursive: true });
+    // Verify historyLog was called after successful removal (line 164)
+    const { historyLog } = await import("@/utils/debug");
+    expect(vi.mocked(historyLog)).toHaveBeenCalledWith("Cleared all history");
   });
 
   it("does nothing when directory does not exist", async () => {
@@ -337,12 +342,24 @@ describe("deleteDocumentHistory", () => {
     expect(mockRemove).toHaveBeenCalled();
   });
 
-  it("handles error gracefully", async () => {
+  it("handles error gracefully when remove fails", async () => {
     mockExists.mockResolvedValue(true);
     mockRemove.mockRejectedValue(new Error("fail"));
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     await deleteDocumentHistory("/docs/test.md");
+    errorSpy.mockRestore();
+  });
+
+  it("catches error when hashPath throws (line 181)", async () => {
+    mockHashPath.mockRejectedValueOnce(new Error("hash failed"));
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await deleteDocumentHistory("/docs/broken.md");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[History] Failed to delete document history:",
+      expect.any(Error),
+    );
     errorSpy.mockRestore();
   });
 });

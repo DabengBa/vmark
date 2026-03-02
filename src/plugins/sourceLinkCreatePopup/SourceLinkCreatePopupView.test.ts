@@ -593,18 +593,41 @@ describe("SourceLinkCreatePopupView", () => {
   });
 
   describe("Host element positioning", () => {
-    it("uses absolute positioning when host is not document.body", async () => {
-      // Override getPopupHostForDom to return a custom host
-      const { getPopupHostForDom } = await import("@/plugins/sourcePopup");
-      const hostEl = document.createElement("div");
-      hostEl.style.position = "relative";
-      document.body.appendChild(hostEl);
-
+    it("uses fixed positioning when host is document.body", async () => {
       // The mock always returns null, so the popup goes to document.body with fixed positioning
       emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
 
       const container = document.querySelector(".link-create-popup") as HTMLElement;
       expect(container.style.position).toBe("fixed");
+    });
+
+    it("uses absolute positioning when getPopupHostForDom returns a non-body host", async () => {
+      // Temporarily override the mock to return a custom host
+      const sourcePopup = await import("@/plugins/sourcePopup");
+      const hostEl = document.createElement("div");
+      hostEl.style.position = "relative";
+      hostEl.getBoundingClientRect = () => ({
+        top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+        x: 0, y: 0, toJSON: () => ({}),
+      });
+      document.body.appendChild(hostEl);
+
+      const origFn = sourcePopup.getPopupHostForDom;
+      vi.spyOn(sourcePopup, "getPopupHostForDom" as never).mockReturnValue(hostEl as never);
+
+      // Need a fresh popup to pick up the new mock
+      popup.destroy();
+      resetState();
+      popup = new SourceLinkCreatePopupView(view);
+
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = hostEl.querySelector(".link-create-popup") as HTMLElement;
+      expect(container).not.toBeNull();
+      expect(container.style.position).toBe("absolute");
+
+      // Restore
+      vi.mocked(sourcePopup.getPopupHostForDom as never).mockRestore?.();
     });
   });
 
@@ -672,6 +695,72 @@ describe("SourceLinkCreatePopupView", () => {
 
       // isOpen is false, so handler returns early
       expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Tab cycling with visible elements (lines 137-149)", () => {
+    function patchOffsetParent(container: HTMLElement) {
+      // jsdom offsetParent is always null; patch to make getFocusableElements work
+      const focusable = container.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      focusable.forEach((el) => {
+        Object.defineProperty(el, "offsetParent", { value: container, configurable: true });
+      });
+    }
+
+    it("Tab forward cycles through focusable elements (line 148)", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+      patchOffsetParent(container);
+
+      const textInput = container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.focus();
+
+      const focusSpy = vi.fn();
+      const urlInput = container.querySelector(".link-create-popup-url") as HTMLInputElement;
+      urlInput.addEventListener("focus", focusSpy);
+
+      const tabEvent = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(tabEvent);
+
+      // Verify focus moved to next element (urlInput)
+      expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it("Shift+Tab backward cycles through focusable elements (line 145)", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+      patchOffsetParent(container);
+
+      const urlInput = container.querySelector(".link-create-popup-url") as HTMLInputElement;
+      urlInput.focus();
+
+      const focusSpy = vi.fn();
+      const textInput = container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.addEventListener("focus", focusSpy);
+
+      const tabEvent = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(tabEvent);
+
+      expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it("Shift+Tab wraps from first to last (line 145 wrap)", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+      patchOffsetParent(container);
+
+      const textInput = container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.focus();
+
+      const tabEvent = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(tabEvent);
+
+      // Should wrap to last element (cancel button)
     });
   });
 

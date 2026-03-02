@@ -243,4 +243,93 @@ describe("useOutlineSync — cursor tracking", () => {
     // Should not throw, just poll internally
     renderHook(() => useOutlineSync(getView));
   });
+
+  it("polls until editor DOM becomes available", () => {
+    vi.useFakeTimers();
+    const dom = document.createElement("div");
+    const addSpy = vi.spyOn(dom, "addEventListener");
+
+    // Start with no DOM, make it appear after 2 poll intervals
+    mockDom = null;
+
+    const view = createMockView([0, 50], 10);
+    // Return null at first, so poll triggers; after 2 polls, set mockDom
+    let callCount = 0;
+    const getView = () => {
+      callCount++;
+      // After several calls mockDom will be set below
+      return view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+    };
+
+    renderHook(() => useOutlineSync(getView));
+
+    // Initially no listeners (mockDom is null)
+    expect(addSpy).not.toHaveBeenCalled();
+
+    // Now make DOM available and advance timer
+    mockDom = dom;
+    vi.advanceTimersByTime(300); // should pick up DOM
+
+    expect(addSpy).toHaveBeenCalledWith("keyup", expect.any(Function));
+
+    vi.useRealTimers();
+  });
+
+  it("stops polling after max attempts", async () => {
+    vi.useFakeTimers();
+
+    // Never provide DOM
+    mockDom = null;
+
+    const view = createMockView([0], 0);
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    renderHook(() => useOutlineSync(getView));
+
+    // Advance past max attempts (50 * 100ms = 5000ms)
+    vi.advanceTimersByTime(6000);
+
+    // Should not throw, just stop polling silently
+
+    vi.useRealTimers();
+  });
+
+  it("cleans up poll timeout on unmount before DOM is ready", () => {
+    vi.useFakeTimers();
+    mockDom = null;
+
+    const view = createMockView([0], 0);
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    const { unmount } = renderHook(() => useOutlineSync(getView));
+
+    // Unmount while still polling
+    unmount();
+
+    // Advance timers — should not throw (timeout was cleaned up)
+    vi.advanceTimersByTime(1000);
+
+    vi.useRealTimers();
+  });
+
+  it("cancels animation frame on unmount", () => {
+    const dom = document.createElement("div");
+    mockDom = dom;
+
+    const view = createMockView([0, 50], 10);
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    const cancelSpy = vi.spyOn(globalThis, "cancelAnimationFrame");
+
+    const { unmount } = renderHook(() => useOutlineSync(getView));
+
+    // Trigger a keyup to schedule rAF
+    dom.dispatchEvent(new Event("keyup"));
+
+    unmount();
+
+    // cancelAnimationFrame should be called during cleanup
+    expect(cancelSpy).toHaveBeenCalled();
+    cancelSpy.mockRestore();
+  });
 });

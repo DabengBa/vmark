@@ -348,6 +348,68 @@ describe("blockHandlers", () => {
       expect(call.data.heading.level).toBe(2);
     });
 
+    it("stops section at next heading of same or lower level (lines 303-306)", async () => {
+      const targetHeading = {
+        type: { name: "heading" },
+        attrs: { level: 2 },
+        nodeSize: 10,
+      };
+      const paragraph = {
+        type: { name: "paragraph" },
+        isBlock: true,
+        nodeSize: 10,
+      };
+      const nextHeading = {
+        type: { name: "heading" },
+        attrs: { level: 2 },
+        nodeSize: 10,
+        isBlock: true,
+      };
+      const afterParagraph = {
+        type: { name: "paragraph" },
+        isBlock: true,
+        nodeSize: 10,
+      };
+
+      let extractCallCount = 0;
+      mockExtractText.mockImplementation(() => {
+        extractCallCount++;
+        if (extractCallCount === 1) return "Target";
+        if (extractCallCount === 2) return "Next Heading";
+        return "text";
+      });
+      mockToAstNode.mockReturnValue({ type: "paragraph", text: "text" });
+
+      const allNodes = [targetHeading, paragraph, nextHeading, afterParagraph];
+      const editor = {
+        state: {
+          doc: {
+            content: { size: 40 },
+            descendants: (
+              callback: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              let pos = 0;
+              for (const node of allNodes) {
+                const result = callback(node, pos);
+                if (result === false) break;
+                pos += node.nodeSize;
+              }
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleGetSection("req-section-end", { heading: "Target" });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      // Section should only contain the paragraph between the two headings
+      expect(call.data.content).toHaveLength(1);
+      // Range should end at the next heading position (20)
+      expect(call.data.range.to).toBe(20);
+    });
+
     it("case-insensitive heading match", async () => {
       const heading = {
         type: { name: "heading" },
@@ -644,6 +706,44 @@ describe("blockHandlers", () => {
 
       const call = mockRespond.mock.calls[0][0];
       expect(call.data.candidates).toHaveLength(3);
+    });
+
+    it("scores 'text contains query' when text contains but doesn't start with query (lines 174-175)", async () => {
+      const nodes = [
+        {
+          type: { name: "paragraph" },
+          isBlock: true,
+          nodeSize: 10,
+        },
+      ];
+
+      // Text contains query but doesn't match exactly or start with it
+      mockExtractText.mockReturnValue("world hello world");
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              callback: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              for (const node of nodes) {
+                callback(node, 0);
+              }
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleResolveTargets("req-contains", {
+        query: { type: "paragraph", contains: "hello" },
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.candidates).toHaveLength(1);
+      expect(call.data.candidates[0].score).toBe(0.7);
+      expect(call.data.candidates[0].reason).toContain("text contains query");
     });
 
     it("includes level in reason when query has level", async () => {

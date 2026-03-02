@@ -619,4 +619,27 @@ describe("useUnifiedHistory", () => {
       );
     });
   });
+
+  describe("useModeSwitchWithCheckpoint (lines 76-78)", () => {
+    it("returns a callback that calls toggleSourceModeWithCheckpoint", async () => {
+      const { renderHook, act } = await import("@testing-library/react");
+      const { useModeSwitchWithCheckpoint } = await import("./useUnifiedHistory");
+
+      const initialMode = useEditorStore.getState().sourceMode;
+
+      const { result } = renderHook(() => useModeSwitchWithCheckpoint());
+
+      act(() => {
+        result.current();
+      });
+
+      // Should have toggled the source mode
+      expect(useEditorStore.getState().sourceMode).toBe(!initialMode);
+
+      // Should have created a checkpoint
+      const history = useUnifiedHistoryStore.getState().documents["tab-1"];
+      expect(history).toBeDefined();
+      expect(history.undoStack).toHaveLength(1);
+    });
+  });
 });

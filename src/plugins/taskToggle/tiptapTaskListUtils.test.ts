@@ -212,4 +212,96 @@ describe("convertSelectionToTaskList", () => {
     // Should fall back to chain since listDepth is -1
     expect(editor.chain).toHaveBeenCalled();
   });
+
+  it("skips items that already have checked: false", () => {
+    const state = createTaskListState([{ text: "Already task", checked: false }]);
+    const stateWithCursor = setCursor(state, 4);
+    const editor = createMockEditor(stateWithCursor);
+
+    convertSelectionToTaskList(editor as never);
+
+    // Should dispatch but the item stays checked: false
+    expect(editor.view.dispatch).toHaveBeenCalled();
+    const listItem = editor.view.state.doc.child(0).child(0);
+    expect(listItem.attrs.checked).toBe(false);
+  });
+
+  it("handles mixed checked and unchecked items", () => {
+    const schema = createSchema();
+    const items = [
+      schema.nodes.listItem.create(
+        { checked: true },
+        schema.nodes.paragraph.create(null, [schema.text("Done")])
+      ),
+      schema.nodes.listItem.create(
+        { checked: null },
+        schema.nodes.paragraph.create(null, [schema.text("New")])
+      ),
+    ];
+    const bulletList = schema.nodes.bulletList.create(null, items);
+    const doc = schema.nodes.doc.create(null, [bulletList]);
+    const state = setCursor(EditorState.create({ doc }), 4);
+    const editor = createMockEditor(state);
+
+    convertSelectionToTaskList(editor as never);
+
+    expect(editor.view.dispatch).toHaveBeenCalled();
+    const list = editor.view.state.doc.child(0);
+    // First item stays checked: true (already has boolean checked)
+    expect(list.child(0).attrs.checked).toBe(true);
+    // Second item gets checked: false (was null)
+    expect(list.child(1).attrs.checked).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toggleTaskList — removeTaskList integration
+// ---------------------------------------------------------------------------
+
+describe("toggleTaskList — removeTaskList", () => {
+  it("removes task list and calls focus", () => {
+    const state = createTaskListState([{ text: "Single item", checked: false }]);
+    const stateWithCursor = setCursor(state, 4);
+    const editor = createMockEditor(stateWithCursor);
+
+    toggleTaskList(editor as never);
+
+    expect(editor.view.focus).toHaveBeenCalled();
+    // After removal, doc should no longer have bulletList
+    const topChild = editor.view.state.doc.child(0);
+    expect(topChild.type.name).not.toBe("bulletList");
+  });
+
+  it("removes checked attribute before lifting list items", () => {
+    const state = createTaskListState([{ text: "Task item", checked: true }]);
+    const stateWithCursor = setCursor(state, 4);
+    const editor = createMockEditor(stateWithCursor);
+
+    // Before toggle: item has checked: true
+    expect(editor.view.state.doc.child(0).child(0).attrs.checked).toBe(true);
+
+    toggleTaskList(editor as never);
+
+    // After removal: should be a paragraph, not a list item
+    expect(editor.view.dispatch).toHaveBeenCalled();
+  });
+
+  it("handles nested list items during removal", () => {
+    const schema = createSchema();
+    const para1 = schema.nodes.paragraph.create(null, [schema.text("Item 1")]);
+    const para2 = schema.nodes.paragraph.create(null, [schema.text("Item 2")]);
+    const items = [
+      schema.nodes.listItem.create({ checked: false }, para1),
+      schema.nodes.listItem.create({ checked: false }, para2),
+    ];
+    const bulletList = schema.nodes.bulletList.create(null, items);
+    const doc = schema.nodes.doc.create(null, [bulletList]);
+    const state = setCursor(EditorState.create({ doc }), 4);
+    const editor = createMockEditor(state);
+
+    toggleTaskList(editor as never);
+
+    expect(editor.view.dispatch).toHaveBeenCalled();
+    expect(editor.view.focus).toHaveBeenCalled();
+  });
 });

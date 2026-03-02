@@ -35,6 +35,24 @@ vi.mock("./FootnotePopupView", () => ({
 
 vi.mock("./footnote-popup.css", () => ({}));
 
+const { mockGetReferenceLabels, mockGetDefinitionInfo } = vi.hoisted(() => ({
+  mockGetReferenceLabels: vi.fn() as ReturnType<typeof vi.fn> & { _real?: (...args: unknown[]) => unknown },
+  mockGetDefinitionInfo: vi.fn() as ReturnType<typeof vi.fn> & { _real?: (...args: unknown[]) => unknown },
+}));
+
+vi.mock("./tiptapCleanup", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./tiptapCleanup")>();
+  mockGetReferenceLabels._real = actual.getReferenceLabels as unknown as (...args: unknown[]) => unknown;
+  mockGetReferenceLabels.mockImplementation((...args: unknown[]) => mockGetReferenceLabels._real?.(...args));
+  mockGetDefinitionInfo._real = actual.getDefinitionInfo as unknown as (...args: unknown[]) => unknown;
+  mockGetDefinitionInfo.mockImplementation((...args: unknown[]) => mockGetDefinitionInfo._real?.(...args));
+  return {
+    ...actual,
+    getReferenceLabels: (...args: unknown[]) => mockGetReferenceLabels(...args),
+    getDefinitionInfo: (...args: unknown[]) => mockGetDefinitionInfo(...args),
+  };
+});
+
 import {
   footnotePopupExtension,
   footnotePopupPluginKey,
@@ -451,6 +469,9 @@ describe("footnotePopup plugin handler integration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restore passthrough to real implementations after clearAllMocks
+    mockGetReferenceLabels.mockImplementation((...args: unknown[]) => mockGetReferenceLabels._real?.(...args));
+    mockGetDefinitionInfo.mockImplementation((...args: unknown[]) => mockGetDefinitionInfo._real?.(...args));
 
     const extensionContext = {
       name: footnotePopupExtension.name,
@@ -1430,6 +1451,72 @@ describe("footnotePopup plugin handler integration", () => {
       );
       // No refs, no defs => returns null (line 280)
       expect(result).toBeNull();
+    });
+
+    it("deletes all defs when orphanedDefs=0 and newRefLabels=empty but defs exist (lines 273-278)", () => {
+      // This branch is logically unreachable under normal conditions because
+      // if newRefLabels is empty, all defs become orphaned. We use mocks to
+      // force the "impossible" state: orphanedDefs=0, newRefLabels.size=0, defs.length>0.
+      //
+      // The trick: mock getReferenceLabels so the second call (newRefLabels) returns
+      // a Set-like object where size=0 but has() always returns true.
+      // This means:
+      //   - refDeleted check: oldRefLabels has "1","2". For each, !newRefLabels.has(label)
+      //     => !true => false. refDeleted stays false => returns null at line 266.
+      //
+      // To pass the refDeleted check, we need at least one old label to NOT be in new.
+      // So has() must return false for some labels (triggering refDeleted) but true for
+      // all def labels (making orphanedDefs=0). We use the same labels for refs and defs,
+      // so this is contradictory... unless we use the iteration order.
+      //
+      // Better approach: make newRefLabels.has() return false on first call (refDeleted loop)
+      // then true on subsequent calls (orphanedDefs filter).
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        pWithRef("B", "2"),
+        fnDef("1"),
+        fnDef("2"),
+      ]);
+      const state = createState(doc);
+
+      // Delete ref "2" paragraph
+      const child1Size = state.doc.child(0).nodeSize;
+      const child2Size = state.doc.child(1).nodeSize;
+      const tr = state.tr.delete(child1Size, child1Size + child2Size);
+      const newState = state.apply(tr);
+
+      const realDefs = getDefinitionInfo(newState.doc);
+
+      let refLabelCallCount = 0;
+      mockGetReferenceLabels.mockImplementation(() => {
+        refLabelCallCount++;
+        if (refLabelCallCount === 1) return new Set(["1", "2"]); // oldRefLabels
+        // newRefLabels: has() returns false once (for refDeleted), then true (for orphanedDefs)
+        const fakeSet = new Set<string>();
+        let hasCallCount = 0;
+        fakeSet.has = () => {
+          hasCallCount++;
+          // First call is from the refDeleted loop — return false to trigger refDeleted
+          if (hasCallCount === 1) return false;
+          // Subsequent calls from orphanedDefs filter — return true so orphanedDefs=0
+          return true;
+        };
+        Object.defineProperty(fakeSet, "size", { get: () => 0 });
+        return fakeSet;
+      });
+
+      mockGetDefinitionInfo.mockReturnValue(realDefs);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+
+      // Should return a transaction that deletes all defs (lines 273-278)
+      expect(result).not.toBeNull();
+      // The result transaction should have fewer children (defs deleted)
+      expect(result!.doc.childCount).toBeLessThan(newState.doc.childCount);
     });
   });
 });

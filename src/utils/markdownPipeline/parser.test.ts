@@ -473,4 +473,87 @@ Content`;
       expect(result.children[0].type).toBe("list");
     });
   });
+
+  describe("preprocessEscapedMarkers edge cases", () => {
+    it("handles CR+LF line endings inside fenced code blocks", () => {
+      // The getLineForFenceDetection strips \r before detecting fences
+      const result = parseMarkdownToMdast("```\r\n\\==\r\n```\r\n");
+      const code = result.children[0] as import("mdast").Code;
+      expect(code.type).toBe("code");
+      expect(code.value).toContain("\\==");
+    });
+
+    it("handles tilde-fenced code block closing with longer fence", () => {
+      const result = parseMarkdownToMdast("~~~\n\\==\n~~~~\n");
+      // ~~~~ (4 tildes) should close a ~~~ (3 tildes) block
+      const code = result.children[0] as import("mdast").Code;
+      expect(code.type).toBe("code");
+      expect(code.value).toContain("\\==");
+    });
+
+    it("does not escape markers inside multi-backtick inline code", () => {
+      const result = parseMarkdownToMdast("``\\== test``");
+      const para = result.children[0] as Paragraph;
+      const codeNode = para.children.find((c) => c.type === "inlineCode") as import("mdast").InlineCode;
+      expect(codeNode).toBeDefined();
+      expect(codeNode.value).toContain("\\==");
+    });
+
+    it("handles inline code span with non-matching backtick count inside", () => {
+      // ` foo `` bar ` — backtick run inside inline code of different length
+      const result = parseMarkdownToMdast("`foo `` bar \\== baz`");
+      const para = result.children[0] as Paragraph;
+      const codeNode = para.children.find((c) => c.type === "inlineCode") as import("mdast").InlineCode;
+      expect(codeNode).toBeDefined();
+      // Backslash should be preserved inside code span
+      expect(codeNode.value).toContain("\\==");
+    });
+
+    it("handles fenced code block at end of document without trailing newline", () => {
+      const result = parseMarkdownToMdast("```\n\\==\n```");
+      const code = result.children[0] as import("mdast").Code;
+      expect(code.type).toBe("code");
+      expect(code.value).toContain("\\==");
+    });
+  });
+
+  describe("remarkValidateMath edge cases", () => {
+    it("rejects inline math with only trailing space", () => {
+      const result = parseMarkdownToMdast("$x^2 $");
+      const para = result.children[0] as Paragraph;
+      const hasMath = para.children.some((c) => c.type === "inlineMath");
+      expect(hasMath).toBe(false);
+    });
+
+    it("allows valid inline math without leading/trailing spaces", () => {
+      const result = parseMarkdownToMdast("$x^2$");
+      const para = result.children[0] as Paragraph;
+      const hasMath = para.children.some((c) => c.type === "inlineMath");
+      expect(hasMath).toBe(true);
+    });
+  });
+
+  describe("preserveLineBreaks option", () => {
+    it("enables remark-breaks when preserveLineBreaks is true", () => {
+      const result = parseMarkdownToMdast("line1\nline2", { preserveLineBreaks: true });
+      const para = result.children[0] as Paragraph;
+      // remark-breaks adds break nodes for single newlines
+      const hasBreak = para.children.some((c) => c.type === "break");
+      expect(hasBreak).toBe(true);
+    });
+  });
+
+  describe("fixNormalizationSpread", () => {
+    it("fixes spread on list when normalization was applied", () => {
+      // This triggers normalizeBareListMarkers (which returns modified: true)
+      // and then fixNormalizationSpread cleans up spread artifacts
+      const input = "- Parent text\n  -\n";
+      const result = parseMarkdownToMdast(input);
+      const list = result.children[0] as any;
+      expect(list.type).toBe("list");
+      expect(list.spread).toBe(false);
+      const li = list.children[0];
+      expect(li.spread).toBe(false);
+    });
+  });
 });

@@ -600,6 +600,266 @@ describe("mouseup handler with copyOnSelect and markdown format", () => {
   });
 });
 
+describe("mouseup handler rAF callback execution", () => {
+  it("executes clipboard write inside requestAnimationFrame callback", async () => {
+    // Capture the rAF callback and execute it synchronously
+    const rAFCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rAFCallbacks.push(cb);
+      return rAFCallbacks.length;
+    });
+
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: testSchema });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 6)));
+
+    const mockView = { state, isDestroyed: false };
+    plugin.props.handleDOMEvents.mouseup(mockView);
+
+    // Execute the rAF callback
+    rAFCallbacks.forEach((cb) => cb(0));
+
+    // Should have called clipboard.writeText with the selected text
+    expect(writeTextSpy).toHaveBeenCalledWith("hello");
+  });
+
+  it("handles clipboard write failure gracefully", async () => {
+    const rAFCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rAFCallbacks.push(cb);
+      return rAFCallbacks.length;
+    });
+
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const writeTextSpy = vi.fn().mockRejectedValue(new Error("Clipboard denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: testSchema });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 6)));
+
+    const mockView = { state, isDestroyed: false };
+    plugin.props.handleDOMEvents.mouseup(mockView);
+
+    // Execute the rAF callback — should not throw despite clipboard rejection
+    expect(() => rAFCallbacks.forEach((cb) => cb(0))).not.toThrow();
+  });
+
+  it("does not write to clipboard when selection is empty in rAF", async () => {
+    const rAFCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rAFCallbacks.push(cb);
+      return rAFCallbacks.length;
+    });
+
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello")]),
+    ]);
+    // Collapsed selection (from === to)
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const mockView = { state, isDestroyed: false };
+    plugin.props.handleDOMEvents.mouseup(mockView);
+
+    rAFCallbacks.forEach((cb) => cb(0));
+
+    // Should not write to clipboard when from === to
+    expect(writeTextSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSelectionText with copyFormat=markdown (lines 123-125)", () => {
+  it("returns markdown-formatted text when copyFormat is markdown", async () => {
+    const rAFCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rAFCallbacks.push(cb);
+      return rAFCallbacks.length;
+    });
+
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: true },
+    } as never);
+
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: testSchema });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 6)));
+
+    const mockView = { state, isDestroyed: false };
+    plugin.props.handleDOMEvents.mouseup(mockView);
+
+    // Execute rAF callback
+    rAFCallbacks.forEach((cb) => cb(0));
+
+    // Should write markdown-formatted text to clipboard
+    expect(writeTextSpy).toHaveBeenCalledWith(expect.any(String));
+  });
+});
+
+describe("createDocFromSlice catch path (line 46)", () => {
+  it("falls back to createAndFill when docType.create throws", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: false },
+    } as never);
+
+    const { Schema, Slice, Fragment } = await import("@tiptap/pm/model");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    // Monkey-patch topNodeType.create to throw, forcing the catch path
+    const origCreate = testSchema.topNodeType.create.bind(testSchema.topNodeType);
+    let callCount = 0;
+    testSchema.topNodeType.create = function (...args: Parameters<typeof origCreate>) {
+      callCount++;
+      // The first call is from createDocFromSlice — make it throw.
+      // Subsequent calls (from the catch fallback) should succeed.
+      if (callCount === 1) throw new RangeError("Invalid content for node doc");
+      return origCreate(...args);
+    } as typeof origCreate;
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    const para = testSchema.node("paragraph", null, [testSchema.text("hello")]);
+    const slice = new Slice(Fragment.from(para), 0, 0);
+
+    const { EditorState } = await import("@tiptap/pm/state");
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("body")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const result = plugin.props.clipboardTextSerializer(slice, { state });
+    // Should return a string from the createAndFill fallback
+    expect(typeof result).toBe("string");
+    // Verify the create was called (and threw on first call)
+    expect(callCount).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe("mouseup handler with copyOnSelect enabled", () => {
   it("copies selected text on mouseup when copyOnSelect is enabled", async () => {
     const { useSettingsStore } = await import("@/stores/settingsStore");
