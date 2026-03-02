@@ -14,6 +14,8 @@
 //!   - Default shell resolved via `getpwuid_r` → `$SHELL` → `/bin/sh` (reliable in
 //!     GUI apps). Available shells detected from `/etc/shells` (Unix) or `where.exe`
 //!     (Windows), always returning absolute paths.
+//!   - `machine_id_hash()` generates a stable anonymous device identifier via
+//!     SHA-256(hostname + OS + arch), sent as `X-Machine-Id` header on update checks.
 //!
 //! Known limitations:
 //!   - ExitRequested handling must carefully distinguish OS quit from user quit
