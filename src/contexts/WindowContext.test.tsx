@@ -440,4 +440,292 @@ describe("WindowContext", () => {
       errorSpy.mockRestore();
     });
   });
+
+  describe("WindowProvider — file loading from URL params", () => {
+    it("loads file content from URL file param", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# File Content");
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/docs/test.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockCreateTab).toHaveBeenCalledWith("main", "/docs/test.md");
+      });
+
+      await waitFor(() => {
+        expect(readTextFile).toHaveBeenCalledWith("/docs/test.md");
+        expect(mockInitDocument).toHaveBeenCalled();
+        expect(mockSetLineMetadata).toHaveBeenCalled();
+        expect(mockAddFile).toHaveBeenCalledWith("/docs/test.md");
+      });
+    });
+
+    it("initializes empty document when file read fails", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockRejectedValue(new Error("not found"));
+      const { toast } = await import("sonner");
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/docs/missing.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockInitDocument).toHaveBeenCalledWith(expect.any(String), "", null);
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("missing.md"));
+      });
+
+      errorSpy.mockRestore();
+    });
+
+    it("opens workspace from workspaceRoot URL param", async () => {
+      const { openWorkspaceWithConfig } = await import("../hooks/openWorkspaceWithConfig");
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?workspaceRoot=/projects/myapp&file=/projects/myapp/README.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# README");
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(openWorkspaceWithConfig).toHaveBeenCalledWith("/projects/myapp");
+      });
+    });
+
+    it("handles multiple files from files URL param", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# content");
+
+      const files = JSON.stringify(["/docs/a.md", "/docs/b.md"]);
+      Object.defineProperty(globalThis, "location", {
+        value: { search: `?files=${encodeURIComponent(files)}` },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockCreateTab).toHaveBeenCalledTimes(2);
+        expect(readTextFile).toHaveBeenCalledWith("/docs/a.md");
+        expect(readTextFile).toHaveBeenCalledWith("/docs/b.md");
+      });
+    });
+
+    it("handles invalid JSON in files param gracefully", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?files=not-json" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      // Should still create a default empty tab (falls through to else branch)
+      await waitFor(() => {
+        expect(mockCreateTab).toHaveBeenCalled();
+        expect(mockInitDocument).toHaveBeenCalledWith(expect.any(String), "", null);
+      });
+
+      errorSpy.mockRestore();
+    });
+
+    it("handles file read failure in multi-file mode", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile)
+        .mockResolvedValueOnce("# good content")
+        .mockRejectedValueOnce(new Error("read error"));
+      const { toast } = await import("sonner");
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const files = JSON.stringify(["/docs/good.md", "/docs/bad.md"]);
+      Object.defineProperty(globalThis, "location", {
+        value: { search: `?files=${encodeURIComponent(files)}` },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        // First file succeeded, second failed
+        expect(mockCreateTab).toHaveBeenCalledTimes(2);
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("bad.md"));
+        // Failed file still gets empty document
+        expect(mockInitDocument).toHaveBeenCalledWith(expect.any(String), "", null);
+      });
+
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe("WindowProvider — doc-* window clears localStorage", () => {
+    it("clears persisted workspace state for doc-* window", async () => {
+      mockWindowLabel = "doc-789";
+      const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(removeItemSpy).toHaveBeenCalledWith("vmark-workspace:doc-789");
+      });
+
+      removeItemSpy.mockRestore();
+    });
+  });
+
+  describe("WindowProvider — settings window uses active workspace label", () => {
+    it("sets current window label to active workspace label for settings", async () => {
+      mockWindowLabel = "settings";
+      const { findActiveWorkspaceLabel, setCurrentWindowLabel } = await import("../utils/workspaceStorage");
+      vi.mocked(findActiveWorkspaceLabel).mockReturnValue("main");
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">settings</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        // Should first call with "settings", then with "main" (active workspace)
+        expect(setCurrentWindowLabel).toHaveBeenCalledWith("settings");
+        expect(setCurrentWindowLabel).toHaveBeenCalledWith("main");
+      });
+    });
+  });
+
+  describe("WindowProvider — tab transfer handling", () => {
+    it("handles tab transfer from URL param", async () => {
+      vi.useFakeTimers();
+      mockWindowLabel = "doc-new";
+      const { invoke } = await import("@tauri-apps/api/core");
+      vi.mocked(invoke).mockResolvedValue({
+        tabId: "transferred-tab",
+        title: "Transferred",
+        content: "# Transferred content",
+        filePath: "/docs/transferred.md",
+        savedContent: "# Transferred content",
+        workspaceRoot: null,
+      });
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?transfer=true" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(invoke).toHaveBeenCalledWith("claim_tab_transfer", { windowLabel: "doc-new" });
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — workspace resolution for external file", () => {
+    it("derives workspace root from file path when no workspace is active", async () => {
+      const { resolveWorkspaceRootForExternalFile } = await import("../utils/openPolicy");
+      vi.mocked(resolveWorkspaceRootForExternalFile).mockReturnValue("/docs");
+      const { openWorkspaceWithConfig } = await import("../hooks/openWorkspaceWithConfig");
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# content");
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/docs/test.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(resolveWorkspaceRootForExternalFile).toHaveBeenCalledWith("/docs/test.md");
+        expect(openWorkspaceWithConfig).toHaveBeenCalledWith("/docs");
+      });
+    });
+
+    it("closes workspace for main window when file resolves to no workspace root", async () => {
+      const { resolveWorkspaceRootForExternalFile } = await import("../utils/openPolicy");
+      vi.mocked(resolveWorkspaceRootForExternalFile).mockReturnValue(null);
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# content");
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/tmp/orphan.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockCloseWorkspace).toHaveBeenCalled();
+      });
+    });
+  });
 });

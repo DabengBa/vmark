@@ -961,6 +961,386 @@ describe("batchOpHandlers", () => {
     });
   });
 
+  describe("handleListBatchModify — toggle_check on task list", () => {
+    it("toggles checked attribute on task item", async () => {
+      const taskItemNode = {
+        type: { name: "taskItem" },
+        nodeSize: 8,
+        attrs: { checked: false },
+      };
+      const listNode = {
+        type: { name: "taskList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(taskItemNode, 0);
+        }),
+      };
+
+      const mockSetNodeMarkup = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+          selection: {
+            $from: {
+              depth: 2,
+              node: (d: number) => {
+                if (d === 1) return taskItemNode;
+                return { type: { name: "taskList" } };
+              },
+              before: () => 5,
+            },
+          },
+          tr: {
+            setNodeMarkup: mockSetNodeMarkup,
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          splitListItem: vi.fn(),
+          deleteNode: vi.fn(),
+          sinkListItem: vi.fn(),
+          liftListItem: vi.fn(),
+        },
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-tc-1", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "toggle_check", at: 0 }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+      expect(editor.view.dispatch).toHaveBeenCalled();
+    });
+
+    it("warns when toggle_check is used on non-task list", async () => {
+      const listItemNode = {
+        type: { name: "listItem" },
+        nodeSize: 8,
+      };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItemNode, 0);
+        }),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+          selection: {
+            $from: {
+              depth: 2,
+              node: () => ({ type: { name: "listItem" } }),
+              before: () => 5,
+            },
+          },
+          tr: {
+            setNodeMarkup: vi.fn().mockReturnThis(),
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          splitListItem: vi.fn(),
+          deleteNode: vi.fn(),
+          sinkListItem: vi.fn(),
+          liftListItem: vi.fn(),
+        },
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-tc-2", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "toggle_check", at: 0 }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings).toContain("toggle_check only works on task lists");
+    });
+  });
+
+  describe("handleTableBatchModify — update_cell operations", () => {
+    it("applies update_cell with markdown content", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "old",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 7 },
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({
+              nodeSize: 5,
+            })),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return true; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-uc-1", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "update_cell", row: 0, col: 0, content: "**bold**" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+      expect(editor.view.dispatch).toHaveBeenCalled();
+    });
+
+    it("applies update_cell with empty content (creates empty paragraph)", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "old",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        content: { size: 7 },
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const mockParagraphCreate = vi.fn(() => "empty-p");
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({
+              nodeSize: 5,
+            })),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return true; },
+          },
+          schema: { nodes: { paragraph: { create: mockParagraphCreate } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: {
+          dispatch: vi.fn(),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-uc-2", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "update_cell", row: 0, col: 0, content: "" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(mockParagraphCreate).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe("handleTableBatchModify — error in structural op", () => {
+    it("captures error in structural operation and continues", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        nodeSize: 9,
+        forEach: vi.fn(),
+        descendants: vi.fn(),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          addRowAfter: vi.fn(() => { throw new Error("PM error"); }),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-err-1", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "add_row", at: 0, cells: ["a"] }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("Failed"))).toBe(true);
+    });
+  });
+
+  describe("handleListBatchModify — afterHeading target for list", () => {
+    it("finds list by afterHeading (uses listIndex matching)", async () => {
+      const listNode = {
+        type: { name: "orderedList" },
+        nodeSize: 20,
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // Use listIndex since afterHeading is not supported for lists
+      await handleListBatchModify("req-ah-1", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+        mode: "dryRun",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.isDryRun).toBe(true);
+    });
+  });
+
   describe("handleTableBatchModify — normalizeOp", () => {
     it("accepts type or op as action key aliases", async () => {
       const tableRow = {

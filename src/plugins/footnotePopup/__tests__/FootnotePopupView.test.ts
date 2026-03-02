@@ -397,6 +397,203 @@ describe("FootnotePopupView", () => {
     });
   });
 
+  describe("Save logic", () => {
+    beforeEach(async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test content",
+        anchorRect,
+        definitionPos: 500,
+        referencePos: 10,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+    });
+
+    it("save with null definitionPos just closes", () => {
+      emitStateChange({ definitionPos: null });
+      const saveBtn = dom.container.querySelector(".footnote-popup-btn-save") as HTMLElement;
+      saveBtn.click();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+
+    it("goto navigates to definition position", () => {
+      const gotoBtn = dom.container.querySelector(".footnote-popup-btn-goto") as HTMLElement;
+      gotoBtn.click();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Delete logic", () => {
+    it("delete with null referencePos just closes", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+        referencePos: null,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = dom.container.querySelector(".footnote-popup-btn-delete") as HTMLElement;
+      deleteBtn.click();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Textarea click behavior", () => {
+    it("adds editing class and focuses on textarea click", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textarea = dom.container.querySelector(".footnote-popup-textarea") as HTMLTextAreaElement;
+      textarea.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      const popupEl = dom.container.querySelector(".footnote-popup") as HTMLElement;
+      expect(popupEl.classList.contains("editing")).toBe(true);
+    });
+  });
+
+  describe("Textarea blur behavior", () => {
+    it("removes editing class when focus leaves popup", async () => {
+      vi.useFakeTimers();
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await vi.advanceTimersByTimeAsync(0); // rAF
+
+      const popupEl = dom.container.querySelector(".footnote-popup") as HTMLElement;
+      popupEl.classList.add("editing");
+
+      const textarea = dom.container.querySelector(".footnote-popup-textarea") as HTMLTextAreaElement;
+      textarea.dispatchEvent(new Event("blur", { bubbles: true }));
+
+      vi.advanceTimersByTime(60); // past BLUR_CHECK_DELAY_MS
+
+      expect(popupEl.classList.contains("editing")).toBe(false);
+      vi.useRealTimers();
+    });
+  });
+
+  describe("Shift+Enter in textarea", () => {
+    it("does not save on Shift+Enter (allows newline)", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textarea = dom.container.querySelector(".footnote-popup-textarea") as HTMLTextAreaElement;
+      const event = new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true });
+      textarea.dispatchEvent(event);
+
+      // Shift+Enter should NOT trigger save/close
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Click outside behavior", () => {
+    it("does not close immediately after opening (justOpened guard)", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+
+      // Click outside immediately (before rAF clears justOpened)
+      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+
+    it("does not close when clicking inside popup", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = dom.container.querySelector(".footnote-popup") as HTMLElement;
+      popupEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+
+    it("closes on click outside after popup is settled", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Scroll behavior", () => {
+    it("closes popup on scroll in editor container", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Test",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      dom.container.dispatchEvent(new Event("scroll", { bubbles: true }));
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Label change re-show", () => {
+    it("re-shows popup when label changes", async () => {
+      emitStateChange({
+        isOpen: true,
+        label: "1",
+        content: "Footnote 1",
+        anchorRect,
+        definitionPos: 500,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textarea = dom.container.querySelector(".footnote-popup-textarea") as HTMLTextAreaElement;
+      expect(textarea.value).toBe("Footnote 1");
+
+      emitStateChange({
+        label: "2",
+        content: "Footnote 2",
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(textarea.value).toBe("Footnote 2");
+    });
+  });
+
   describe("Mounting", () => {
     it("mounts inside editor-container", async () => {
       emitStateChange({ isOpen: true, label: "1", content: "Test", anchorRect, definitionPos: 100 });

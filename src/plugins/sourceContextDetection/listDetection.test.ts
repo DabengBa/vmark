@@ -465,4 +465,122 @@ describe("getListBlockBounds", () => {
     expect(bounds).not.toBeNull();
     view.destroy();
   });
+
+  it("trims leading blank lines from block", () => {
+    // Blank line before list; cursor at pos 2 is on "- item 1" (line 1)
+    const view = createView("\n- item 1\n- item 2", 2);
+    const bounds = getListBlockBounds(view);
+    // Cursor is on a list line, so bounds should be found
+    expect(bounds).not.toBeNull();
+    expect(bounds!.from).toBe(1); // start of "- item 1" (after the leading \n)
+    view.destroy();
+  });
+
+  it("handles list block surrounded by blank lines", () => {
+    const doc = "text\n\n- item 1\n- item 2\n\nmore text";
+    // Position cursor on "- item 1" (after "text\n\n" = 6 chars)
+    const view = createView(doc, 7);
+    const bounds = getListBlockBounds(view);
+    expect(bounds).not.toBeNull();
+    expect(bounds!.from).toBe(6); // start of "- item 1"
+    expect(bounds!.to).toBe(23); // end of "- item 2"
+    view.destroy();
+  });
+
+  it("handles multiple blank lines between list items", () => {
+    const doc = "- item 1\n\n\n- item 2";
+    const view = createView(doc, 2);
+    const bounds = getListBlockBounds(view);
+    expect(bounds).not.toBeNull();
+    expect(bounds!.from).toBe(0);
+    expect(bounds!.to).toBe(19);
+    view.destroy();
+  });
+
+  it("handles long horizontal rule (-----)", () => {
+    const view = createView("-----", 2);
+    const bounds = getListBlockBounds(view);
+    expect(bounds).toBeNull();
+    view.destroy();
+  });
+
+  it("handles asterisk horizontal rule (*****)", () => {
+    const view = createView("*****", 2);
+    const bounds = getListBlockBounds(view);
+    expect(bounds).toBeNull();
+    view.destroy();
+  });
+
+  it("includes task list items in block bounds", () => {
+    const doc = "- item 1\n- [ ] task\n- item 3";
+    const view = createView(doc, 2);
+    const bounds = getListBlockBounds(view);
+    expect(bounds!.from).toBe(0);
+    expect(bounds!.to).toBe(28);
+    view.destroy();
+  });
+});
+
+describe("outdentListItem — partial indent", () => {
+  it("removes partial indent (1 space when tabSize is 2)", () => {
+    const view = createView(" - item", 3);
+    const info = getListItemInfo(view)!;
+    outdentListItem(view, info);
+    expect(view.state.doc.toString()).toBe("- item");
+    view.destroy();
+  });
+
+  it("removes full tabSize spaces from deeply indented item", () => {
+    const view = createView("    - deep item", 6);
+    const info = getListItemInfo(view)!;
+    outdentListItem(view, info);
+    expect(view.state.doc.toString()).toBe("  - deep item");
+    view.destroy();
+  });
+});
+
+describe("toOrderedList — indented conversion", () => {
+  it("preserves indentation when converting indented bullet to ordered", () => {
+    const view = createView("  - indented", 4);
+    const info = getListItemInfo(view)!;
+    toOrderedList(view, info);
+    expect(view.state.doc.toString()).toBe("  1. indented");
+    view.destroy();
+  });
+});
+
+describe("toTaskList — indented conversion", () => {
+  it("preserves indentation when converting indented bullet to task", () => {
+    const view = createView("  - indented", 4);
+    const info = getListItemInfo(view)!;
+    toTaskList(view, info);
+    expect(view.state.doc.toString()).toBe("  - [ ] indented");
+    view.destroy();
+  });
+
+  it("preserves indentation when converting ordered to task", () => {
+    const view = createView("  1. ordered item", 5);
+    const info = getListItemInfo(view)!;
+    toTaskList(view, info);
+    expect(view.state.doc.toString()).toBe("  - [ ] ordered item");
+    view.destroy();
+  });
+});
+
+describe("removeList — with indentation", () => {
+  it("removes indented bullet list formatting", () => {
+    const view = createView("  - indented item", 4);
+    const info = getListItemInfo(view)!;
+    removeList(view, info);
+    expect(view.state.doc.toString()).toBe("indented item");
+    view.destroy();
+  });
+
+  it("removes checked task list formatting", () => {
+    const view = createView("- [x] done task", 6);
+    const info = getListItemInfo(view)!;
+    removeList(view, info);
+    expect(view.state.doc.toString()).toBe("done task");
+    view.destroy();
+  });
 });

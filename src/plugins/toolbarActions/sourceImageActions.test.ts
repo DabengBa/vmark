@@ -26,11 +26,12 @@ vi.mock("@/stores/documentStore", () => ({
   },
 }));
 
+const mockOpenPopup = vi.fn();
 vi.mock("@/stores/mediaPopupStore", () => ({
   useMediaPopupStore: {
-    getState: () => ({
-      openPopup: vi.fn(),
-    }),
+    getState: vi.fn(() => ({
+      openPopup: mockOpenPopup,
+    })),
   },
 }));
 
@@ -75,6 +76,12 @@ vi.mock("./sourceAdapterLinks", () => ({
 import { unlinkAtCursor, insertImage, insertVideoTag, insertAudioTag } from "./sourceImageActions";
 import { insertText } from "./sourceAdapterHelpers";
 import { findMarkdownLinkAtPosition, findWikiLinkAtPosition } from "@/utils/markdownLinkPatterns";
+import { readClipboardImagePath } from "@/utils/clipboardImagePath";
+import { copyImageToAssets } from "@/hooks/useImageOperations";
+import { useMediaPopupStore } from "@/stores/mediaPopupStore";
+import { getAnchorRectFromRange } from "@/plugins/sourcePopup/sourcePopupUtils";
+import { findWordAtCursorSource } from "./sourceAdapterLinks";
+import { hasVideoExtension, hasAudioExtension } from "@/utils/mediaPathDetection";
 
 function createView(doc: string, ranges: Array<{ from: number; to: number }>): EditorView {
   const parent = document.createElement("div");
@@ -221,6 +228,221 @@ describe("insertAudioTag", () => {
       '<audio src="" controls></audio>',
       12
     );
+    view.destroy();
+  });
+});
+
+describe("insertImage (async paths)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Re-establish default mock implementations after clearAllMocks
+    vi.mocked(readClipboardImagePath).mockResolvedValue(null);
+    vi.mocked(getAnchorRectFromRange).mockReturnValue({ top: 0, bottom: 20, left: 0, right: 100 });
+    vi.mocked(findWordAtCursorSource).mockReturnValue(null);
+    vi.mocked(findMarkdownLinkAtPosition).mockReturnValue(null);
+    vi.mocked(findWikiLinkAtPosition).mockReturnValue(null);
+    vi.mocked(hasVideoExtension).mockReturnValue(false);
+    vi.mocked(hasAudioExtension).mockReturnValue(false);
+  });
+
+  it("shows popup for existing image at cursor", async () => {
+    const doc = "![alt](image.png)";
+    const view = createView(doc, [{ from: 5, to: 5 }]);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSrc: "image.png",
+          mediaAlt: "alt",
+          mediaNodeType: "image",
+        })
+      );
+    });
+    view.destroy();
+  });
+
+  it("detects video extension for existing image popup", async () => {
+    const doc = "![video](clip.mp4)";
+    const view = createView(doc, [{ from: 5, to: 5 }]);
+    vi.mocked(hasVideoExtension).mockReturnValue(true);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaNodeType: "block_video" })
+      );
+    });
+    view.destroy();
+  });
+
+  it("detects audio extension for existing image popup", async () => {
+    const doc = "![audio](song.mp3)";
+    const view = createView(doc, [{ from: 5, to: 5 }]);
+    vi.mocked(hasAudioExtension).mockReturnValue(true);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaNodeType: "block_audio" })
+      );
+    });
+    view.destroy();
+  });
+
+  it("returns early when cursor is inside a link", async () => {
+    const doc = "[text](https://example.com)";
+    const view = createView(doc, [{ from: 3, to: 3 }]);
+    vi.mocked(findMarkdownLinkAtPosition).mockReturnValue({
+      from: 0,
+      to: 26,
+      text: "text",
+      href: "https://example.com",
+    });
+
+    insertImage(view);
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(readClipboardImagePath).not.toHaveBeenCalled();
+    view.destroy();
+  });
+
+  it("inserts template when no clipboard image and no selection", async () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toBe("![](url)");
+    });
+    view.destroy();
+  });
+
+  it("uses selection text as alt text in template", async () => {
+    const view = createView("hello world", [{ from: 0, to: 5 }]);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toContain("![hello]");
+    });
+    view.destroy();
+  });
+
+  it("uses word at cursor as alt text when no selection", async () => {
+    const view = createView("hello world", [{ from: 2, to: 2 }]);
+    vi.mocked(findWordAtCursorSource).mockReturnValue({ from: 0, to: 5 });
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toContain("![hello]");
+    });
+    view.destroy();
+  });
+
+  it("inserts clipboard image URL directly", async () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "https://example.com/image.png",
+      needsCopy: false,
+    } as never);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toBe("![](https://example.com/image.png)");
+    });
+    view.destroy();
+  });
+
+  it("copies local image to assets when needsCopy is true", async () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/absolute/path/to/image.png",
+      needsCopy: true,
+      resolvedPath: "/absolute/path/to/image.png",
+    } as never);
+    vi.mocked(copyImageToAssets).mockResolvedValue("assets/image.png");
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(copyImageToAssets).toHaveBeenCalled();
+      expect(view.state.doc.toString()).toBe("![](assets/image.png)");
+    });
+    view.destroy();
+  });
+
+  it("falls back to template when copy fails", async () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/path/image.png",
+      needsCopy: true,
+      resolvedPath: "/path/image.png",
+    } as never);
+    vi.mocked(copyImageToAssets).mockRejectedValue(new Error("copy failed"));
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toBe("![](url)");
+    });
+    view.destroy();
+  });
+
+  it("does not show popup when getAnchorRectFromRange returns null", async () => {
+    const doc = "![alt](image.png)";
+    const view = createView(doc, [{ from: 5, to: 5 }]);
+    vi.mocked(getAnchorRectFromRange).mockReturnValue(null);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(readClipboardImagePath).toHaveBeenCalled();
+    });
+    view.destroy();
+  });
+
+  it("handles image with angle bracket path syntax", async () => {
+    const doc = "![alt](<path with spaces.png>)";
+    const view = createView(doc, [{ from: 5, to: 5 }]);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSrc: "path with spaces.png",
+        })
+      );
+    });
+    view.destroy();
+  });
+
+  it("handles clipboard image with selection as alt text", async () => {
+    const view = createView("hello world", [{ from: 0, to: 5 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "https://example.com/img.png",
+      needsCopy: false,
+    } as never);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toContain("![hello](https://example.com/img.png)");
+    });
     view.destroy();
   });
 });

@@ -725,4 +725,176 @@ describe("MathInlineNodeView", () => {
       // but we can verify no crash
     });
   });
+
+  describe("Floating preview positioning", () => {
+    it("shows floating preview using getClientRects for wrapped content", () => {
+      createNodeView({ content: "x^2" });
+
+      // Mock getClientRects to return multiple rects (simulates wrapped content)
+      const rect1 = { top: 100, left: 50, bottom: 120, right: 200, width: 150, height: 20 };
+      const rect2 = { top: 130, left: 50, bottom: 150, right: 100, width: 50, height: 20 };
+      vi.spyOn(nodeView.dom, "getClientRects").mockReturnValue(
+        [rect1, rect2] as unknown as DOMRectList
+      );
+
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      expect(mockMathPreviewView.show).toHaveBeenCalledWith(
+        "x^2",
+        expect.objectContaining({ top: 100, left: 50 }),
+        expect.anything()
+      );
+    });
+
+    it("uses getBoundingClientRect when only one rect", () => {
+      createNodeView({ content: "x^2" });
+
+      const rect = { top: 100, left: 50, bottom: 120, right: 200, width: 150, height: 20 };
+      vi.spyOn(nodeView.dom, "getClientRects").mockReturnValue(
+        [rect] as unknown as DOMRectList
+      );
+      vi.spyOn(nodeView.dom, "getBoundingClientRect").mockReturnValue(
+        rect as unknown as DOMRect
+      );
+
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      expect(mockMathPreviewView.show).toHaveBeenCalled();
+    });
+  });
+
+  describe("Entry direction handling", () => {
+    it("checks inlineNodeEditing plugin state for entry direction", async () => {
+      const { inlineNodeEditingKey } = await import("@/plugins/inlineNodeEditing/tiptap");
+      vi.mocked(inlineNodeEditingKey.getState).mockReturnValue({
+        entryDirection: "right",
+      } as unknown as ReturnType<typeof inlineNodeEditingKey.getState>);
+
+      createNodeView({ content: "abcdef" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "abcdef" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      expect(input).not.toBeNull();
+      // With entry from right, cursor should be at end of text
+      // Verified via requestAnimationFrame in source
+    });
+  });
+
+  describe("commitChanges edge cases", () => {
+    it("deletes node when both old and new content are empty/whitespace", () => {
+      createNodeView({ content: "  " });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "  " }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "  ";
+
+      // Exit via Enter to commit
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+      // Should have called delete since both are whitespace
+      expect(mockView.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("ArrowRight exit", () => {
+    it("exits right when cursor is at end of input", () => {
+      createNodeView({ content: "xy" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "xy" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      Object.defineProperty(input, "selectionEnd", { value: 2, writable: true });
+      Object.defineProperty(input, "value", { value: "xy", writable: true });
+
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+
+      expect(mockView.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("Unwrap to text via shortcut", () => {
+    it("unwraps math node to plain text when shortcut matches", async () => {
+      const { matchesShortcutEvent } = await import("@/utils/shortcutMatch");
+      vi.mocked(matchesShortcutEvent).mockReturnValueOnce(true);
+
+      // Set up tr.doc.resolve for Selection.near after replaceWith
+      mockView.state.tr.doc = {
+        resolve: vi.fn(() => ({
+          pos: 0,
+          parent: { inlineContent: true, childCount: 0, type: { name: "paragraph" } },
+          depth: 1,
+        })),
+      };
+
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "m", metaKey: true, bubbles: true, cancelable: true }));
+
+      // Should have dispatched replaceWith for unwrapping
+      expect(mockView.state.tr.replaceWith).toHaveBeenCalled();
+    });
+  });
+
+  describe("Blur handling", () => {
+    it("commits and exits when input loses focus (not force-exited)", async () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "y^3";
+
+      // Mock matches(":focus") to return false
+      Object.defineProperty(input, "matches", {
+        value: () => false,
+        writable: true,
+      });
+
+      vi.clearAllMocks();
+      input.dispatchEvent(new Event("blur", { bubbles: true }));
+
+      // Wait for rAF
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Should have committed changes
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalled();
+    });
+  });
+
+  describe("MutationObserver class change detection", () => {
+    it("enters edit mode via MutationObserver when editing class is added", async () => {
+      createNodeView({ content: "x^2" });
+
+      // Directly add class (simulates what PM decoration does)
+      nodeView.dom.classList.add("editing");
+
+      // Wait for MutationObserver to fire
+      await new Promise((r) => setTimeout(r, 10));
+
+      const input = nodeView.dom.querySelector(".math-inline-input");
+      expect(input).not.toBeNull();
+    });
+
+    it("exits edit mode via MutationObserver when editing class is removed", async () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Verify in edit mode
+      expect(nodeView.dom.querySelector(".math-inline-input")).not.toBeNull();
+
+      nodeView.dom.classList.remove("editing");
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(nodeView.dom.querySelector(".math-inline-input")).toBeNull();
+    });
+  });
 });

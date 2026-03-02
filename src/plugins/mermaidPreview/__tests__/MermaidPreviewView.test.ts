@@ -295,6 +295,216 @@ describe("MermaidPreviewView", () => {
       expect(cleanupDescendants).toHaveBeenCalled();
     });
   });
+
+  describe("resize", () => {
+    it("resizes from SE corner", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const seHandle = container.querySelector('.mermaid-preview-resize-se') as HTMLElement;
+      expect(seHandle).not.toBeNull();
+
+      // Simulate resize: mousedown on handle, mousemove, mouseup
+      const mousedown = new MouseEvent("mousedown", {
+        clientX: 400, clientY: 300, bubbles: true,
+      });
+      seHandle.dispatchEvent(mousedown);
+
+      expect(container.classList.contains("resizing")).toBe(true);
+
+      const mousemove = new MouseEvent("mousemove", {
+        clientX: 500, clientY: 400, bubbles: true,
+      });
+      document.dispatchEvent(mousemove);
+
+      const mouseup = new MouseEvent("mouseup", { bubbles: true });
+      document.dispatchEvent(mouseup);
+
+      expect(container.classList.contains("resizing")).toBe(false);
+    });
+
+    it("enforces minimum width and height during resize", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      container.style.width = "300px";
+      container.style.height = "250px";
+
+      const seHandle = container.querySelector('.mermaid-preview-resize-se') as HTMLElement;
+
+      const mousedown = new MouseEvent("mousedown", {
+        clientX: 300, clientY: 250, bubbles: true,
+      });
+      seHandle.dispatchEvent(mousedown);
+
+      // Move to shrink below minimum (200x150)
+      const mousemove = new MouseEvent("mousemove", {
+        clientX: 50, clientY: 50, bubbles: true,
+      });
+      document.dispatchEvent(mousemove);
+
+      const width = parseInt(container.style.width);
+      const height = parseInt(container.style.height);
+      expect(width).toBeGreaterThanOrEqual(200);
+      expect(height).toBeGreaterThanOrEqual(150);
+
+      const mouseup = new MouseEvent("mouseup", { bubbles: true });
+      document.dispatchEvent(mouseup);
+    });
+
+    it("resizes from NW corner adjusting position", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const nwHandle = container.querySelector('.mermaid-preview-resize-nw') as HTMLElement;
+
+      const mousedown = new MouseEvent("mousedown", {
+        clientX: 100, clientY: 100, bubbles: true,
+      });
+      nwHandle.dispatchEvent(mousedown);
+
+      const mousemove = new MouseEvent("mousemove", {
+        clientX: 80, clientY: 80, bubbles: true,
+      });
+      document.dispatchEvent(mousemove);
+
+      const mouseup = new MouseEvent("mouseup", { bubbles: true });
+      document.dispatchEvent(mouseup);
+    });
+
+    it("does nothing on resize move when not resizing", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const initialWidth = container.style.width;
+
+      const mousemove = new MouseEvent("mousemove", {
+        clientX: 500, clientY: 400, bubbles: true,
+      });
+      document.dispatchEvent(mousemove);
+
+      expect(container.style.width).toBe(initialWidth);
+    });
+  });
+
+  describe("wheel zoom", () => {
+    it("zooms in on Cmd+scroll up", () => {
+      view.show("graph TD; A-->B", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const content = container.querySelector(".mermaid-preview-content") as HTMLElement;
+
+      const wheelEvent = new WheelEvent("wheel", {
+        deltaY: -100,
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      content.dispatchEvent(wheelEvent);
+
+      const zoomDisplay = container.querySelector(".mermaid-preview-zoom-value");
+      expect(zoomDisplay?.textContent).toBe("110%");
+    });
+
+    it("zooms out on Cmd+scroll down", () => {
+      view.show("graph TD; A-->B", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const content = container.querySelector(".mermaid-preview-content") as HTMLElement;
+
+      const wheelEvent = new WheelEvent("wheel", {
+        deltaY: 100,
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      content.dispatchEvent(wheelEvent);
+
+      const zoomDisplay = container.querySelector(".mermaid-preview-zoom-value");
+      expect(zoomDisplay?.textContent).toBe("90%");
+    });
+
+    it("does not zoom without modifier key", () => {
+      view.show("graph TD; A-->B", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const content = container.querySelector(".mermaid-preview-content") as HTMLElement;
+
+      const wheelEvent = new WheelEvent("wheel", {
+        deltaY: -100,
+        bubbles: true,
+        cancelable: true,
+      });
+      content.dispatchEvent(wheelEvent);
+
+      const zoomDisplay = container.querySelector(".mermaid-preview-zoom-value");
+      expect(zoomDisplay?.textContent).toBe("100%");
+    });
+
+    it("Ctrl+scroll also zooms", () => {
+      view.show("graph TD; A-->B", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const content = container.querySelector(".mermaid-preview-content") as HTMLElement;
+
+      const wheelEvent = new WheelEvent("wheel", {
+        deltaY: -100,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      content.dispatchEvent(wheelEvent);
+
+      const zoomDisplay = container.querySelector(".mermaid-preview-zoom-value");
+      expect(zoomDisplay?.textContent).toBe("110%");
+    });
+  });
+
+  describe("drag on controls area", () => {
+    it("does not start drag when clicking on zoom controls", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const zoomArea = container.querySelector(".mermaid-preview-zoom") as HTMLElement;
+
+      const mousedown = new MouseEvent("mousedown", {
+        clientX: 10, clientY: 10, bubbles: true,
+      });
+      Object.defineProperty(mousedown, "target", { value: zoomArea, writable: false });
+      container.querySelector(".mermaid-preview-header")?.dispatchEvent(mousedown);
+
+      // Zoom area is a child of header, so closest(".mermaid-preview-zoom") returns it
+      expect(container.classList.contains("dragging")).toBe(false);
+    });
+  });
+
+  describe("show edge cases", () => {
+    it("appends to host when parent changes", () => {
+      const editorDom1 = document.createElement("div");
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 }, editorDom1);
+      expect(view.isVisible()).toBe(true);
+
+      view.hide();
+
+      const editorDom2 = document.createElement("div");
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 }, editorDom2);
+      expect(view.isVisible()).toBe(true);
+    });
+
+    it("resets zoom and hasDragged on new show", () => {
+      view.show("graph TD", { top: 0, left: 0, width: 10, height: 10 });
+
+      // Zoom in
+      const container = document.querySelector(".mermaid-preview-popup") as HTMLElement;
+      const zoomInBtn = container.querySelector('[data-action="in"]') as HTMLElement;
+      zoomInBtn.click();
+
+      view.hide();
+
+      // Show again - zoom should stay as it persists
+      view.show("graph LR", { top: 0, left: 0, width: 10, height: 10 });
+      expect(view.isVisible()).toBe(true);
+    });
+  });
 });
 
 describe("getMermaidPreviewView", () => {

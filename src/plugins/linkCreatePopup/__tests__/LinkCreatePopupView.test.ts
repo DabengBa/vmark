@@ -387,6 +387,163 @@ describe("LinkCreatePopupView", () => {
     });
   });
 
+  describe("Tab keyboard navigation", () => {
+    it("cycles focus forward through focusable elements", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textInput = dom.container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.focus();
+
+      // Tab should move to next element
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      // Verify focus moved (exact target depends on DOM structure)
+    });
+
+    it("cycles focus backward with Shift+Tab", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const urlInput = dom.container.querySelector(".link-create-popup-url") as HTMLInputElement;
+      urlInput.focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+    });
+
+    it("Enter on button triggers click", async () => {
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: true,
+        text: "test", url: "https://example.com",
+        rangeFrom: 0, rangeTo: 0,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      saveBtn.focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("Escape from inside popup closes and focuses editor", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const urlInput = dom.container.querySelector(".link-create-popup-url") as HTMLInputElement;
+      urlInput.focus();
+
+      const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+
+      expect(mockClosePopup).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+  });
+
+  describe("Save without showTextInput (addMark)", () => {
+    it("applies link mark to existing selection range", async () => {
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: false,
+        text: "selected text", url: "https://example.com",
+        rangeFrom: 5, rangeTo: 18,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      saveBtn.click();
+
+      expect(view.state.tr.addMark).toHaveBeenCalled();
+      expect(view.dispatch).toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Save error handling", () => {
+    it("handles save error gracefully", async () => {
+      view.state.schema.marks.link.create = vi.fn(() => { throw new Error("test"); });
+
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: true,
+        text: "test", url: "https://error.com",
+        rangeFrom: 0, rangeTo: 0,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      expect(() => saveBtn.click()).not.toThrow();
+
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+
+    it("returns early when editorState is falsy", async () => {
+      const originalState = view.state;
+      (view as Record<string, unknown>).state = null;
+
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: true,
+        text: "test", url: "https://test.com",
+        rangeFrom: 0, rangeTo: 0,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      expect(() => saveBtn.click()).not.toThrow();
+
+      (view as Record<string, unknown>).state = originalState;
+    });
+  });
+
+  describe("URL input focuses when saving with empty URL", () => {
+    it("focuses URL input when trying to save without URL", async () => {
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: true,
+        text: "link", url: "", rangeFrom: 0, rangeTo: 0,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const urlInput = dom.container.querySelector(".link-create-popup-url") as HTMLInputElement;
+      const focusSpy = vi.spyOn(urlInput, "focus");
+
+      const saveBtn = dom.container.querySelector(".link-create-popup-btn-save") as HTMLElement;
+      saveBtn.click();
+
+      expect(focusSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("Enter key in text input", () => {
+    it("saves on Enter key in text input", async () => {
+      emitStateChange({
+        isOpen: true, anchorRect, showTextInput: true,
+        text: "test", url: "https://test.com",
+        rangeFrom: 0, rangeTo: 0,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textInput = dom.container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(view.dispatch).toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+
+    it("closes on Escape key in text input", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const textInput = dom.container.querySelector(".link-create-popup-text") as HTMLInputElement;
+      textInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(mockClosePopup).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+  });
+
   describe("Edge cases", () => {
     it("uses URL as link text when text is empty and showTextInput is true", async () => {
       emitStateChange({

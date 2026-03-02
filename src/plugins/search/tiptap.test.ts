@@ -401,3 +401,267 @@ describe("searchExtension", () => {
     });
   });
 });
+
+// --- Phase 3: Plugin-level integration tests ---
+// Instantiate the actual plugin from the extension and test its state apply logic.
+
+describe("search plugin integration", () => {
+  function getPlugin() {
+    const extensionContext = {
+      name: searchExtension.name,
+      options: searchExtension.options,
+      storage: searchExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = searchExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins).toHaveLength(1);
+    return plugins[0];
+  }
+
+  beforeEach(() => {
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "";
+    mockSearchState.replaceText = "";
+    mockSearchState.caseSensitive = false;
+    mockSearchState.wholeWord = false;
+    mockSearchState.useRegex = false;
+    mockSearchState.matchCount = 0;
+    mockSearchState.currentIndex = -1;
+    mockSearchState.setMatches.mockClear();
+    mockSearchState.findNext.mockClear();
+    mockSearchSubscribers.length = 0;
+  });
+
+  it("initializes with empty matches and DecorationSet.empty", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const pluginState = plugin.getState(state);
+    expect(pluginState.matches).toEqual([]);
+    expect(pluginState.currentIndex).toBe(-1);
+    expect(pluginState.decorationSet).toBe(DecorationSet.empty);
+  });
+
+  it("finds matches when search is open and query is set", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    // Apply a trivial transaction to trigger the apply() path
+    const nextState = state.apply(state.tr);
+    const pluginState = plugin.getState(nextState);
+
+    // setMatches should have been called with 2 matches
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
+  });
+
+  it("creates decorations for matches when search is open", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+    const pluginState = plugin.getState(nextState);
+
+    const decorations = pluginState.decorationSet.find();
+    expect(decorations.length).toBe(1);
+  });
+
+  it("marks the active match with search-match-active class", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 1;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+    const pluginState = plugin.getState(nextState);
+
+    const decorations = pluginState.decorationSet.find();
+    expect(decorations.length).toBe(2);
+    // Check decoration attrs
+    const activeDecoration = decorations.find(
+      (d: { type?: { attrs?: Record<string, string> } }) =>
+        d.type?.attrs?.class?.includes("search-match-active")
+    );
+    expect(activeDecoration).toBeDefined();
+  });
+
+  it("returns empty decorations when query is empty", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+    const pluginState = plugin.getState(nextState);
+
+    expect(pluginState.decorationSet.find().length).toBe(0);
+  });
+
+  it("returns empty decorations when search is closed", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+    const pluginState = plugin.getState(nextState);
+
+    expect(pluginState.decorationSet.find().length).toBe(0);
+  });
+
+  it("handles case-sensitive search via plugin", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["Hello HELLO hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.caseSensitive = true;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    // Only "hello" (lowercase) matches
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("handles whole word search via plugin", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello helloworld hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.wholeWord = true;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    // "hello" as whole word appears twice, "helloworld" is excluded
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
+  });
+
+  it("handles regex search via plugin", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello hallo hullo"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "h.llo";
+    mockSearchState.useRegex = true;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(3, 0);
+  });
+
+  it("handles invalid regex gracefully (returns 0 matches)", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "[invalid";
+    mockSearchState.useRegex = true;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
+  });
+
+  it("finds matches across multiple paragraphs", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello", "world", "hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
+  });
+
+  it("returns no matches for empty document", () => {
+    const plugin = getPlugin();
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, []),
+    ]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
+  });
+
+  it("escapes special regex chars in non-regex mode", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello.world hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello.world";
+    mockSearchState.useRegex = false;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    // In non-regex mode, "." is escaped — only matches literal "hello.world"
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("rebuilds decorations on doc change", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    // Trigger query detection
+    const state2 = state.apply(state.tr);
+
+    // Now change the doc
+    const tr = state2.tr.insertText(" hello", state2.doc.content.size - 1);
+    const state3 = state2.apply(tr);
+    const pluginState = plugin.getState(state3);
+
+    // Should have found more matches after the insert
+    expect(mockSearchState.setMatches).toHaveBeenLastCalledWith(2, 0);
+  });
+
+  it("provides decorations via props.decorations", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const nextState = state.apply(state.tr);
+
+    // Access decorations via plugin props
+    const decorations = plugin.props.decorations!(nextState);
+    expect(decorations).toBeDefined();
+    const found = (decorations as DecorationSet).find();
+    expect(found.length).toBe(1);
+  });
+});

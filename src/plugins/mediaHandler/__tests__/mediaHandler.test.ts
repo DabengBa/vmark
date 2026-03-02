@@ -302,6 +302,20 @@ describe("mediaHandler handlePaste behavior", () => {
     expect(handlePaste(mockView, event, null as never)).toBe(true);
   });
 
+  it("returns false when no clipboardData", () => {
+    const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+      name: "mediaHandler",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {} as unknown as ClipboardEvent;
+    expect(handlePaste(mockView, event, null as never)).toBe(false);
+  });
+
   it("returns false for whitespace-only text", () => {
     const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
       name: "mediaHandler",
@@ -360,6 +374,131 @@ describe("mediaHandler handlePaste behavior", () => {
       preventDefault: vi.fn(),
     } as unknown as ClipboardEvent;
     expect(handlePaste(mockView, event, null as never)).toBe(true);
+  });
+});
+
+describe("mediaHandler paste — no document path", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    mockView = {
+      state: {
+        doc: { nodeSize: 10 },
+        selection: { from: 0, to: 0 },
+      },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("returns false when document has no filePath and path is pasted", async () => {
+    // Override documentStore mock to return no filePath
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    (useDocumentStore.getState as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      getDocument: vi.fn(() => ({ filePath: null })),
+    });
+
+    const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+      name: "mediaHandler",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) =>
+          type === "text/plain" ? "/path/to/video.mp4" : ""
+        ),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    // With no document path, paste should return false
+    const result = handlePaste(mockView, event, null as never);
+    expect(result).toBe(false);
+  });
+});
+
+describe("mediaHandler drop — mixed files", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    mockView = {
+      state: {
+        doc: { nodeSize: 10 },
+        selection: { from: 0, to: 0 },
+      },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("handles drop with both media and non-media files", () => {
+    const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+      name: "mediaHandler",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: {
+        files: [
+          new File(["text"], "readme.txt", { type: "text/plain" }),
+          new File(["video"], "clip.mp4", { type: "video/mp4" }),
+        ],
+      },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    // Should return true because at least one media file is present
+    expect(handleDrop(mockView, event, null as never, false)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it("handleDrop detects media by extension fallback", () => {
+    const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+      name: "mediaHandler",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    const handleDrop = plugins[0].props.handleDrop!;
+    // File with empty MIME type but video extension
+    const event = {
+      dataTransfer: {
+        files: [new File(["video"], "clip.mkv", { type: "" })],
+      },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+    expect(handleDrop(mockView, event, null as never, false)).toBe(true);
+  });
+
+  it("handlePaste handles external audio URL", () => {
+    const plugins = mediaHandlerExtension.config.addProseMirrorPlugins!.call({
+      name: "mediaHandler",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) =>
+          type === "text/plain" ? "https://example.com/song.mp3" : ""
+        ),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+    expect(handlePaste(mockView, event, null as never)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
   });
 });
 

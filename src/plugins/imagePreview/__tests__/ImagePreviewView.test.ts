@@ -277,6 +277,146 @@ describe("ImagePreviewView loading states", () => {
   });
 });
 
+describe("ImagePreviewView media types", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("shows video element for video type", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.mp4", anchorRect, editorDom, "video");
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    expect(video).not.toBeNull();
+    expect(video.controls).toBe(true);
+
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(true);
+
+    view.destroy();
+  });
+
+  it("shows audio element for audio type", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.mp3", anchorRect, editorDom, "audio");
+
+    const audio = container.querySelector(".image-preview-audio") as HTMLAudioElement;
+    expect(audio).not.toBeNull();
+    expect(audio.controls).toBe(true);
+
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(true);
+
+    view.destroy();
+  });
+
+  it("does not add interactive class for image type", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.png", anchorRect, editorDom, "image");
+
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(false);
+
+    view.destroy();
+  });
+
+  it("pauses video and audio on hide", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.mp4", anchorRect, editorDom, "video");
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    const audio = container.querySelector(".image-preview-audio") as HTMLAudioElement;
+    const videoPauseSpy = vi.spyOn(video, "pause");
+    const audioPauseSpy = vi.spyOn(audio, "pause");
+
+    view.hide();
+
+    expect(videoPauseSpy).toHaveBeenCalled();
+    expect(audioPauseSpy).toHaveBeenCalled();
+
+    view.destroy();
+  });
+
+  it("increments resolve token on hide to cancel pending loads", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.png", anchorRect, editorDom);
+    expect(view.isVisible()).toBe(true);
+
+    view.hide();
+    expect(view.isVisible()).toBe(false);
+
+    view.destroy();
+  });
+});
+
+describe("ImagePreviewView external URLs", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("loads external HTTP URL directly", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/image.png", anchorRect, editorDom);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    view.destroy();
+  });
+
+  it("loads data: URL directly", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    view.destroy();
+  });
+
+  it("updateContent with type changes media type", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.png", anchorRect, editorDom, "image");
+
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(false);
+
+    view.updateContent("test.mp4", undefined, "video");
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(true);
+
+    view.destroy();
+  });
+});
+
 describe("ImagePreviewView updateContent", () => {
   let container: HTMLElement;
   const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };

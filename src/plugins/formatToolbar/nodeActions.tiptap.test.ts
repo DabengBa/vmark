@@ -576,3 +576,197 @@ describe("handleRemoveBlockquote", () => {
     expect(view.focus).toHaveBeenCalled();
   });
 });
+
+describe("getNodeContext — table with single row", () => {
+  it("detects single-row table correctly", () => {
+    const cell = testSchema.node("tableCell", null, [p("Cell")]);
+    const row = testSchema.node("tableRow", null, [cell]);
+    const table = testSchema.node("table", null, [row]);
+    const doc = testSchema.node("doc", null, [table]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const view = createViewWithState(stateWithSel);
+    const ctx = getNodeContext(view);
+
+    expect(ctx).not.toBeNull();
+    expect(ctx!.type).toBe("table");
+    if (ctx!.type === "table") {
+      expect(ctx!.numRows).toBe(1);
+      expect(ctx!.numCols).toBe(1);
+    }
+  });
+});
+
+describe("getNodeContext — mixed list types at different depths", () => {
+  it("detects ordered list inside bullet list", () => {
+    const innerLi = testSchema.node("listItem", null, [p("Inner ordered")]);
+    const innerList = testSchema.node("orderedList", null, [innerLi]);
+    const outerLi = testSchema.node("listItem", null, [p("Outer"), innerList]);
+    const outerList = testSchema.node("bulletList", null, [outerLi]);
+    const doc = testSchema.node("doc", null, [outerList]);
+
+    // Find text position in the inner list item
+    let innerTextPos = 0;
+    let foundOuter = false;
+    doc.descendants((node, pos) => {
+      if (node.isText) {
+        if (foundOuter) {
+          innerTextPos = pos;
+          return false;
+        }
+        foundOuter = true;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, innerTextPos))
+    );
+    const view = createViewWithState(stateWithSel);
+    const ctx = getNodeContext(view);
+
+    expect(ctx).not.toBeNull();
+    expect(ctx!.type).toBe("list");
+    if (ctx!.type === "list") {
+      expect(ctx!.listType).toBe("ordered");
+      expect(ctx!.depth).toBe(1);
+    }
+  });
+});
+
+describe("handleToBulletList — no bulletList in schema", () => {
+  it("returns early without throwing when bulletList type missing", async () => {
+    const { handleToBulletList } = await import("./nodeActions.tiptap");
+
+    const schemaNoList = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = schemaNoList.node("doc", null, [
+      schemaNoList.node("paragraph", null, [schemaNoList.text("text")]),
+    ]);
+    const state = EditorState.create({ doc, schema: schemaNoList });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    // Should not throw — bulletListType is undefined so it returns early
+    expect(() => handleToBulletList(view)).not.toThrow();
+    // dispatch should not be called since there's no bulletList type
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleToOrderedList — no orderedList in schema", () => {
+  it("returns early without throwing when orderedList type missing", async () => {
+    const { handleToOrderedList } = await import("./nodeActions.tiptap");
+
+    const schemaNoList = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = schemaNoList.node("doc", null, [
+      schemaNoList.node("paragraph", null, [schemaNoList.text("text")]),
+    ]);
+    const state = EditorState.create({ doc, schema: schemaNoList });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    expect(() => handleToOrderedList(view)).not.toThrow();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleBlockquoteNest — wraps content in blockquote", () => {
+  it("nests content in blockquote when in a blockquote", async () => {
+    const { handleBlockquoteNest } = await import("./nodeActions.tiptap");
+
+    const bq = testSchema.node("blockquote", null, [p("Quoted text")]);
+    const doc = testSchema.node("doc", null, [bq]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleBlockquoteNest(view);
+    expect(view.dispatch).toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+  });
+});
+
+describe("handleBlockquoteUnnest — lifts from blockquote", () => {
+  it("lifts content from blockquote", async () => {
+    const { handleBlockquoteUnnest } = await import("./nodeActions.tiptap");
+
+    const bq = testSchema.node("blockquote", null, [p("Quoted text")]);
+    const doc = testSchema.node("doc", null, [bq]);
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) {
+        textPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos))
+    );
+    const view = {
+      state: stateWithSel,
+      focus: vi.fn(),
+      dispatch: vi.fn(),
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    handleBlockquoteUnnest(view);
+    expect(view.focus).toHaveBeenCalled();
+    // dispatch may or may not be called depending on whether lift succeeds
+  });
+});

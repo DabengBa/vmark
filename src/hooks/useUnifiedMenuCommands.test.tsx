@@ -465,4 +465,108 @@ describe("useUnifiedMenuCommands", () => {
 
     expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
   });
+
+  it("maps addRowBelow to addRow in WYSIWYG mode", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:addRowBelow")).toBe(true));
+
+    listeners.get("menu:addRowBelow")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "addRow",
+      expect.any(Object)
+    );
+  });
+
+  it("maps addColRight to addCol in WYSIWYG mode", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:addColRight")).toBe(true));
+
+    listeners.get("menu:addColRight")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "addCol",
+      expect.any(Object)
+    );
+  });
+
+  it("maps bookmark to link:bookmark in WYSIWYG mode", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:bookmark")).toBe(true));
+
+    listeners.get("menu:bookmark")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "link:bookmark",
+      expect.any(Object)
+    );
+  });
+
+  it("dispatches increaseHeading to source adapter in source mode", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:increaseHeading")).toBe(true));
+
+    listeners.get("menu:increaseHeading")?.({ payload: "main" });
+
+    expect(performSourceToolbarAction).toHaveBeenCalledWith(
+      "increaseHeading",
+      expect.objectContaining({ surface: "source" })
+    );
+  });
+
+  it("does not dispatch to WYSIWYG when editor view is null", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: null };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    // Editor exists but view is null — should not dispatch
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch to source when view is null", async () => {
+    sourceMode = true;
+    activeSourceView = null;
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    // Source view is null — should not dispatch (will trigger retry)
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("dispatches bold in source mode (source-supported)", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    // In our mock, bold: supports { wysiwyg: false, source: true }
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:bold")).toBe(true));
+
+    listeners.get("menu:bold")?.({ payload: "main" });
+
+    // Bold is only supported in source mode in our mock
+    expect(performSourceToolbarAction).toHaveBeenCalledWith(
+      "bold",
+      expect.objectContaining({ surface: "source" })
+    );
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+  });
 });

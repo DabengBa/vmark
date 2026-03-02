@@ -394,5 +394,167 @@ describe("wikiLinkPopupExtension", () => {
       // Should not throw
       pluginView.update();
     });
+
+    it("destroy also destroys the popup view", () => {
+      const { pluginView } = createPluginView();
+      pluginView.destroy();
+      expect(mockPopupViewDestroy).toHaveBeenCalled();
+    });
+
+    it("destroy clears hover timeout", () => {
+      vi.useFakeTimers();
+      const { pluginView, mockView } = createPluginView();
+
+      // Start a hover
+      const wikiLinkEl = document.createElement("span");
+      wikiLinkEl.className = "wiki-link";
+      wikiLinkEl.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl : null
+      );
+
+      const handler = mockView.listeners["mouseover"][0];
+      handler({ target: wikiLinkEl } as unknown as MouseEvent);
+
+      // Destroy before hover fires
+      pluginView.destroy();
+
+      vi.advanceTimersByTime(500);
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("mouseout clears currentLinkElement", () => {
+      vi.useFakeTimers();
+      const { mockView } = createPluginView();
+
+      const wikiLinkEl = document.createElement("span");
+      wikiLinkEl.className = "wiki-link";
+      wikiLinkEl.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl : null
+      );
+
+      const overHandler = mockView.listeners["mouseover"][0];
+      overHandler({ target: wikiLinkEl } as unknown as MouseEvent);
+
+      // Mouseout to unrelated
+      const outHandler = mockView.listeners["mouseout"][0];
+      const unrelated = document.createElement("div");
+      unrelated.closest = vi.fn(() => null);
+      outHandler({ relatedTarget: unrelated } as unknown as MouseEvent);
+
+      // Hover again on a different wiki link - should not be blocked by same-element check
+      const wikiLinkEl2 = document.createElement("span");
+      wikiLinkEl2.className = "wiki-link";
+      wikiLinkEl2.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl2 : null
+      );
+      wikiLinkEl2.getBoundingClientRect = vi.fn(() => ({
+        top: 200, left: 100, bottom: 220, right: 300,
+        width: 200, height: 20, x: 100, y: 200, toJSON: () => ({}),
+      }));
+
+      overHandler({ target: wikiLinkEl2 } as unknown as MouseEvent);
+      vi.advanceTimersByTime(300);
+
+      expect(mockOpenPopup).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("mouseout starts hide timer that closes popup if not hovered", () => {
+      vi.useFakeTimers();
+      const { mockView } = createPluginView();
+
+      storeState.isOpen = true;
+
+      // Create a popup element in DOM that matches(:hover) returns false
+      const popupEl = document.createElement("div");
+      popupEl.className = "wiki-link-popup";
+      document.body.appendChild(popupEl);
+
+      const outHandler = mockView.listeners["mouseout"][0];
+      const unrelated = document.createElement("div");
+      unrelated.closest = vi.fn(() => null);
+      outHandler({ relatedTarget: unrelated } as unknown as MouseEvent);
+
+      // After the hide delay (100ms), it checks :hover. In jsdom, :hover is always false
+      vi.advanceTimersByTime(150);
+
+      // closePopup should have been called since popup is not hovered
+      expect(mockClosePopup).toHaveBeenCalled();
+      popupEl.remove();
+      vi.useRealTimers();
+    });
+
+    it("mouseout with null relatedTarget clears hover", () => {
+      vi.useFakeTimers();
+      const { mockView } = createPluginView();
+
+      const wikiLinkEl = document.createElement("span");
+      wikiLinkEl.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl : null
+      );
+
+      const overHandler = mockView.listeners["mouseover"][0];
+      overHandler({ target: wikiLinkEl } as unknown as MouseEvent);
+
+      const outHandler = mockView.listeners["mouseout"][0];
+      outHandler({ relatedTarget: null } as unknown as MouseEvent);
+
+      vi.advanceTimersByTime(500);
+      // Timer was cleared, should not open
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("shows popup with correct attrs when node has value", () => {
+      vi.useFakeTimers();
+      const { mockView } = createPluginView();
+
+      const wikiLinkEl = document.createElement("span");
+      wikiLinkEl.className = "wiki-link";
+      wikiLinkEl.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl : null
+      );
+      wikiLinkEl.getBoundingClientRect = vi.fn(() => ({
+        top: 100, left: 50, bottom: 120, right: 200,
+        width: 150, height: 20, x: 50, y: 100, toJSON: () => ({}),
+      }));
+
+      const handler = mockView.listeners["mouseover"][0];
+      handler({ target: wikiLinkEl } as unknown as MouseEvent);
+      vi.advanceTimersByTime(300);
+
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 100, left: 50 }),
+        "my-page",
+        5
+      );
+      vi.useRealTimers();
+    });
+
+    it("mouseover clears previous hover when moving to non-wiki-link", () => {
+      vi.useFakeTimers();
+      const { mockView } = createPluginView();
+
+      const wikiLinkEl = document.createElement("span");
+      wikiLinkEl.className = "wiki-link";
+      wikiLinkEl.closest = vi.fn((sel: string) =>
+        sel === "span.wiki-link" ? wikiLinkEl : null
+      );
+
+      const overHandler = mockView.listeners["mouseover"][0];
+      overHandler({ target: wikiLinkEl } as unknown as MouseEvent);
+
+      vi.advanceTimersByTime(100);
+
+      // Move to non-wiki-link element via mouseover
+      const plainEl = document.createElement("div");
+      plainEl.closest = vi.fn(() => null);
+      overHandler({ target: plainEl } as unknown as MouseEvent);
+
+      vi.advanceTimersByTime(300);
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
   });
 });

@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, Plugin, TextSelection } from "@tiptap/pm/state";
+import { EditorState, Plugin, TextSelection, NodeSelection } from "@tiptap/pm/state";
 
 const mockOpenPopup = vi.fn();
 const mockClosePopup = vi.fn();
@@ -27,10 +27,10 @@ vi.mock("@/stores/footnotePopupStore", () => ({
 }));
 
 vi.mock("./FootnotePopupView", () => ({
-  FootnotePopupView: vi.fn().mockImplementation(() => ({
-    update: vi.fn(),
-    destroy: vi.fn(),
-  })),
+  FootnotePopupView: class MockFootnotePopupView {
+    update = vi.fn();
+    destroy = vi.fn();
+  },
 }));
 
 vi.mock("./footnote-popup.css", () => ({}));
@@ -443,5 +443,300 @@ describe("appendTransaction edge cases", () => {
       const newLabels = getReferenceLabels(tr.doc);
       expect(newLabels).toEqual(new Set(["1"]));
     }
+  });
+});
+
+describe("footnotePopup plugin handler integration", () => {
+  let plugin: InstanceType<typeof Plugin>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    const extensionContext = {
+      name: footnotePopupExtension.name,
+      options: footnotePopupExtension.options,
+      storage: footnotePopupExtension.storage,
+      editor: {} as import("@tiptap/core").Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = footnotePopupExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    plugin = plugins[0];
+  });
+
+  describe("handleDOMEvents.mousedown", () => {
+    it("returns true when target is a footnote reference", () => {
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      document.body.appendChild(refEl);
+
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mousedown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(true);
+
+      document.body.removeChild(refEl);
+    });
+
+    it("returns false when target is not a footnote reference", () => {
+      const div = document.createElement("div");
+      document.body.appendChild(div);
+
+      const event = new MouseEvent("mousedown");
+      Object.defineProperty(event, "target", { value: div });
+
+      const handler = plugin.props.handleDOMEvents!.mousedown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(div);
+    });
+  });
+
+  describe("handleDOMEvents.mouseover", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns false for non-footnote elements", () => {
+      const div = document.createElement("div");
+      const event = new MouseEvent("mouseover");
+      Object.defineProperty(event, "target", { value: div });
+
+      const handler = plugin.props.handleDOMEvents!.mouseover!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("handleDOMEvents.mouseout", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("schedules popup close when moving away from footnote", () => {
+      vi.useFakeTimers();
+
+      const div = document.createElement("div");
+      const event = new MouseEvent("mouseout");
+      Object.defineProperty(event, "relatedTarget", { value: div });
+      Object.defineProperty(event, "target", { value: document.createElement("sup") });
+
+      const handler = plugin.props.handleDOMEvents!.mouseout!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+
+      vi.advanceTimersByTime(150);
+      // Should have tried to close popup
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+
+    it("does not close when moving to popup element", () => {
+      vi.useFakeTimers();
+
+      const popup = document.createElement("div");
+      popup.className = "footnote-popup";
+      document.body.appendChild(popup);
+
+      const event = new MouseEvent("mouseout");
+      Object.defineProperty(event, "relatedTarget", { value: popup });
+
+      const handler = plugin.props.handleDOMEvents!.mouseout!;
+      handler({} as never, event);
+
+      vi.advanceTimersByTime(150);
+      expect(mockClosePopup).not.toHaveBeenCalled();
+
+      document.body.removeChild(popup);
+    });
+  });
+
+  describe("handleKeyDown", () => {
+    it("returns false for non-Escape keys", () => {
+      const event = new KeyboardEvent("keydown", { key: "Enter" });
+      const handler = plugin.props.handleKeyDown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+    });
+
+    it("returns false for Escape when popup is not open", () => {
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      const handler = plugin.props.handleKeyDown!;
+      // mockClosePopup returns isOpen: false by default
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("handleClick", () => {
+    it("returns false when target is not a footnote element", () => {
+      const div = document.createElement("div");
+      document.body.appendChild(div);
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: div });
+
+      const handler = plugin.props.handleClick!;
+      const mockView = {
+        state: createState(schema.node("doc", null, [p("hello")])),
+      };
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(div);
+    });
+  });
+
+  describe("appendTransaction", () => {
+    it("returns null when no doc change", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        fnDef("1"),
+      ]);
+      const state = createState(doc);
+
+      // Create a non-doc-changing transaction
+      const tr = state.tr;
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        state,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null when old doc has no footnotes", () => {
+      const oldDoc = schema.node("doc", null, [p("no footnotes")]);
+      const newDoc = schema.node("doc", null, [p("still no footnotes")]);
+      const oldState = createState(oldDoc);
+      const newState = createState(newDoc);
+
+      // Create a doc-changing transaction
+      const tr = oldState.tr.insertText("x", 1);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        oldState,
+        newState,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null when no references were deleted", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        fnDef("1"),
+      ]);
+      const state = createState(doc);
+
+      // Apply a doc change that doesn't remove refs
+      const tr = state.tr.insertText("B", 1);
+      const newState = state.apply(tr);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("cleans up orphaned definitions when ref is deleted", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        pWithRef("B", "2"),
+        fnDef("1"),
+        fnDef("2"),
+      ]);
+      const state = createState(doc);
+
+      // Delete the paragraph containing ref "2"
+      // Find the paragraph with "B" and ref "2"
+      let refPos = 0;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "paragraph" && node.textContent.includes("B")) {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      // Replace the paragraph with one without a ref
+      const newPara = p("B was here");
+      const tr = state.tr.replaceWith(refPos, refPos + state.doc.child(1).nodeSize, newPara);
+      const newState = state.apply(tr);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      // Should return a cleanup transaction
+      expect(result).not.toBeNull();
+    });
+
+    it("deletes all definitions when all refs are removed", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        fnDef("1"),
+      ]);
+      const state = createState(doc);
+
+      // Replace the paragraph with one without a ref
+      const newPara = p("No refs anymore");
+      const tr = state.tr.replaceWith(0, state.doc.child(0).nodeSize, newPara);
+      const newState = state.apply(tr);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      // Should return transaction that deletes the orphaned definition
+      expect(result).not.toBeNull();
+      if (result) {
+        const defs = getDefinitionInfo(result.doc);
+        expect(defs).toHaveLength(0);
+      }
+    });
+  });
+
+  describe("plugin view lifecycle", () => {
+    it("creates view with update and destroy methods", () => {
+      const mockEditorView = {
+        state: createState(schema.node("doc", null, [p("hello")])),
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => null),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      expect(viewResult).toBeDefined();
+      expect(viewResult.update).toBeTypeOf("function");
+      expect(viewResult.destroy).toBeTypeOf("function");
+    });
+
+    it("update method does not throw", () => {
+      const mockEditorView = {
+        state: createState(schema.node("doc", null, [p("hello")])),
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => null),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      expect(() => viewResult.update!({} as never, {} as never)).not.toThrow();
+    });
+
+    it("destroy method does not throw", () => {
+      const mockEditorView = {
+        state: createState(schema.node("doc", null, [p("hello")])),
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => null),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      expect(() => viewResult.destroy!()).not.toThrow();
+    });
   });
 });

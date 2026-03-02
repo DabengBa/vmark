@@ -497,6 +497,80 @@ describe("useExternalFileChanges — dirty file prompt", () => {
     expect(doc?.isDivergent).toBe(true);
   });
 
+  it("opens Save As dialog when user chooses Save As and saves successfully", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Save As...");
+    mocks.dialogSave.mockResolvedValue("/workspace/saved-copy.md");
+    mocks.saveToPath.mockResolvedValue(true);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    expect(mocks.dialogSave).toHaveBeenCalled();
+    expect(mocks.saveToPath).toHaveBeenCalledWith("tab-1", "/workspace/saved-copy.md", "# user edits", "manual");
+  });
+
+  it("keeps user changes when Save As is cancelled", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Save As...");
+    mocks.dialogSave.mockResolvedValue(null); // Cancelled
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    // Should NOT reload — user cancelled Save As, so keep their changes
+    expect(mocks.reloadTabFromDisk).not.toHaveBeenCalled();
+  });
+
+  it("marks as missing when reload fails", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Reload");
+    mocks.reloadTabFromDisk.mockRejectedValue(new Error("reload failed"));
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    const doc = useDocumentStore.getState().documents["tab-1"];
+    expect(doc?.isMissing).toBe(true);
+
+    errorSpy.mockRestore();
+  });
+
   it("reloads from disk when user chooses Reload", async () => {
     seedDirtyStores();
     mocks.readTextFile.mockResolvedValue("# external change");

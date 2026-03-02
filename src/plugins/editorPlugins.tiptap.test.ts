@@ -4,7 +4,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { useShortcutsStore } from "@/stores/shortcutsStore";
-import { buildEditorKeymapBindings } from "./editorPlugins.tiptap";
+import { buildEditorKeymapBindings, editorKeymapExtension, expandedToggleMarkTiptap } from "./editorPlugins.tiptap";
 
 function resetShortcuts() {
   useShortcutsStore.setState({ customBindings: {} });
@@ -229,6 +229,198 @@ describe("buildEditorKeymapBindings", () => {
       expect(typeof handler).toBe("function");
       // Verify it's callable (all bindings are ProseMirror commands)
       expect(handler.length).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe("editorKeymapExtension integration", () => {
+  it("has name editorKeymaps", () => {
+    expect(editorKeymapExtension.name).toBe("editorKeymaps");
+  });
+
+  it("has priority 1000", () => {
+    expect(editorKeymapExtension.options.priority ?? editorKeymapExtension.config.priority).toBe(1000);
+  });
+
+  it("creates plugin via addProseMirrorPlugins", () => {
+    const extensionContext = {
+      name: editorKeymapExtension.name,
+      options: editorKeymapExtension.options,
+      storage: editorKeymapExtension.storage,
+      editor: {},
+      type: null,
+      parent: undefined,
+    };
+    const plugins = editorKeymapExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins.length).toBe(1);
+    expect(plugins[0].spec.key).toBeDefined();
+  });
+
+  it("plugin has handleKeyDown in props", () => {
+    const extensionContext = {
+      name: editorKeymapExtension.name,
+      options: editorKeymapExtension.options,
+      storage: editorKeymapExtension.storage,
+      editor: {},
+      type: null,
+      parent: undefined,
+    };
+    const plugins = editorKeymapExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins[0].props.handleKeyDown).toBeTypeOf("function");
+  });
+
+  it("plugin view destroy unsubscribes from store", () => {
+    const extensionContext = {
+      name: editorKeymapExtension.name,
+      options: editorKeymapExtension.options,
+      storage: editorKeymapExtension.storage,
+      editor: {},
+      type: null,
+      parent: undefined,
+    };
+    const plugins = editorKeymapExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const plugin = plugins[0];
+
+    // Call the view factory
+    const viewResult = plugin.spec.view!({} as never);
+    expect(viewResult).toBeDefined();
+    expect(viewResult.destroy).toBeTypeOf("function");
+    // destroy should not throw
+    expect(() => viewResult.destroy!()).not.toThrow();
+  });
+
+  it("re-exports expandedToggleMarkTiptap", () => {
+    expect(expandedToggleMarkTiptap).toBeTypeOf("function");
+  });
+});
+
+describe("buildEditorKeymapBindings handler execution", () => {
+  it("toggleSidebar binding returns true", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("toggleSidebar");
+    if (key) {
+      // Commands receive (state, dispatch, view) — toggleSidebar doesn't use them
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(true);
+    }
+  });
+
+  it("Escape handler returns false when no popup/toolbar open and no mark boundary", () => {
+    const bindings = buildEditorKeymapBindings();
+    // Escape is wrapped with guardProseMirrorCommand which calls the inner fn
+    // with (state, dispatch, view). When view is undefined, inner function returns false.
+    const result = bindings.Escape({} as never, undefined, undefined);
+    expect(result).toBe(false);
+  });
+
+  it("Mod-z handler calls performUnifiedUndo", () => {
+    const bindings = buildEditorKeymapBindings();
+    // It calls performUnifiedUndo which returns a boolean
+    const result = bindings["Mod-z"]({} as never, undefined, undefined);
+    // performUnifiedUndo returns false when no history available
+    expect(typeof result).toBe("boolean");
+  });
+
+  it("Mod-Shift-z handler calls performUnifiedRedo", () => {
+    const bindings = buildEditorKeymapBindings();
+    const result = bindings["Mod-Shift-z"]({} as never, undefined, undefined);
+    expect(typeof result).toBe("boolean");
+  });
+
+  it("mark formatting bindings return false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const markNames = ["bold", "italic", "code", "strikethrough", "underline", "highlight"];
+
+    for (const name of markNames) {
+      const key = shortcuts.getShortcut(name);
+      if (key && bindings[key]) {
+        const result = bindings[key]({} as never, undefined, undefined);
+        expect(result).toBe(false);
+      }
+    }
+  });
+
+  it("link binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("link");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("pastePlainText binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("pastePlainText");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("insertImage binding returns true (emits menu event)", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("insertImage");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(true);
+    }
+  });
+
+  it("blockquote binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("sourcePeek binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const key = "F5";
+    if (bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("line operation bindings return false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const lineOps = ["moveLineUp", "moveLineDown", "duplicateLine", "deleteLine", "joinLines"];
+
+    for (const name of lineOps) {
+      const key = shortcuts.getShortcut(name);
+      if (key) {
+        const pmKey = key
+          .replace(/\bUp\b/g, "ArrowUp")
+          .replace(/\bDown\b/g, "ArrowDown");
+        if (bindings[pmKey]) {
+          const result = bindings[pmKey]({} as never, undefined, undefined);
+          expect(result).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("text transform bindings return false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const transforms = ["transformUppercase", "transformLowercase", "transformTitleCase", "transformToggleCase"];
+
+    for (const name of transforms) {
+      const key = shortcuts.getShortcut(name);
+      if (key && bindings[key]) {
+        const result = bindings[key]({} as never, undefined, undefined);
+        expect(result).toBe(false);
+      }
     }
   });
 });

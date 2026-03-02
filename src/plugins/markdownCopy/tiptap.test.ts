@@ -220,6 +220,63 @@ describe("cleanTextForClipboard", () => {
   });
 });
 
+describe("markdownCopyExtension structure", () => {
+  it("has correct name", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    expect(markdownCopyExtension.name).toBe("markdownCopy");
+  });
+
+  it("defines ProseMirror plugins", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    expect(markdownCopyExtension.config.addProseMirrorPlugins).toBeDefined();
+  });
+
+  it("plugin has clipboardTextSerializer", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "markdownCopy",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    expect(plugins).toHaveLength(1);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer?: unknown } };
+    expect(plugin.props.clipboardTextSerializer).toBeDefined();
+  });
+
+  it("plugin has mouseup DOM event handler", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "markdownCopy",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents?: { mouseup?: unknown } } };
+    expect(plugin.props.handleDOMEvents?.mouseup).toBeDefined();
+  });
+});
+
+describe("ensureBlockContent via cleanMarkdownForClipboard integration", () => {
+  it("handles input with only markdown formatting", () => {
+    expect(cleanMarkdownForClipboard("**bold** *italic* `code`")).toBe(
+      "**bold** *italic* `code`"
+    );
+  });
+
+  it("handles escaped exclamation mark", () => {
+    expect(cleanMarkdownForClipboard("\\!important")).toBe("!important");
+  });
+
+  it("handles consecutive escapes", () => {
+    expect(cleanMarkdownForClipboard("\\$\\$math\\$\\$")).toBe("$$math$$");
+  });
+});
+
 describe("cleanMarkdownForClipboard — additional edge cases", () => {
   it("handles empty string", () => {
     expect(cleanMarkdownForClipboard("")).toBe("");

@@ -452,6 +452,108 @@ describe("linkPopupExtension", () => {
     });
   });
 
+  describe("handleClick — bookmark links (#fragment)", () => {
+    function getHandleClick() {
+      const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({
+        editor: { view: {} },
+      } as unknown as Parameters<typeof linkPopupExtension.config.addProseMirrorPlugins>[0]);
+      return plugins[0].props.handleClick! as (
+        view: EditorView,
+        pos: number,
+        event: MouseEvent
+      ) => boolean;
+    }
+
+    it("navigates to heading on Cmd+click on #fragment link when heading found", async () => {
+      const handleClick = getHandleClick();
+      const { findHeadingById } = await import("@/utils/headingSlug");
+
+      // Create doc with heading and a fragment link
+      const linkMark = schema.marks.link.create({ href: "#test-heading" });
+      const doc = schema.node("doc", null, [
+        schema.node("heading", { level: 1, id: "test-heading" }, [schema.text("Test Heading")]),
+        schema.node("paragraph", null, [
+          schema.text("click", [linkMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+      view.dispatch = vi.fn();
+
+      // Heading at position 0, so findHeadingById returns 0
+      vi.mocked(findHeadingById).mockReturnValue(0);
+
+      const linkPos = 15; // Inside the link text "click" in the paragraph after heading
+      const event = new MouseEvent("click", { metaKey: true });
+      const result = handleClick(view, linkPos, event);
+
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+
+    it("navigateToFragment catches and handles errors", async () => {
+      const handleClick = getHandleClick();
+      const { findHeadingById } = await import("@/utils/headingSlug");
+
+      // findHeadingById returns a position that causes resolve to fail
+      vi.mocked(findHeadingById).mockReturnValue(999);
+
+      const linkMark = schema.marks.link.create({ href: "#bad" });
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [schema.text("link", [linkMark])]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: true });
+      // Should not throw even if resolve fails
+      const result = handleClick(view, 2, event);
+      // Returns false because navigateToFragment catches the error and returns false
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("handleClick — regular click edge cases", () => {
+    function getHandleClick() {
+      const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({
+        editor: { view: {} },
+      } as unknown as Parameters<typeof linkPopupExtension.config.addProseMirrorPlugins>[0]);
+      return plugins[0].props.handleClick! as (
+        view: EditorView,
+        pos: number,
+        event: MouseEvent
+      ) => boolean;
+    }
+
+    it("regular click on link opens popup and returns false", () => {
+      const handleClick = getHandleClick();
+      const doc = createDocWithLink("pre ", "my link", "http://example.com", " post");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click");
+      const result = handleClick(view, 6, event);
+
+      expect(result).toBe(false); // returns false to let PM place cursor
+      expect(mockLinkPopupState.openPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ href: "http://example.com" })
+      );
+    });
+
+    it("Cmd+click on link with empty href returns false", () => {
+      const handleClick = getHandleClick();
+      const doc = createDocWithLink("", "click", "", "");
+      const state = EditorState.create({ doc, schema });
+      const view = createMockView(state);
+
+      const event = new MouseEvent("click", { metaKey: true });
+      const result = handleClick(view, 2, event);
+
+      expect(result).toBe(false);
+    });
+  });
+
   describe("LinkPopupPluginView lifecycle", () => {
     it("plugin creates a view with destroy method", () => {
       const plugins = linkPopupExtension.config.addProseMirrorPlugins!.call({

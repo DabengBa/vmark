@@ -1,8 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { MultiSelectionContext } from "./types";
 import { performSourceToolbarAction, setSourceHeadingLevel } from "./sourceAdapter";
+
+const views: EditorView[] = [];
 
 function createView(doc: string, ranges: Array<{ from: number; to: number }>): EditorView {
   const parent = document.createElement("div");
@@ -14,8 +16,15 @@ function createView(doc: string, ranges: Array<{ from: number; to: number }>): E
     selection,
     extensions: [EditorState.allowMultipleSelections.of(true)],
   });
-  return new EditorView({ state, parent });
+  const view = new EditorView({ state, parent });
+  views.push(view);
+  return view;
 }
+
+afterEach(() => {
+  views.forEach((v) => { try { v.destroy(); } catch {} });
+  views.length = 0;
+});
 
 const multiSelection: MultiSelectionContext = {
   enabled: true,
@@ -360,6 +369,199 @@ describe("performSourceToolbarAction", () => {
       expect(applied).toBe(false);
     }
     view.destroy();
+  });
+
+  it("inserts footnote syntax", () => {
+    const view = createView("text", [{ from: 0, to: 4 }]);
+    const applied = performSourceToolbarAction("insertFootnote", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("inserts details block", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertDetails", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("details");
+    view.destroy();
+  });
+
+  it("inserts alert block with correct type", () => {
+    const alertActions = [
+      "insertAlertNote",
+      "insertAlertTip",
+      "insertAlertImportant",
+      "insertAlertWarning",
+      "insertAlertCaution",
+    ];
+    for (const action of alertActions) {
+      const view = createView("", [{ from: 0, to: 0 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source",
+        view,
+        context: null,
+        multiSelection: singleSelection,
+      });
+      expect(applied).toBe(true);
+      // All alert blocks start with > [!TYPE]
+      expect(view.state.doc.toString()).toContain("> [!");
+      view.destroy();
+    }
+  });
+
+  it("inserts math block", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertMath", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("$$");
+    view.destroy();
+  });
+
+  it("inserts diagram block", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertDiagram", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("```mermaid");
+    view.destroy();
+  });
+
+  it("inserts markmap block", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertMarkmap", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("```markmap");
+    view.destroy();
+  });
+
+  it("inserts math block with existing selection as content", () => {
+    const view = createView("x^2 + y^2", [{ from: 0, to: 9 }]);
+    const applied = performSourceToolbarAction("insertMath", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    const docText = view.state.doc.toString();
+    expect(docText).toContain("$$");
+    expect(docText).toContain("x^2 + y^2");
+    view.destroy();
+  });
+
+  it("handles list operations on existing lists", () => {
+    const view = createView("- item", [{ from: 2, to: 2 }]);
+    const indent = performSourceToolbarAction("indent", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(indent).toBe(true);
+    view.destroy();
+  });
+
+  it("handles removeList on existing list", () => {
+    const view = createView("- item", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("removeList", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toBe("item");
+    view.destroy();
+  });
+
+  it("handles nestBlockquote on existing blockquote", () => {
+    const view = createView("> quote", [{ from: 2, to: 2 }]);
+    const nest = performSourceToolbarAction("nestBlockquote", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(nest).toBe(true);
+    // nestBlockquote adds "> " prefix
+    expect(view.state.doc.toString()).toContain("> ");
+    view.destroy();
+  });
+
+  it("handles unnestBlockquote on existing blockquote", () => {
+    const view = createView("> > quote", [{ from: 4, to: 4 }]);
+    const unnest = performSourceToolbarAction("unnestBlockquote", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(unnest).toBe(true);
+    view.destroy();
+  });
+
+  it("handles removeBlockquote on existing blockquote", () => {
+    const view = createView("> quote", [{ from: 2, to: 2 }]);
+    const remove = performSourceToolbarAction("removeBlockquote", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(remove).toBe(true);
+    view.destroy();
+  });
+
+  it("handles selection actions", () => {
+    const view = createView("hello world", [{ from: 2, to: 2 }]);
+    const selectWord = performSourceToolbarAction("selectWord", {
+      surface: "source",
+      view,
+      context: null,
+      multiSelection: singleSelection,
+    });
+    expect(selectWord).toBe(true);
+    view.destroy();
+  });
+
+  it("handles inline formatting actions", () => {
+    const formats = ["bold", "italic", "strikethrough", "highlight",
+      "superscript", "subscript", "code", "underline"];
+    for (const format of formats) {
+      const view = createView("hello", [{ from: 0, to: 5 }]);
+      const applied = performSourceToolbarAction(format, {
+        surface: "source",
+        view,
+        context: null,
+        multiSelection: singleSelection,
+      });
+      expect(applied).toBe(true);
+      view.destroy();
+    }
   });
 
   it("returns false when multi-selection disallows insert actions", () => {

@@ -319,6 +319,68 @@ describe("useFinderFileOpen", () => {
     errorSpy.mockRestore();
   });
 
+  it("warns when hot exit restore times out", async () => {
+    mockWaitForRestoreComplete.mockResolvedValue(false);
+    const { finderFileOpenWarn } = await import("@/utils/debug");
+
+    await act(async () => {
+      render(<TestComponent />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(finderFileOpenWarn).toHaveBeenCalledWith(
+      expect.stringContaining("timed out")
+    );
+  });
+
+  it("adopts workspace when no current workspace exists and workspace_root provided", async () => {
+    await act(async () => {
+      render(<TestComponent />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      listenHandler!({
+        payload: { path: "/new-workspace/file.md", workspace_root: "/new-workspace" },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockOpenWorkspaceWithConfig).toHaveBeenCalledWith("/new-workspace");
+    expect(mockCreateTab).toHaveBeenCalled();
+  });
+
+  it("handles init failure gracefully", async () => {
+    // Force listen to reject
+    listenMock.mockRejectedValueOnce(new Error("listen failed"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      render(<TestComponent />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Init failed"),
+      expect.any(Error)
+    );
+
+    errorSpy.mockRestore();
+    // Reset listen mock
+    listenMock.mockImplementation((_eventName: string, handler: ListenHandler) => {
+      listenHandler = handler;
+      return Promise.resolve(() => { listenHandler = null; });
+    });
+  });
+
   it("adds file to recent files on success", async () => {
     await act(async () => {
       render(<TestComponent />);

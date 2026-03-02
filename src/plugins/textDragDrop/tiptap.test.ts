@@ -423,6 +423,121 @@ describe("mouseup without drag (click behavior)", () => {
   });
 });
 
+// --- Phase 3: Plugin-level integration tests ---
+// Extract the actual ProseMirror plugin and test its handleDOMEvents.mousedown handler.
+
+describe("textDragDrop plugin handler integration", () => {
+  let mousedownHandler: (view: unknown, event: MouseEvent) => boolean;
+
+  beforeEach(() => {
+    const extensionContext = {
+      name: textDragDropExtension.name,
+      options: textDragDropExtension.options,
+      storage: textDragDropExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = textDragDropExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    expect(plugins).toHaveLength(1);
+    const plugin = plugins[0];
+    mousedownHandler = plugin.props.handleDOMEvents!.mousedown as (view: unknown, event: MouseEvent) => boolean;
+    expect(mousedownHandler).toBeDefined();
+  });
+
+  it("returns false for right-click (button !== 0)", () => {
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8 });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { button: 2 } as Partial<MouseEvent>);
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for shift-click", () => {
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8 });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { shiftKey: true } as Partial<MouseEvent>);
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for meta-click", () => {
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8 });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { metaKey: true } as Partial<MouseEvent>);
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false for empty selection", () => {
+    const state = createState("hello world");
+    const view = createMockView({ text: "hello world" });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false when click is outside selection range", () => {
+    const state = createState("hello world", 7, 12);
+    const view = createMockView({ text: "hello world", from: 7, to: 12, posAtCoordsResult: { pos: 3 } });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false when posAtCoords returns null", () => {
+    const state = createState("hello world", 7, 12);
+    const view = createMockView({ text: "hello world", from: 7, to: 12, posAtCoordsResult: null });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns true and prevents default when click is inside selection", () => {
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it("returns false when click is at selection.to (exclusive end)", () => {
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8, posAtCoordsResult: { pos: 8 } });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("registers mousemove, mouseup, keydown, blur listeners on activation", () => {
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const winAddSpy = vi.spyOn(window, "addEventListener");
+
+    const state = createState("hello world", 2, 8);
+    const view = createMockView({ text: "hello world", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown");
+    mousedownHandler(view, event);
+
+    expect(addSpy).toHaveBeenCalledWith("mousemove", expect.any(Function));
+    expect(addSpy).toHaveBeenCalledWith("mouseup", expect.any(Function));
+    expect(addSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
+    expect(winAddSpy).toHaveBeenCalledWith("blur", expect.any(Function));
+
+    addSpy.mockRestore();
+    winAddSpy.mockRestore();
+  });
+});
+
 describe("edge cases", () => {
   it("handles posAtCoords returning null (mouse outside editor)", () => {
     const view = createMockView({ posAtCoordsResult: null });

@@ -301,6 +301,152 @@ describe("useUpdateChecker hook", () => {
     expect(mockRestartWithHotExit).toHaveBeenCalled();
   });
 
+  it("shows ready toast when status changes to ready with update info", async () => {
+    const { toast } = await import("sonner");
+
+    renderHook(() => useUpdateChecker());
+
+    // First set to checking, then to ready
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("ready");
+      useUpdateStore.getState().setUpdateInfo({
+        version: "3.0.0",
+        notes: "test",
+        pubDate: "2025-01-01",
+        currentVersion: "1.0.0",
+      });
+    });
+
+    expect(toast.success).toHaveBeenCalledWith(
+      expect.stringContaining("3.0.0"),
+      expect.any(Object)
+    );
+  });
+
+  it("shows up-to-date toast only for manual check", async () => {
+    const { toast } = await import("sonner");
+
+    renderHook(() => useUpdateChecker());
+
+    // Simulate manual check request
+    const handler = listenHandlers.get("update:request-check");
+    await act(async () => {
+      handler!();
+    });
+
+    // isManualCheck is now true — simulate checking -> up-to-date
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("up-to-date");
+    });
+
+    expect(toast.success).toHaveBeenCalledWith(
+      "You're up to date!",
+      expect.any(Object)
+    );
+  });
+
+  it("does not show up-to-date toast for automatic check", async () => {
+    const { toast } = await import("sonner");
+
+    renderHook(() => useUpdateChecker());
+
+    // Simulate automatic check -> up-to-date (isManualCheck stays false)
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("up-to-date");
+    });
+
+    // toast should NOT be called for automatic checks
+    expect(toast.success).not.toHaveBeenCalledWith(
+      "You're up to date!",
+      expect.any(Object)
+    );
+  });
+
+  it("resets retry count when status becomes up-to-date", async () => {
+    renderHook(() => useUpdateChecker());
+
+    // Simulate a successful check cycle: checking -> up-to-date
+    // This exercises the retry count reset path (retryCount = 0 on success)
+    await act(async () => {
+      useUpdateStore.getState().setStatus("checking");
+    });
+
+    await act(async () => {
+      useUpdateStore.getState().setStatus("up-to-date");
+    });
+
+    // Status should be up-to-date; no errors or retries
+    expect(useUpdateStore.getState().status).toBe("up-to-date");
+  });
+
+  it("resets auto-download flag when status goes back to idle", async () => {
+    useSettingsStore.getState().updateUpdateSetting("autoDownload", true);
+
+    renderHook(() => useUpdateChecker());
+
+    // Trigger auto-download
+    await act(async () => {
+      useUpdateStore.getState().setStatus("available");
+      useUpdateStore.getState().setUpdateInfo({
+        version: "2.0.0",
+        notes: "test",
+        pubDate: "2025-01-01",
+        currentVersion: "1.0.0",
+      });
+    });
+
+    expect(mockDoDownloadAndInstall).toHaveBeenCalledTimes(1);
+
+    // Reset to idle
+    await act(async () => {
+      useUpdateStore.getState().setStatus("idle");
+    });
+
+    // Trigger again — should auto-download again since flag was reset
+    await act(async () => {
+      useUpdateStore.getState().setStatus("available");
+      useUpdateStore.getState().setUpdateInfo({
+        version: "2.1.0",
+        notes: "test",
+        pubDate: "2025-01-01",
+        currentVersion: "1.0.0",
+      });
+    });
+
+    expect(mockDoDownloadAndInstall).toHaveBeenCalledTimes(2);
+  });
+
+  it("handles restart request error gracefully", async () => {
+    vi.spyOn(useDocumentStore.getState(), "getAllDirtyDocuments").mockReturnValue([]);
+    mockRestartWithHotExit.mockRejectedValue(new Error("restart failed"));
+
+    renderHook(() => useUpdateChecker());
+
+    const handler = listenHandlers.get("app:restart-for-update");
+
+    await act(async () => {
+      handler!();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Should emit restart-cancelled on error
+    expect(mockEmit).toHaveBeenCalledWith("update:restart-cancelled");
+  });
+
   it("handles restart request with dirty tabs — user cancels", async () => {
     vi.spyOn(useDocumentStore.getState(), "getAllDirtyDocuments").mockReturnValue([
       { tabId: "t1", content: "dirty" },
