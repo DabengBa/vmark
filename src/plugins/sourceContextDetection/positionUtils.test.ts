@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -70,10 +70,33 @@ describe("getContextModeSource", () => {
 
 describe("getSelectionRect", () => {
   it("throws in jsdom because coordsAtPos needs real layout", () => {
-    // In jsdom, coordsAtPos throws because getClientRects is not available.
-    // In a real browser, it would return coords or null.
     const view = createView("hello", 0);
     expect(() => getSelectionRect(view, 0, 5)).toThrow();
+    view.destroy();
+  });
+
+  it("returns rect when coordsAtPos works", () => {
+    const view = createView("hello world", 0);
+    view.coordsAtPos = vi.fn((pos: number) =>
+      pos === 0
+        ? { top: 10, left: 20, bottom: 30, right: 40 }
+        : { top: 12, left: 80, bottom: 32, right: 90 }
+    );
+    const rect = getSelectionRect(view, 0, 5);
+    expect(rect).toEqual({
+      top: 10,
+      left: 20,
+      bottom: 32,
+      right: 90,
+    });
+    view.destroy();
+  });
+
+  it("returns null when coordsAtPos returns null", () => {
+    const view = createView("hello", 0);
+    view.coordsAtPos = vi.fn(() => null as never);
+    const rect = getSelectionRect(view, 0, 5);
+    expect(rect).toBeNull();
     view.destroy();
   });
 });
@@ -82,6 +105,22 @@ describe("getCursorRect", () => {
   it("throws in jsdom because coordsAtPos needs real layout", () => {
     const view = createView("hello", 2);
     expect(() => getCursorRect(view, 2)).toThrow();
+    view.destroy();
+  });
+
+  it("returns rect when coordsAtPos works", () => {
+    const view = createView("hello", 2);
+    view.coordsAtPos = vi.fn(() => ({ top: 10, left: 20, bottom: 30, right: 40 }));
+    const rect = getCursorRect(view, 2);
+    expect(rect).toEqual({ top: 10, left: 20, bottom: 30, right: 40 });
+    view.destroy();
+  });
+
+  it("returns null when coordsAtPos returns null", () => {
+    const view = createView("hello", 2);
+    view.coordsAtPos = vi.fn(() => null as never);
+    const rect = getCursorRect(view, 2);
+    expect(rect).toBeNull();
     view.destroy();
   });
 });

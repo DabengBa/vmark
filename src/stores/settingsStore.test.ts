@@ -340,3 +340,28 @@ describe("settingsStore section updater preserves sibling keys", () => {
     expect(markdown.enableRegexSearch).toBe(true); // default preserved
   });
 });
+
+describe("settingsStore paragraphSpacing → blockSpacing migration", () => {
+  it("migrates paragraphSpacing to blockSpacing when loading persisted state", () => {
+    // Simulate persisted state with old paragraphSpacing key
+    const legacyPersistedState = {
+      appearance: {
+        paragraphSpacing: 2,
+        theme: "paper",
+        fontSize: 18,
+      },
+    };
+    const storageKey = "vmark-settings";
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ state: legacyPersistedState, version: 0 })
+    );
+
+    // Force re-hydration by resetting and re-initializing
+    // The merge function should convert paragraphSpacing → blockSpacing
+    useSettingsStore.persist.rehydrate();
+
+    const appearance = useSettingsStore.getState().appearance;
+    expect(appearance.blockSpacing).toBe(2);
+  });
+});

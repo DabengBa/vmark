@@ -367,4 +367,86 @@ describe("restoreCursorInCodeMirror", () => {
     restoreCursorInCodeMirror(view as never, info);
     expect(view.dispatch.mock.calls[0][0].scrollIntoView).toBe(true);
   });
+
+  it("uses word match strategy when context pattern is too short", () => {
+    const content = "the quick brown fox";
+    const view = buildMockView({ content, cursorPos: 0 });
+    const info: CursorInfo = {
+      sourceLine: 1,
+      wordAtCursor: "brown",
+      offsetInWord: 2,
+      nodeType: "paragraph",
+      percentInLine: 0.5,
+      contextBefore: "q", // too short for context match (< 4 chars)
+      contextAfter: "b",
+      blockAnchor: undefined,
+    };
+    restoreCursorInCodeMirror(view as never, info);
+    expect(view.dispatch).toHaveBeenCalled();
+    const selection = view.dispatch.mock.calls[0][0].selection;
+    // "brown" found at index 10, + offsetInWord 2 = 12
+    expect(selection.anchor).toBe(12);
+  });
+
+  it("detects blockquote node type", () => {
+    const view = buildMockView({ content: "> quoted text", cursorPos: 5 });
+    const info = getCursorInfoFromCodeMirror(view as never);
+    expect(info.nodeType).toBe("blockquote");
+  });
+
+  it("detects numbered list item", () => {
+    const view = buildMockView({ content: "1. numbered item", cursorPos: 5 });
+    const info = getCursorInfoFromCodeMirror(view as never);
+    expect(info.nodeType).toBe("list_item");
+  });
+
+  it("detects ordered list with asterisk marker", () => {
+    const view = buildMockView({ content: "* star item", cursorPos: 5 });
+    const info = getCursorInfoFromCodeMirror(view as never);
+    expect(info.nodeType).toBe("list_item");
+  });
+
+  it("uses context match for list item lines", () => {
+    const content = "- the quick brown fox";
+    const view = buildMockView({ content, cursorPos: 0 });
+    const info: CursorInfo = {
+      sourceLine: 1,
+      wordAtCursor: "brown",
+      offsetInWord: 0,
+      nodeType: "list_item",
+      percentInLine: 0.5,
+      contextBefore: "the quick ",
+      contextAfter: "brown fox",
+      blockAnchor: undefined,
+    };
+    restoreCursorInCodeMirror(view as never, info);
+    expect(view.dispatch).toHaveBeenCalled();
+    const selection = view.dispatch.mock.calls[0][0].selection;
+    // "- " is 2 chars marker, stripped text is "the quick brown fox"
+    // context match at index 0, contextBefore length 10
+    // final = 10 + 2 (marker) = 12
+    expect(selection.anchor).toBe(12);
+  });
+
+  it("uses context match for blockquote lines", () => {
+    const content = "> the quick brown fox";
+    const view = buildMockView({ content, cursorPos: 0 });
+    const info: CursorInfo = {
+      sourceLine: 1,
+      wordAtCursor: "brown",
+      offsetInWord: 0,
+      nodeType: "blockquote",
+      percentInLine: 0.5,
+      contextBefore: "the quick ",
+      contextAfter: "brown fox",
+      blockAnchor: undefined,
+    };
+    restoreCursorInCodeMirror(view as never, info);
+    expect(view.dispatch).toHaveBeenCalled();
+    const selection = view.dispatch.mock.calls[0][0].selection;
+    // "> " is 2 chars marker, stripped text is "the quick brown fox"
+    // context match "the quick brown fox" at index 0, contextBefore length 10
+    // final = 10 + 2 (marker) = 12
+    expect(selection.anchor).toBe(12);
+  });
 });

@@ -306,3 +306,19 @@ describe("looksLikeUrl", () => {
     expect(looksLikeUrl("")).toBe(false);
   });
 });
+
+describe("detectAndNormalizeUrl edge cases", () => {
+  it("trims leading newlines and detects URL on remaining first line", () => {
+    // text.trim() strips leading newlines, so "https://example.com" becomes first line
+    const result = detectAndNormalizeUrl("\n\nhttps://example.com");
+    expect(result.isUrl).toBe(true);
+    expect(result.normalizedUrl).toBe("https://example.com");
+  });
+
+  it("returns not-url when trimmed first line is empty", () => {
+    // After trim, first line split gives empty — hits line 159
+    const result = detectAndNormalizeUrl("   ");
+    expect(result.isUrl).toBe(false);
+    expect(result.normalizedUrl).toBeNull();
+  });
+});

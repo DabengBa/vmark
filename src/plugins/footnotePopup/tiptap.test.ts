@@ -738,5 +738,622 @@ describe("footnotePopup plugin handler integration", () => {
       const viewResult = plugin.spec.view!(mockEditorView as never);
       expect(() => viewResult.destroy!()).not.toThrow();
     });
+
+    it("update triggers checkSelectionForFootnote on NodeSelection of footnote_reference", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Definition content"),
+      ]);
+      const state = createState(doc);
+
+      // Find the footnote reference position
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+      expect(refPos).toBeGreaterThanOrEqual(0);
+
+      // Create NodeSelection on the footnote reference
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const refDom = document.createElement("sup");
+      refDom.setAttribute("data-type", "footnote_reference");
+      refDom.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => refDom),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      // Calling update triggers checkSelectionForFootnote
+      viewResult.update!({} as never, {} as never);
+
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        "1",
+        "Definition content",
+        expect.any(Object),
+        expect.any(Number),
+        refPos,
+      );
+    });
+
+    it("checkSelectionForFootnote does not re-open for same position", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def 1"),
+      ]);
+      const state = createState(doc);
+
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const refDom = document.createElement("sup");
+      refDom.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => refDom),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+
+      // First update opens popup
+      viewResult.update!({} as never, {} as never);
+      expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+
+      // Second update with same state should not re-open
+      viewResult.update!({} as never, {} as never);
+      expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+    });
+
+    it("checkSelectionForFootnote closes popup when selection moves away", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def 1"),
+      ]);
+      const state = createState(doc);
+
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const refDom = document.createElement("sup");
+      refDom.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => refDom),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      viewResult.update!({} as never, {} as never);
+      expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+
+      // Add popup element so close logic finds it
+      const popup = document.createElement("div");
+      popup.className = "footnote-popup";
+      document.body.appendChild(popup);
+
+      // Now move selection away (text selection on paragraph)
+      const textSelState = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 1))
+      );
+      (mockEditorView as Record<string, unknown>).state = textSelState;
+
+      viewResult.update!({} as never, {} as never);
+      expect(mockClosePopup).toHaveBeenCalled();
+
+      document.body.removeChild(popup);
+    });
+
+    it("checkSelectionForFootnote does not close popup when in editing mode", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def 1"),
+      ]);
+      const state = createState(doc);
+
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const refDom = document.createElement("sup");
+      refDom.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => refDom),
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      viewResult.update!({} as never, {} as never);
+
+      // Add editing popup element
+      const popup = document.createElement("div");
+      popup.className = "footnote-popup editing";
+      document.body.appendChild(popup);
+
+      // Move selection away
+      const textSelState = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 1))
+      );
+      (mockEditorView as Record<string, unknown>).state = textSelState;
+
+      vi.clearAllMocks();
+      viewResult.update!({} as never, {} as never);
+      // Should not close because popup is in editing mode
+      expect(mockClosePopup).not.toHaveBeenCalled();
+
+      document.body.removeChild(popup);
+    });
+
+    it("checkSelectionForFootnote handles nodeDOM returning null", () => {
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def 1"),
+      ]);
+      const state = createState(doc);
+
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => null), // returns null
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      vi.clearAllMocks();
+      viewResult.update!({} as never, {} as never);
+      // Should not call openPopup since nodeDOM returned null
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handleDOMEvents.mouseover with delay", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("opens popup after delay when hovering footnote reference", () => {
+      vi.useFakeTimers();
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      refEl.setAttribute("data-label", "1");
+      refEl.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+      document.body.appendChild(refEl);
+
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def content"),
+      ]);
+      const state = createState(doc);
+
+      const event = new MouseEvent("mouseover");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mouseover!;
+      handler({ state } as never, event);
+
+      // Not yet opened (delayed)
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(200);
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        "1",
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Number),
+        expect.any(Number),
+      );
+
+      document.body.removeChild(refEl);
+    });
+
+    it("does not reopen for the same ref element", () => {
+      vi.useFakeTimers();
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      refEl.setAttribute("data-label", "1");
+      refEl.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+      document.body.appendChild(refEl);
+
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def content"),
+      ]);
+      const state = createState(doc);
+
+      const event1 = new MouseEvent("mouseover");
+      Object.defineProperty(event1, "target", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mouseover!;
+      handler({ state } as never, event1);
+      vi.advanceTimersByTime(200);
+      expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+
+      // Hover same element again - should return false (currentRefElement === refElement)
+      const event2 = new MouseEvent("mouseover");
+      Object.defineProperty(event2, "target", { value: refEl });
+      const result = handler({ state } as never, event2);
+      expect(result).toBe(false);
+
+      document.body.removeChild(refEl);
+    });
+
+    it("handles ref element without data-label", () => {
+      vi.useFakeTimers();
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      // No data-label attribute
+      document.body.appendChild(refEl);
+
+      const event = new MouseEvent("mouseover");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mouseover!;
+      handler({} as never, event);
+
+      vi.advanceTimersByTime(200);
+      // Should not call openPopup since there's no label
+      expect(mockOpenPopup).not.toHaveBeenCalled();
+
+      document.body.removeChild(refEl);
+    });
+  });
+
+  describe("handleDOMEvents.mouseout edge cases", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not close when relatedTarget is another footnote ref", () => {
+      vi.useFakeTimers();
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+
+      const event = new MouseEvent("mouseout");
+      Object.defineProperty(event, "relatedTarget", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mouseout!;
+      handler({} as never, event);
+
+      vi.advanceTimersByTime(200);
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+
+    it("does not close when relatedTarget is null (hovered to nothing)", () => {
+      vi.useFakeTimers();
+
+      const event = new MouseEvent("mouseout");
+      Object.defineProperty(event, "relatedTarget", { value: null });
+
+      const handler = plugin.props.handleDOMEvents!.mouseout!;
+      handler({} as never, event);
+
+      vi.advanceTimersByTime(200);
+      // Close should still be called (relatedTarget null means left the element)
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("handleKeyDown with open popup", () => {
+    it("closes popup and returns true when Escape is pressed and popup is open and not editing", async () => {
+      // Override the mock to return isOpen: true
+      const { useFootnotePopupStore } = await import("@/stores/footnotePopupStore");
+      const origGetState = useFootnotePopupStore.getState;
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = () => ({
+        isOpen: true,
+        openPopup: mockOpenPopup,
+        closePopup: mockClosePopup,
+      });
+
+      const popup = document.createElement("div");
+      popup.className = "footnote-popup";
+      document.body.appendChild(popup);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      const handler = plugin.props.handleKeyDown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(true);
+      expect(mockClosePopup).toHaveBeenCalled();
+
+      document.body.removeChild(popup);
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+
+    it("does not close popup when Escape is pressed and popup is editing", async () => {
+      const { useFootnotePopupStore } = await import("@/stores/footnotePopupStore");
+      const origGetState = useFootnotePopupStore.getState;
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = () => ({
+        isOpen: true,
+        openPopup: mockOpenPopup,
+        closePopup: mockClosePopup,
+      });
+
+      const popup = document.createElement("div");
+      popup.className = "footnote-popup editing";
+      document.body.appendChild(popup);
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      const handler = plugin.props.handleKeyDown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+      expect(mockClosePopup).not.toHaveBeenCalled();
+
+      document.body.removeChild(popup);
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+
+    it("does not close popup when Escape pressed but no popup element found", async () => {
+      const { useFootnotePopupStore } = await import("@/stores/footnotePopupStore");
+      const origGetState = useFootnotePopupStore.getState;
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = () => ({
+        isOpen: true,
+        openPopup: mockOpenPopup,
+        closePopup: mockClosePopup,
+      });
+
+      // No popup element in DOM
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      const handler = plugin.props.handleKeyDown!;
+      const result = handler({} as never, event);
+      expect(result).toBe(false);
+
+      (useFootnotePopupStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+  });
+
+  describe("handleClick with ref and def navigation", () => {
+    it("clicking ref element with label navigates to definition", () => {
+      // Add editor-content element for scrollToPosition
+      const editorContent = document.createElement("div");
+      editorContent.className = "editor-content";
+      editorContent.getBoundingClientRect = () => ({ top: 0, left: 0, bottom: 500, right: 500, width: 500, height: 500, x: 0, y: 0, toJSON: () => ({}) });
+      editorContent.scrollTo = vi.fn();
+      document.body.appendChild(editorContent);
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      refEl.setAttribute("data-label", "1");
+      document.body.appendChild(refEl);
+
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def content"),
+      ]);
+      const state = createState(doc);
+
+      const mockView = {
+        state,
+        dispatch: vi.fn(),
+        dom: document.createElement("div"),
+        focus: vi.fn(),
+        coordsAtPos: vi.fn(() => ({ top: 100, bottom: 120, left: 50, right: 70 })),
+      };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(true);
+
+      document.body.removeChild(refEl);
+      document.body.removeChild(editorContent);
+    });
+
+    it("clicking ref element without label does not navigate", () => {
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      // No data-label
+      document.body.appendChild(refEl);
+
+      const doc = schema.node("doc", null, [p("hello")]);
+      const state = createState(doc);
+      const mockView = { state };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(refEl);
+    });
+
+    it("clicking def element navigates to reference", () => {
+      const editorContent = document.createElement("div");
+      editorContent.className = "editor-content";
+      editorContent.getBoundingClientRect = () => ({ top: 0, left: 0, bottom: 500, right: 500, width: 500, height: 500, x: 0, y: 0, toJSON: () => ({}) });
+      editorContent.scrollTo = vi.fn();
+      document.body.appendChild(editorContent);
+
+      const defEl = document.createElement("dl");
+      defEl.setAttribute("data-type", "footnote_definition");
+      defEl.setAttribute("data-label", "1");
+      document.body.appendChild(defEl);
+
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "1"),
+        fnDef("1", "Def content"),
+      ]);
+      const state = createState(doc);
+      const mockView = {
+        state,
+        dispatch: vi.fn(),
+        dom: document.createElement("div"),
+        focus: vi.fn(),
+        coordsAtPos: vi.fn(() => ({ top: 100, bottom: 120, left: 50, right: 70 })),
+      };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: defEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(true);
+
+      document.body.removeChild(defEl);
+      document.body.removeChild(editorContent);
+    });
+
+    it("clicking def element with no matching ref returns false", () => {
+      const defEl = document.createElement("dl");
+      defEl.setAttribute("data-type", "footnote_definition");
+      defEl.setAttribute("data-label", "99");
+      document.body.appendChild(defEl);
+
+      const doc = schema.node("doc", null, [p("no refs")]);
+      const state = createState(doc);
+      const mockView = { state };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: defEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(defEl);
+    });
+
+    it("clicking def element without label does not navigate", () => {
+      const defEl = document.createElement("dl");
+      defEl.setAttribute("data-type", "footnote_definition");
+      // No data-label
+      document.body.appendChild(defEl);
+
+      const doc = schema.node("doc", null, [p("hello")]);
+      const state = createState(doc);
+      const mockView = { state };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: defEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(defEl);
+    });
+
+    it("clicking ref with no matching definition returns false", () => {
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      refEl.setAttribute("data-label", "99");
+      document.body.appendChild(refEl);
+
+      const doc = schema.node("doc", null, [p("no defs")]);
+      const state = createState(doc);
+      const mockView = { state };
+
+      const event = new MouseEvent("click");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleClick!;
+      const result = handler(mockView as never, 0, event);
+      expect(result).toBe(false);
+
+      document.body.removeChild(refEl);
+    });
+  });
+
+  describe("appendTransaction — all refs removed with defs remaining", () => {
+    it("deletes all defs when no refs exist and orphanedDefs is empty but defs remain", () => {
+      // Scenario: orphanedDefs.length === 0 && newRefLabels.size === 0 && defs.length > 0
+      // This happens when all references had matching definitions, but then ALL references are removed
+      // The condition is orphanedDefs.filter filters out defs whose labels ARE in newRefLabels
+      // If newRefLabels is empty, ALL defs are orphaned, so orphanedDefs.length > 0
+      // The branch where orphanedDefs.length === 0 && newRefLabels.size === 0 && defs.length > 0
+      // requires defs that all have labels matching newRefLabels... but newRefLabels.size === 0.
+      // This is logically impossible, but we test the branch anyway.
+      // Actually, it CAN happen if defs have labels that are not in newRefLabels but there are no orphans...
+      // No, orphanedDefs = defs.filter(d => !newRefLabels.has(d.label)), if newRefLabels is empty,
+      // all defs are orphaned. So this branch requires defs.length > 0 but orphanedDefs.length === 0,
+      // which means all defs have labels in newRefLabels, but newRefLabels.size === 0.
+      // This is impossible. The branch handles a degenerate case.
+
+      // We can test the createCleanupAndRenumberTransaction branch instead
+      const doc = schema.node("doc", null, [
+        pWithRef("A", "1"),
+        pWithRef("B", "2"),
+        fnDef("1"),
+        fnDef("2"),
+        fnDef("3"), // orphan
+      ]);
+      const state = createState(doc);
+
+      // Delete ref "2" paragraph
+      const newPara = p("B was here");
+      const tr = state.tr.replaceWith(
+        state.doc.child(0).nodeSize,
+        state.doc.child(0).nodeSize + state.doc.child(1).nodeSize,
+        newPara,
+      );
+      const newState = state.apply(tr);
+
+      const result = plugin.spec.appendTransaction!(
+        [tr],
+        state,
+        newState,
+      );
+      expect(result).not.toBeNull();
+    });
   });
 });

@@ -341,4 +341,70 @@ describe("escapeBlockquoteDown", () => {
     expect(handled).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
   });
+
+  it("returns false when blockquoteNode is null in isAtEndOfBlockquote", () => {
+    // This covers line 65: `if (!info.blockquoteNode) return false;` in escapeBlockquoteDown
+    // We test it by making getBlockquoteInfo return an info with null blockquoteNode.
+    // Since getBlockquoteInfo won't normally return null blockquoteNode from a real doc,
+    // we test the guard indirectly — when cursor is not inside a blockquote
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("no blockquote")]),
+    ]);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+    const view = createView(state);
+    expect(escapeBlockquoteDown(view)).toBe(false);
+  });
+
+  it("returns false for escapeBlockquoteDown when schema lacks paragraph type", () => {
+    // Create a schema without paragraph type to test line 133 guard
+    const schemaWithoutParagraph = new Schema({
+      nodes: {
+        doc: { content: "blockquote+" },
+        blockquote: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+    const doc = schemaWithoutParagraph.node("doc", null, [
+      schemaWithoutParagraph.node("blockquote", null, [
+        schemaWithoutParagraph.text("hello"),
+      ]),
+    ]);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+    const view = createView(state);
+    // getBlockquoteInfo should find the blockquote
+    // isAtEndOfBlockquote should return true
+    // isBlockquoteLastBlock should return true
+    // But paragraphType is undefined → return false (line 133)
+    const handled = escapeBlockquoteDown(view);
+    expect(handled).toBe(false);
+  });
+
+  it("returns false for escapeBlockquoteUp when schema lacks paragraph type", () => {
+    // Test line 103 guard: `if (!paragraphType) return false;`
+    const schemaWithoutParagraph = new Schema({
+      nodes: {
+        doc: { content: "blockquote+" },
+        blockquote: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+    const doc = schemaWithoutParagraph.node("doc", null, [
+      schemaWithoutParagraph.node("blockquote", null, [
+        schemaWithoutParagraph.text("hello"),
+      ]),
+    ]);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+    const view = createView(state);
+    const handled = escapeBlockquoteUp(view);
+    expect(handled).toBe(false);
+  });
 });

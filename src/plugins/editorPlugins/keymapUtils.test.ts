@@ -226,4 +226,106 @@ describe("escapeMarkBoundary", () => {
     expect(result).toBe(true);
     expect(mockTr.setStoredMarks).toHaveBeenCalledWith([]);
   });
+
+  it("handles cursor at markFrom with markFrom > 1 using real ProseMirror state", () => {
+    const { Schema } = require("@tiptap/pm/model");
+    const { EditorState, TextSelection } = require("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+      marks: {
+        bold: {},
+      },
+    });
+
+    const boldMark = testSchema.marks.bold.create();
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [
+        testSchema.text("ab", []),
+        testSchema.text("cde", [boldMark]),
+      ]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    const stateAtMark = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+
+    // Mark range starts at pos 3
+    vi.mocked(findAnyMarkRangeAtCursor).mockReturnValueOnce({ from: 3, to: 6 });
+
+    const dispatchFn = vi.fn();
+    const view = {
+      state: stateAtMark,
+      dispatch: dispatchFn,
+    } as never;
+
+    const result = escapeMarkBoundary(view);
+    expect(result).toBe(true);
+    expect(dispatchFn).toHaveBeenCalled();
+  });
+
+  it("clears stored marks when at markFrom and markFrom <= 1", () => {
+    vi.mocked(findAnyMarkRangeAtCursor).mockReturnValueOnce({ from: 1, to: 5 });
+
+    const dispatchFn = vi.fn();
+    const mockTr = { setStoredMarks: vi.fn().mockReturnThis() };
+    const view = {
+      state: {
+        selection: { $from: { pos: 1 }, empty: true },
+        storedMarks: null,
+        tr: mockTr,
+      },
+      dispatch: dispatchFn,
+    } as never;
+
+    const result = escapeMarkBoundary(view);
+    expect(result).toBe(true);
+    expect(mockTr.setStoredMarks).toHaveBeenCalledWith([]);
+    expect(dispatchFn).toHaveBeenCalledWith(mockTr);
+  });
+
+  it("moves cursor to mark end when inside mark range using real state", () => {
+    const { Schema } = require("@tiptap/pm/model");
+    const { EditorState, TextSelection } = require("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+      marks: {
+        bold: {},
+      },
+    });
+
+    const boldMark = testSchema.marks.bold.create();
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [
+        testSchema.text("hello", [boldMark]),
+        testSchema.text(" world"),
+      ]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    // Cursor inside the bold mark range but not at from or to
+    const stateInMark = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+
+    vi.mocked(findAnyMarkRangeAtCursor).mockReturnValueOnce({ from: 1, to: 6 });
+
+    const dispatchFn = vi.fn();
+    const view = {
+      state: stateInMark,
+      dispatch: dispatchFn,
+    } as never;
+
+    const result = escapeMarkBoundary(view);
+    expect(result).toBe(true);
+    expect(dispatchFn).toHaveBeenCalled();
+  });
 });

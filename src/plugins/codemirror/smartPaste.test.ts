@@ -4,14 +4,18 @@
  * Tests the paste event handler logic: markdown link creation from URLs,
  * image paste delegation, and AI markdown cleanup.
  *
- * Note: We test the handler logic directly since jsdom doesn't propagate
- * DOM paste events through CodeMirror's internal event pipeline.
+ * The plugin uses EditorView.domEventHandlers which registers handlers on
+ * CM's contentDOM. We test by creating a live view with the extension and
+ * dispatching paste events. Note: CodeMirror's own paste handler also calls
+ * preventDefault, so we verify behavior via document state and mock calls
+ * rather than defaultPrevented for "not handled" cases.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockTryImagePaste = vi.fn(() => false);
 const mockCleanPastedMarkdown = vi.fn((text: string) => text);
+const mockIsValidUrl = vi.fn((text: string) => /^https?:\/\//.test(text));
 
 vi.mock("./smartPasteImage", () => ({
   tryImagePaste: (...args: unknown[]) => mockTryImagePaste(...args),
@@ -21,9 +25,13 @@ vi.mock("@/utils/cleanPastedMarkdown", () => ({
   cleanPastedMarkdown: (...args: unknown[]) => mockCleanPastedMarkdown(...args),
 }));
 
+vi.mock("./smartPasteUtils", () => ({
+  isValidUrl: (...args: unknown[]) => mockIsValidUrl(...args),
+}));
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { isValidUrl } from "./smartPasteUtils";
+import { createSmartPastePlugin } from "./smartPaste";
 
 const createdViews: EditorView[] = [];
 
@@ -37,9 +45,11 @@ function createView(
   anchor: number,
   head?: number
 ): EditorView {
+  const extension = createSmartPastePlugin();
   const state = EditorState.create({
     doc: content,
     selection: { anchor, head: head ?? anchor },
+    extensions: [extension],
   });
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -49,55 +59,42 @@ function createView(
 }
 
 /**
- * Simulate the paste handler logic from createSmartPastePlugin.
- * We replicate the handler here because CodeMirror's domEventHandlers
- * are not triggered by jsdom's dispatchEvent.
+ * Create a minimal ClipboardData-like object for jsdom which lacks DataTransfer.
  */
-function simulatePaste(
-  view: EditorView,
-  pastedText: string
-): boolean {
-  if (!pastedText) return false;
+function makeClipboardData(text: string): DataTransfer {
+  const data: Record<string, string> = { "text/plain": text };
+  return {
+    getData: (type: string) => data[type] ?? "",
+    setData: (type: string, value: string) => { data[type] = value; },
+    types: Object.keys(data),
+  } as unknown as DataTransfer;
+}
 
-  const { from, to } = view.state.selection.main;
-  const trimmedText = pastedText.trim();
-
-  // Image paste check
-  if (mockTryImagePaste(view, pastedText)) {
-    return true;
-  }
-
-  // Clean AI-clipboard artifacts
-  const cleaned = mockCleanPastedMarkdown(pastedText);
-  if (cleaned !== pastedText) {
-    view.dispatch({
-      changes: { from, to, insert: cleaned },
-      selection: { anchor: from + cleaned.length },
-    });
-    return true;
-  }
-
-  // No selection
-  if (from === to) return false;
-
-  // Not a URL
-  if (!isValidUrl(trimmedText)) return false;
-
-  // Get selected text
-  const selectedText = view.state.doc.sliceString(from, to);
-
-  // Don't wrap if already a markdown link
-  if (/^\[.*\]\(.*\)$/.test(selectedText)) return false;
-
-  // Create markdown link
-  const linkMarkdown = `[${selectedText}](${trimmedText})`;
-
-  view.dispatch({
-    changes: { from, to, insert: linkMarkdown },
-    selection: { anchor: from + linkMarkdown.length },
+/**
+ * Dispatch a paste event on the view's contentDOM.
+ */
+function dispatchPaste(view: EditorView, text: string): void {
+  const clipboardData = makeClipboardData(text);
+  const event = new Event("paste", {
+    bubbles: true,
+    cancelable: true,
   });
+  Object.defineProperty(event, "clipboardData", { value: clipboardData });
+  view.contentDOM.dispatchEvent(event);
+}
 
-  return true;
+/**
+ * Dispatch a paste event with null clipboardData (no text/plain).
+ */
+function dispatchPasteNoData(view: EditorView): void {
+  const event = new Event("paste", {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(event, "clipboardData", {
+    value: { getData: () => "", types: [] },
+  });
+  view.contentDOM.dispatchEvent(event);
 }
 
 describe("createSmartPastePlugin", () => {
@@ -105,247 +102,257 @@ describe("createSmartPastePlugin", () => {
     vi.clearAllMocks();
     mockTryImagePaste.mockReturnValue(false);
     mockCleanPastedMarkdown.mockImplementation((t: string) => t);
+    mockIsValidUrl.mockImplementation((text: string) => /^https?:\/\//.test(text));
   });
 
-  describe("URL paste over selection", () => {
-    it("creates a markdown link when pasting a URL over selected text", () => {
-      const view = createView("hello world", 0, 5);
-      const result = simulatePaste(view, "https://example.com");
+  describe("export", () => {
+    it("returns a valid extension", () => {
+      const extension = createSmartPastePlugin();
+      expect(extension).toBeDefined();
+    });
 
-      expect(result).toBe(true);
-      expect(view.state.doc.toString()).toBe(
-        "[hello](https://example.com) world"
-      );
+    it("extension integrates with EditorView", () => {
+      const view = createView("hello", 0);
+      expect(view.state.doc.toString()).toBe("hello");
+    });
+  });
+
+  describe("empty / null paste data", () => {
+    it("does not invoke any handler for paste with no text/plain", () => {
+      const view = createView("hello", 0);
+      dispatchPasteNoData(view);
+
+      // Handler returns early — no downstream calls
+      expect(mockTryImagePaste).not.toHaveBeenCalled();
+      expect(mockCleanPastedMarkdown).not.toHaveBeenCalled();
+    });
+
+    it("does not invoke any handler for empty string paste", () => {
+      const view = createView("hello", 0);
+      dispatchPaste(view, "");
+
+      // getData returns "" which is falsy → handler returns false early
+      expect(mockTryImagePaste).not.toHaveBeenCalled();
+      expect(mockCleanPastedMarkdown).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("image paste delegation", () => {
+    it("delegates to tryImagePaste when it handles the paste", () => {
+      mockTryImagePaste.mockReturnValue(true);
+      const view = createView("hello", 0);
+      dispatchPaste(view, "/path/to/image.png");
+
+      expect(mockTryImagePaste).toHaveBeenCalledWith(view, "/path/to/image.png");
+      // Doc unchanged — image handler consumed the event
+      expect(view.state.doc.toString()).toBe("hello");
+    });
+
+    it("continues when tryImagePaste returns false", () => {
+      mockTryImagePaste.mockReturnValue(false);
+      const view = createView("hello", 0);
+      dispatchPaste(view, "plain text");
+
+      expect(mockTryImagePaste).toHaveBeenCalledWith(view, "plain text");
+      // cleanPastedMarkdown should still be called
+      expect(mockCleanPastedMarkdown).toHaveBeenCalledWith("plain text");
+    });
+
+    it("image paste takes priority over URL link creation", () => {
+      mockTryImagePaste.mockReturnValue(true);
+      const view = createView("hello", 0, 5);
+      dispatchPaste(view, "https://example.com/image.png");
+
+      expect(mockTryImagePaste).toHaveBeenCalled();
+      // Doc unchanged — image handler consumed it before link creation
+      expect(view.state.doc.toString()).toBe("hello");
+    });
+  });
+
+  describe("markdown cleanup", () => {
+    it("inserts cleaned text when cleanPastedMarkdown modifies it", () => {
+      mockCleanPastedMarkdown.mockReturnValue("cleaned text");
+      const view = createView("hello", 5, 5);
+      dispatchPaste(view, "dirty text");
+
+      expect(mockCleanPastedMarkdown).toHaveBeenCalledWith("dirty text");
+      expect(view.state.doc.toString()).toBe("hellocleaned text");
+    });
+
+    it("replaces selection when cleaning markdown with selection", () => {
+      mockCleanPastedMarkdown.mockReturnValue("clean");
+      const view = createView("hello world", 0, 5);
+      dispatchPaste(view, "dirty");
+
+      expect(view.state.doc.toString()).toBe("clean world");
+    });
+
+    it("places cursor after cleaned text insertion", () => {
+      mockCleanPastedMarkdown.mockReturnValue("ABC");
+      const view = createView("hello", 5, 5);
+      dispatchPaste(view, "dirty");
+
+      // Cursor at end: "hello" (5) + "ABC" (3) = 8
+      expect(view.state.selection.main.anchor).toBe(8);
+    });
+
+    it("does not dispatch custom changes when cleaned text is identical", () => {
+      mockCleanPastedMarkdown.mockImplementation((t: string) => t);
+      const view = createView("hello", 5, 5);
+      dispatchPaste(view, "same text");
+
+      // Not a URL, no selection → falls through to default CM paste
+      // isValidUrl should not be called (no selection, from === to)
+      expect(mockIsValidUrl).not.toHaveBeenCalled();
+    });
+
+    it("markdown cleanup takes priority over URL link creation", () => {
+      mockCleanPastedMarkdown.mockReturnValue("cleaned URL text");
+      const view = createView("hello world", 0, 5);
+      dispatchPaste(view, "https://example.com");
+
+      // Should use cleaned text, not create a link
+      expect(view.state.doc.toString()).toBe("cleaned URL text world");
+    });
+  });
+
+  describe("URL paste over selection (link creation)", () => {
+    it("creates markdown link when pasting URL over selected text", () => {
+      const view = createView("hello world", 0, 5);
+      dispatchPaste(view, "https://example.com");
+
+      expect(view.state.doc.toString()).toBe("[hello](https://example.com) world");
     });
 
     it("does not create link when there is no selection", () => {
       const view = createView("hello world", 5, 5);
-      const result = simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
-      expect(result).toBe(false);
-      expect(view.state.doc.toString()).toBe("hello world");
+      // No selection → handler returns false, isValidUrl never called
+      expect(mockIsValidUrl).not.toHaveBeenCalled();
     });
 
     it("does not create link when pasted text is not a URL", () => {
+      mockIsValidUrl.mockReturnValue(false);
       const view = createView("hello world", 0, 5);
-      const result = simulatePaste(view, "not a url");
+      dispatchPaste(view, "not a url");
 
-      expect(result).toBe(false);
-      expect(view.state.doc.toString()).toBe("hello world");
+      expect(mockIsValidUrl).toHaveBeenCalledWith("not a url");
+      // Doc is unchanged from our handler (CM default paste may change it)
     });
 
     it("does not wrap if selected text already looks like a markdown link", () => {
       const mdLink = "[text](url)";
       const view = createView(mdLink, 0, mdLink.length);
-      const result = simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
-      expect(result).toBe(false);
-      expect(view.state.doc.toString()).toBe("[text](url)");
+      // Already a markdown link → handler returns false
+      // Verify the doc was NOT changed to a double-wrapped link
+      expect(view.state.doc.toString()).not.toContain("[[text]");
     });
 
-    it("trims whitespace from pasted URL before checking", () => {
+    it("trims whitespace from pasted URL", () => {
       const view = createView("hello world", 0, 5);
-      const result = simulatePaste(view, "  https://example.com  ");
+      dispatchPaste(view, "  https://example.com  ");
 
-      expect(result).toBe(true);
-      expect(view.state.doc.toString()).toBe(
-        "[hello](https://example.com) world"
-      );
+      expect(view.state.doc.toString()).toBe("[hello](https://example.com) world");
     });
 
-    it("places cursor after the inserted link", () => {
+    it("places cursor after inserted link", () => {
       const view = createView("hello world", 0, 5);
-      simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
       const expectedLink = "[hello](https://example.com)";
       expect(view.state.selection.main.anchor).toBe(expectedLink.length);
     });
 
-    it("handles URL paste over entire document", () => {
-      const view = createView("hello", 0, 5);
-      simulatePaste(view, "https://example.com");
-
-      expect(view.state.doc.toString()).toBe(
-        "[hello](https://example.com)"
-      );
-    });
-
-    it("handles http URL (not just https)", () => {
+    it("handles http URL", () => {
       const view = createView("click here", 0, 10);
-      simulatePaste(view, "http://example.com");
+      dispatchPaste(view, "http://example.com");
 
-      expect(view.state.doc.toString()).toBe(
-        "[click here](http://example.com)"
-      );
+      expect(view.state.doc.toString()).toBe("[click here](http://example.com)");
     });
 
     it("handles URL with path and query string", () => {
       const view = createView("docs", 0, 4);
-      simulatePaste(view, "https://example.com/path?q=1");
+      dispatchPaste(view, "https://example.com/path?q=1");
 
-      expect(view.state.doc.toString()).toBe(
-        "[docs](https://example.com/path?q=1)"
-      );
-    });
-  });
-
-  describe("image paste delegation", () => {
-    it("delegates to tryImagePaste and returns true when it handles the paste", () => {
-      mockTryImagePaste.mockReturnValue(true);
-
-      const view = createView("hello", 0);
-      const result = simulatePaste(view, "/path/to/image.png");
-
-      expect(result).toBe(true);
-      expect(mockTryImagePaste).toHaveBeenCalledWith(view, "/path/to/image.png");
+      expect(view.state.doc.toString()).toBe("[docs](https://example.com/path?q=1)");
     });
 
-    it("continues processing when tryImagePaste returns false", () => {
-      mockTryImagePaste.mockReturnValue(false);
+    it("handles URL with fragment identifier", () => {
+      const view = createView("heading", 0, 7);
+      dispatchPaste(view, "https://example.com/page#section");
 
-      const view = createView("hello", 0);
-      simulatePaste(view, "some text");
-
-      expect(mockTryImagePaste).toHaveBeenCalledWith(view, "some text");
-    });
-  });
-
-  describe("markdown cleanup", () => {
-    it("cleans pasted markdown when cleanPastedMarkdown modifies text", () => {
-      mockCleanPastedMarkdown.mockReturnValue("cleaned text");
-
-      const view = createView("hello", 5, 5);
-      const result = simulatePaste(view, "dirty text");
-
-      expect(result).toBe(true);
-      expect(view.state.doc.toString()).toBe("hellocleaned text");
+      expect(view.state.doc.toString()).toBe("[heading](https://example.com/page#section)");
     });
 
-    it("does not modify when cleanPastedMarkdown returns same text", () => {
-      mockCleanPastedMarkdown.mockImplementation((t: string) => t);
-
-      const view = createView("hello", 5, 5);
-      const result = simulatePaste(view, "same text");
-
-      // No selection, not a URL, cleaned === original -> falls through
-      expect(result).toBe(false);
-      expect(view.state.doc.toString()).toBe("hello");
-    });
-
-    it("replaces selection when cleaning markdown with selection", () => {
-      mockCleanPastedMarkdown.mockReturnValue("clean");
-
-      const view = createView("hello world", 0, 5);
-      const result = simulatePaste(view, "dirty");
-
-      expect(result).toBe(true);
-      expect(view.state.doc.toString()).toBe("clean world");
-    });
-  });
-
-  describe("edge cases", () => {
-    it("returns false for empty paste data", () => {
-      const view = createView("hello", 0);
-      const result = simulatePaste(view, "");
-
-      expect(result).toBe(false);
-      expect(view.state.doc.toString()).toBe("hello");
-    });
-
-    it("handles empty document with no selection", () => {
-      const view = createView("", 0, 0);
-      const result = simulatePaste(view, "https://example.com");
-
-      // No selection (from === to), falls through
-      expect(result).toBe(false);
-    });
-
-    it("handles single character selection with URL paste", () => {
+    it("handles single character selection", () => {
       const view = createView("a", 0, 1);
-      simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
       expect(view.state.doc.toString()).toBe("[a](https://example.com)");
     });
 
     it("handles multiline selected text", () => {
       const view = createView("hello\nworld", 0, 11);
-      simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
-      expect(view.state.doc.toString()).toBe(
-        "[hello\nworld](https://example.com)"
-      );
+      expect(view.state.doc.toString()).toBe("[hello\nworld](https://example.com)");
     });
 
-    it("handles URL with unicode characters in selection", () => {
+    it("handles CJK selection", () => {
       const view = createView("你好世界", 0, 4);
-      simulatePaste(view, "https://example.com/page");
+      dispatchPaste(view, "https://example.com/page");
 
-      expect(view.state.doc.toString()).toBe(
-        "[你好世界](https://example.com/page)"
-      );
+      expect(view.state.doc.toString()).toBe("[你好世界](https://example.com/page)");
     });
 
-    it("handles URL with fragment identifier", () => {
-      const view = createView("heading", 0, 7);
-      simulatePaste(view, "https://example.com/page#section");
-
-      expect(view.state.doc.toString()).toBe(
-        "[heading](https://example.com/page#section)"
-      );
-    });
-
-    it("handles URL paste at mid-document selection", () => {
+    it("handles mid-document selection", () => {
       const view = createView("before target after", 7, 13);
-      simulatePaste(view, "https://example.com");
+      dispatchPaste(view, "https://example.com");
 
-      expect(view.state.doc.toString()).toBe(
-        "before [target](https://example.com) after"
-      );
+      expect(view.state.doc.toString()).toBe("before [target](https://example.com) after");
     });
 
-    it("image paste takes priority over URL paste on selection", () => {
-      mockTryImagePaste.mockReturnValue(true);
-
+    it("handles paste over entire document", () => {
       const view = createView("hello", 0, 5);
-      const result = simulatePaste(view, "https://example.com/image.png");
+      dispatchPaste(view, "https://example.com");
 
-      expect(result).toBe(true);
-      // Doc unchanged because image handler consumed it
-      expect(view.state.doc.toString()).toBe("hello");
-    });
-
-    it("markdown cleanup takes priority over URL link creation", () => {
-      mockCleanPastedMarkdown.mockReturnValue("cleaned URL text");
-
-      const view = createView("hello world", 0, 5);
-      const result = simulatePaste(view, "https://example.com");
-
-      expect(result).toBe(true);
-      // Should use cleaned text, not create a link
-      expect(view.state.doc.toString()).toBe("cleaned URL text world");
+      expect(view.state.doc.toString()).toBe("[hello](https://example.com)");
     });
   });
 
-  describe("createSmartPastePlugin export", () => {
-    it("returns a valid extension from createSmartPastePlugin", async () => {
-      const { createSmartPastePlugin } = await import("./smartPaste");
-      const extension = createSmartPastePlugin();
-      expect(extension).toBeDefined();
+  describe("handler priority chain", () => {
+    it("image paste > markdown cleanup > URL link", () => {
+      // When image paste handles it, nothing else runs
+      mockTryImagePaste.mockReturnValue(true);
+      const view = createView("hello", 0, 5);
+      dispatchPaste(view, "https://example.com");
+
+      expect(mockTryImagePaste).toHaveBeenCalled();
+      expect(mockCleanPastedMarkdown).not.toHaveBeenCalled();
+      expect(mockIsValidUrl).not.toHaveBeenCalled();
     });
 
-    it("extension can be used in EditorView", async () => {
-      const { createSmartPastePlugin } = await import("./smartPaste");
-      const extension = createSmartPastePlugin();
-      const state = EditorState.create({
-        doc: "hello",
-        extensions: [extension],
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      const view = new EditorView({ state, parent: container });
-      createdViews.push(view);
+    it("when cleanup modifies text, URL link creation is skipped", () => {
+      mockCleanPastedMarkdown.mockReturnValue("modified");
+      const view = createView("hello", 0, 5);
+      dispatchPaste(view, "https://example.com");
 
-      expect(view.state.doc.toString()).toBe("hello");
+      expect(mockCleanPastedMarkdown).toHaveBeenCalled();
+      expect(mockIsValidUrl).not.toHaveBeenCalled();
+      // Cleaned text replaces selection
+      expect(view.state.doc.toString()).toBe("modified");
+    });
+
+    it("when cleanup returns same text, URL check proceeds", () => {
+      mockCleanPastedMarkdown.mockImplementation((t: string) => t);
+      const view = createView("hello", 0, 5);
+      dispatchPaste(view, "https://example.com");
+
+      expect(mockCleanPastedMarkdown).toHaveBeenCalled();
+      expect(mockIsValidUrl).toHaveBeenCalledWith("https://example.com");
     });
   });
 });

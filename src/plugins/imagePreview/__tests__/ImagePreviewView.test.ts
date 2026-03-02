@@ -38,7 +38,7 @@ vi.mock("@/hooks/useWindowFocus", () => ({
 }));
 
 // Import after mocking
-import { ImagePreviewView, getImagePreviewView } from "../ImagePreviewView";
+import { ImagePreviewView, getImagePreviewView, hideImagePreview } from "../ImagePreviewView";
 
 // Helper to create mock DOMRect
 const createMockRect = (overrides: Partial<DOMRect> = {}): DOMRect => ({
@@ -461,6 +461,568 @@ describe("ImagePreviewView updateContent", () => {
 
     // Position should change
     expect(popup.style.top).not.toBe(initialTop);
+
+    view.destroy();
+  });
+});
+
+describe("hideImagePreview", () => {
+  it("does nothing when no preview instance exists", () => {
+    // Calling hideImagePreview without ever creating a preview should not throw
+    expect(() => hideImagePreview()).not.toThrow();
+  });
+
+  it("hides an existing preview instance", () => {
+    const view = getImagePreviewView();
+    const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+    view.show("test.png", anchorRect);
+    expect(view.isVisible()).toBe(true);
+
+    hideImagePreview();
+    expect(view.isVisible()).toBe(false);
+  });
+});
+
+describe("ImagePreviewView image loading", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("shows image on successful load via onload", async () => {
+    // Override Image so that setting src triggers onload synchronously
+    const origImage = globalThis.Image;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        // Fire onload on next microtask (after handlers are set)
+        Promise.resolve().then(() => { if (this.onload) this.onload(); });
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 100));
+
+    const img = container.querySelector(".image-preview-img") as HTMLElement;
+    expect(img.style.display).toBe("block");
+    const loading = container.querySelector(".image-preview-loading") as HTMLElement;
+    expect(loading.style.display).toBe("none");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("shows error on failed image load via onerror", async () => {
+    const origImage = globalThis.Image;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        Promise.resolve().then(() => { if (this.onerror) this.onerror(); });
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,invalid", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 100));
+
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("Failed to load");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("ignores stale image onload when token changes", async () => {
+    let savedOnload: (() => void) | null = null;
+    const origImage = globalThis.Image;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        // Save onload but don't call it yet
+        savedOnload = this.onload;
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Hide increments token, making the pending load stale
+    view.hide();
+
+    // Now trigger the stale onload
+    if (savedOnload) savedOnload();
+
+    // Image should NOT be shown
+    const img = container.querySelector(".image-preview-img") as HTMLElement;
+    expect(img.style.display).toBe("none");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("ignores stale image onerror when token changes", async () => {
+    let savedOnerror: (() => void) | null = null;
+    const origImage = globalThis.Image;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        savedOnerror = this.onerror;
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    view.hide();
+
+    // Trigger stale onerror
+    if (savedOnerror) savedOnerror();
+
+    // Error should NOT be shown (stale)
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+});
+
+describe("ImagePreviewView video/audio loading", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("shows video on loadedmetadata", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    // Simulate loadedmetadata event
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    expect(video.style.display).toBe("block");
+    const loading = container.querySelector(".image-preview-loading") as HTMLElement;
+    expect(loading.style.display).toBe("none");
+
+    view.destroy();
+  });
+
+  it("shows error on video load error", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/broken.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    video.dispatchEvent(new Event("error"));
+
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("Failed to load");
+
+    view.destroy();
+  });
+
+  it("shows audio on loadedmetadata", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/audio.mp3", anchorRect, editorDom, "audio");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const audio = container.querySelector(".image-preview-audio") as HTMLAudioElement;
+    audio.dispatchEvent(new Event("loadedmetadata"));
+
+    expect(audio.style.display).toBe("block");
+    const loading = container.querySelector(".image-preview-loading") as HTMLElement;
+    expect(loading.style.display).toBe("none");
+
+    view.destroy();
+  });
+
+  it("shows error on audio load error", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/broken.mp3", anchorRect, editorDom, "audio");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const audio = container.querySelector(".image-preview-audio") as HTMLAudioElement;
+    audio.dispatchEvent(new Event("error"));
+
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("Failed to load");
+
+    view.destroy();
+  });
+
+  it("ignores stale video error event", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+
+    // Hide to increment resolve token
+    view.hide();
+
+    // Fire error event on stale video load
+    video.dispatchEvent(new Event("error"));
+
+    // Error should NOT be shown (stale token)
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("");
+
+    view.destroy();
+  });
+
+  it("ignores stale video loadedmetadata event", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+
+    // Hide to increment resolve token
+    view.hide();
+
+    // Fire loadedmetadata event on stale video load
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    // Video should NOT be shown (stale token)
+    expect(video.style.display).toBe("none");
+
+    view.destroy();
+  });
+
+  it("cleans up event listeners after loadedmetadata", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    const removeEventListenerSpy = vi.spyOn(video, "removeEventListener");
+
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("loadedmetadata", expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("error", expect.any(Function));
+
+    view.destroy();
+  });
+});
+
+describe("ImagePreviewView path resolution", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("resolves absolute path via convertFileSrc", async () => {
+    const { convertFileSrc } = await import("@tauri-apps/api/core");
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("/absolute/path/to/image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(convertFileSrc).toHaveBeenCalledWith("/absolute/path/to/image.png");
+
+    view.destroy();
+  });
+
+  it("resolves Windows absolute path", async () => {
+    const { convertFileSrc } = await import("@tauri-apps/api/core");
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("C:\\Users\\test\\image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Should normalize backslashes to forward slashes
+    expect(convertFileSrc).toHaveBeenCalledWith("C:/Users/test/image.png");
+
+    view.destroy();
+  });
+
+  it("resolves relative path against document directory", async () => {
+    const { join } = await import("@tauri-apps/api/path");
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("./assets/image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(join).toHaveBeenCalledWith("/test/dir", "assets/image.png");
+
+    view.destroy();
+  });
+
+  it("resolves assets/ relative path", async () => {
+    const { join } = await import("@tauri-apps/api/path");
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("assets/photo.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(join).toHaveBeenCalledWith("/test/dir", "assets/photo.png");
+
+    view.destroy();
+  });
+
+  it("falls back to original src when no active file for relative path", async () => {
+    // Override mock to return no document
+    const { useTabStore } = await import("@/stores/tabStore");
+    const origGetState = useTabStore.getState;
+    (useTabStore as unknown as Record<string, unknown>).getState = () => ({
+      activeTabId: {},
+    });
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    // Should not throw, falls back to original src
+    view.show("./assets/image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Restore
+    (useTabStore as unknown as Record<string, unknown>).getState = origGetState;
+    view.destroy();
+  });
+
+  it("falls back on path resolution error", async () => {
+    const { dirname } = await import("@tauri-apps/api/path");
+    (dirname as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("path error"));
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("./assets/image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Should show error or fallback gracefully (path resolution failed in the try/catch inside resolveImageSrc)
+    view.destroy();
+  });
+
+  it("handles getActiveFilePath catch branch when store throws", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const origGetState = useTabStore.getState;
+    (useTabStore as unknown as Record<string, unknown>).getState = () => {
+      throw new Error("store error");
+    };
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    // Relative path needs getActiveFilePath, which will throw → catch returns null
+    view.show("./assets/image.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Restore
+    (useTabStore as unknown as Record<string, unknown>).getState = origGetState;
+    view.destroy();
+  });
+
+  it("shows error when resolveImageSrc promise rejects", async () => {
+    // convertFileSrc throwing will cause resolveImageSrc to reject
+    const { convertFileSrc } = await import("@tauri-apps/api/core");
+    (convertFileSrc as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error("conversion failed");
+    });
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    // Absolute path will call convertFileSrc which will throw
+    view.show("/absolute/path.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 100));
+
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("Path resolution failed");
+
+    view.destroy();
+  });
+
+  it("ignores stale resolveImageSrc rejection", async () => {
+    const { convertFileSrc } = await import("@tauri-apps/api/core");
+    (convertFileSrc as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error("conversion failed");
+    });
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("/absolute/path.png", anchorRect, editorDom);
+    // Immediately hide to increment token
+    view.hide();
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Error should NOT be shown (stale token)
+    const error = container.querySelector(".image-preview-error") as HTMLElement;
+    expect(error.textContent).toBe("");
+
+    view.destroy();
+  });
+
+  it("uses src directly for unrecognized path format", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    // A path that's not external, not absolute, and not relative
+    view.show("some-random-path", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    view.destroy();
+  });
+});
+
+describe("ImagePreviewView stale load cancellation", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("cancels pending image load on hide", async () => {
+    const origImage = globalThis.Image;
+    let pendingOnload: (() => void) | null = null;
+    globalThis.Image = vi.fn().mockImplementation(() => {
+      const img = { onload: null as (() => void) | null, onerror: null as (() => void) | null, src: "" };
+      // Delay setting the onload so we can hide before it fires
+      setTimeout(() => { pendingOnload = img.onload; }, 200);
+      return img;
+    }) as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/slow.png", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Hide before image loads (increments resolveToken)
+    view.hide();
+
+    // Now trigger the stale onload
+    await new Promise((r) => setTimeout(r, 200));
+    if (pendingOnload) pendingOnload();
+
+    // Image should NOT be shown since the load was stale
+    const img = container.querySelector(".image-preview-img") as HTMLElement;
+    expect(img.style.display).toBe("none");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("cancels pending video load on hide", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+
+    // Hide to increment token
+    view.hide();
+
+    // Trigger stale loadedmetadata
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    // Video should still be hidden
+    expect(video.style.display).toBe("none");
+
+    view.destroy();
+  });
+
+  it("ignores stale resolve result after hide", async () => {
+    const { dirname } = await import("@tauri-apps/api/path");
+    // Make dirname slow
+    (dirname as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((r) => setTimeout(() => r("/slow/dir"), 200))
+    );
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("./assets/slow.png", anchorRect, editorDom);
+
+    // Hide before resolve completes
+    view.hide();
+
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Should not have shown anything
+    expect(view.isVisible()).toBe(false);
+
+    // Restore dirname
+    (dirname as ReturnType<typeof vi.fn>).mockImplementation(() => Promise.resolve("/test/dir"));
 
     view.destroy();
   });

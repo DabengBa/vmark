@@ -228,3 +228,18 @@ describe("findActiveWorkspaceLabel", () => {
     expect(findActiveWorkspaceLabel()).toBeNull();
   });
 });
+
+describe("migrateWorkspaceStorage error handling", () => {
+  it("swallows errors and does not throw (line 86)", () => {
+    // Simulate localStorage.getItem throwing
+    const originalGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = () => {
+      throw new Error("localStorage unavailable");
+    };
+
+    // Should not throw
+    expect(() => migrateWorkspaceStorage()).not.toThrow();
+
+    Storage.prototype.getItem = originalGetItem;
+  });
+});

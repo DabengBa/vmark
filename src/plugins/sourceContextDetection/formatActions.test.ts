@@ -210,4 +210,73 @@ describe("hasFormat", () => {
     expect(hasFormat(view, "bold")).toBe(false);
     view.destroy();
   });
+
+  it("detects strikethrough format", () => {
+    const view = createView("~~hello~~", 0, 9);
+    expect(hasFormat(view, "strikethrough")).toBe(true);
+    view.destroy();
+  });
+
+  it("detects highlight format", () => {
+    const view = createView("==hello==", 0, 9);
+    expect(hasFormat(view, "highlight")).toBe(true);
+    view.destroy();
+  });
+
+  it("detects superscript format via surrounding text", () => {
+    const view = createView("^hello^", 1, 6);
+    expect(hasFormat(view, "superscript")).toBe(true);
+    view.destroy();
+  });
+
+  it("detects subscript format via surrounding text", () => {
+    const view = createView("~hello~", 1, 6);
+    expect(hasFormat(view, "subscript")).toBe(true);
+    view.destroy();
+  });
+});
+
+describe("applyFormat — footnote", () => {
+  it("inserts footnote reference and definition", () => {
+    const view = createView("some text", 0, 4); // select "some"
+    applyFormat(view, "footnote");
+    const result = view.state.doc.toString();
+    expect(result).toContain("[^");
+    expect(result).toContain("]: some");
+    view.destroy();
+  });
+
+  it("inserts footnote for text at end of document", () => {
+    const view = createView("hello world", 6, 11); // select "world"
+    applyFormat(view, "footnote");
+    const result = view.state.doc.toString();
+    expect(result).toContain("[^");
+    view.destroy();
+  });
+});
+
+describe("applyFormat — unwrapOppositeFormat with surrounding markers", () => {
+  it("removes surrounding opposite markers (superscript -> subscript)", () => {
+    // ^hello^ with selection inside the markers
+    const doc = "^hello^";
+    const view = createView(doc, 1, 6); // select "hello" between ^ markers
+    applyFormat(view, "subscript");
+    // Should unwrap ^hello^ first, then apply ~hello~
+    const result = view.state.doc.toString();
+    expect(result).toContain("~hello~");
+    view.destroy();
+  });
+});
+
+describe("applyFormat — link cursor placement", () => {
+  it("places cursor at url placeholder after wrapping link", () => {
+    const view = createView("hello world", 0, 5);
+    applyFormat(view, "link");
+    const result = view.state.doc.toString();
+    expect(result).toBe("[hello](url) world");
+    // Check cursor is at "url" position
+    const { anchor, head } = view.state.selection.main;
+    expect(view.state.doc.sliceString(anchor, head)).toBe("url");
+    view.destroy();
+  });
 });

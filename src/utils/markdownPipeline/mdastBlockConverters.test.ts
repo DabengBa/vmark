@@ -801,4 +801,386 @@ describe("mdastBlockConverters", () => {
       expect(MATH_BLOCK_LANGUAGE).toBe("$$math$$");
     });
   });
+
+  describe("convertHtml — video/audio/iframe promotion", () => {
+    // Extended schema with block_video, block_audio, video_embed
+    const mediaSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: {
+          content: "inline*",
+          group: "block",
+          attrs: { sourceLine: { default: null } },
+        },
+        block_video: {
+          attrs: {
+            src: { default: "" },
+            title: { default: "" },
+            poster: { default: "" },
+            controls: { default: true },
+            preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        block_audio: {
+          attrs: {
+            src: { default: "" },
+            title: { default: "" },
+            controls: { default: true },
+            preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        video_embed: {
+          attrs: {
+            provider: { default: "" },
+            videoId: { default: "" },
+            width: { default: 560 },
+            height: { default: 315 },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        html_block: {
+          attrs: { value: { default: "" }, sourceLine: { default: null } },
+          group: "block",
+          atom: true,
+        },
+        html_inline: {
+          attrs: { value: { default: "" }, sourceLine: { default: null } },
+          inline: true,
+          group: "inline",
+          atom: true,
+        },
+        text: { group: "inline" },
+      },
+    });
+
+    const mediaCtx = createContext(mediaSchema);
+
+    it("promotes <video> HTML to block_video", () => {
+      const node: Html = {
+        type: "html",
+        value: '<video src="movie.mp4" controls title="My Video"></video>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_video");
+      expect(result!.attrs.src).toBe("movie.mp4");
+      expect(result!.attrs.title).toBe("My Video");
+      expect(result!.attrs.controls).toBe(true);
+    });
+
+    it("promotes <audio> HTML to block_audio", () => {
+      const node: Html = {
+        type: "html",
+        value: '<audio src="song.mp3" controls preload="auto"></audio>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_audio");
+      expect(result!.attrs.src).toBe("song.mp3");
+      expect(result!.attrs.preload).toBe("auto");
+    });
+
+    it("promotes YouTube iframe to video_embed", () => {
+      const node: Html = {
+        type: "html",
+        value: '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" width="640" height="360"></iframe>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("video_embed");
+      expect(result!.attrs.provider).toBe("youtube");
+      expect(result!.attrs.videoId).toBe("dQw4w9WgXcQ");
+      expect(result!.attrs.width).toBe(640);
+      expect(result!.attrs.height).toBe(360);
+    });
+
+    it("does not promote non-video iframe to video_embed", () => {
+      const node: Html = {
+        type: "html",
+        value: '<iframe src="https://example.com/page"></iframe>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      // Not a recognized video provider, falls through to html_block
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("html_block");
+    });
+
+    it("does not promote inline HTML with video tag", () => {
+      const node: Html = {
+        type: "html",
+        value: '<video src="movie.mp4" controls></video>',
+      };
+      // In inline context, tryPromoteMediaHtml is not called
+      const result = convertHtml(mediaCtx, node, true);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("html_inline");
+    });
+
+    it("promotes <video> with poster attribute", () => {
+      const node: Html = {
+        type: "html",
+        value: '<video src="movie.mp4" poster="thumb.jpg"></video>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result!.type.name).toBe("block_video");
+      expect(result!.attrs.poster).toBe("thumb.jpg");
+    });
+
+    it("handles video without controls attribute", () => {
+      const node: Html = {
+        type: "html",
+        value: '<video src="movie.mp4"></video>',
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result!.type.name).toBe("block_video");
+      expect(result!.attrs.controls).toBe(false);
+    });
+
+    it("handles single-quoted attributes", () => {
+      const node: Html = {
+        type: "html",
+        value: "<video src='movie.mp4' controls></video>",
+      };
+      const result = convertHtml(mediaCtx, node, false);
+      expect(result!.type.name).toBe("block_video");
+      expect(result!.attrs.src).toBe("movie.mp4");
+    });
+
+    it("falls back to html_block when block_video not in schema", () => {
+      const noVideoSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { content: "inline*", group: "block" },
+          html_block: {
+            attrs: { value: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(noVideoSchema);
+      const node: Html = {
+        type: "html",
+        value: '<video src="movie.mp4" controls></video>',
+      };
+      const result = convertHtml(ctx, node, false);
+      // block_video not in schema, falls through to html_block
+      expect(result!.type.name).toBe("html_block");
+    });
+
+    it("falls back to html_block when block_audio not in schema", () => {
+      const noAudioSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { content: "inline*", group: "block" },
+          html_block: {
+            attrs: { value: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(noAudioSchema);
+      const node: Html = {
+        type: "html",
+        value: '<audio src="song.mp3" controls></audio>',
+      };
+      const result = convertHtml(ctx, node, false);
+      expect(result!.type.name).toBe("html_block");
+    });
+  });
+
+  describe("convertParagraph — inline HTML video/audio promotion", () => {
+    const mediaSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: {
+          content: "inline*",
+          group: "block",
+          attrs: { sourceLine: { default: null } },
+        },
+        block_video: {
+          attrs: {
+            src: { default: "" }, title: { default: "" }, poster: { default: "" },
+            controls: { default: true }, preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        block_audio: {
+          attrs: {
+            src: { default: "" }, title: { default: "" },
+            controls: { default: true }, preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        html_block: {
+          attrs: { value: { default: "" }, sourceLine: { default: null } },
+          group: "block",
+          atom: true,
+        },
+        text: { group: "inline" },
+      },
+    });
+
+    it("promotes paragraph with single inline-html <video> to block_video", () => {
+      const ctx = createContext(mediaSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        children: [
+          { type: "html", value: '<video src="clip.mp4" controls></video>' },
+        ],
+      };
+      const result = convertParagraph(ctx, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_video");
+    });
+
+    it("promotes paragraph with single inline-html <audio> to block_audio", () => {
+      const ctx = createContext(mediaSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        children: [
+          { type: "html", value: '<audio src="track.mp3" controls></audio>' },
+        ],
+      };
+      const result = convertParagraph(ctx, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_audio");
+    });
+  });
+
+  describe("convertParagraph — video/audio image promotion", () => {
+    const mediaSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: {
+          content: "inline*",
+          group: "block",
+          attrs: { sourceLine: { default: null } },
+        },
+        block_video: {
+          attrs: {
+            src: { default: "" }, title: { default: "" },
+            controls: { default: true }, preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        block_audio: {
+          attrs: {
+            src: { default: "" }, title: { default: "" },
+            controls: { default: true }, preload: { default: "metadata" },
+            sourceLine: { default: null },
+          },
+          group: "block",
+          atom: true,
+        },
+        block_image: {
+          attrs: { src: { default: "" }, alt: { default: "" }, title: { default: "" }, sourceLine: { default: null } },
+          group: "block",
+          atom: true,
+        },
+        image: {
+          attrs: { src: {}, alt: { default: null }, title: { default: null } },
+          inline: true,
+          group: "inline",
+        },
+        text: { group: "inline" },
+      },
+    });
+
+    it("promotes single image child with video extension to block_video", () => {
+      const ctx = createContext(mediaSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        children: [
+          { type: "image", url: "clip.mp4", alt: "video", title: "My Video" },
+        ],
+      };
+      const result = convertParagraph(ctx, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_video");
+      expect(result!.attrs.src).toBe("clip.mp4");
+    });
+
+    it("promotes single image child with audio extension to block_audio", () => {
+      const ctx = createContext(mediaSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        children: [
+          { type: "image", url: "track.mp3", alt: "audio", title: "" },
+        ],
+      };
+      const result = convertParagraph(ctx, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_audio");
+      expect(result!.attrs.src).toBe("track.mp3");
+    });
+  });
+
+  describe("convertAlertBlockquote — additional edge cases", () => {
+    it("returns null for first child with non-text first child", () => {
+      const node: Blockquote = {
+        type: "blockquote",
+        children: [
+          {
+            type: "paragraph",
+            children: [{ type: "image", url: "img.png", alt: "" }],
+          },
+        ],
+      };
+      const result = convertAlertBlockquote(context, node, []);
+      expect(result).toBeNull();
+    });
+
+    it("handles alert with empty children (paragraph removed)", () => {
+      // When [!NOTE] marker consumes entire text and no break follows
+      const node: Blockquote = {
+        type: "blockquote",
+        children: [
+          {
+            type: "paragraph",
+            children: [{ type: "text", value: "[!WARNING]" }],
+          },
+        ],
+      };
+      const result = convertAlertBlockquote(context, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.attrs.alertType).toBe("WARNING");
+    });
+
+    it("handles alert with additional blockquote children after first paragraph", () => {
+      const node: Blockquote = {
+        type: "blockquote",
+        children: [
+          {
+            type: "paragraph",
+            children: [{ type: "text", value: "[!CAUTION]" }],
+          },
+          {
+            type: "paragraph",
+            children: [{ type: "text", value: "Extra content" }],
+          },
+        ],
+      };
+      const result = convertAlertBlockquote(context, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.attrs.alertType).toBe("CAUTION");
+    });
+  });
 });

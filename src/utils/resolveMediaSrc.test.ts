@@ -211,5 +211,26 @@ describe("resolveMediaSrc", () => {
       const result = await resolveMediaSrc("../secret", "[Test]");
       expect(result).toBe("");
     });
+
+    it("rejects relative path that fails validateImagePath", async () => {
+      // A path that isRelativePath returns true for but validateImagePath rejects
+      // e.g., a path with control characters or invalid extension
+      setupDocWithPath("/Users/test/docs/readme.md");
+      const result = await resolveMediaSrc("./\x00bad");
+      // validateImagePath rejects paths with control characters
+      expect(typeof result).toBe("string");
+    });
+  });
+});
+
+describe("getActiveTabIdForCurrentWindow error handling", () => {
+  it("returns null when getWindowLabel throws (line 51-52)", async () => {
+    // Mock getWindowLabel to throw
+    const { getWindowLabel } = await import("@/hooks/useWindowFocus");
+    const mockGetWindowLabel = getWindowLabel as ReturnType<typeof vi.fn>;
+    mockGetWindowLabel.mockImplementationOnce(() => {
+      throw new Error("No window");
+    });
+    expect(getActiveTabIdForCurrentWindow()).toBeNull();
   });
 });

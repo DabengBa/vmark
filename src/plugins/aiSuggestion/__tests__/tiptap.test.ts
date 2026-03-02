@@ -60,9 +60,10 @@ vi.mock("@/stores/aiSuggestionStore", () => ({
 }));
 
 // Mock tiptapEditorStore
+const mockEditorStoreState = { editorView: null as unknown };
 vi.mock("@/stores/tiptapEditorStore", () => ({
   useTiptapEditorStore: {
-    getState: () => ({ editorView: null }),
+    getState: () => mockEditorStoreState,
   },
 }));
 
@@ -1195,6 +1196,536 @@ describe("aiSuggestion plugin integration", () => {
       expect(mockScrollTo).not.toHaveBeenCalled();
 
       viewResult.destroy!();
+    });
+  });
+
+  describe("replace decoration widget toDOM", () => {
+    it("replace widget creates container with ghost text when newContent exists", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 1,
+        to: 6,
+        newContent: "replacement text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      // inline decoration + widget decoration
+      expect(found.length).toBe(2);
+
+      // The widget is the second decoration
+      const widget = found[1];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      if (widgetType?.toDOM) {
+        const dom = widgetType.toDOM();
+        expect(dom.className).toContain("ai-suggestion-replace-container");
+        expect(dom.getAttribute("data-suggestion-id")).toBe("s1");
+        expect(dom.querySelector(".ai-suggestion-ghost")).toBeTruthy();
+        expect(dom.querySelector(".ai-suggestion-ghost")!.textContent).toBe("replacement text");
+        // Not focused, so no buttons
+        expect(dom.querySelector(".ai-suggestion-buttons")).toBeFalsy();
+      }
+    });
+
+    it("focused replace widget includes buttons", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 1,
+        to: 6,
+        newContent: "replacement text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      expect(found.length).toBe(2);
+
+      const widget = found[1];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      if (widgetType?.toDOM) {
+        const dom = widgetType.toDOM();
+        expect(dom.querySelector(".ai-suggestion-buttons")).toBeTruthy();
+        expect(dom.querySelector(".ai-suggestion-btn-accept")).toBeTruthy();
+        expect(dom.querySelector(".ai-suggestion-btn-reject")).toBeTruthy();
+      }
+    });
+
+    it("replace widget without newContent has no ghost text", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 1,
+        to: 6,
+        // no newContent
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      expect(found.length).toBe(2);
+
+      const widget = found[1];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      if (widgetType?.toDOM) {
+        const dom = widgetType.toDOM();
+        expect(dom.querySelector(".ai-suggestion-ghost")).toBeFalsy();
+      }
+    });
+  });
+
+  describe("delete decoration widget toDOM", () => {
+    it("focused delete creates buttons via widget toDOM", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "delete",
+        from: 1,
+        to: 6,
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      // inline + buttons widget
+      expect(found.length).toBe(2);
+
+      // Buttons widget is second
+      const widget = found[1];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      if (widgetType?.toDOM) {
+        const dom = widgetType.toDOM();
+        expect(dom.className).toContain("ai-suggestion-buttons");
+        expect(dom.querySelector(".ai-suggestion-btn-accept")).toBeTruthy();
+        expect(dom.querySelector(".ai-suggestion-btn-reject")).toBeTruthy();
+      }
+    });
+  });
+
+  describe("createButtons mousedown handlers", () => {
+    it("accept button mousedown calls applySuggestion and removeSuggestion", () => {
+      const mockDispatch = vi.fn();
+      const mockEditorView = {
+        state: createState("hello world"),
+        dispatch: mockDispatch,
+      };
+      mockEditorStoreState.editorView = mockEditorView;
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "delete",
+        from: 1,
+        to: 6,
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+
+      // Get the widget with buttons (for focused delete, it's the second decoration)
+      const widget = found[1];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      expect(widgetType?.toDOM).toBeDefined();
+
+      const dom = widgetType!.toDOM!();
+      const acceptBtn = dom.querySelector(".ai-suggestion-btn-accept") as HTMLButtonElement;
+      expect(acceptBtn).toBeTruthy();
+
+      // Simulate mousedown on accept button
+      const mouseEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mouseEvent, "preventDefault", { value: vi.fn() });
+      Object.defineProperty(mouseEvent, "stopPropagation", { value: vi.fn() });
+      acceptBtn.onmousedown!(mouseEvent);
+
+      expect(mouseEvent.preventDefault).toHaveBeenCalled();
+      expect(mouseEvent.stopPropagation).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalled();
+      expect(mockAiState.removeSuggestion).toHaveBeenCalledWith("s1");
+
+      // Restore
+      mockEditorStoreState.editorView = null;
+    });
+
+    it("accept button mousedown does nothing when no editor view", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+      const acceptBtn = dom.querySelector(".ai-suggestion-btn-accept") as HTMLButtonElement;
+
+      const mouseEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mouseEvent, "preventDefault", { value: vi.fn() });
+      Object.defineProperty(mouseEvent, "stopPropagation", { value: vi.fn() });
+      acceptBtn.onmousedown!(mouseEvent);
+
+      // No removeSuggestion should be called since view is null
+      expect(mockAiState.removeSuggestion).not.toHaveBeenCalled();
+    });
+
+    it("reject button mousedown calls removeSuggestion only", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+      const rejectBtn = dom.querySelector(".ai-suggestion-btn-reject") as HTMLButtonElement;
+
+      const mouseEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mouseEvent, "preventDefault", { value: vi.fn() });
+      Object.defineProperty(mouseEvent, "stopPropagation", { value: vi.fn() });
+      rejectBtn.onmousedown!(mouseEvent);
+
+      expect(mouseEvent.preventDefault).toHaveBeenCalled();
+      expect(mouseEvent.stopPropagation).toHaveBeenCalled();
+      expect(mockAiState.removeSuggestion).toHaveBeenCalledWith("s1");
+    });
+  });
+
+  describe("applySuggestionToTr via accept event", () => {
+    it("applies insert suggestion with newContent via accept event", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello world"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "inserted",
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      viewResult.destroy!();
+    });
+
+    it("applies replace suggestion with newContent via accept event", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello world"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 1,
+        to: 6,
+        newContent: "replacement",
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      viewResult.destroy!();
+    });
+
+    it("does not modify doc for insert suggestion without newContent", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello world"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        // no newContent
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      // Transaction is dispatched but doc should be unchanged
+      expect(mockDispatch).toHaveBeenCalled();
+      const dispatchedTr = mockDispatch.mock.calls[0][0];
+      expect(dispatchedTr.docChanged).toBe(false);
+      viewResult.destroy!();
+    });
+
+    it("does not modify doc for replace suggestion without newContent", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello world"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 1,
+        to: 6,
+        // no newContent
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      const dispatchedTr = mockDispatch.mock.calls[0][0];
+      expect(dispatchedTr.docChanged).toBe(false);
+      viewResult.destroy!();
+    });
+
+    it("clamps whole-doc replace to current doc size", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "replace",
+        from: 0,
+        to: 99999, // exceeds doc size
+        newContent: "new content",
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      viewResult.destroy!();
+    });
+
+    it("skips suggestion with stale positions", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "delete",
+        from: -1,
+        to: 5,
+      });
+      const event = new CustomEvent("ai-suggestion:accept", {
+        detail: { suggestion },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      const dispatchedTr = mockDispatch.mock.calls[0][0];
+      expect(dispatchedTr.docChanged).toBe(false);
+      viewResult.destroy!();
+    });
+  });
+
+  describe("rejectAll event", () => {
+    it("rejectAll dispatches empty transaction to refresh decorations", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const event = new CustomEvent("ai-suggestion:reject-all", {
+        detail: {},
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalled();
+      viewResult.destroy!();
+    });
+  });
+
+  describe("acceptAll applies multiple suggestions", () => {
+    it("applies insert and replace suggestions in one transaction", () => {
+      const mockDispatch = vi.fn();
+      const mockView = {
+        state: createState("hello world testing"),
+        dispatch: mockDispatch,
+        dom: document.createElement("div"),
+      };
+
+      const viewResult = plugin.spec.view!(mockView as never);
+
+      const suggestions = [
+        makeSuggestion({ id: "s1", type: "insert", from: 1, to: 1, newContent: "a" }),
+        makeSuggestion({ id: "s2", type: "replace", from: 7, to: 12, newContent: "b" }),
+      ];
+      const event = new CustomEvent("ai-suggestion:accept-all", {
+        detail: { suggestions },
+      });
+      window.dispatchEvent(event);
+
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      viewResult.destroy!();
+    });
+  });
+
+  describe("createIcon via widget DOM", () => {
+    it("creates SVG with single path for accept button", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+
+      const acceptBtn = dom.querySelector(".ai-suggestion-btn-accept");
+      const svg = acceptBtn?.querySelector("svg");
+      expect(svg).toBeTruthy();
+      expect(svg!.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(svg!.getAttribute("fill")).toBe("none");
+      expect(svg!.getAttribute("stroke")).toBe("currentColor");
+      // Check icon path: single path for check icon
+      expect(svg!.querySelectorAll("path").length).toBe(1);
+    });
+
+    it("creates SVG with multiple paths for reject button", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "text",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+
+      const rejectBtn = dom.querySelector(".ai-suggestion-btn-reject");
+      const svg = rejectBtn?.querySelector("svg");
+      expect(svg).toBeTruthy();
+      // X icon has 2 paths
+      expect(svg!.querySelectorAll("path").length).toBe(2);
+    });
+  });
+
+  describe("createGhostText via widget DOM", () => {
+    it("unfocused ghost text has no focused class", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "ghost",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      // NOT focused
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+
+      const ghost = dom.querySelector(".ai-suggestion-ghost");
+      expect(ghost).toBeTruthy();
+      expect(ghost!.className).toBe("ai-suggestion-ghost");
+      expect(ghost!.className).not.toContain("ai-suggestion-ghost-focused");
+    });
+
+    it("focused ghost text has focused class", () => {
+      const suggestion = makeSuggestion({
+        id: "s1",
+        type: "insert",
+        from: 1,
+        to: 1,
+        newContent: "ghost",
+      });
+      mockAiState.suggestions.set("s1", suggestion);
+      mockAiState.focusedSuggestionId = "s1";
+
+      const state = createState("hello world");
+      const decorations = plugin.props.decorations?.(state);
+      const found = decorations!.find();
+      const widget = found[0];
+      const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
+      const dom = widgetType!.toDOM!();
+
+      const ghost = dom.querySelector(".ai-suggestion-ghost");
+      expect(ghost).toBeTruthy();
+      expect(ghost!.className).toContain("ai-suggestion-ghost-focused");
     });
   });
 });

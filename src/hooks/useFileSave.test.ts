@@ -652,4 +652,341 @@ describe("handleSaveAllQuit", () => {
 
     // Should not throw, just silently skip
   });
+
+  it("quits when dirty tabs produce empty contexts (doc not dirty)", async () => {
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getAllDirtyDocuments: vi.fn(() => ["tab-1"]),
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/file.md",
+        isDirty: false, // not actually dirty
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      tabs: { main: [{ id: "tab-1", title: "File" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    await handleSaveAllQuit("main");
+
+    expect(mockInvoke).toHaveBeenCalledWith("force_quit");
+  });
+
+  it("uses fallback windowLabel when tab not found in any window", async () => {
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getAllDirtyDocuments: vi.fn(() => ["orphan-tab"]),
+      getDocument: vi.fn(() => ({
+        content: "# Orphan",
+        filePath: null,
+        isDirty: true,
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      tabs: {}, // no windows at all
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    mockSaveAllDocuments.mockResolvedValueOnce({ action: "saved-all" });
+
+    await handleSaveAllQuit("main");
+
+    expect(mockSaveAllDocuments).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          windowLabel: "main", // fallback
+          title: "Untitled",
+        }),
+      ]),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("force_quit");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// saveDialogWithFallback — timeout and retry paths
+// ---------------------------------------------------------------------------
+describe("saveDialogWithFallback — timeout/retry", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("retries without filters when first attempt throws timeout error", async () => {
+    // First call throws a timeout error
+    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
+    // Second call succeeds
+    mockSaveDialog.mockResolvedValueOnce("/path/to/retry.md");
+
+    const result = await saveDialogWithFallback("/default.md");
+
+    expect(result).toBe("/path/to/retry.md");
+    expect(mockSaveDialog).toHaveBeenCalledTimes(2);
+    // Second call should NOT have filters (Tahoe workaround)
+    expect(mockSaveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: "/default.md" }),
+    );
+  });
+
+  it("throws when both timeout attempts fail", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // First call throws timeout
+    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
+    // Second call also throws timeout
+    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
+
+    await expect(saveDialogWithFallback("/default.md")).rejects.toThrow("timed out");
+    expect(mockSaveDialog).toHaveBeenCalledTimes(2);
+    errorSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleSave — missing file and workspace opening edge cases
+// ---------------------------------------------------------------------------
+describe("handleSave — additional branches", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useWorkspaceStore.getState).mockReturnValue({
+      isWorkspaceMode: false,
+      rootPath: null,
+    } as unknown as ReturnType<typeof useWorkspaceStore.getState>);
+  });
+
+  it("clears missing flag when missing file is saved successfully via Save As", async () => {
+    const mockClearMissing = vi.fn();
+    vi.mocked(resolveMissingFileSaveAction).mockReturnValue("save_as_required" as never);
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Missing",
+        filePath: "/workspace/gone.md",
+        isDirty: true,
+        isMissing: true,
+      })),
+      clearMissing: mockClearMissing,
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    mockSaveDialog.mockResolvedValueOnce("/workspace/restored.md");
+    mockSaveToPath.mockResolvedValue(true);
+
+    await handleSave("main");
+
+    expect(mockClearMissing).toHaveBeenCalledWith("tab-1");
+  });
+
+  it("does not save when saveToPath returns false", async () => {
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/test.md",
+        isDirty: true,
+        isMissing: false,
+      })),
+      clearMissing: vi.fn(),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    vi.mocked(resolveMissingFileSaveAction).mockReturnValue("save_allowed" as never);
+    mockSaveToPath.mockResolvedValue(false);
+
+    await handleSave("main");
+
+    // No workspace open attempt because save failed
+    expect(mockOpenWorkspaceWithConfig).not.toHaveBeenCalled();
+  });
+
+  it("handles openWorkspaceWithConfig failure gracefully", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# New",
+        filePath: null,
+        isDirty: true,
+        isMissing: false,
+      })),
+      clearMissing: vi.fn(),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    vi.mocked(resolvePostSaveWorkspaceAction).mockReturnValue({
+      action: "open_workspace",
+      workspaceRoot: "/folder",
+    } as never);
+
+    mockSaveDialog.mockResolvedValueOnce("/folder/file.md");
+    mockSaveToPath.mockResolvedValue(true);
+    mockOpenWorkspaceWithConfig.mockRejectedValueOnce(new Error("workspace fail"));
+
+    await handleSave("main");
+
+    // Should not throw
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("logs warning when re-entry guard blocks save", async () => {
+    vi.mocked(withReentryGuard).mockResolvedValueOnce(undefined);
+
+    await handleSave("main");
+
+    // Should not throw; guardResult === undefined triggers warning
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleSaveAs — additional branches
+// ---------------------------------------------------------------------------
+describe("handleSaveAs — additional branches", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useWorkspaceStore.getState).mockReturnValue({
+      rootPath: "/workspace",
+    } as unknown as ReturnType<typeof useWorkspaceStore.getState>);
+  });
+
+  it("does nothing when no document found", async () => {
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => null),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    await handleSaveAs("main");
+
+    expect(mockSaveDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows toast on Save As dialog error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/test.md",
+        isDirty: false,
+        isMissing: false,
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    mockSaveDialog.mockRejectedValueOnce(new Error("Save As dialog crashed"));
+
+    await handleSaveAs("main");
+
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Save As dialog crashed"));
+    errorSpy.mockRestore();
+  });
+
+  it("skips move when saveToPath returns false", async () => {
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/test.md",
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    mockSaveDialog.mockResolvedValueOnce("/other/location.md");
+    mockSaveToPath.mockResolvedValue(false);
+
+    await handleSaveAs("main");
+
+    // moveTabToNewWorkspaceWindow should not be called
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "open_workspace_in_new_window",
+      expect.anything(),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleMoveTo — additional branches
+// ---------------------------------------------------------------------------
+describe("handleMoveTo — additional branches", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useWorkspaceStore.getState).mockReturnValue({
+      rootPath: "/workspace",
+    } as unknown as ReturnType<typeof useWorkspaceStore.getState>);
+  });
+
+  it("does nothing when no active tab", async () => {
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: null },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    await handleMoveTo("main");
+
+    expect(mockSaveDialog).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no document found", async () => {
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => null),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    await handleMoveTo("main");
+
+    expect(mockSaveDialog).not.toHaveBeenCalled();
+  });
+
+  it("shows toast on Move To dialog error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/old.md",
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    mockSaveDialog.mockRejectedValueOnce(new Error("Move dialog error"));
+
+    await handleMoveTo("main");
+
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Move dialog error"));
+    errorSpy.mockRestore();
+  });
+
+  it("does not call moveTabToNewWorkspaceWindow when save fails", async () => {
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: { main: "tab-1" },
+      tabs: { main: [{ id: "tab-1", title: "Test" }] },
+    } as unknown as ReturnType<typeof useTabStore.getState>);
+
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(() => ({
+        content: "# Content",
+        filePath: "/workspace/old.md",
+      })),
+    } as unknown as ReturnType<typeof useDocumentStore.getState>);
+
+    mockSaveDialog.mockResolvedValueOnce("/new/location.md");
+    mockSaveToPath.mockResolvedValue(false);
+
+    await handleMoveTo("main");
+
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
 });

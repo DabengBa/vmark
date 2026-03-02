@@ -1,58 +1,87 @@
 /**
  * Tests for Smart Paste Image Handling
  *
- * Tests the tryImagePaste function that detects image paths in pasted text
- * and delegates to the toast for confirmation.
+ * Tests the tryImagePaste function and its internal async functions:
+ * - insertImageMarkdown: copy-to-assets, path resolution, markdown insertion
+ * - showImagePasteToast: toast callbacks (onConfirm/onDismiss)
+ * - validateAndShowToast: home path expansion, path validation, fallback
+ * - validateAndShowMultiToast: parallel validation, multi-image toast
+ * - insertMultipleImageMarkdown: multi-image insertion, error paths
+ * - showMultiImagePasteToast: multi-image toast callbacks
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// ── Hoisted mocks ────────────────────────────────────────────────
+
 const mockParseMultiplePaths = vi.fn(() => ({
-  paths: [],
+  paths: [] as string[],
   format: "single" as const,
 }));
 const mockDetectMultipleImagePaths = vi.fn(() => ({
   allImages: false,
   imageCount: 0,
-  results: [],
+  results: [] as Array<{ isImage: boolean; type: string; path: string; needsCopy: boolean }>,
 }));
 const mockShowToast = vi.fn();
 const mockShowMultiToast = vi.fn();
 const mockFindWordAtCursorSource = vi.fn(() => null);
+const mockCopyImageToAssets = vi.fn(() => Promise.resolve("assets/image.png"));
+const mockSmartPasteWarn = vi.fn();
+const mockEncodeMarkdownUrl = vi.fn((url: string) => url.replace(/ /g, "%20"));
+const mockMessage = vi.fn(() => Promise.resolve());
+
+const mockIsViewConnected = vi.fn(() => true);
+const mockGetActiveFilePath = vi.fn(() => "/docs/test.md");
+const mockExpandHomePath = vi.fn((p: string) => Promise.resolve(p.replace("~/", "/Users/test/")));
+const mockValidateLocalPath = vi.fn(() => Promise.resolve(true));
+const mockGetToastAnchorRect = vi.fn(() => ({ top: 100, left: 200, bottom: 120, right: 220 }));
+const mockPasteAsText = vi.fn();
 
 vi.mock("@/utils/multiImageParsing", () => ({
   parseMultiplePaths: (...args: unknown[]) => mockParseMultiplePaths(...args),
 }));
 
 vi.mock("@/utils/imagePathDetection", () => ({
-  detectMultipleImagePaths: (...args: unknown[]) =>
-    mockDetectMultipleImagePaths(...args),
+  detectMultipleImagePaths: (...args: unknown[]) => mockDetectMultipleImagePaths(...args),
 }));
 
 vi.mock("@/stores/imagePasteToastStore", () => ({
   useImagePasteToastStore: {
     getState: () => ({
-      showToast: mockShowToast,
-      showMultiToast: mockShowMultiToast,
+      showToast: (...args: unknown[]) => mockShowToast(...args),
+      showMultiToast: (...args: unknown[]) => mockShowMultiToast(...args),
     }),
   },
 }));
 
 vi.mock("@/plugins/toolbarActions/sourceAdapterLinks", () => ({
-  findWordAtCursorSource: (...args: unknown[]) =>
-    mockFindWordAtCursorSource(...args),
+  findWordAtCursorSource: (...args: unknown[]) => mockFindWordAtCursorSource(...args),
 }));
 
 vi.mock("@/hooks/useImageOperations", () => ({
-  copyImageToAssets: vi.fn(() => Promise.resolve("assets/image.png")),
+  copyImageToAssets: (...args: unknown[]) => mockCopyImageToAssets(...args),
 }));
 
 vi.mock("@/utils/debug", () => ({
-  smartPasteWarn: vi.fn(),
+  smartPasteWarn: (...args: unknown[]) => mockSmartPasteWarn(...args),
 }));
 
 vi.mock("@/utils/markdownUrl", () => ({
-  encodeMarkdownUrl: (url: string) => url,
+  encodeMarkdownUrl: (url: string) => mockEncodeMarkdownUrl(url),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  message: (...args: unknown[]) => mockMessage(...args),
+}));
+
+vi.mock("./smartPasteUtils", () => ({
+  isViewConnected: (...args: unknown[]) => mockIsViewConnected(...args),
+  getActiveFilePath: () => mockGetActiveFilePath(),
+  expandHomePath: (...args: unknown[]) => mockExpandHomePath(...args),
+  validateLocalPath: (...args: unknown[]) => mockValidateLocalPath(...args),
+  getToastAnchorRect: (...args: unknown[]) => mockGetToastAnchorRect(...args),
+  pasteAsText: (...args: unknown[]) => mockPasteAsText(...args),
 }));
 
 import { EditorState } from "@codemirror/state";
@@ -66,11 +95,7 @@ afterEach(() => {
   createdViews.length = 0;
 });
 
-function createView(
-  content: string,
-  anchor: number,
-  head?: number
-): EditorView {
+function createView(content: string, anchor: number, head?: number): EditorView {
   const state = EditorState.create({
     doc: content,
     selection: { anchor, head: head ?? anchor },
@@ -82,557 +107,1047 @@ function createView(
   return view;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────
+
+function singleImageResult(type: string, path: string, needsCopy = false) {
+  return {
+    allImages: true,
+    imageCount: 1,
+    results: [{ isImage: true, type, path, needsCopy }],
+  };
+}
+
+function multiImageResult(results: Array<{ type: string; path: string; needsCopy: boolean }>) {
+  return {
+    allImages: true,
+    imageCount: results.length,
+    results: results.map((r) => ({ isImage: true, ...r })),
+  };
+}
+
+// ── Tests ────────────────────────────────────────────────────────
+
 describe("tryImagePaste", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePath.mockReturnValue("/docs/test.md");
+    mockExpandHomePath.mockImplementation((p: string) => Promise.resolve(p.replace("~/", "/Users/test/")));
+    mockValidateLocalPath.mockReturnValue(Promise.resolve(true));
+    mockCopyImageToAssets.mockReturnValue(Promise.resolve("assets/image.png"));
   });
+
+  // ── Basic rejection paths ──────────────────────────────────────
 
   it("returns false for empty text", () => {
     const view = createView("hello", 0);
     expect(tryImagePaste(view, "")).toBe(false);
   });
 
-  it("returns false when parseMultiplePaths returns empty paths", () => {
+  it("returns false when parseMultiplePaths returns empty", () => {
     mockParseMultiplePaths.mockReturnValue({ paths: [], format: "single" });
-
     const view = createView("hello", 0);
-    expect(tryImagePaste(view, "some text")).toBe(false);
+    expect(tryImagePaste(view, "text")).toBe(false);
   });
 
-  it("returns false when paths are not all images", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["/path/to/file.txt"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: false,
-      imageCount: 0,
-      results: [],
-    });
-
+  it("returns false when not all images", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["/file.txt"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue({ allImages: false, imageCount: 0, results: [] });
     const view = createView("hello", 0);
-    expect(tryImagePaste(view, "/path/to/file.txt")).toBe(false);
+    expect(tryImagePaste(view, "/file.txt")).toBe(false);
   });
 
-  it("returns true and shows toast for single image URL", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["https://example.com/image.png"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "url",
-          path: "https://example.com/image.png",
-          needsCopy: false,
-        },
-      ],
-    });
+  // ── Single image URL ───────────────────────────────────────────
+
+  it("shows toast immediately for single image URL", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
 
     const view = createView("hello", 0);
-    const result = tryImagePaste(view, "https://example.com/image.png");
+    const result = tryImagePaste(view, "https://img.com/a.png");
 
     expect(result).toBe(true);
     expect(mockShowToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imagePath: "https://example.com/image.png",
-        imageType: "url",
-      })
+      expect.objectContaining({ imagePath: "https://img.com/a.png", imageType: "url" })
     );
   });
 
-  it("returns true and shows toast for single data URL", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["data:image/png;base64,abc"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "dataUrl",
-          path: "data:image/png;base64,abc",
-          needsCopy: false,
-        },
-      ],
-    });
+  it("shows toast for data URL with imageType url", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["data:image/png;base64,abc"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("dataUrl", "data:image/png;base64,abc"));
 
     const view = createView("hello", 0);
-    const result = tryImagePaste(view, "data:image/png;base64,abc");
+    tryImagePaste(view, "data:image/png;base64,abc");
 
-    expect(result).toBe(true);
     expect(mockShowToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imageType: "url",
-      })
+      expect.objectContaining({ imageType: "url" })
     );
   });
 
-  it("returns true for local path (async validation)", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["/Users/test/image.png"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "absolutePath",
-          path: "/Users/test/image.png",
-          needsCopy: true,
-        },
-      ],
-    });
-
+  it("imageType is localPath for absolutePath", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("absolutePath", "/img.png", true));
+    // This goes through async validation — not through showImagePasteToast directly for absolutePath
     const view = createView("hello", 0);
-    const result = tryImagePaste(view, "/Users/test/image.png");
-
+    const result = tryImagePaste(view, "/img.png");
     expect(result).toBe(true);
-    // Toast is shown asynchronously after validation
   });
 
-  it("uses selected text as alt text when there is a selection", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["https://example.com/photo.jpg"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "url",
-          path: "https://example.com/photo.jpg",
-          needsCopy: false,
-        },
-      ],
-    });
+  // ── Alt text ───────────────────────────────────────────────────
+
+  it("uses selected text as alt text", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
 
     const view = createView("my photo here", 3, 8);
-    tryImagePaste(view, "https://example.com/photo.jpg");
+    tryImagePaste(view, "https://img.com/a.png");
 
     expect(mockShowToast).toHaveBeenCalled();
   });
 
   it("uses word at cursor as alt text when no selection", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["https://example.com/photo.jpg"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "url",
-          path: "https://example.com/photo.jpg",
-          needsCopy: false,
-        },
-      ],
-    });
+    mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
     mockFindWordAtCursorSource.mockReturnValue({ from: 0, to: 5 });
 
     const view = createView("hello world", 3);
-    tryImagePaste(view, "https://example.com/photo.jpg");
+    tryImagePaste(view, "https://img.com/a.png");
 
-    expect(mockFindWordAtCursorSource).toHaveBeenCalled();
+    expect(mockFindWordAtCursorSource).toHaveBeenCalledWith(view, 3);
   });
 
-  it("returns true for multiple image paths and shows multi toast", () => {
-    const paths = ["/path/image1.png", "/path/image2.jpg"];
-    mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 2,
-      results: [
-        {
-          isImage: true,
-          type: "absolutePath",
-          path: "/path/image1.png",
-          needsCopy: true,
-        },
-        {
-          isImage: true,
-          type: "absolutePath",
-          path: "/path/image2.jpg",
-          needsCopy: true,
-        },
-      ],
-    });
+  it("uses empty alt text when no word found at cursor", () => {
+    mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+    mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+    mockFindWordAtCursorSource.mockReturnValue(null);
 
-    const view = createView("hello", 0);
-    const result = tryImagePaste(
-      view,
-      "/path/image1.png\n/path/image2.jpg"
-    );
-
-    expect(result).toBe(true);
-    // Multi-image paste uses async validation, so toast shown later
+    const view = createView("hello", 5);
+    tryImagePaste(view, "https://img.com/a.png");
+    expect(mockShowToast).toHaveBeenCalled();
   });
 
-  it("handles home path detection type for local paths", () => {
-    mockParseMultiplePaths.mockReturnValue({
-      paths: ["~/Pictures/photo.png"],
-      format: "single",
-    });
-    mockDetectMultipleImagePaths.mockReturnValue({
-      allImages: true,
-      imageCount: 1,
-      results: [
-        {
-          isImage: true,
-          type: "homePath",
-          path: "~/Pictures/photo.png",
-          needsCopy: true,
-        },
-      ],
+  // ── onConfirm callback ─────────────────────────────────────────
+
+  describe("showImagePasteToast onConfirm", () => {
+    it("calls insertImageMarkdown when view is connected", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      expect(toastArgs.onConfirm).toBeInstanceOf(Function);
+
+      // Call onConfirm
+      await toastArgs.onConfirm();
+
+      // insertImageMarkdown should dispatch to the view
+      // (view is connected, no copy needed for URLs)
+      await vi.waitFor(() => {
+        expect(view.state.doc.toString()).toContain("![");
+      });
     });
 
-    const view = createView("hello", 0);
-    const result = tryImagePaste(view, "~/Pictures/photo.png");
+    it("warns when view is disconnected on confirm", () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
 
-    expect(result).toBe(true);
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      mockIsViewConnected.mockReturnValue(false);
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      toastArgs.onConfirm();
+      expect(mockSmartPasteWarn).toHaveBeenCalledWith(expect.stringContaining("disconnected"));
+    });
   });
+
+  // ── onDismiss callback ─────────────────────────────────────────
+
+  describe("showImagePasteToast onDismiss", () => {
+    it("pastes text when view is connected", () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      toastArgs.onDismiss();
+      expect(mockPasteAsText).toHaveBeenCalled();
+    });
+
+    it("does nothing when view is disconnected on dismiss", () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      mockIsViewConnected.mockReturnValue(false);
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      toastArgs.onDismiss();
+      expect(mockPasteAsText).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── insertImageMarkdown paths ──────────────────────────────────
+
+  describe("insertImageMarkdown", () => {
+    it("aborts when view is disconnected", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+      mockIsViewConnected.mockReturnValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      toastArgs.onConfirm();
+      expect(mockSmartPasteWarn).toHaveBeenCalled();
+    });
+
+    it("shows dialog when needsCopy and no active file path", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png", true));
+      mockGetActiveFilePath.mockReturnValue(null);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      // Wait for async insertImageMarkdown
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("save the document"),
+          expect.objectContaining({ kind: "warning" })
+        );
+      });
+    });
+
+    it("copies image to assets when needsCopy and file path exists", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockGetActiveFilePath.mockReturnValue("/docs/test.md");
+      mockCopyImageToAssets.mockResolvedValue("assets/copied.png");
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      // Goes through validateAndShowToast -> showImagePasteToast
+      await vi.waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockCopyImageToAssets).toHaveBeenCalledWith("/img.png", "/docs/test.md");
+      });
+    });
+
+    it("expands home path before copy", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["~/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("homePath", "~/img.png", true)
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockExpandHomePath).toHaveBeenCalledWith("~/img.png");
+        expect(mockCopyImageToAssets).toHaveBeenCalledWith("/Users/test/img.png", "/docs/test.md");
+      });
+    });
+
+    it("shows error when home path expansion fails during copy", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["~/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("homePath", "~/img.png", true)
+      );
+      // First expandHomePath call (validation) succeeds, second (inside insertImageMarkdown) fails
+      mockExpandHomePath
+        .mockResolvedValueOnce("/Users/test/img.png") // validateAndShowToast
+        .mockResolvedValueOnce(null); // insertImageMarkdown
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("home directory"),
+          expect.objectContaining({ kind: "error" })
+        );
+      });
+    });
+
+    it("shows error dialog when copyImageToAssets fails", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockCopyImageToAssets.mockRejectedValue(new Error("Copy failed"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("Failed to copy"),
+          expect.objectContaining({ kind: "error" })
+        );
+      });
+    });
+
+    it("uses current selection position when selection changed during async", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+
+      const view = createView("hello world", 0, 5);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      // Change selection before onConfirm
+      view.dispatch({ selection: { anchor: 6, head: 11 } });
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      // Should use current position since selection changed
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("Selection changed")
+        );
+      });
+    });
+
+    it("aborts when view disconnects after async operations", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png", true));
+      mockGetActiveFilePath.mockReturnValue("/docs/test.md");
+
+      // isViewConnected: true for first check, false for second (after async)
+      mockIsViewConnected
+        .mockReturnValueOnce(true) // onConfirm guard
+        .mockReturnValueOnce(true) // first check in insertImageMarkdown
+        .mockReturnValueOnce(false); // second check after copy
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("disconnected after async")
+        );
+      });
+    });
+  });
+
+  // ── validateAndShowToast ───────────────────────────────────────
+
+  describe("validateAndShowToast", () => {
+    it("validates absolutePath exists before showing toast", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockValidateLocalPath).toHaveBeenCalledWith("/img.png");
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+    });
+
+    it("pastes as text when absolutePath does not exist", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockValidateLocalPath.mockResolvedValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+
+    it("expands homePath before validation", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["~/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("homePath", "~/img.png", true)
+      );
+      mockExpandHomePath.mockResolvedValue("/Users/test/img.png");
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockExpandHomePath).toHaveBeenCalledWith("~/img.png");
+        expect(mockValidateLocalPath).toHaveBeenCalledWith("/Users/test/img.png");
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+    });
+
+    it("pastes as text when home expansion fails", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["~/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("homePath", "~/img.png", true)
+      );
+      mockExpandHomePath.mockResolvedValue(null);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+
+    it("does not paste as text when view disconnects during validation", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["~/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("homePath", "~/img.png", true)
+      );
+      mockExpandHomePath.mockResolvedValue(null);
+      mockIsViewConnected.mockReturnValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).not.toHaveBeenCalled();
+      });
+    });
+
+    it("does not show toast when view disconnects after validation", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      // Disconnected when checked after validation completes
+      mockIsViewConnected.mockReturnValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      await vi.waitFor(() => {
+        expect(mockValidateLocalPath).toHaveBeenCalled();
+      });
+
+      // Toast should not have been shown
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it("catches validation errors and pastes as text", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["/img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("absolutePath", "/img.png", true)
+      );
+      mockValidateLocalPath.mockRejectedValue(new Error("validation error"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/img.png");
+
+      // The catch handler in tryImagePaste calls pasteAsText
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+
+    it("shows toast for relativePath without validation", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["./img.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        singleImageResult("relativePath", "./img.png", false)
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "./img.png");
+
+      // relativePath doesn't need absolutePath/homePath validation
+      await vi.waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalled();
+      });
+      expect(mockValidateLocalPath).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Multi-image paths ──────────────────────────────────────────
+
+  describe("multiple images", () => {
+    it("validates all paths and shows multi toast", async () => {
+      const paths = ["/a.png", "/b.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.jpg", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.jpg");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+    });
+
+    it("pastes as text when any path is invalid", async () => {
+      const paths = ["/a.png", "/b.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.jpg", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath
+        .mockResolvedValueOnce(true) // /a.png exists
+        .mockResolvedValueOnce(false); // /b.jpg doesn't exist
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.jpg");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+
+    it("skips validation for URLs in multi-image", async () => {
+      const paths = ["https://img.com/a.png", "/b.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "url", path: "https://img.com/a.png", needsCopy: false },
+          { type: "absolutePath", path: "/b.jpg", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png\n/b.jpg");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+        // validateLocalPath should only be called for /b.jpg
+        expect(mockValidateLocalPath).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("expands home paths in multi-image validation", async () => {
+      const paths = ["~/a.png", "/b.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "homePath", path: "~/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.jpg", needsCopy: true },
+        ])
+      );
+      mockExpandHomePath.mockResolvedValue("/Users/test/a.png");
+      mockValidateLocalPath.mockResolvedValue(true);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/a.png\n/b.jpg");
+
+      await vi.waitFor(() => {
+        expect(mockExpandHomePath).toHaveBeenCalledWith("~/a.png");
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+    });
+
+    it("fails multi-image when home expansion fails", async () => {
+      const paths = ["~/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "homePath", path: "~/a.png", needsCopy: true },
+          { type: "homePath", path: "~/b.png", needsCopy: true },
+        ])
+      );
+      mockExpandHomePath.mockResolvedValue(null);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/a.png\n~/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+
+    it("does not paste when view disconnects during multi validation", async () => {
+      const paths = ["/a.png", "/b.jpg"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.jpg", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(false);
+      mockIsViewConnected.mockReturnValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.jpg");
+
+      await vi.waitFor(() => {
+        expect(mockValidateLocalPath).toHaveBeenCalled();
+      });
+      expect(mockPasteAsText).not.toHaveBeenCalled();
+    });
+
+    it("does not show toast when view disconnects after validation passes", async () => {
+      const paths = ["/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      mockIsViewConnected
+        .mockReturnValueOnce(true) // initial
+        .mockReturnValue(false); // after validation
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockValidateLocalPath).toHaveBeenCalled();
+      });
+      expect(mockShowMultiToast).not.toHaveBeenCalled();
+    });
+
+    it("relative paths assumed valid without validation in multi-image", async () => {
+      const paths = ["./a.png", "./b.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "relativePath", path: "./a.png", needsCopy: false },
+          { type: "relativePath", path: "./b.png", needsCopy: false },
+        ])
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "./a.png\n./b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+      expect(mockValidateLocalPath).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Multi-image toast callbacks ────────────────────────────────
+
+  describe("showMultiImagePasteToast callbacks", () => {
+    function setupMultiToast() {
+      const paths = ["https://a.png", "https://b.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "url", path: "https://a.png", needsCopy: false },
+          { type: "url", path: "https://b.png", needsCopy: false },
+        ])
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://a.png\nhttps://b.png");
+      return view;
+    }
+
+    it("onConfirm inserts multiple images", async () => {
+      const view = setupMultiToast();
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        const doc = view.state.doc.toString();
+        expect(doc).toContain("![](https://a.png)");
+        expect(doc).toContain("![](https://b.png)");
+      });
+    });
+
+    it("onConfirm warns when view disconnected", async () => {
+      setupMultiToast();
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      mockIsViewConnected.mockReturnValue(false);
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      toastArgs.onConfirm();
+
+      expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+        expect.stringContaining("disconnected")
+      );
+    });
+
+    it("onDismiss pastes as text when connected", async () => {
+      setupMultiToast();
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      toastArgs.onDismiss();
+      expect(mockPasteAsText).toHaveBeenCalled();
+    });
+
+    it("onDismiss does nothing when view disconnected", async () => {
+      setupMultiToast();
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      mockIsViewConnected.mockReturnValue(false);
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      toastArgs.onDismiss();
+      expect(mockPasteAsText).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── insertMultipleImageMarkdown paths ──────────────────────────
+
+  describe("insertMultipleImageMarkdown", () => {
+    it("aborts when view disconnects before processing", async () => {
+      const paths = ["https://a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "url", path: "https://a.png", needsCopy: false },
+          { type: "url", path: "https://b.png", needsCopy: false },
+        ])
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://a.png\nhttps://b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      // Disconnect before onConfirm's async function runs
+      mockIsViewConnected
+        .mockReturnValueOnce(true) // onConfirm guard
+        .mockReturnValueOnce(false); // first check in insertMultipleImageMarkdown
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("disconnected")
+        );
+      });
+    });
+
+    it("shows dialog when needsCopy and no active file", async () => {
+      const paths = ["/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      mockGetActiveFilePath.mockReturnValue(null);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("save the document"),
+          expect.anything()
+        );
+      });
+    });
+
+    it("expands home paths during multi-image copy", async () => {
+      const paths = ["~/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "homePath", path: "~/a.png", needsCopy: true },
+          { type: "homePath", path: "~/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      mockExpandHomePath.mockResolvedValue("/Users/test/a.png");
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/a.png\n~/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockCopyImageToAssets).toHaveBeenCalled();
+      });
+    });
+
+    it("shows error when home expansion fails during multi copy", async () => {
+      const paths = ["~/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "homePath", path: "~/a.png", needsCopy: true },
+          { type: "homePath", path: "~/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      // First expandHomePath call for validation succeeds
+      // Second call inside insertMultipleImageMarkdown fails
+      mockExpandHomePath
+        .mockResolvedValueOnce("/Users/test/a.png") // validation #1
+        .mockResolvedValueOnce("/Users/test/b.png") // validation #2
+        .mockResolvedValueOnce(null); // copy path
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "~/a.png\n~/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("home directory"),
+          expect.objectContaining({ kind: "error" })
+        );
+      });
+    });
+
+    it("shows error when copy fails during multi-image", async () => {
+      const paths = ["/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      mockCopyImageToAssets.mockRejectedValue(new Error("fail"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalledWith(
+          expect.stringContaining("Failed to copy"),
+          expect.objectContaining({ kind: "error" })
+        );
+      });
+    });
+
+    it("handles selection change during multi-image async", async () => {
+      const paths = ["https://a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "url", path: "https://a.png", needsCopy: false },
+          { type: "url", path: "https://b.png", needsCopy: false },
+        ])
+      );
+
+      const view = createView("hello world", 0, 5);
+      tryImagePaste(view, "https://a.png\nhttps://b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      // Change selection
+      view.dispatch({ selection: { anchor: 6, head: 11 } });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("Selection changed")
+        );
+      });
+    });
+
+    it("disconnection after async in multi-image aborts", async () => {
+      const paths = ["https://a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "url", path: "https://a.png", needsCopy: false },
+          { type: "url", path: "https://b.png", needsCopy: false },
+        ])
+      );
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://a.png\nhttps://b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      mockIsViewConnected
+        .mockReturnValueOnce(true)  // onConfirm guard
+        .mockReturnValueOnce(true)  // first check in insertMultipleImageMarkdown
+        .mockReturnValueOnce(false); // after processing
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("disconnected after async")
+        );
+      });
+    });
+
+    it("catches errors from validateAndShowMultiToast", async () => {
+      const paths = ["/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockRejectedValue(new Error("boom"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockPasteAsText).toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ── Edge cases ─────────────────────────────────────────────────
 
   describe("edge cases", () => {
-    it("returns false for whitespace-only text", () => {
-      mockParseMultiplePaths.mockReturnValue({ paths: [], format: "single" });
-
-      const view = createView("hello", 0);
-      expect(tryImagePaste(view, "   ")).toBe(false);
-    });
-
-    it("returns false for non-image file extension paths", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["/path/to/file.txt"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: false,
-        imageCount: 0,
-        results: [],
-      });
-
-      const view = createView("hello", 0);
-      expect(tryImagePaste(view, "/path/to/file.txt")).toBe(false);
-    });
-
-    it("handles image URL with special characters", () => {
-      const url = "https://example.com/image%20with%20spaces.png";
-      mockParseMultiplePaths.mockReturnValue({
-        paths: [url],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          { isImage: true, type: "url", path: url, needsCopy: false },
-        ],
-      });
-
-      const view = createView("hello", 0);
-      const result = tryImagePaste(view, url);
-
-      expect(result).toBe(true);
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          imagePath: url,
-          imageType: "url",
-        })
-      );
-    });
-
-    it("handles image URL with unicode characters", () => {
-      const url = "https://example.com/图片.png";
-      mockParseMultiplePaths.mockReturnValue({
-        paths: [url],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          { isImage: true, type: "url", path: url, needsCopy: false },
-        ],
-      });
-
-      const view = createView("hello", 0);
-      const result = tryImagePaste(view, url);
-
-      expect(result).toBe(true);
-    });
-
     it("handles pasting into empty document", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["https://example.com/img.png"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/img.png",
-            needsCopy: false,
-          },
-        ],
-      });
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
 
       const view = createView("", 0);
-      const result = tryImagePaste(view, "https://example.com/img.png");
-
-      expect(result).toBe(true);
-      expect(mockShowToast).toHaveBeenCalled();
+      expect(tryImagePaste(view, "https://img.com/a.png")).toBe(true);
     });
 
-    it("handles pasting at document boundary (end)", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["https://example.com/img.png"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/img.png",
-            needsCopy: false,
-          },
-        ],
-      });
+    it("handles pasting at end of document", () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
 
-      const view = createView("hello world", 11);
-      const result = tryImagePaste(view, "https://example.com/img.png");
-
-      expect(result).toBe(true);
+      const view = createView("hello", 5);
+      expect(tryImagePaste(view, "https://img.com/a.png")).toBe(true);
     });
 
-    it("uses selection as alt text when available", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["https://example.com/photo.jpg"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/photo.jpg",
-            needsCopy: false,
-          },
-        ],
-      });
-
-      const view = createView("my photo here", 3, 8);
-      tryImagePaste(view, "https://example.com/photo.jpg");
-
-      // The toast should be called with the selected text range for alt text
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          imagePath: "https://example.com/photo.jpg",
-        })
-      );
-    });
-
-    it("finds word at cursor for alt text when no selection", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["https://example.com/photo.jpg"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/photo.jpg",
-            needsCopy: false,
-          },
-        ],
-      });
-      mockFindWordAtCursorSource.mockReturnValue({ from: 0, to: 5 });
-
-      const view = createView("hello world", 3);
-      tryImagePaste(view, "https://example.com/photo.jpg");
-
-      expect(mockFindWordAtCursorSource).toHaveBeenCalledWith(view, 3);
-    });
-
-    it("uses empty alt text when no word found at cursor", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["https://example.com/photo.jpg"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/photo.jpg",
-            needsCopy: false,
-          },
-        ],
-      });
-      mockFindWordAtCursorSource.mockReturnValue(null);
-
-      const view = createView("hello world", 5);
-      tryImagePaste(view, "https://example.com/photo.jpg");
-
-      // Should still show toast with empty alt text
-      expect(mockShowToast).toHaveBeenCalled();
-    });
-
-    it("handles relative path image", () => {
-      mockParseMultiplePaths.mockReturnValue({
-        paths: ["./assets/image.png"],
-        format: "single",
-      });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "relativePath",
-            path: "./assets/image.png",
-            needsCopy: false,
-          },
-        ],
-      });
+    it("encodes markdown URL with spaces", async () => {
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/my image.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/my image.png"));
+      mockEncodeMarkdownUrl.mockReturnValue("https://img.com/my%20image.png");
 
       const view = createView("hello", 0);
-      const result = tryImagePaste(view, "./assets/image.png");
+      tryImagePaste(view, "https://img.com/my image.png");
 
-      // Relative paths go through async validation
-      expect(result).toBe(true);
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(view.state.doc.toString()).toContain("my%20image.png");
+      });
     });
 
-    it("handles multiple images with mix of URLs and local paths", () => {
-      const paths = ["https://example.com/img1.png", "/local/img2.jpg"];
+    it("data URLs in multi-image skip validation", async () => {
+      const paths = ["data:image/png;base64,abc"];
       mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 2,
-        results: [
-          {
-            isImage: true,
-            type: "url",
-            path: "https://example.com/img1.png",
-            needsCopy: false,
-          },
-          {
-            isImage: true,
-            type: "absolutePath",
-            path: "/local/img2.jpg",
-            needsCopy: true,
-          },
-        ],
-      });
-
-      const view = createView("hello", 0);
-      const result = tryImagePaste(
-        view,
-        "https://example.com/img1.png\n/local/img2.jpg"
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "dataUrl", path: "data:image/png;base64,abc", needsCopy: false },
+          { type: "dataUrl", path: "data:image/png;base64,def", needsCopy: false },
+        ])
       );
 
-      expect(result).toBe(true);
-    });
-
-    it("handles three or more images", () => {
-      const paths = ["/a.png", "/b.png", "/c.png"];
-      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 3,
-        results: paths.map((p) => ({
-          isImage: true,
-          type: "absolutePath" as const,
-          path: p,
-          needsCopy: true,
-        })),
-      });
-
       const view = createView("hello", 0);
-      const result = tryImagePaste(view, paths.join("\n"));
+      tryImagePaste(view, "data:image/png;base64,abc\ndata:image/png;base64,def");
 
-      expect(result).toBe(true);
-    });
-
-    it("handles data URI images", () => {
-      const dataUri = "data:image/png;base64,iVBORw0KGgo=";
-      mockParseMultiplePaths.mockReturnValue({
-        paths: [dataUri],
-        format: "single",
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
       });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: true,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "dataUrl",
-            path: dataUri,
-            needsCopy: false,
-          },
-        ],
-      });
-
-      const view = createView("test", 0);
-      const result = tryImagePaste(view, dataUri);
-
-      expect(result).toBe(true);
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          imageType: "url",
-        })
-      );
-    });
-
-    it("returns false when one path among multiple is not an image", () => {
-      const paths = ["/a.png", "/b.txt"];
-      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
-      mockDetectMultipleImagePaths.mockReturnValue({
-        allImages: false,
-        imageCount: 1,
-        results: [
-          {
-            isImage: true,
-            type: "absolutePath",
-            path: "/a.png",
-            needsCopy: true,
-          },
-          {
-            isImage: false,
-            type: "absolutePath",
-            path: "/b.txt",
-            needsCopy: false,
-          },
-        ],
-      });
-
-      const view = createView("hello", 0);
-      const result = tryImagePaste(view, "/a.png\n/b.txt");
-
-      expect(result).toBe(false);
+      expect(mockValidateLocalPath).not.toHaveBeenCalled();
     });
   });
 });

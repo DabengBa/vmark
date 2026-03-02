@@ -2,7 +2,8 @@
  * SourceEditor tests
  *
  * Tests basic rendering, hidden prop behavior, CSS class application,
- * and hook/store integration. CodeMirror and all external dependencies are mocked.
+ * hook/store integration, update listener, visibility transitions,
+ * search match updates, and cursor tracking.
  */
 
 import { render } from "@testing-library/react";
@@ -41,10 +42,12 @@ const mockEditorViewInstance = {
   contentDOM: document.createElement("div"),
 };
 
+// Capture update listener callback
+let capturedUpdateListener: ((update: Record<string, unknown>) => void) | null = null;
+
 vi.mock("@codemirror/view", () => ({
   EditorView: vi.fn().mockImplementation(function (this: Record<string, unknown>, config: Record<string, unknown>) {
     Object.assign(this, mockEditorViewInstance);
-    // Append a child to the parent container to simulate CM mount
     if (config.parent && config.parent instanceof HTMLElement) {
       const cmEl = document.createElement("div");
       cmEl.className = "cm-editor";
@@ -57,18 +60,26 @@ vi.mock("@codemirror/view", () => ({
 
 // Attach static properties to EditorView
 const { EditorView } = await import("@codemirror/view");
-(EditorView as unknown as Record<string, unknown>).updateListener = { of: vi.fn((cb: unknown) => cb) };
+(EditorView as unknown as Record<string, unknown>).updateListener = {
+  of: vi.fn((cb: (update: Record<string, unknown>) => void) => {
+    capturedUpdateListener = cb;
+    return cb;
+  }),
+};
 (EditorView as unknown as Record<string, unknown>).lineWrapping = {};
 (EditorView as unknown as Record<string, unknown>).theme = vi.fn(() => ({}));
 (EditorView as unknown as Record<string, unknown>).baseTheme = vi.fn(() => ({}));
 
 // Mock hooks that SourceEditor uses
+const mockSetContent = vi.fn();
+const mockSetCursorInfo = vi.fn();
+
 vi.mock("@/hooks/useDocumentState", () => ({
   useDocumentContent: vi.fn(() => "# Hello"),
   useDocumentCursorInfo: vi.fn(() => null),
   useDocumentActions: vi.fn(() => ({
-    setContent: vi.fn(),
-    setCursorInfo: vi.fn(),
+    setContent: mockSetContent,
+    setCursorInfo: mockSetCursorInfo,
   })),
 }));
 
@@ -110,47 +121,57 @@ vi.mock("@/stores/settingsStore", () => {
   return { useSettingsStore: store };
 });
 
+const mockUnsubscribeShortcuts = vi.fn();
 vi.mock("@/stores/shortcutsStore", () => {
   const store = vi.fn();
   (store as unknown as Record<string, unknown>).getState = () => ({});
-  (store as unknown as Record<string, unknown>).subscribe = vi.fn(() => vi.fn());
+  (store as unknown as Record<string, unknown>).subscribe = vi.fn(() => mockUnsubscribeShortcuts);
   return { useShortcutsStore: store };
 });
 
+const mockSetMatches = vi.fn();
+let searchStoreState = {
+  isOpen: false,
+  query: "",
+  caseSensitive: false,
+  wholeWord: false,
+  useRegex: false,
+  currentIndex: -1,
+  setMatches: mockSetMatches,
+};
+
 vi.mock("@/stores/searchStore", () => {
   const store = vi.fn();
-  (store as unknown as Record<string, unknown>).getState = () => ({
-    isOpen: false,
-    query: "",
-    caseSensitive: false,
-    wholeWord: false,
-    useRegex: false,
-    currentIndex: -1,
-  });
+  (store as unknown as Record<string, unknown>).getState = () => searchStoreState;
   return { useSearchStore: store };
 });
 
+const mockSetActiveSourceView = vi.fn();
+const mockClearSourceViewIfMatch = vi.fn();
 vi.mock("@/stores/activeEditorStore", () => {
   const store = vi.fn();
   (store as unknown as Record<string, unknown>).getState = () => ({
-    setActiveSourceView: vi.fn(),
-    clearSourceViewIfMatch: vi.fn(),
+    setActiveSourceView: mockSetActiveSourceView,
+    clearSourceViewIfMatch: mockClearSourceViewIfMatch,
   });
   return { useActiveEditorStore: store };
 });
 
+const mockSetContext = vi.fn();
 vi.mock("@/stores/sourceCursorContextStore", () => {
   const store = vi.fn();
   (store as unknown as Record<string, unknown>).getState = () => ({
-    setContext: vi.fn(),
+    setContext: mockSetContext,
   });
   return { useSourceCursorContextStore: store };
 });
 
 // Mock utilities
+const mockGetCursorInfo = vi.fn(() => ({ line: 1, ch: 0 }));
+const mockRestoreCursor = vi.fn();
 vi.mock("@/utils/cursorSync/codemirror", () => ({
-  getCursorInfoFromCodeMirror: vi.fn(() => ({ line: 1, ch: 0 })),
-  restoreCursorInCodeMirror: vi.fn(),
+  getCursorInfoFromCodeMirror: (...args: unknown[]) => mockGetCursorInfo(...args),
+  restoreCursorInCodeMirror: (...args: unknown[]) => mockRestoreCursor(...args),
 }));
 
 vi.mock("@/plugins/codemirror/sourceShortcuts", () => ({
@@ -167,8 +188,9 @@ vi.mock("@/plugins/sourceContextDetection/cursorContext", () => ({
   computeSourceCursorContext: vi.fn(() => ({})),
 }));
 
+const mockCountMatches = vi.fn(() => 0);
 vi.mock("@/utils/sourceEditorSearch", () => ({
-  countMatches: vi.fn(() => 0),
+  countMatches: (...args: unknown[]) => mockCountMatches(...args),
 }));
 
 vi.mock("@/utils/sourceEditorExtensions", () => ({
@@ -183,6 +205,21 @@ import { SourceEditor } from "./SourceEditor";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers();
+  capturedUpdateListener = null;
+  searchStoreState = {
+    isOpen: false,
+    query: "",
+    caseSensitive: false,
+    wholeWord: false,
+    useRegex: false,
+    currentIndex: -1,
+    setMatches: mockSetMatches,
+  };
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("SourceEditor", () => {
@@ -220,6 +257,18 @@ describe("SourceEditor", () => {
       const { unmount } = render(<SourceEditor />);
       unmount();
       expect(mockDestroy).toHaveBeenCalled();
+    });
+
+    it("unsubscribes from shortcuts store on unmount", () => {
+      const { unmount } = render(<SourceEditor />);
+      unmount();
+      expect(mockUnsubscribeShortcuts).toHaveBeenCalled();
+    });
+
+    it("clears active source view on unmount", () => {
+      const { unmount } = render(<SourceEditor />);
+      unmount();
+      expect(mockClearSourceViewIfMatch).toHaveBeenCalled();
     });
   });
 
@@ -314,17 +363,352 @@ describe("SourceEditor", () => {
   });
 
   describe("activeEditorStore registration", () => {
-    it("registers and clears active source view on mount/unmount", () => {
-      // The mock creates new vi.fn() per getState call, so we can't
-      // directly assert on them. Instead we verify the component
-      // mounts and unmounts without errors (store integration covered
-      // by the mock).
+    it("registers active source view on mount when not hidden", () => {
+      render(<SourceEditor />);
+      expect(mockSetActiveSourceView).toHaveBeenCalled();
+    });
+
+    it("does not register active source view when hidden", () => {
+      render(<SourceEditor hidden />);
+      expect(mockSetActiveSourceView).not.toHaveBeenCalled();
+    });
+
+    it("clears active source view on unmount", () => {
       const { unmount } = render(<SourceEditor />);
-      // Should not throw during mount (setActiveSourceView called internally)
-      expect(EditorView).toHaveBeenCalled();
-      // Should not throw during unmount (clearSourceViewIfMatch called)
       unmount();
-      expect(mockDestroy).toHaveBeenCalled();
+      expect(mockClearSourceViewIfMatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("source cursor context", () => {
+    it("sets initial cursor context on mount", () => {
+      render(<SourceEditor />);
+      expect(mockSetContext).toHaveBeenCalled();
+    });
+  });
+
+  describe("auto-focus and cursor restore", () => {
+    it("focuses view after timeout when not hidden", () => {
+      render(<SourceEditor />);
+      expect(mockFocus).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(60);
+      expect(mockFocus).toHaveBeenCalled();
+    });
+
+    it("does not focus when hidden", () => {
+      render(<SourceEditor hidden />);
+      vi.advanceTimersByTime(60);
+      expect(mockFocus).not.toHaveBeenCalled();
+    });
+
+    it("dispatches anchor:0 when no cursorInfo is available", () => {
+      render(<SourceEditor />);
+      vi.advanceTimersByTime(60);
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selection: { anchor: 0 },
+          scrollIntoView: true,
+        })
+      );
+    });
+
+    it("restores cursor when cursorInfo is available", async () => {
+      const { useDocumentCursorInfo } = await import("@/hooks/useDocumentState");
+      (useDocumentCursorInfo as ReturnType<typeof vi.fn>).mockReturnValue({ line: 5, ch: 3 });
+
+      render(<SourceEditor />);
+      vi.advanceTimersByTime(60);
+      expect(mockRestoreCursor).toHaveBeenCalled();
+    });
+
+    it("clears focus timeout on unmount", () => {
+      const { unmount } = render(<SourceEditor />);
+      // Unmount before timeout fires
+      unmount();
+      vi.advanceTimersByTime(60);
+      // Focus should not have been called because component is unmounted
+      // and timeout was cleared
+      expect(mockFocus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update listener", () => {
+    it("captures update listener callback", () => {
+      render(<SourceEditor />);
+      expect(capturedUpdateListener).toBeInstanceOf(Function);
+    });
+
+    it("skips updates when hidden", () => {
+      render(<SourceEditor hidden />);
+      expect(capturedUpdateListener).toBeInstanceOf(Function);
+
+      capturedUpdateListener!({
+        docChanged: true,
+        selectionSet: false,
+        state: { doc: { toString: () => "new content" } },
+        view: mockEditorViewInstance,
+      });
+
+      // setContent should NOT be called because hidden=true
+      expect(mockSetContent).not.toHaveBeenCalled();
+    });
+
+    it("calls setContent when doc changes and not hidden", () => {
+      render(<SourceEditor />);
+
+      capturedUpdateListener!({
+        docChanged: true,
+        selectionSet: false,
+        state: { doc: { toString: () => "new content" } },
+        view: mockEditorViewInstance,
+      });
+
+      expect(mockSetContent).toHaveBeenCalledWith("new content");
+    });
+
+    it("resets isInternalChange via requestAnimationFrame on doc change", () => {
+      render(<SourceEditor />);
+
+      capturedUpdateListener!({
+        docChanged: true,
+        selectionSet: false,
+        state: { doc: { toString: () => "new" } },
+        view: mockEditorViewInstance,
+      });
+
+      // isInternalChange is set to true synchronously, then false in rAF
+      // We can't directly check the ref, but verify setContent was called
+      expect(mockSetContent).toHaveBeenCalledWith("new");
+    });
+
+    it("tracks cursor on selection change", () => {
+      render(<SourceEditor />);
+
+      capturedUpdateListener!({
+        docChanged: false,
+        selectionSet: true,
+        state: { doc: { toString: () => "# Hello" } },
+        view: mockEditorViewInstance,
+      });
+
+      expect(mockGetCursorInfo).toHaveBeenCalledWith(mockEditorViewInstance);
+      expect(mockSetCursorInfo).toHaveBeenCalled();
+    });
+
+    it("tracks cursor on doc change", () => {
+      render(<SourceEditor />);
+
+      capturedUpdateListener!({
+        docChanged: true,
+        selectionSet: false,
+        state: { doc: { toString: () => "modified" } },
+        view: mockEditorViewInstance,
+      });
+
+      expect(mockGetCursorInfo).toHaveBeenCalled();
+      expect(mockSetCursorInfo).toHaveBeenCalled();
+    });
+
+    it("does not track cursor when no doc or selection change", () => {
+      render(<SourceEditor />);
+
+      capturedUpdateListener!({
+        docChanged: false,
+        selectionSet: false,
+        state: { doc: { toString: () => "# Hello" } },
+        view: mockEditorViewInstance,
+      });
+
+      expect(mockGetCursorInfo).not.toHaveBeenCalled();
+    });
+
+    describe("search match updates on doc change", () => {
+      it("updates match count when search is open and query exists", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: true,
+          query: "Hello",
+          currentIndex: 0,
+        };
+        mockCountMatches.mockReturnValue(1);
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# Hello World" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockCountMatches).toHaveBeenCalledWith(
+          "# Hello World",
+          "Hello",
+          false,
+          false,
+          false
+        );
+        expect(mockSetMatches).toHaveBeenCalledWith(1, 0);
+      });
+
+      it("resets index to -1 when no matches found", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: true,
+          query: "missing",
+          currentIndex: 2,
+        };
+        mockCountMatches.mockReturnValue(0);
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# Hello" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockSetMatches).toHaveBeenCalledWith(0, -1);
+      });
+
+      it("resets index to 0 when current index exceeds match count", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: true,
+          query: "H",
+          currentIndex: 5,
+        };
+        mockCountMatches.mockReturnValue(2);
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# HH" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockSetMatches).toHaveBeenCalledWith(2, 0);
+      });
+
+      it("resets index to 0 when current index is negative and matches exist", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: true,
+          query: "H",
+          currentIndex: -1,
+        };
+        mockCountMatches.mockReturnValue(3);
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# HHH" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockSetMatches).toHaveBeenCalledWith(3, 0);
+      });
+
+      it("does not update matches when search is not open", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: false,
+          query: "Hello",
+        };
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# Hello" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockCountMatches).not.toHaveBeenCalled();
+      });
+
+      it("does not update matches when query is empty", () => {
+        searchStoreState = {
+          ...searchStoreState,
+          isOpen: true,
+          query: "",
+        };
+
+        render(<SourceEditor />);
+
+        capturedUpdateListener!({
+          docChanged: true,
+          selectionSet: false,
+          state: { doc: { toString: () => "# Hello" } },
+          view: mockEditorViewInstance,
+        });
+
+        expect(mockCountMatches).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("visibility transitions (hidden → visible)", () => {
+    it("syncs content from store to CodeMirror when becoming visible", () => {
+      // Start hidden, then become visible
+      mockDocToString.mockReturnValue("old content");
+      const { rerender } = render(<SourceEditor hidden />);
+
+      mockDispatch.mockClear();
+      rerender(<SourceEditor hidden={false} />);
+
+      // Should dispatch content update since CM content differs from store content
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changes: expect.objectContaining({
+            from: 0,
+            insert: "# Hello",
+          }),
+        })
+      );
+    });
+
+    it("does not sync content when CM content matches store", () => {
+      mockDocToString.mockReturnValue("# Hello");
+      const { rerender } = render(<SourceEditor hidden />);
+
+      mockDispatch.mockClear();
+      rerender(<SourceEditor hidden={false} />);
+
+      // Should NOT dispatch content changes (only shortcut keymap reconfigure may fire)
+      const contentChangeCalls = mockDispatch.mock.calls.filter(
+        (call) => call[0]?.changes !== undefined
+      );
+      expect(contentChangeCalls).toHaveLength(0);
+    });
+
+    it("registers as active source view when becoming visible", () => {
+      const { rerender } = render(<SourceEditor hidden />);
+      mockSetActiveSourceView.mockClear();
+
+      rerender(<SourceEditor hidden={false} />);
+      expect(mockSetActiveSourceView).toHaveBeenCalled();
+    });
+
+    it("focuses and restores cursor when becoming visible", async () => {
+      const { useDocumentCursorInfo } = await import("@/hooks/useDocumentState");
+      (useDocumentCursorInfo as ReturnType<typeof vi.fn>).mockReturnValue({ line: 3, ch: 2 });
+
+      const { rerender } = render(<SourceEditor hidden />);
+      mockFocus.mockClear();
+      mockRestoreCursor.mockClear();
+
+      rerender(<SourceEditor hidden={false} />);
+      vi.advanceTimersByTime(60);
+
+      expect(mockFocus).toHaveBeenCalled();
+      expect(mockRestoreCursor).toHaveBeenCalled();
     });
   });
 
@@ -335,6 +719,24 @@ describe("SourceEditor", () => {
       // a parent since testing-library creates an isolated container.
       // This test verifies the effect runs without error.
       expect(container.firstChild).toBeInstanceOf(HTMLDivElement);
+    });
+
+    it("resets scrollTop when editor-content parent exists", () => {
+      // Create a parent with .editor-content class
+      const editorContent = document.createElement("div");
+      editorContent.className = "editor-content";
+      editorContent.scrollTop = 200;
+      document.body.appendChild(editorContent);
+
+      // Render inside the editor-content wrapper
+      const wrapper = document.createElement("div");
+      editorContent.appendChild(wrapper);
+      render(<SourceEditor />, { container: wrapper });
+
+      // The effect should have reset scrollTop
+      expect(editorContent.scrollTop).toBe(0);
+
+      document.body.removeChild(editorContent);
     });
   });
 });

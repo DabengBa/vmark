@@ -593,4 +593,301 @@ describe("useExternalFileChanges — dirty file prompt", () => {
 
     expect(mocks.reloadTabFromDisk).toHaveBeenCalledWith("tab-1", "/workspace/test.md");
   });
+
+  it("handles 'Yes' button label for Save As flow", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    // Return "Yes" (default button label, not custom label)
+    mocks.dialogMessage.mockResolvedValue("Yes");
+    mocks.dialogSave.mockResolvedValue("/workspace/saved-copy.md");
+    mocks.saveToPath.mockResolvedValue(true);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    expect(mocks.dialogSave).toHaveBeenCalled();
+    expect(mocks.saveToPath).toHaveBeenCalled();
+  });
+
+  it("keeps changes when Save As fails (save returns false)", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Save As...");
+    mocks.dialogSave.mockResolvedValue("/workspace/saved-copy.md");
+    mocks.saveToPath.mockResolvedValue(false); // save fails
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    // Should not reload — save failed
+    expect(mocks.reloadTabFromDisk).not.toHaveBeenCalled();
+  });
+
+  it("handles 'No' button label for Reload", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("No");
+    mocks.reloadTabFromDisk.mockResolvedValue(undefined);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    expect(mocks.reloadTabFromDisk).toHaveBeenCalledWith("tab-1", "/workspace/test.md");
+  });
+
+  it("marks as divergent when user keeps changes with 'Keep my changes'", async () => {
+    seedDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Keep my changes");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    const doc = useDocumentStore.getState().documents["tab-1"];
+    expect(doc?.isDivergent).toBe(true);
+  });
+});
+
+describe("useExternalFileChanges — multi-file batch dialog", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.listen.mockImplementation(() => Promise.resolve(() => {}));
+    mocks.matchesPendingSave.mockReturnValue(false);
+    mocks.hasPendingSave.mockReturnValue(false);
+  });
+
+  function seedMultiDirtyStores() {
+    useTabStore.setState({
+      tabs: {
+        main: [
+          { id: "tab-1", title: "test.md", filePath: "/workspace/test.md", isPinned: false },
+          { id: "tab-2", title: "test2.md", filePath: "/workspace/test2.md", isPinned: false },
+        ],
+      },
+      activeTabId: { main: "tab-1" },
+      untitledCounter: 0,
+      closedTabs: {},
+    });
+
+    useDocumentStore.setState({
+      documents: {
+        "tab-1": {
+          content: "# edits 1",
+          savedContent: "# old 1",
+          lastDiskContent: "# old 1",
+          filePath: "/workspace/test.md",
+          isDirty: true,
+          documentId: 0,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+        "tab-2": {
+          content: "# edits 2",
+          savedContent: "# old 2",
+          lastDiskContent: "# old 2",
+          filePath: "/workspace/test2.md",
+          isDirty: true,
+          documentId: 1,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+      },
+    });
+  }
+
+  it("batch dialog — Reload All reloads all files", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    mocks.dialogMessage.mockResolvedValue("Reload All");
+    mocks.reloadTabFromDisk.mockResolvedValue(undefined);
+
+    const callback = await setupHookAndCallback();
+
+    // Trigger two changes simultaneously to batch them
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    expect(mocks.reloadTabFromDisk).toHaveBeenCalledWith("tab-1", "/workspace/test.md");
+    expect(mocks.reloadTabFromDisk).toHaveBeenCalledWith("tab-2", "/workspace/test2.md");
+  });
+
+  it("batch dialog — 'Yes' also triggers Reload All", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    mocks.dialogMessage.mockResolvedValue("Yes");
+    mocks.reloadTabFromDisk.mockResolvedValue(undefined);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    expect(mocks.reloadTabFromDisk).toHaveBeenCalledTimes(2);
+  });
+
+  it("batch dialog — Keep All marks all as divergent", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    mocks.dialogMessage.mockResolvedValue("Keep All");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    const doc1 = useDocumentStore.getState().documents["tab-1"];
+    const doc2 = useDocumentStore.getState().documents["tab-2"];
+    expect(doc1?.isDivergent).toBe(true);
+    expect(doc2?.isDivergent).toBe(true);
+  });
+
+  it("batch dialog — 'No' triggers Keep All", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    mocks.dialogMessage.mockResolvedValue("No");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    const doc1 = useDocumentStore.getState().documents["tab-1"];
+    expect(doc1?.isDivergent).toBe(true);
+  });
+
+  it("batch dialog — Review Each processes files individually", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    // First dialog: batch -> "Review Each"
+    mocks.dialogMessage
+      .mockResolvedValueOnce("Review Each")
+      // Individual dialogs: Reload for each
+      .mockResolvedValue("Reload");
+    mocks.reloadTabFromDisk.mockResolvedValue(undefined);
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalledTimes(3), { timeout: 2000 });
+
+    expect(mocks.reloadTabFromDisk).toHaveBeenCalledTimes(2);
+  });
+
+  it("batch dialog — handles reload failure in Reload All", async () => {
+    seedMultiDirtyStores();
+    mocks.readTextFile.mockResolvedValue("# ext change");
+    mocks.dialogMessage.mockResolvedValue("Reload All");
+    mocks.reloadTabFromDisk.mockRejectedValue(new Error("reload failed"));
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md", "/workspace/test2.md"],
+        kind: "modify",
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    // Files should be marked as missing after reload failure
+    const doc1 = useDocumentStore.getState().documents["tab-1"];
+    const doc2 = useDocumentStore.getState().documents["tab-2"];
+    expect(doc1?.isMissing).toBe(true);
+    expect(doc2?.isMissing).toBe(true);
+
+    errorSpy.mockRestore();
+  });
 });

@@ -1026,6 +1026,208 @@ describe("CodeBlockWithLineNumbers", () => {
       nodeView.destroy();
       document.querySelector(".code-lang-dropdown")?.remove();
     });
+
+    describe("update with same node type reference", () => {
+      it("update returns true and recounts line numbers when node type matches", () => {
+        if (!capturedConfig.addNodeView) throw new Error("no callback");
+        const nodeType = { name: "codeBlock" };
+        const node = { type: nodeType, attrs: { language: "javascript" }, textContent: "hello" };
+        const mockEditor = {
+          chain: vi.fn().mockReturnValue({
+            focus: vi.fn().mockReturnThis(),
+            updateAttributes: vi.fn().mockReturnThis(),
+            run: vi.fn().mockReturnThis(),
+          }),
+        };
+        const getPos = vi.fn(() => 0);
+        const factory = capturedConfig.addNodeView.call({});
+        const nodeView = (factory as Function)({ node, editor: mockEditor, getPos });
+
+        const updatedNode = { type: nodeType, attrs: { language: "python" }, textContent: "line1\nline2\nline3" };
+        const result = nodeView.update(updatedNode);
+        expect(result).toBe(true);
+        expect(nodeView.contentDOM.className).toBe("language-python");
+
+        const gutter = nodeView.dom.querySelector(".code-line-numbers");
+        expect(gutter.children.length).toBe(3);
+
+        nodeView.destroy();
+      });
+
+      it("update clears language class when language is empty", () => {
+        if (!capturedConfig.addNodeView) throw new Error("no callback");
+        const nodeType = { name: "codeBlock" };
+        const node = { type: nodeType, attrs: { language: "javascript" }, textContent: "hello" };
+        const mockEditor = {
+          chain: vi.fn().mockReturnValue({
+            focus: vi.fn().mockReturnThis(),
+            updateAttributes: vi.fn().mockReturnThis(),
+            run: vi.fn().mockReturnThis(),
+          }),
+        };
+        const getPos = vi.fn(() => 0);
+        const factory = capturedConfig.addNodeView.call({});
+        const nodeView = (factory as Function)({ node, editor: mockEditor, getPos });
+
+        expect(nodeView.contentDOM.className).toBe("language-javascript");
+
+        const updatedNode = { type: nodeType, attrs: { language: "" }, textContent: "hello" };
+        nodeView.update(updatedNode);
+        expect(nodeView.contentDOM.className).toBe("");
+
+        nodeView.destroy();
+      });
+    });
+
+    describe("dropdown with popup host", () => {
+      it("uses absolute positioning when popup host is found", async () => {
+        const sourcePopup = await import("@/plugins/sourcePopup");
+        const editorContainer = document.createElement("div");
+        editorContainer.className = "editor-container";
+        document.body.appendChild(editorContainer);
+
+        vi.mocked(sourcePopup.getPopupHostForDom).mockReturnValueOnce(editorContainer);
+
+        const nodeView = createNodeView("hello", "javascript");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+        const dropdown = document.querySelector(".code-lang-dropdown") as HTMLElement;
+        expect(dropdown).not.toBeNull();
+        expect(dropdown.style.position).toBe("absolute");
+
+        nodeView.destroy();
+        dropdown?.remove();
+        editorContainer.remove();
+      });
+    });
+
+    describe("positionDropdown on scroll", () => {
+      it("repositions dropdown on scroll event", () => {
+        const nodeView = createNodeView("hello", "javascript");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown") as HTMLElement;
+        expect(dropdown).not.toBeNull();
+
+        window.dispatchEvent(new Event("scroll"));
+
+        expect(document.querySelector(".code-lang-dropdown")).not.toBeNull();
+
+        nodeView.destroy();
+        dropdown?.remove();
+      });
+    });
+
+    describe("search keydown with no highlighted item", () => {
+      it("Tab focuses first item when no item is highlighted", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        dropdown.querySelectorAll(".code-lang-item.highlighted").forEach((el) => {
+          el.classList.remove("highlighted");
+        });
+
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted");
+        expect(highlighted).not.toBeNull();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("search keydown Enter with no highlighted", () => {
+      it("Enter does nothing when no item is highlighted", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        dropdown.querySelectorAll(".code-lang-item.highlighted").forEach((el) => {
+          el.classList.remove("highlighted");
+        });
+
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+        expect(document.querySelector(".code-lang-dropdown")).not.toBeNull();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("search with no matching results", () => {
+      it("ArrowDown does nothing when filtered list is empty", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        searchInput.value = "zzzznotexistlanguage";
+        searchInput.dispatchEvent(new Event("input"));
+
+        const items = dropdown.querySelectorAll(".code-lang-item");
+        expect(items.length).toBe(0);
+
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("ignoreMutation with dropdown", () => {
+      it("returns true for mutations inside open dropdown", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search");
+
+        const result = nodeView.ignoreMutation({ type: "childList", target: searchInput });
+        expect(result).toBe(true);
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("moveHighlight with no current highlight", () => {
+      it("highlights from beginning when no item was highlighted", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        dropdown.querySelectorAll(".code-lang-item.highlighted").forEach((el) => {
+          el.classList.remove("highlighted");
+        });
+
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted");
+        expect(highlighted).not.toBeNull();
+        const items = dropdown.querySelectorAll(".code-lang-item");
+        expect(highlighted).toBe(items[0]);
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
   });
 
   describe("language rendering in list", () => {

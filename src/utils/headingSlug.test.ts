@@ -412,4 +412,16 @@ describe("findHeadingByIdCM", () => {
     const pos = findHeadingByIdCM(doc, "target");
     expect(pos).toBe(11);
   });
+
+  it("skips headings whose slug is empty (line 105)", () => {
+    // Heading text that produces an empty slug (all special chars stripped)
+    const doc = createMockDoc([
+      "# !!!",          // generateSlug("!!!") = "", makeUniqueSlug("") = ""
+      "## Real",
+    ]);
+
+    // Should skip the first heading and find the second
+    const pos = findHeadingByIdCM(doc, "real");
+    expect(pos).not.toBeNull();
+  });
 });

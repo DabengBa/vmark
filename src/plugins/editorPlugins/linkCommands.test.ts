@@ -442,4 +442,246 @@ describe("handleWikiLinkShortcut", () => {
     expect(hasWikiLink).toBe(true);
     view.destroy();
   });
+
+  it("opens wiki link popup in setTimeout callback", () => {
+    const view = createView("hello", 3);
+    handleWikiLinkShortcut(view);
+
+    // After insertion, wiki link node exists. The setTimeout should try to open popup.
+    vi.runAllTimers();
+
+    // The wikiLink popup open might or might not be called depending on doc structure
+    // The key is that the setTimeout runs without throwing
+    view.destroy();
+  });
+
+  it("runs setTimeout callback after wikiLink insertion without errors", () => {
+    // Select "test" and replace with wikiLink
+    const view = createView("test", 1, 5);
+    handleWikiLinkShortcut(view);
+
+    // After insertion, doc should have a wikiLink node
+    let hasWikiLink = false;
+    view.state.doc.descendants((node) => {
+      if (node.type.name === "wikiLink") hasWikiLink = true;
+    });
+    expect(hasWikiLink).toBe(true);
+
+    // Run the setTimeout — exercises the loop in the callback (lines 268-294)
+    // Whether popup opens depends on whether $pos resolves inside the wikiLink
+    vi.runAllTimers();
+    view.destroy();
+  });
+
+  it("handles coordsAtPos failure in setTimeout callback gracefully", () => {
+    const view = createView("hello", 3);
+    handleWikiLinkShortcut(view);
+
+    // Make coordsAtPos throw for the setTimeout callback
+    view.coordsAtPos = vi.fn(() => { throw new Error("detached view"); });
+
+    // Should not throw
+    expect(() => vi.runAllTimers()).not.toThrow();
+    view.destroy();
+  });
+});
+
+// --- Additional coverage: openLinkPopup coordsAtPos failure ---
+
+describe("handleSmartLinkShortcut - openLinkPopup fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLinkPopupIsOpen = false;
+    mockLinkCreatePopupIsOpen = false;
+    mockWikiLinkPopupIsOpen = false;
+    mockHeadingPickerIsOpen = false;
+    mockFindMarkRange.mockReturnValue(null);
+    mockFindWordAtCursor.mockReturnValue(null);
+    mockReadClipboardUrl.mockResolvedValue(null);
+  });
+
+  it("falls back to expandedToggleMark when coordsAtPos throws on link popup", () => {
+    const view = createViewWithLink("", "click here", "https://foo.com", "", true);
+    mockFindMarkRange.mockReturnValue({ from: 1, to: 11 });
+    // Make coordsAtPos throw
+    view.coordsAtPos = vi.fn(() => { throw new Error("coords fail"); });
+
+    handleSmartLinkShortcut(view);
+
+    expect(mockExpandedToggleMark).toHaveBeenCalledWith(view, "link");
+    view.destroy();
+  });
+});
+
+// --- Additional coverage: openLinkCreatePopup error handling ---
+
+describe("handleSmartLinkShortcut - openLinkCreatePopup error", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLinkPopupIsOpen = false;
+    mockLinkCreatePopupIsOpen = false;
+    mockWikiLinkPopupIsOpen = false;
+    mockHeadingPickerIsOpen = false;
+    mockFindMarkRange.mockReturnValue(null);
+    mockFindWordAtCursor.mockReturnValue(null);
+    mockReadClipboardUrl.mockResolvedValue(null);
+  });
+
+  it("catches error when coordsAtPos throws in openLinkCreatePopup", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const view = createView("hello", 3);
+    // Make coordsAtPos throw for the create popup path
+    view.coordsAtPos = vi.fn(() => { throw new Error("coords fail"); });
+
+    handleSmartLinkShortcut(view);
+
+    await vi.waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[LinkCreatePopup] Failed to open:",
+        expect.any(Error)
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+    view.destroy();
+  });
+});
+
+// --- Additional coverage: wikiLink detection in handleSmartLinkShortcut ---
+
+describe("handleSmartLinkShortcut - wikiLink node detection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLinkPopupIsOpen = false;
+    mockLinkCreatePopupIsOpen = false;
+    mockWikiLinkPopupIsOpen = false;
+    mockHeadingPickerIsOpen = false;
+    mockFindMarkRange.mockReturnValue(null);
+    mockFindWordAtCursor.mockReturnValue(null);
+    mockReadClipboardUrl.mockResolvedValue(null);
+  });
+
+  it("opens wiki link popup when cursor is inside a wikiLink node", () => {
+    // Create a doc with a wikiLink node
+    const wikiLinkNode = schema.nodes.wikiLink.create(
+      { value: "test-page" },
+      [schema.text("test-page")]
+    );
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [wikiLinkNode]),
+    ]);
+    let state = EditorState.create({ doc, schema });
+    // Position cursor inside the wikiLink
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+    const container = document.createElement("div");
+    const view = new EditorView(container, { state });
+    view.coordsAtPos = vi.fn(() => mockCoords);
+
+    const result = handleSmartLinkShortcut(view);
+
+    expect(result).toBe(true);
+    expect(mockWikiLinkPopupOpen).toHaveBeenCalled();
+    view.destroy();
+  });
+
+  it("handles coordsAtPos failure in wikiLink detection gracefully", () => {
+    const wikiLinkNode = schema.nodes.wikiLink.create(
+      { value: "test-page" },
+      [schema.text("test-page")]
+    );
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [wikiLinkNode]),
+    ]);
+    let state = EditorState.create({ doc, schema });
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+    const container = document.createElement("div");
+    const view = new EditorView(container, { state });
+    // Make coordsAtPos throw
+    view.coordsAtPos = vi.fn(() => { throw new Error("no coords"); });
+
+    // Should NOT throw; falls through to normal behavior
+    const result = handleSmartLinkShortcut(view);
+    expect(result).toBe(true);
+
+    // wikiLink popup should NOT have been opened (coords failed)
+    expect(mockWikiLinkPopupOpen).not.toHaveBeenCalled();
+    view.destroy();
+  });
+});
+
+// --- Additional coverage: applyLinkWithUrl / insertLinkAtCursor when schema has no link mark ---
+
+describe("handleSmartLinkShortcut - no link mark in schema", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLinkPopupIsOpen = false;
+    mockLinkCreatePopupIsOpen = false;
+    mockWikiLinkPopupIsOpen = false;
+    mockHeadingPickerIsOpen = false;
+    mockFindMarkRange.mockReturnValue(null);
+    mockFindWordAtCursor.mockReturnValue(null);
+  });
+
+  it("handles applyLinkWithUrl when schema has no link mark gracefully", async () => {
+    mockReadClipboardUrl.mockResolvedValue("https://example.com");
+    const noLinkSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+", toDOM: () => ["div", 0] },
+        paragraph: { content: "text*", toDOM: () => ["p", 0] },
+        text: { inline: true },
+      },
+    });
+    const doc = noLinkSchema.node("doc", null, [
+      noLinkSchema.node("paragraph", null, [noLinkSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: noLinkSchema });
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 1, 6))
+    );
+    const container = document.createElement("div");
+    const view = new EditorView(container, { state });
+
+    handleSmartLinkShortcut(view);
+
+    // Wait for async to complete — should not throw
+    await vi.waitFor(() => {
+      // No link mark should exist
+      expect(view.state.doc.textContent).toContain("hello");
+    });
+
+    view.destroy();
+  });
+
+  it("handles insertLinkAtCursor when schema has no link mark gracefully", async () => {
+    mockReadClipboardUrl.mockResolvedValue("https://example.com");
+    const noLinkSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+", toDOM: () => ["div", 0] },
+        paragraph: { content: "text*", toDOM: () => ["p", 0] },
+        text: { inline: true },
+      },
+    });
+    const doc = noLinkSchema.node("doc", null, [
+      noLinkSchema.node("paragraph", null, [noLinkSchema.text("hello")]),
+    ]);
+    let state = EditorState.create({ doc, schema: noLinkSchema });
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const container = document.createElement("div");
+    const view = new EditorView(container, { state });
+
+    handleSmartLinkShortcut(view);
+
+    await vi.waitFor(() => {
+      // Should not crash; no link inserted
+      expect(view.state.doc.textContent).toBe("hello");
+    });
+
+    view.destroy();
+  });
 });

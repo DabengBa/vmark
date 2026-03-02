@@ -869,6 +869,304 @@ describe("MathInlineNodeView", () => {
     });
   });
 
+  describe("Blur handling - still focused", () => {
+    it("does not exit when input is still focused (matches :focus)", async () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "y^3";
+
+      // Mock matches(":focus") to return true — simulates input still having focus
+      Object.defineProperty(input, "matches", {
+        value: () => true,
+        writable: true,
+      });
+
+      vi.clearAllMocks();
+      input.dispatchEvent(new Event("blur", { bubbles: true }));
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Should NOT commit since input is still focused
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("commitChanges - node type guard", () => {
+    it("does nothing when node at pos is not math_inline", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      // Override nodeAt to return a non-math_inline node
+      mockView.state.doc.nodeAt.mockReturnValue({
+        type: { name: "paragraph" },
+        attrs: {},
+        nodeSize: 5,
+      });
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "changed";
+
+      vi.clearAllMocks();
+      // Trigger commit via Enter key
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+      // setNodeMarkup should NOT have been called
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when nodeAt returns null", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      mockView.state.doc.nodeAt.mockReturnValue(null);
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "changed";
+
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteNode edge cases", () => {
+    it("does nothing when getPos returns undefined", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      getPos.mockReturnValue(undefined);
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "";
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+      expect(mockView.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when nodeAt returns null", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      mockView.state.doc.nodeAt.mockReturnValue(null);
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "";
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+      expect(mockView.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("unwrapToText edge cases", () => {
+    it("does nothing when getPos returns undefined", async () => {
+      const { matchesShortcutEvent } = await import("@/utils/shortcutMatch");
+      vi.mocked(matchesShortcutEvent).mockReturnValueOnce(true);
+
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      getPos.mockReturnValue(undefined);
+      vi.clearAllMocks();
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "m", metaKey: true, bubbles: true, cancelable: true }));
+
+      expect(mockView.state.tr.replaceWith).not.toHaveBeenCalled();
+    });
+
+    it("replaces with empty fragment when content is empty", async () => {
+      const { matchesShortcutEvent } = await import("@/utils/shortcutMatch");
+      vi.mocked(matchesShortcutEvent).mockReturnValueOnce(true);
+
+      mockView.state.tr.doc = {
+        resolve: vi.fn(() => ({
+          pos: 0,
+          parent: { inlineContent: true, childCount: 0, type: { name: "paragraph" } },
+          depth: 1,
+        })),
+      };
+
+      createNodeView({ content: "" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.value = "";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "m", metaKey: true, bubbles: true, cancelable: true }));
+
+      // replaceWith should be called with empty array for empty content
+      expect(mockView.state.tr.replaceWith).toHaveBeenCalled();
+    });
+
+    it("does nothing when nodeAt returns null", async () => {
+      const { matchesShortcutEvent } = await import("@/utils/shortcutMatch");
+      vi.mocked(matchesShortcutEvent).mockReturnValueOnce(true);
+
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      mockView.state.doc.nodeAt.mockReturnValue(null);
+      vi.clearAllMocks();
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "m", metaKey: true, bubbles: true, cancelable: true }));
+
+      expect(mockView.state.tr.replaceWith).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("exitAndFocusEditor edge cases", () => {
+    it("does nothing when nodeAt returns null during exit", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      mockView.state.doc.nodeAt.mockReturnValue(null);
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      vi.clearAllMocks();
+      // Enter triggers commitAndExit -> exitAndFocusEditor
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+      // dispatch should not be called since nodeAt returned null
+      expect(mockView.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("exits left with ArrowLeft setting exitingLeft flag", () => {
+      createNodeView({ content: "xy" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "xy" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      Object.defineProperty(input, "selectionStart", { value: 0, writable: true });
+
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+
+      // Should have dispatched to move cursor before node
+      expect(mockView.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("Click handling - when editing", () => {
+    it("does not dispatch selection when already in edit mode", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      vi.clearAllMocks();
+      const clickEvent = new MouseEvent("click", { bubbles: true, cancelable: true });
+      nodeView.dom.dispatchEvent(clickEvent);
+
+      // Should NOT call dispatch since we're already editing
+      expect(mockView.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("forceExit - not editing guard", () => {
+    it("does not crash when forceExit is called while not editing", () => {
+      createNodeView({ content: "x^2" });
+      // Enter edit mode to get the forceExit callback
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const callbacks = mockStartEditing.mock.calls[0][1];
+
+      // Exit edit mode first
+      nodeView.dom.classList.remove("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      vi.clearAllMocks();
+      // Now call forceExit while NOT editing
+      callbacks.forceExit();
+
+      // Should not dispatch
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("forceExit - no content change", () => {
+    it("exits without committing when value matches currentLatex", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const callbacks = mockStartEditing.mock.calls[0][1];
+
+      // Don't change the input value
+      vi.clearAllMocks();
+      callbacks.forceExit();
+
+      // Should not call setNodeMarkup since value didn't change
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("renderPreview - KaTeX load rejection with non-Error", () => {
+    it("handles non-Error rejection from loadKatex", async () => {
+      mockLoadKatex.mockRejectedValue("string error");
+      mockIsKatexLoaded.mockReturnValue(false);
+
+      createNodeView({ content: "x^2" });
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Should add math-error class and show text content
+      expect(nodeView.dom.classList.contains("math-error")).toBe(true);
+    });
+  });
+
+  describe("IME keydown handling", () => {
+    it("returns early for IME key events", async () => {
+      const { isImeKeyEvent } = await import("@/utils/imeGuard");
+      vi.mocked(isImeKeyEvent).mockReturnValueOnce(true);
+
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      vi.clearAllMocks();
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Process", bubbles: true }));
+
+      // Should not dispatch since IME event is ignored
+      expect(mockView.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("enterEditMode re-entry guard", () => {
+    it("prevents re-entry when exitingLeft is true", () => {
+      createNodeView({ content: "x^2" });
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      // Trigger exit left
+      const input = nodeView.dom.querySelector(".math-inline-input") as HTMLInputElement;
+      Object.defineProperty(input, "selectionStart", { value: 0, writable: true });
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+
+      // Now try to re-enter edit mode immediately
+      vi.clearAllMocks();
+      nodeView.dom.classList.add("editing");
+      nodeView.update(createMockNode({ content: "x^2" }));
+
+      // startEditing should NOT be called again due to exitingLeft guard
+      expect(mockStartEditing).not.toHaveBeenCalled();
+    });
+  });
+
   describe("MutationObserver class change detection", () => {
     it("enters edit mode via MutationObserver when editing class is added", async () => {
       createNodeView({ content: "x^2" });

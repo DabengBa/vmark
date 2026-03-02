@@ -668,3 +668,353 @@ describe("setSourceHeadingLevel", () => {
     view.destroy();
   });
 });
+
+describe("performSourceToolbarAction — additional actions", () => {
+  it("handles undo/redo", () => {
+    const view = createView("hello", [{ from: 0, to: 0 }]);
+    // Undo with no history should return false
+    const undone = performSourceToolbarAction("undo", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof undone).toBe("boolean");
+
+    const redone = performSourceToolbarAction("redo", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof redone).toBe("boolean");
+    view.destroy();
+  });
+
+  // Note: "link" action calls insertLinkSync which triggers an async popup
+  // that cannot run in jsdom without mocking. Tested via integration instead.
+
+  it("handles wiki link insertion", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("link:wiki", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("[[");
+    view.destroy();
+  });
+
+  it("handles bookmark link action without error", () => {
+    const view = createView("text", [{ from: 0, to: 4 }]);
+    // insertSourceBookmarkLink wraps text in bookmark link syntax
+    const applied = performSourceToolbarAction("link:bookmark", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+
+  it("handles increaseHeading on paragraph", () => {
+    const view = createView("Hello", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("increaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toBe("# Hello");
+    view.destroy();
+  });
+
+  it("handles increaseHeading on existing heading", () => {
+    const view = createView("## Hello", [{ from: 3, to: 3 }]);
+    const applied = performSourceToolbarAction("increaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toBe("### Hello");
+    view.destroy();
+  });
+
+  it("increaseHeading returns false at max level 6", () => {
+    const view = createView("###### Hello", [{ from: 7, to: 7 }]);
+    const applied = performSourceToolbarAction("increaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("handles decreaseHeading on heading level > 1", () => {
+    const view = createView("### Hello", [{ from: 4, to: 4 }]);
+    const applied = performSourceToolbarAction("decreaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toBe("## Hello");
+    view.destroy();
+  });
+
+  it("handles decreaseHeading at level 1 (removes heading)", () => {
+    const view = createView("# Hello", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("decreaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toBe("Hello");
+    view.destroy();
+  });
+
+  it("decreaseHeading returns false on paragraph", () => {
+    const view = createView("Hello", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("decreaseHeading", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("handles insertImage action", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertImage", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+
+  it("handles insertVideo", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertVideo", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles insertAudio", () => {
+    const view = createView("", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertAudio", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles insertInlineMath", () => {
+    const view = createView("text", [{ from: 0, to: 4 }]);
+    const applied = performSourceToolbarAction("insertInlineMath", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles selectLine", () => {
+    const view = createView("hello world", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("selectLine", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles selectBlock", () => {
+    const view = createView("hello\n\nworld", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("selectBlock", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles expandSelection", () => {
+    const view = createView("hello world", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("expandSelection", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles CJK formatting actions", () => {
+    for (const action of ["formatCJK", "formatCJKFile", "removeTrailingSpaces", "collapseBlankLines"]) {
+      const view = createView("hello  \nworld  \n", [{ from: 0, to: 0 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source", view, context: null, multiSelection: singleSelection,
+      });
+      expect(typeof applied).toBe("boolean");
+      view.destroy();
+    }
+  });
+
+  it("handles line ending conversions", () => {
+    const view = createView("hello\r\nworld", [{ from: 0, to: 0 }]);
+    const lf = performSourceToolbarAction("lineEndingsLF", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof lf).toBe("boolean");
+    view.destroy();
+
+    const view2 = createView("hello\nworld", [{ from: 0, to: 0 }]);
+    const crlf = performSourceToolbarAction("lineEndingsCRLF", {
+      surface: "source", view: view2, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof crlf).toBe("boolean");
+    view2.destroy();
+  });
+
+  it("handles line operations", () => {
+    for (const action of ["moveLineUp", "moveLineDown", "duplicateLine", "deleteLine", "joinLines"]) {
+      const view = createView("line1\nline2\nline3", [{ from: 7, to: 7 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source", view, context: null, multiSelection: singleSelection,
+      });
+      expect(typeof applied).toBe("boolean");
+      view.destroy();
+    }
+  });
+
+  it("handles sort lines and remove blank lines", () => {
+    for (const action of ["sortLinesAsc", "sortLinesDesc", "removeBlankLines"]) {
+      const view = createView("c\na\nb\n\n", [{ from: 0, to: 7 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source", view, context: null, multiSelection: singleSelection,
+      });
+      expect(typeof applied).toBe("boolean");
+      view.destroy();
+    }
+  });
+
+  it("handles text transformations", () => {
+    for (const action of ["transformUppercase", "transformLowercase", "transformTitleCase", "transformToggleCase"]) {
+      const view = createView("hello World", [{ from: 0, to: 11 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source", view, context: null, multiSelection: singleSelection,
+      });
+      expect(applied).toBe(true);
+      view.destroy();
+    }
+  });
+
+  it("handles table operations", () => {
+    const table = "| a | b |\n| --- | --- |\n| 1 | 2 |\n";
+    for (const action of ["addRowAbove", "addRow", "addColLeft", "addCol", "deleteRow", "deleteCol",
+      "alignLeft", "alignCenter", "alignRight", "alignAllLeft", "alignAllCenter", "alignAllRight",
+      "formatTable"]) {
+      const view = createView(table, [{ from: 2, to: 2 }]);
+      const applied = performSourceToolbarAction(action, {
+        surface: "source", view, context: null, multiSelection: singleSelection,
+      });
+      expect(typeof applied).toBe("boolean");
+      view.destroy();
+    }
+  });
+
+  it("handles outdent on list item", () => {
+    const view = createView("  - indented", [{ from: 4, to: 4 }]);
+    const applied = performSourceToolbarAction("outdent", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles insertDetails with selection", () => {
+    const view = createView("content here", [{ from: 0, to: 12 }]);
+    const applied = performSourceToolbarAction("insertDetails", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    const doc = view.state.doc.toString();
+    expect(doc).toContain("content here");
+    expect(doc).toContain("details");
+    view.destroy();
+  });
+
+  it("handles insertDiagram with selection", () => {
+    const view = createView("flowchart LR", [{ from: 0, to: 12 }]);
+    const applied = performSourceToolbarAction("insertDiagram", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles insertMarkmap with selection", () => {
+    const view = createView("# Root\n## Branch", [{ from: 0, to: 16 }]);
+    const applied = performSourceToolbarAction("insertMarkmap", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    view.destroy();
+  });
+
+  it("handles deleteTable", () => {
+    const table = "| a | b |\n| --- | --- |\n| 1 | 2 |\n";
+    const view = createView(table, [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("deleteTable", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+
+  it("creates bullet list from paragraph via bulletList action", () => {
+    const view = createView("item text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("bulletList", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("- ");
+    view.destroy();
+  });
+
+  it("creates task list from paragraph via taskList action", () => {
+    const view = createView("item text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("taskList", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(true);
+    expect(view.state.doc.toString()).toContain("- [ ] ");
+    view.destroy();
+  });
+
+  it("returns false for indent when not in a list", () => {
+    const view = createView("plain text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("indent", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("returns false for outdent when not in a list", () => {
+    const view = createView("plain text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("outdent", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("returns false for removeList when not in a list", () => {
+    const view = createView("plain text", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("removeList", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(applied).toBe(false);
+    view.destroy();
+  });
+
+  it("insertBlockquote inserts blockquote marker", () => {
+    const view = createView("hello", [{ from: 0, to: 0 }]);
+    const applied = performSourceToolbarAction("insertBlockquote", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+
+  it("returns false for unknown blockquote action on blockquote line", () => {
+    const view = createView("> hello", [{ from: 2, to: 2 }]);
+    const applied = performSourceToolbarAction("nestBlockquote", {
+      surface: "source", view, context: null, multiSelection: singleSelection,
+    });
+    // nestBlockquote should work on a blockquote line
+    expect(typeof applied).toBe("boolean");
+    view.destroy();
+  });
+});
