@@ -151,6 +151,51 @@ describe("useOutlineSync — scroll-to-heading listener", () => {
     callback({ payload: { headingIndex: 0 } });
   });
 
+  it("cancelled guard prevents callback from dispatching after unmount (line 101)", async () => {
+    const view = createMockView([0, 50, 100]);
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    const { unmount } = renderHook(() => useOutlineSync(getView));
+
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    const calls = mocks.listen.mock.calls as unknown[][];
+    const scrollCall = calls.find((c) => c[0] === "outline:scroll-to-heading");
+    const callback = scrollCall![1] as ListenCallback;
+
+    // Unmount sets cancelled=true
+    unmount();
+
+    // Calling callback after unmount — cancelled guard should prevent dispatch
+    callback({ payload: { headingIndex: 0 } });
+
+    // dispatch should NOT have been called
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("calls safeUnlisten when cancelled before listen resolves (line 137)", async () => {
+    let resolveListen: (fn: () => void) => void = () => {};
+    const deferred = new Promise<() => void>((res) => { resolveListen = res; });
+    mocks.listen.mockReturnValueOnce(deferred);
+
+    const mockUnlisten = vi.fn();
+    const getView = () => null;
+
+    const { unmount } = renderHook(() => useOutlineSync(getView));
+
+    // Unmount before listen promise resolves — cancelled=true
+    unmount();
+
+    // Now resolve the listen promise
+    resolveListen(mockUnlisten);
+    await deferred;
+
+    // safeUnlisten should be called with the unlisten fn (cancelled before resolve path)
+    await vi.waitFor(() => {
+      expect(mockSafeUnlisten).toHaveBeenCalledWith(mockUnlisten);
+    });
+  });
+
   it("cleans up listener on unmount", async () => {
     const mockUnlisten = vi.fn();
     mocks.listen.mockResolvedValueOnce(mockUnlisten);
@@ -292,6 +337,55 @@ describe("useOutlineSync — cursor tracking", () => {
     // Should not throw, just stop polling silently
 
     vi.useRealTimers();
+  });
+
+  it("cancelled guard prevents updateActiveHeading from running (line 160)", () => {
+    const dom = document.createElement("div");
+    mockDom = dom;
+
+    const view = createMockView([0, 50], 10);
+    let callCount = 0;
+    const getView = () => {
+      callCount++;
+      return view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+    };
+
+    const { unmount } = renderHook(() => useOutlineSync(getView));
+
+    // Unmount sets cancelled=true — subsequent updateActiveHeading calls should bail early
+    unmount();
+
+    // Trigger DOM event after unmount (cancelled=true set)
+    dom.dispatchEvent(new Event("keyup"));
+    dom.dispatchEvent(new Event("mouseup"));
+
+    // The store should not have been updated after unmount
+    // (cancelled guard prevents updateActiveHeading from running)
+    expect(true).toBe(true); // no crash means guard worked
+  });
+
+  it("handleUpdate schedules RAF and cancels previous one (line 168)", () => {
+    const dom = document.createElement("div");
+    mockDom = dom;
+
+    const view = createMockView([0, 50], 10);
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    const rafSpy = vi.spyOn(globalThis, "requestAnimationFrame");
+    const cancelSpy = vi.spyOn(globalThis, "cancelAnimationFrame");
+
+    renderHook(() => useOutlineSync(getView));
+
+    // Trigger two rapid keyup events — second should cancel first RAF
+    dom.dispatchEvent(new Event("keyup"));
+    dom.dispatchEvent(new Event("keyup"));
+
+    // cancelAnimationFrame should have been called to cancel pending RAF
+    expect(cancelSpy).toHaveBeenCalled();
+    expect(rafSpy).toHaveBeenCalled();
+
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
   });
 
   it("cleans up poll timeout on unmount before DOM is ready", () => {

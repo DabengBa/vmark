@@ -364,5 +364,58 @@ describe("useHistoryOperations", () => {
       // Index should still be updated
       expect(mockWriteTextFile).toHaveBeenCalled();
     });
+
+    it("catches and silences errors from getHistoryIndex throwing (line 380)", async () => {
+      // Make mockExists throw to trigger the outer catch in deleteSnapshot (line 380)
+      mockExists.mockRejectedValue(new Error("fs error"));
+      // Should not throw
+      await deleteSnapshot("/test/doc.md", "snap-1");
+      expect(mockWriteTextFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("pruneSnapshots — error path (line 329)", () => {
+    it("catches and silences errors from getHistoryIndex throwing", async () => {
+      mockExists.mockRejectedValue(new Error("fs error in prune"));
+      // Should not throw
+      await pruneSnapshots("/test/doc.md");
+    });
+  });
+
+  describe("markAsDeleted — error path (line 347)", () => {
+    it("catches and silences errors from getHistoryIndex throwing", async () => {
+      mockExists.mockRejectedValue(new Error("fs error in markAsDeleted"));
+      // Should not throw
+      await markAsDeleted("/test/doc.md");
+    });
+  });
+
+  describe("createSnapshot — merge window sort (line 179)", () => {
+    it("sorts snapshots when merge window is active but last snapshot is outside window", async () => {
+      const now = Date.now();
+      // Two snapshots: one old auto (outside merge window), one manual
+      const snapshots = [
+        { id: "snap-manual", timestamp: now - 5000, type: "manual", size: 10, preview: "" },
+        { id: "snap-auto-old", timestamp: now - 120000, type: "auto", size: 10, preview: "" },
+      ];
+      const index = makeIndex({ snapshots });
+
+      mockExists
+        .mockResolvedValueOnce(true)  // historyDir exists
+        .mockResolvedValueOnce(true)  // index exists
+        .mockResolvedValueOnce(false); // prune: historyDir missing
+
+      mockReadTextFile.mockResolvedValue(JSON.stringify(index));
+
+      // Auto snapshot with mergeWindowSeconds = 60, but last snapshot (snap-manual) is type "manual"
+      // so no merge happens, but the sort at line 179 DOES execute (index.snapshots.length > 0)
+      await createSnapshot("/test/doc.md", "content", "auto", {
+        ...defaultSettings,
+        mergeWindowSeconds: 60,
+      });
+
+      // Snapshot created — should have written twice (snapshot file + index)
+      expect(mockWriteTextFile).toHaveBeenCalled();
+    });
   });
 });

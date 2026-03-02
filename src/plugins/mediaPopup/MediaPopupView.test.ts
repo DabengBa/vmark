@@ -566,6 +566,192 @@ describe("MediaPopupView — input handlers", () => {
   });
 });
 
+describe("MediaPopupView — keyboard nav onClose callback (lines 231-232)", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    view = createMockView();
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+  });
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("invokes closePopup and focus when onClose callback is called (lines 231-232)", () => {
+    popup = new MediaPopupView(view);
+
+    // Trigger show() to call installMediaPopupKeyboardNavigation with the onClose callback
+    const openState = {
+      isOpen: true,
+      mediaSrc: "image.png",
+      mediaAlt: "",
+      mediaTitle: "",
+      mediaPoster: "",
+      mediaNodeType: "image",
+      mediaDimensions: null,
+      anchorRect: { top: 10, bottom: 30, left: 50, right: 150 },
+      mediaNodePos: 5,
+    };
+    const cb = store.subscribe.mock.calls[0][0] as (s: unknown, p: unknown) => void;
+    cb(openState, { isOpen: false, mediaNodePos: -1 });
+
+    // Extract the onClose callback passed to installMediaPopupKeyboardNavigation
+    expect(mockInstallKeyboardNavigation).toHaveBeenCalled();
+    const [, onClose] = mockInstallKeyboardNavigation.mock.calls[0] as [unknown, () => void];
+    expect(onClose).toBeDefined();
+
+    // Invoke the onClose callback — covers lines 231-232
+    onClose();
+
+    expect(mockClosePopup).toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — editorState null guard (lines 276, 304, 383)", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handleSave returns early when editorState is null (line 276)", () => {
+    vi.clearAllMocks();
+    // Create a view whose state is null
+    const nullStateView = {
+      ...createMockView(),
+      state: null as unknown as ReturnType<typeof createMockView>["state"],
+    } as ReturnType<typeof createMockView>;
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(nullStateView as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+
+    // Should not throw and should not call dispatch
+    expect(() => handlers.onInputKeydown(event)).not.toThrow();
+    expect(nullStateView.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("handleToggle returns early when editorState is null (line 304)", () => {
+    vi.clearAllMocks();
+    const nullStateView = {
+      ...createMockView(),
+      state: null as unknown as ReturnType<typeof createMockView>["state"],
+    } as ReturnType<typeof createMockView>;
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(nullStateView as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    expect(() => handlers.onToggle()).not.toThrow();
+    expect(nullStateView.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("handleRemove returns early when editorState is null (line 383)", () => {
+    vi.clearAllMocks();
+    const nullStateView = {
+      ...createMockView(),
+      state: null as unknown as ReturnType<typeof createMockView>["state"],
+    } as ReturnType<typeof createMockView>;
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(nullStateView as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    expect(() => handlers.onRemove()).not.toThrow();
+    expect(nullStateView.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — toggle newNodeType not found (lines 313-314)", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("warns and returns when target schema node type is missing (lines 313-314)", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    // Override schema to NOT have block_image so toggling image -> block_image fails
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: "image" },
+          attrs: { src: "test.png", alt: "alt" },
+          nodeSize: 1,
+        })),
+      },
+      schema: {
+        nodes: {
+          // Deliberately omit block_image so newNodeType is undefined
+          image: { create: vi.fn() },
+        },
+      },
+    };
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    handlers.onToggle();
+
+    expect(mediaPopupWarn).toHaveBeenCalledWith("block_image schema not available");
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — deferred close RAF fires closePopup (line 421)", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    view = createMockView();
+    store._state.isOpen = true;
+  });
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("calls closePopup in RAF callback when still open and active element outside container (line 421)", async () => {
+    popup = new MediaPopupView(view);
+
+    // Trigger an outside click so pendingCloseRaf is set
+    const event = new MouseEvent("mousedown", { bubbles: true });
+    Object.defineProperty(event, "target", { value: document.body });
+    document.dispatchEvent(event);
+
+    // Wait for the RAF to fire
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => requestAnimationFrame(r));
+
+    expect(mockClosePopup).toHaveBeenCalled();
+  });
+});
+
 describe("MediaPopupView — click outside", () => {
   let view: ReturnType<typeof createMockView>;
   let popup: MediaPopupView;

@@ -1298,4 +1298,211 @@ describe("search plugin view lifecycle", () => {
     // (the view dispatches a transaction, but scrollToMatch runs in rAF)
     viewResult.destroy!();
   });
+
+  it("scrollToMatch returns early when search is closed or currentIndex < 0 (line 171)", () => {
+    vi.useFakeTimers();
+    const rafSpy = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    // State: isOpen=true, currentIndex=0, has matches
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr); // find matches
+
+    const coordsAtPos = vi.fn(() => ({ top: 300, bottom: 320, left: 50 }));
+
+    // Scroll container NOT in DOM → closest returns null → line 184 fires
+    const editorDom = document.createElement("div");
+    // NOT appended to a .editor-content ancestor
+
+    const mockDispatch = vi.fn((tr: unknown) => {
+      mockView.state = (mockView.state as { apply: (t: unknown) => unknown }).apply(tr);
+    });
+
+    const mockView: Record<string, unknown> = {
+      state: state2,
+      dom: editorDom,
+      dispatch: mockDispatch,
+      coordsAtPos,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Change state to trigger subscription + scrollToMatch via rAF
+    mockSearchState.caseSensitive = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // rAF fires immediately due to spy — scrollToMatch runs
+    // closest(".editor-content") returns null → line 184 early return
+    expect(coordsAtPos).not.toHaveBeenCalled();
+
+    // Now set currentIndex < 0 to trigger line 171 early return
+    mockSearchState.currentIndex = -1;
+    mockSearchState.caseSensitive = false;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+    expect(coordsAtPos).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+    rafSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it("scrollToMatch returns early when scrollKey unchanged (line 174)", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    // Start: isOpen=false so the view initializes without any scroll
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+    mockSearchState.caseSensitive = false;
+    mockSearchState.wholeWord = false;
+    mockSearchState.useRegex = false;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.classList.add("editor-content");
+    const scrollToFn = vi.fn();
+    scrollContainer.scrollTo = scrollToFn;
+    scrollContainer.getBoundingClientRect = vi.fn(() => ({
+      top: 0, bottom: 500, left: 0, right: 500, width: 500, height: 500, x: 0, y: 0, toJSON: () => {},
+    }));
+    const editorDom = document.createElement("div");
+    scrollContainer.appendChild(editorDom);
+    document.body.appendChild(scrollContainer);
+
+    // rAF fires synchronously
+    const rafSpy = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+
+    const mockView: Record<string, unknown> = {
+      state: state2,
+      dom: editorDom,
+      dispatch: vi.fn((tr: unknown) => {
+        mockView.state = (mockView.state as { apply: (t: unknown) => unknown }).apply(tr);
+      }),
+      coordsAtPos: vi.fn(() => ({ top: 600, bottom: 620, left: 50 })), // outside viewport → scrollTo
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Step 1: Change isOpen=true → scrollToMatch fires, processes scrollKey, sets lastScrollKey
+    mockSearchState.isOpen = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+    const callsAfterFirst = scrollToFn.mock.calls.length;
+    expect(callsAfterFirst).toBeGreaterThan(0); // first scrollToMatch scrolled
+
+    // Step 2: Close search (isOpen=false) → scrollToMatch fires → line 171 early return (isOpen=false)
+    mockSearchState.isOpen = false;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // Step 3: Open search again with SAME query/cs/ww/ur/idx
+    // → scrollToMatch fires again → line 171 passes (isOpen=true)
+    // → scrollKey = "hello|false|false|false|0" = lastScrollKey → line 174 fires!
+    mockSearchState.isOpen = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // scrollTo should NOT have been called again (line 174 returned early)
+    expect(scrollToFn.mock.calls.length).toBe(callsAfterFirst);
+
+    viewResult.destroy!();
+    document.body.removeChild(scrollContainer);
+    rafSpy.mockRestore();
+  });
+
+  it("scrollToMatch returns early when no match at currentIndex (line 177)", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    // Set currentIndex=99 (no match at that index)
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 99;
+    mockSearchState.caseSensitive = false;
+    mockSearchState.wholeWord = false;
+    mockSearchState.useRegex = false;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr); // finds 1 match for "hello", but idx 99 is out of range
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.classList.add("editor-content");
+    const scrollToFn = vi.fn();
+    scrollContainer.scrollTo = scrollToFn;
+    scrollContainer.getBoundingClientRect = vi.fn(() => ({
+      top: 0, bottom: 500, left: 0, right: 500, width: 500, height: 500, x: 0, y: 0, toJSON: () => {},
+    }));
+    const editorDom2 = document.createElement("div");
+    scrollContainer.appendChild(editorDom2);
+    document.body.appendChild(scrollContainer);
+
+    const rafSpy = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+
+    const mockView: Record<string, unknown> = {
+      state: state2,
+      dom: editorDom2,
+      dispatch: vi.fn((tr: unknown) => {
+        mockView.state = (mockView.state as { apply: (t: unknown) => unknown }).apply(tr);
+      }),
+      coordsAtPos: vi.fn(() => ({ top: 600, bottom: 620, left: 50 })),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Open search: isOpen=true → scrollToMatch fires
+    // line 171: passes (isOpen=true, idx=99 ≥ 0)
+    // line 174: new scrollKey → passes
+    // line 177: pluginState.matches[99] is undefined → early return
+    mockSearchState.isOpen = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // No scroll should have happened (line 177 returned early)
+    expect(scrollToFn).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+    document.body.removeChild(scrollContainer);
+    rafSpy.mockRestore();
+  });
+
+  it("handleReplaceCurrent returns early when no match at currentIndex (line 202)", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 99; // out of range — no match at index 99
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    // Apply to find matches (only 1 match for "hello" in "hello world")
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Fire replace-current with currentIndex=99 (no match at that index → line 202 early return)
+    window.dispatchEvent(new Event("search:replace-current"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
 });

@@ -4,10 +4,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { getSchema } from "@tiptap/core";
+import { getSchema, Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
-import { DOMSerializer } from "@tiptap/pm/model";
+import { DOMSerializer, DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import {
   alertBlockExtension,
   ALERT_TYPES,
@@ -260,5 +260,96 @@ describe("insertAlertBlock command", () => {
 
     insertCmd()({ state, dispatch, tr: state.tr, chain: () => ({}) as never, can: () => ({}) as never, commands: {} as never, editor: {} as never, view: {} as never } as never);
     expect(resultTr).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createAlertBlockNode — line 48: !nodeType || !paragraphType guard
+// ---------------------------------------------------------------------------
+
+describe("createAlertBlockNode guard (line 48)", () => {
+  it("insertAlertBlock returns false when schema lacks alertBlock node type", () => {
+    // Use StarterKit schema only — no alertBlock node
+    const schemaNoAlert = getSchema([StarterKit]);
+    const paragraph = schemaNoAlert.nodes.paragraph.create(null, [schemaNoAlert.text("hi")]);
+    const doc = schemaNoAlert.nodes.doc.create(null, [paragraph]);
+    const state = EditorState.create({ doc, selection: TextSelection.create(doc, 2) });
+
+    const commandFn = alertBlockExtension.config.addCommands!.call({ name: "alertBlock", options: {}, storage: {}, editor: {} } as never);
+    const insertCmd = commandFn.insertAlertBlock;
+
+    // state.schema has no alertBlock node → createAlertBlockNode returns null → command returns false
+    const result = insertCmd("NOTE")({
+      state,
+      dispatch: undefined,
+      tr: state.tr,
+      chain: () => ({}) as never,
+      can: () => ({}) as never,
+      commands: {} as never,
+      editor: {} as never,
+      view: {} as never,
+    } as never);
+    expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseHTML attribute callback — lines 64-65: element.getAttribute + normalizeAlertType
+// ---------------------------------------------------------------------------
+
+describe("alertBlock parseHTML attribute callback (lines 64-65)", () => {
+  it("normalizes alertType from HTML element data-alert-type attribute", () => {
+    const schema = createSchema();
+
+    // Build a container holding the alert block div — ProseMirror parser needs
+    // to parse the CONTENTS of the element passed to parse()
+    const container = document.createElement("div");
+    const alertDiv = document.createElement("div");
+    alertDiv.setAttribute("data-alert-type", "warning"); // lowercase → should normalize to WARNING
+    const p = document.createElement("p");
+    p.textContent = "content";
+    alertDiv.appendChild(p);
+    container.appendChild(alertDiv);
+
+    // Use ProseMirror DOMParser to trigger the parseHTML attribute callback
+    const domParser = ProseMirrorDOMParser.fromSchema(schema);
+    const parsedDoc = domParser.parse(container);
+
+    // The parsed doc should contain an alertBlock node with alertType=WARNING
+    let foundAlertType: string | null = null;
+    parsedDoc.descendants((node) => {
+      if (node.type.name === "alertBlock") {
+        foundAlertType = node.attrs.alertType as string;
+        return false;
+      }
+    });
+
+    expect(foundAlertType).toBe("WARNING");
+  });
+
+  it("defaults alertType to NOTE when data-alert-type is an invalid value", () => {
+    const schema = createSchema();
+
+    const container = document.createElement("div");
+    const alertDiv = document.createElement("div");
+    alertDiv.setAttribute("data-alert-type", "INVALID_TYPE");
+    const p = document.createElement("p");
+    p.textContent = "text";
+    alertDiv.appendChild(p);
+    container.appendChild(alertDiv);
+
+    const domParser = ProseMirrorDOMParser.fromSchema(schema);
+    const parsedDoc = domParser.parse(container);
+
+    let foundAlertType: string | null = null;
+    parsedDoc.descendants((node) => {
+      if (node.type.name === "alertBlock") {
+        foundAlertType = node.attrs.alertType as string;
+        return false;
+      }
+    });
+
+    // INVALID_TYPE normalizes to DEFAULT_ALERT_TYPE = "NOTE"
+    expect(foundAlertType).toBe("NOTE");
   });
 });

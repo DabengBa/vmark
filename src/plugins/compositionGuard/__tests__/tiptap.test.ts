@@ -921,6 +921,234 @@ describe("compositionGuard tableHeader cursor fix", () => {
     expect(result === null || typeof result === "object").toBe(true);
   });
 
+  it("appendTransaction returns null when parentOffset is not 0 (line 129 guard)", () => {
+    const { events, appendTransaction } = getFullPlugin();
+
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => ({
+            depth: 2,
+            node: (d: number) => ({
+              type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+            }),
+            end: () => 20,
+          }),
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionend(mockView, { data: "你好" });
+
+    // parentOffset != 0 → line 129 guard returns null
+    const newState = {
+      selection: { from: 5 },
+      doc: {
+        resolve: () => ({
+          depth: 2,
+          parentOffset: 3,  // not 0 → triggers guard at line 129
+          parent: { type: { name: "paragraph" }, textContent: "你好" },
+          node: (d: number) => ({
+            type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+          }),
+        }),
+        content: { size: 30 },
+      },
+      tr: { setSelection: vi.fn().mockReturnThis() },
+    };
+
+    const result = appendTransaction([{ docChanged: true }], {}, newState);
+    expect(result).toBeNull();
+  });
+
+  it("appendTransaction returns null when parent type is not paragraph (line 130 guard)", () => {
+    const { events, appendTransaction } = getFullPlugin();
+
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => ({
+            depth: 2,
+            node: (d: number) => ({
+              type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+            }),
+            end: () => 20,
+          }),
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionend(mockView, { data: "你好" });
+
+    // parent type is "text" (not "paragraph") → line 130 guard returns null
+    const newState = {
+      selection: { from: 5 },
+      doc: {
+        resolve: () => ({
+          depth: 2,
+          parentOffset: 0,
+          parent: { type: { name: "text" }, textContent: "你好" },  // not paragraph
+          node: (d: number) => ({
+            type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+          }),
+        }),
+        content: { size: 30 },
+      },
+      tr: { setSelection: vi.fn().mockReturnThis() },
+    };
+
+    const result = appendTransaction([{ docChanged: true }], {}, newState);
+    expect(result).toBeNull();
+  });
+
+  it("appendTransaction returns null when cursor is not in tableHeader (line 139 guard)", () => {
+    const { events, appendTransaction } = getFullPlugin();
+
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => ({
+            depth: 2,
+            node: (d: number) => ({
+              type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+            }),
+            end: () => 20,
+          }),
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionend(mockView, { data: "你好" });
+
+    // No tableHeader in ancestors → inTableHeader remains false → line 139 returns null
+    const newState = {
+      selection: { from: 5 },
+      doc: {
+        resolve: () => ({
+          depth: 2,
+          parentOffset: 0,
+          parent: { type: { name: "paragraph" }, textContent: "你好" },
+          // All nodes are paragraph (no tableHeader) → inTableHeader stays false
+          node: (d: number) => ({
+            type: { name: d === 2 ? "tableCell" : d === 1 ? "paragraph" : "doc" },
+          }),
+        }),
+        content: { size: 30 },
+      },
+      tr: { setSelection: vi.fn().mockReturnThis() },
+    };
+
+    const result = appendTransaction([{ docChanged: true }], {}, newState);
+    expect(result).toBeNull();
+  });
+
+  it("appendTransaction returns null when textContent does not start with data (line 142 guard)", () => {
+    const { events, appendTransaction } = getFullPlugin();
+
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => ({
+            depth: 2,
+            node: (d: number) => ({
+              type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+            }),
+            end: () => 20,
+          }),
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionend(mockView, { data: "你好" });
+
+    // textContent does NOT start with "你好" → line 142 returns null
+    const newState = {
+      selection: { from: 5 },
+      doc: {
+        resolve: () => ({
+          depth: 2,
+          parentOffset: 0,
+          parent: { type: { name: "paragraph" }, textContent: "something else" },
+          node: (d: number) => ({
+            type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+          }),
+        }),
+        content: { size: 30 },
+      },
+      tr: { setSelection: vi.fn().mockReturnThis() },
+    };
+
+    const result = appendTransaction([{ docChanged: true }], {}, newState);
+    expect(result).toBeNull();
+  });
+
+  it("scheduleImeCleanup returns early when compositionStartPos > cleanupEnd (line 102)", () => {
+    // Use the rAF capture approach to control when scheduleImeCleanup runs
+    let capturedRafCb: FrameRequestCallback | null = null;
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      capturedRafCb = cb;
+      return 0;
+    };
+
+    const { events } = getFullPlugin();
+
+    // compositionStartPos = 10 (from selection.from)
+    // cleanupEnd = end() = 3 → compositionStartPos (10) > cleanupEnd (3) → return early
+    const mockView = {
+      state: {
+        selection: { from: 10 },
+        doc: {
+          resolve: () => ({
+            depth: 1,
+            node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
+            end: () => 3,  // cleanupEnd = 3, but compositionStartPos = 10 → 10 > 3
+          }),
+          textBetween: () => "",
+          content: { size: 20 },
+        },
+        tr: { delete: vi.fn().mockReturnThis(), setMeta: vi.fn().mockReturnThis() },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionupdate(mockView, { data: "ni" });
+    events.compositionend(mockView, { data: "你" });
+
+    // Run captured rAF — should hit line 102 guard and return
+    if (capturedRafCb) capturedRafCb(0);
+
+    // dispatch should NOT have been called (early return hit)
+    expect(mockView.dispatch).not.toHaveBeenCalled();
+
+    // Restore synchronous rAF
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
+  });
+
   it("appendTransaction returns null when no doc-changing transactions", () => {
     const { events, appendTransaction } = getFullPlugin();
 

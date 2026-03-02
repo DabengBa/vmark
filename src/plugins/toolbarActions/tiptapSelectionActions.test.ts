@@ -681,3 +681,215 @@ describe("expandSelectionInView — depth walk hits inner expansion (line 146)",
     view.destroy();
   });
 });
+
+// ---------------------------------------------------------------------------
+// findWordBoundaries — out-of-range pos returns null (line 26)
+// ---------------------------------------------------------------------------
+
+describe("findWordBoundaries — out-of-range position (line 26)", () => {
+  it("returns false from selectWordInView when $from.parentOffset > text.length", () => {
+    // We need parentOffset to be > text.length to trigger line 26's return null.
+    // This can happen when parentOffset equals text.length (end of text node).
+    // When the cursor is exactly at the end of the text, and the last char is a space,
+    // findWordBoundaries returns null (start===end after the while loops don't move).
+    // Actually to trigger pos > text.length we need a mocked position.
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("hello")]),
+    ]);
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+    const view = new EditorView(parent, { state });
+
+    // Mock $from to return parentOffset > text.length (e.g., 999 > 5)
+    vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
+      ...view.state.selection.$from,
+      parent: {
+        isTextblock: true,
+        textContent: "hello",
+        type: { name: "paragraph" },
+      },
+      parentOffset: 999, // > "hello".length (5) → triggers line 26
+    } as never);
+
+    const result = selectWordInView(view);
+    expect(result).toBe(false);
+    view.destroy();
+  });
+
+  it("returns false from selectWordInView when $from.parentOffset is negative", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("world")]),
+    ]);
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+    const view = new EditorView(parent, { state });
+
+    vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
+      ...view.state.selection.$from,
+      parent: {
+        isTextblock: true,
+        textContent: "world",
+        type: { name: "paragraph" },
+      },
+      parentOffset: -1, // < 0 → triggers line 26
+    } as never);
+
+    const result = selectWordInView(view);
+    expect(result).toBe(false);
+    view.destroy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectBlockInView — non-textblock dispatch (lines 104-106) and depth-- + return false (113,116)
+// ---------------------------------------------------------------------------
+
+describe("selectBlockInView — non-textblock block and depth decrement (lines 104-106, 113, 116)", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("dispatches selection for non-textblock (blockquote) when it's the first encountered block", () => {
+    // Create a document: blockquote > [para1, para2]
+    // When cursor is at para1, $from depth is: doc(0) > blockquote(1) > paragraph(2)
+    // The while loop starts at depth=2 (paragraph, isTextblock=true) and selects paragraph.
+    // We need to call selectBlockInView AGAIN so the cursor is now at paragraph boundaries,
+    // and the NEXT call to selectBlockInView should find the blockquote at depth=1.
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("first")]),
+        schema.node("paragraph", null, [schema.text("second")]),
+      ]),
+    ]);
+    const view = createView(doc, 3);
+
+    // First call selects the inner paragraph
+    const result1 = selectBlockInView(view);
+    expect(result1).toBe(true);
+
+    // The cursor is now at paragraph content boundaries
+    // Second call: $from is still inside paragraph so it hits textblock again.
+    // To get to the non-textblock branch, we need cursor at the blockquote level.
+    // We update the selection to be at blockquote boundaries.
+    const { state } = view;
+    const bqStart = 1; // blockquote starts at pos 1
+    const bqEnd = doc.content.size - 1; // blockquote ends before doc close
+    const tr = state.tr.setSelection(TextSelection.create(state.doc, bqStart + 1, bqEnd));
+    view.dispatch(tr);
+
+    // Now call selectBlockInView — selection is at blockquote content boundary
+    // $from will be in the first paragraph, but selection start=bqStart+1
+    const result2 = selectBlockInView(view);
+    expect(result2).toBe(true);
+    view.destroy();
+  });
+
+  it("selectBlockInView returns false when depth reaches 0 without finding a block", () => {
+    // To trigger the return false path (line 116), we need $from.depth to start at 0.
+    // This is extremely unusual but we can mock it.
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("text")]),
+    ]);
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 2),
+    });
+    const view = new EditorView(parent, { state });
+
+    // Mock $from to have depth=0 (at document level)
+    vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
+      ...view.state.selection.$from,
+      depth: 0,
+      node: (_depth: number) => {
+        // At depth 0, return a node that is neither isBlock+!isTextblock nor isTextblock
+        return { isBlock: false, isTextblock: false, type: { name: "doc" } };
+      },
+      start: (_depth: number) => 0,
+      end: (_depth: number) => doc.content.size,
+      pos: 2,
+    } as never);
+
+    const result = selectBlockInView(view);
+    // With depth=0, the while (depth > 0) loop never executes, returns false
+    expect(result).toBe(false);
+    view.destroy();
+  });
+
+  it("selectBlockInView dispatches for non-textblock block node (line 104)", () => {
+    // We mock $from so depth=2, node(2)=blockquote (isBlock=true, isTextblock=false)
+    // This exercises lines 104-106: the non-textblock block dispatch path.
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("text")]),
+      ]),
+    ]);
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+    const view = new EditorView(parent, { state });
+
+    // Mock $from to place cursor at blockquote depth (non-textblock)
+    const bqNode = schema.node("blockquote", null, [
+      schema.node("paragraph", null, [schema.text("text")]),
+    ]);
+    vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
+      ...view.state.selection.$from,
+      depth: 2,
+      node: (d: number) => {
+        if (d === 2) return bqNode; // blockquote: isBlock=true, isTextblock=false
+        return { isBlock: false, isTextblock: false, type: { name: "doc" } };
+      },
+      start: (_d: number) => 2,
+      end: (_d: number) => doc.content.size - 1,
+      pos: 3,
+    } as never);
+
+    const mockFocus = vi.spyOn(view, "focus").mockImplementation(() => {});
+    const result = selectBlockInView(view);
+    expect(result).toBe(true);
+    expect(mockFocus).toHaveBeenCalled();
+    view.destroy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findLineBoundaries — backward loop break (line 47)
+// ---------------------------------------------------------------------------
+
+describe("findLineBoundaries — backward loop break when coords differ (line 47)", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("stops backward search when coords.top differs by more than 2px", () => {
+    // This tests line 47: if (Math.abs(coords.top - fromCoords.top) > 2) break;
+    // We need coordsAtPos to return a different top for positions going backward.
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("hello world")]),
+    ]);
+    const view = createView(doc, 6); // middle of "hello world"
+
+    vi.spyOn(view, "coordsAtPos").mockImplementation((pos: number) => {
+      // Position 6 has top=100 (fromCoords); positions < 4 have different top
+      if (pos >= 4) return { top: 100, bottom: 120, left: pos * 8, right: pos * 8 + 8 };
+      return { top: 200, bottom: 220, left: pos * 8, right: pos * 8 + 8 }; // different line
+    });
+
+    const result = selectLineInView(view);
+    expect(result).toBe(true);
+    // lineStart should not go below pos 4 (where top differs)
+    const sel = getSelection(view);
+    // lineStart should be >= 4 because backward search stops at pos 3 (different top)
+    expect(sel.from).toBeGreaterThanOrEqual(4);
+    view.destroy();
+  });
+});

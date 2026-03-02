@@ -473,6 +473,52 @@ describe("tryImagePaste", () => {
         );
       });
     });
+
+    it("aborts in insertImageMarkdown when view disconnects before first check (line 46-47)", async () => {
+      // onConfirm guard (line 131) returns true, but insertImageMarkdown's own
+      // first isViewConnected check (line 45) returns false → should warn and return
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png"));
+
+      mockIsViewConnected
+        .mockReturnValueOnce(true) // onConfirm guard passes
+        .mockReturnValueOnce(false); // insertImageMarkdown first check fails
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      await toastArgs.onConfirm();
+
+      await vi.waitFor(() => {
+        expect(mockSmartPasteWarn).toHaveBeenCalledWith(
+          expect.stringContaining("View disconnected, aborting image insert")
+        );
+      });
+    });
+
+    it("catches error from insertImageMarkdown rejection (line 136)", async () => {
+      // Trigger the .catch() by making message() reject inside insertImageMarkdown
+      // after needsCopy=true and no active file path
+      mockParseMultiplePaths.mockReturnValue({ paths: ["https://img.com/a.png"], format: "single" });
+      mockDetectMultipleImagePaths.mockReturnValue(singleImageResult("url", "https://img.com/a.png", true));
+      mockGetActiveFilePath.mockReturnValue(null);
+      // message() rejects to cause insertImageMarkdown to throw — the .catch() swallows it
+      mockMessage.mockRejectedValueOnce(new Error("dialog failed"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "https://img.com/a.png");
+
+      const toastArgs = mockShowToast.mock.calls[0][0];
+      // onConfirm returns void (fire-and-forget), call it and wait for async operations
+      toastArgs.onConfirm();
+
+      // Wait for the rejection to be processed — message was called (showing it threw)
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalled();
+      });
+      // No unhandled rejection — the .catch() on line 135-137 handled it
+    });
   });
 
   // ── validateAndShowToast ───────────────────────────────────────
@@ -760,6 +806,31 @@ describe("tryImagePaste", () => {
       expect(mockShowMultiToast).not.toHaveBeenCalled();
     });
 
+    it("returns early at line 245 when view disconnects before showMultiImagePasteToast (line 244-246)", async () => {
+      // All paths valid, but isViewConnected returns false at line 244 check
+      // → enters the guard branch → line 245 return is executed
+      const paths = ["/a.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      // All isViewConnected calls return false — first call at line 244 returns false
+      mockIsViewConnected.mockReturnValue(false);
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png");
+
+      await vi.waitFor(() => {
+        expect(mockValidateLocalPath).toHaveBeenCalled();
+      });
+
+      // The guard at line 244-246 prevents showMultiImagePasteToast from being called
+      expect(mockShowMultiToast).not.toHaveBeenCalled();
+    });
+
     it("relative paths assumed valid without validation in multi-image", async () => {
       const paths = ["./a.png", "./b.png"];
       mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
@@ -1042,6 +1113,42 @@ describe("tryImagePaste", () => {
           expect.stringContaining("Selection changed")
         );
       });
+    });
+
+    it("catches error from insertMultipleImageMarkdown rejection (line 274)", async () => {
+      // Trigger the .catch() in showMultiImagePasteToast onConfirm by making
+      // insertMultipleImageMarkdown reject. We use 2 absolutePath images with
+      // needsCopy=true and no active file path so message() is called inside
+      // insertMultipleImageMarkdown, then we make message() reject to cause the throw.
+      const paths = ["/a.png", "/b.png"];
+      mockParseMultiplePaths.mockReturnValue({ paths, format: "newline" });
+      mockDetectMultipleImagePaths.mockReturnValue(
+        multiImageResult([
+          { type: "absolutePath", path: "/a.png", needsCopy: true },
+          { type: "absolutePath", path: "/b.png", needsCopy: true },
+        ])
+      );
+      mockValidateLocalPath.mockResolvedValue(true);
+      mockGetActiveFilePath.mockReturnValue(null);
+      // message() rejects to cause insertMultipleImageMarkdown to throw
+      mockMessage.mockRejectedValueOnce(new Error("dialog error"));
+
+      const view = createView("hello", 0);
+      tryImagePaste(view, "/a.png\n/b.png");
+
+      await vi.waitFor(() => {
+        expect(mockShowMultiToast).toHaveBeenCalled();
+      });
+
+      const toastArgs = mockShowMultiToast.mock.calls[0][0];
+      // onConfirm returns void (fire-and-forget), call it and wait for async operations
+      toastArgs.onConfirm();
+
+      // Wait for message to be called, meaning insertMultipleImageMarkdown ran and threw
+      await vi.waitFor(() => {
+        expect(mockMessage).toHaveBeenCalled();
+      });
+      // No unhandled rejection — the .catch() on line 273-275 handled it
     });
 
     it("disconnection after async in multi-image aborts", async () => {

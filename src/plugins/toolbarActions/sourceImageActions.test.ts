@@ -82,6 +82,7 @@ import { useMediaPopupStore } from "@/stores/mediaPopupStore";
 import { getAnchorRectFromRange } from "@/plugins/sourcePopup/sourcePopupUtils";
 import { findWordAtCursorSource } from "./sourceAdapterLinks";
 import { hasVideoExtension, hasAudioExtension } from "@/utils/mediaPathDetection";
+import { getWindowLabel } from "@/hooks/useWindowFocus";
 
 function createView(doc: string, ranges: Array<{ from: number; to: number }>): EditorView {
   const parent = document.createElement("div");
@@ -444,5 +445,78 @@ describe("insertImage (async paths)", () => {
       expect(view.state.doc.toString()).toContain("![hello](https://example.com/img.png)");
     });
     view.destroy();
+  });
+
+  it("falls back to template when needsCopy=true but getActiveFilePath returns null (line 247)", async () => {
+    // getWindowLabel returns a label with no active tab → tabId is null → getActiveFilePath returns null
+    vi.mocked(getWindowLabel).mockReturnValue("window-with-no-tab");
+
+    const view = createView("", [{ from: 0, to: 0 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/local/image.png",
+      needsCopy: true,
+      resolvedPath: "/local/image.png",
+    } as never);
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      // Template inserted since getActiveFilePath returned null
+      expect(view.state.doc.toString()).toBe("![](url)");
+    });
+    view.destroy();
+
+    // Restore
+    vi.mocked(getWindowLabel).mockReturnValue("main");
+  });
+
+  it("logs error when insertImageAsync throws (line 310)", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const view = createView("", [{ from: 0, to: 0 }]);
+    // Make readClipboardImagePath reject (throw) → insertImageAsync rejects → catch at line 309
+    vi.mocked(readClipboardImagePath).mockRejectedValue(new Error("clipboard error"));
+
+    insertImage(view);
+
+    await vi.waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[SourceAdapter] insertImage failed:",
+        expect.any(Error)
+      );
+    });
+    view.destroy();
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("getActiveFilePath — error path (line 42)", () => {
+  it("returns null when getWindowLabel throws", async () => {
+    // getWindowLabel throws → catch block returns null → getActiveFilePath returns null
+    vi.mocked(getWindowLabel).mockImplementation(() => {
+      throw new Error("focus error");
+    });
+
+    const view = createView("", [{ from: 0, to: 0 }]);
+    vi.mocked(readClipboardImagePath).mockResolvedValue({
+      isImage: true,
+      validated: true,
+      path: "/local/image.png",
+      needsCopy: true,
+      resolvedPath: "/local/image.png",
+    } as never);
+
+    insertImage(view);
+
+    // getActiveFilePath returns null → falls back to template
+    await vi.waitFor(() => {
+      expect(view.state.doc.toString()).toBe("![](url)");
+    });
+    view.destroy();
+
+    // Restore
+    vi.mocked(getWindowLabel).mockReturnValue("main");
   });
 });
