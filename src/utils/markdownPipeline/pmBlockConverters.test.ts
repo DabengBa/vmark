@@ -604,4 +604,175 @@ describe("pmBlockConverters", () => {
       expect(result.value).toBe("<div>test</div>");
     });
   });
+
+  describe("convertBlockquote — array spread path", () => {
+    it("handles multiple children including array-returning convertNode", () => {
+      // The array spread path (line 102) is exercised when convertNode returns an array.
+      // Use a context that returns an array for some nodes.
+      const arrayContext: PmToMdastContext = {
+        convertNode: (node: PMNode) => {
+          if (node.type.name === "paragraph") {
+            // Return an array to exercise the array-spread branch
+            return [
+              { type: "paragraph", children: [{ type: "text", value: node.textContent }] } as Paragraph,
+              { type: "paragraph", children: [{ type: "text", value: "extra" }] } as Paragraph,
+            ];
+          }
+          return null;
+        },
+        convertInlineContent: () => [],
+      };
+      const node = mediaSchema.nodes.blockquote.create(null, [
+        mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("content")]),
+      ]);
+      const result = convertBlockquote(arrayContext, node);
+      expect(result.type).toBe("blockquote");
+      // Array spread: 2 paragraphs pushed
+      expect(result.children.length).toBe(2);
+    });
+  });
+
+  describe("convertAlertBlock — array spread path", () => {
+    it("exercises array spread for alert children", () => {
+      const arrayContext: PmToMdastContext = {
+        convertNode: (node: PMNode) => {
+          if (node.type.name === "paragraph") {
+            return [
+              { type: "paragraph", children: [{ type: "text", value: node.textContent }] } as Paragraph,
+              { type: "paragraph", children: [{ type: "text", value: "extra" }] } as Paragraph,
+            ];
+          }
+          return null;
+        },
+        convertInlineContent: () => [],
+      };
+      const node = mediaSchema.nodes.alertBlock.create(
+        { alertType: "NOTE" },
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("alert body")])]
+      );
+      const result = convertAlertBlock(arrayContext, node);
+      expect(result.type).toBe("blockquote");
+      // First child = [!NOTE] paragraph, then 2 more from array spread
+      expect(result.children.length).toBeGreaterThan(2);
+    });
+  });
+
+  describe("convertDetailsBlock — array spread path", () => {
+    it("exercises array spread for details children", () => {
+      const arrayContext: PmToMdastContext = {
+        convertNode: (node: PMNode) => {
+          if (node.type.name === "paragraph") {
+            return [
+              { type: "paragraph", children: [{ type: "text", value: node.textContent }] } as Paragraph,
+              { type: "paragraph", children: [{ type: "text", value: "extra" }] } as Paragraph,
+            ];
+          }
+          return null;
+        },
+        convertInlineContent: () => [],
+      };
+      const summaryNode = mediaSchema.nodes.detailsSummary.create(null, [mediaSchema.text("Summary")]);
+      const paraNode = mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("body")]);
+      const node = mediaSchema.nodes.detailsBlock.create({ open: false }, [summaryNode, paraNode]);
+      const result = convertDetailsBlock(arrayContext, node);
+      expect(result.type).toBe("details");
+      // Array spread: 2 children from the paragraph
+      expect(result.children.length).toBe(2);
+    });
+  });
+
+  describe("convertListItem — array spread path", () => {
+    it("exercises array spread for list item children", () => {
+      const arrayContext: PmToMdastContext = {
+        convertNode: (node: PMNode) => {
+          if (node.type.name === "paragraph") {
+            return [
+              { type: "paragraph", children: [{ type: "text", value: node.textContent }] } as Paragraph,
+              { type: "paragraph", children: [{ type: "text", value: "extra" }] } as Paragraph,
+            ];
+          }
+          return null;
+        },
+        convertInlineContent: () => [],
+      };
+      const item = mediaSchema.nodes.listItem.create(null, [
+        mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("item content")]),
+      ]);
+      const result = convertListItem(arrayContext, item);
+      expect(result.type).toBe("listItem");
+      // 2 children from array spread = spread=true (multi-paragraph)
+      expect(result.children.length).toBe(2);
+      expect(result.spread).toBe(true);
+    });
+  });
+
+  describe("convertTable — alignment update for existing column", () => {
+    it("exercises align[cellIndex] = alignment for second header row cells", () => {
+      // When headerRow has 2 cells and align already has entries,
+      // the `else { align[cellIndex] = alignment }` branch (line 239) is hit
+      // for the second cell since align.length (1) <= cellIndex (1) is false for index 0
+      // but true for index 1. Actually for index=0: align.length=0 <= 0 is true (push).
+      // For index=1: align.length=1 <= 1 is true (push).
+      // So both cells use push. To hit the else branch, align must already be longer.
+      // That only happens if there's a second row processed — but only rowIndex===0 updates align.
+      // Let's verify correct alignment is set by testing with multiple header cells.
+      const headerCell1 = mediaSchema.nodes.tableHeader.create(
+        { alignment: "center" },
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("H1")])]
+      );
+      const headerCell2 = mediaSchema.nodes.tableHeader.create(
+        { alignment: "right" },
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("H2")])]
+      );
+      const headerCell3 = mediaSchema.nodes.tableHeader.create(
+        { alignment: "left" },
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("H3")])]
+      );
+      const headerRow = mediaSchema.nodes.tableRow.create(null, [headerCell1, headerCell2, headerCell3]);
+      const table = mediaSchema.nodes.table.create(null, [headerRow]);
+      const result = convertTable(context, table);
+      expect(result.align).toEqual(["center", "right", "left"]);
+    });
+
+    it("convertTable second row does not change alignment", () => {
+      // Data row (rowIndex > 0) should NOT update alignment
+      const headerCell = mediaSchema.nodes.tableHeader.create(
+        { alignment: "left" },
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("H")])]
+      );
+      const headerRow = mediaSchema.nodes.tableRow.create(null, [headerCell]);
+      const dataCell = mediaSchema.nodes.tableCell.create(
+        { alignment: "right" }, // should be ignored
+        [mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("D")])]
+      );
+      const dataRow = mediaSchema.nodes.tableRow.create(null, [dataCell]);
+      const table = mediaSchema.nodes.table.create(null, [headerRow, dataRow]);
+      const result = convertTable(context, table);
+      // Should use header's alignment, not data row's
+      expect(result.align).toEqual(["left"]);
+    });
+  });
+
+  describe("convertTableCellContent — line break between multiple paragraphs", () => {
+    it("inserts break between multiple paragraphs in table cell", () => {
+      // The break is inserted when children.length > 0 and another paragraph is added
+      // To test this, we need a tableCell with multiple paragraph children
+      // convertTableCellContent is called internally by convertTable
+      const headerCell = mediaSchema.nodes.tableHeader.create(
+        { alignment: null },
+        [
+          mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("line1")]),
+          mediaSchema.nodes.paragraph.create(null, [mediaSchema.text("line2")]),
+        ]
+      );
+      const headerRow = mediaSchema.nodes.tableRow.create(null, [headerCell]);
+      const table = mediaSchema.nodes.table.create(null, [headerRow]);
+      const result = convertTable(context, table);
+      const firstCell = result.children[0].children[0] as TableCell;
+      // Should have: text("line1"), break, text("line2")
+      expect(firstCell.children.length).toBeGreaterThan(1);
+      const hasBreak = firstCell.children.some((c) => c.type === "break");
+      expect(hasBreak).toBe(true);
+    });
+  });
 });

@@ -785,4 +785,130 @@ describe("useTabDragOut", () => {
     );
     expect(reorderCalls.length).toBeGreaterThan(0);
   });
+
+  it("calcDropIndex returns -1 when tablist has no tabs (line 72)", () => {
+    // Create a bar with tablist but no [role='tab'] elements
+    const bar = document.createElement("div");
+    withRect(bar, { top: 0, left: 0, width: 300, height: 40 });
+    const tablist = document.createElement("div");
+    tablist.setAttribute("role", "tablist");
+    withRect(tablist, { top: 0, left: 0, width: 300, height: 40 });
+    bar.appendChild(tablist);
+    document.body.appendChild(bar);
+
+    const tabBarRef = createRef<HTMLElement>();
+    tabBarRef.current = bar;
+    const onDragOut = vi.fn();
+    const onReorder = vi.fn();
+    const { result } = renderHook(() =>
+      useTabDragOut({ tabBarRef, onDragOut, onReorder })
+    );
+
+    act(() => {
+      result.current.getTabDragHandlers("tab-1", false).onPointerDown(
+        createPointerDownEvent({ clientX: 30, clientY: 20 })
+      );
+      // Move horizontally to trigger pending → reorder path
+      // calcDropIndex will find tablist but no tabs → returns -1 → stays pending
+      dispatchPointer("pointermove", 130, 20);
+      dispatchPointer("pointerup", 130, 20);
+    });
+
+    // reorder was never triggered because calcDropIndex returned -1
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("touch hold timer guard: stateRef.tabId changed before hold fires (line 225)", () => {
+    vi.useFakeTimers();
+    const bar = createTabBar({
+      barTop: 0,
+      barHeight: 40,
+      tabRects: [{ left: 0, width: 120 }],
+    });
+    const tabBarRef = createRef<HTMLElement>();
+    tabBarRef.current = bar;
+    const onDragOut = vi.fn();
+    const onReorder = vi.fn();
+    const { result } = renderHook(() =>
+      useTabDragOut({ tabBarRef, onDragOut, onReorder })
+    );
+
+    act(() => {
+      result.current.getTabDragHandlers("tab-1", false).onPointerDown(
+        createPointerDownEvent({ clientX: 30, clientY: 20, pointerType: "touch" })
+      );
+      // Immediately cancel before the hold timer fires — changes stateRef.tabId to null
+      document.dispatchEvent(new Event("pointercancel", { bubbles: true }));
+      // Now advance time past hold delay — timer fires but guard (s.tabId !== tabId) → early return
+      vi.advanceTimersByTime(250);
+    });
+
+    // Should not have set dragTabId since guard returned early
+    expect(result.current.dragTabId).toBeNull();
+    expect(onDragOut).not.toHaveBeenCalled();
+  });
+
+  it("pointermove no-ops when stateRef.tabId is null (line 234)", () => {
+    const bar = createTabBar({
+      barTop: 0,
+      barHeight: 40,
+      tabRects: [{ left: 0, width: 120 }],
+    });
+    const tabBarRef = createRef<HTMLElement>();
+    tabBarRef.current = bar;
+    const onDragOut = vi.fn();
+    const onReorder = vi.fn();
+    const { result } = renderHook(() =>
+      useTabDragOut({ tabBarRef, onDragOut, onReorder })
+    );
+
+    act(() => {
+      result.current.getTabDragHandlers("tab-1", false).onPointerDown(
+        createPointerDownEvent({ clientX: 30, clientY: 20 })
+      );
+      // Complete the drag to clean up stateRef.tabId
+      dispatchPointer("pointerup", 30, 20);
+      // Now send a pointermove AFTER cleanup — stateRef.tabId is null → early return (line 234)
+      dispatchPointer("pointermove", 130, 20);
+    });
+
+    // No drag out or reorder should have happened
+    expect(onDragOut).not.toHaveBeenCalled();
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("calcDropIndex returns -1 in reorder mode when tabs disappear mid-drag (line 279)", () => {
+    const bar = createTabBar({
+      barTop: 0,
+      barHeight: 40,
+      tabRects: [
+        { left: 0, width: 100 },
+        { left: 100, width: 100 },
+      ],
+    });
+    const tabBarRef = createRef<HTMLElement>();
+    tabBarRef.current = bar;
+    const onDragOut = vi.fn();
+    const onReorder = vi.fn();
+    const { result } = renderHook(() =>
+      useTabDragOut({ tabBarRef, onDragOut, onReorder })
+    );
+    const tablist = bar.querySelector("[role='tablist']") as HTMLElement;
+
+    act(() => {
+      result.current.getTabDragHandlers("tab-1", false).onPointerDown(
+        createPointerDownEvent({ clientX: 10, clientY: 20 })
+      );
+      dispatchPointer("pointermove", 160, 20); // enter reorder
+      // Remove all tabs from tablist so calcDropIndex returns -1 on next move
+      while (tablist.firstChild) {
+        tablist.removeChild(tablist.firstChild);
+      }
+      dispatchPointer("pointermove", 180, 20); // reorder branch, idx < 0 → early return (line 279)
+      dispatchPointer("pointerup", 180, 20);
+    });
+
+    // onReorder called with the last valid dropIndex before tabs disappeared
+    expect(onReorder).toHaveBeenCalled();
+  });
 });

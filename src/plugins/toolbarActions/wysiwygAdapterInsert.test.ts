@@ -1202,3 +1202,114 @@ describe("handleInsertImage — error handling", () => {
     });
   });
 });
+
+describe("insertInlineMath — focusMathInput with real mathInput (lines 308-310)", () => {
+  let originalRAF: typeof requestAnimationFrame;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    originalRAF = globalThis.requestAnimationFrame;
+    // Make rAF synchronous so the focusMathInput callback fires immediately
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    };
+  });
+
+  afterEach(() => {
+    globalThis.requestAnimationFrame = originalRAF;
+  });
+
+  it("calls focus() and setSelectionRange() on mathInput when found (lines 308-310)", () => {
+    const mockMathInput = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    };
+
+    const mathInlineType = { create: vi.fn(() => ({ type: "math_inline" })) };
+    const resolvedPos = { pos: 2 };
+    const mockTr = {
+      replaceSelectionWith: vi.fn().mockReturnThis(),
+      setSelection: vi.fn().mockReturnThis(),
+      doc: { resolve: vi.fn(() => resolvedPos) },
+    };
+
+    const mockView = {
+      state: {
+        selection: {
+          from: 2,
+          to: 7,
+          $from: { nodeAfter: null, nodeBefore: null },
+        },
+        doc: { textBetween: vi.fn(() => "hello") },
+        schema: { nodes: { math_inline: mathInlineType } },
+        tr: mockTr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: {
+        // querySelector returns the mock math input
+        querySelector: vi.fn(() => mockMathInput),
+      },
+    };
+
+    const nearSpy = vi.spyOn(Selection, "near").mockReturnValue({} as never);
+
+    const context = createBaseContext({ view: mockView as never });
+    const result = insertInlineMath(context);
+
+    expect(result).toBe(true);
+    // rAF fired synchronously — mathInput.focus() should have been called
+    expect(mockMathInput.focus).toHaveBeenCalled();
+    // cursorOffset = selectedText.length = "hello".length = 5
+    expect(mockMathInput.setSelectionRange).toHaveBeenCalledWith(5, 5);
+    nearSpy.mockRestore();
+  });
+
+  it("calls focus() but not setSelectionRange() when cursorOffset is undefined (line 308 only)", () => {
+    const mockMathInput = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    };
+
+    vi.mocked(findWordAtCursor).mockReturnValue(null);
+
+    const mathInlineType = { create: vi.fn(() => ({ type: "math_inline" })) };
+    const resolvedPos = { pos: 4 };
+    const mockTr = {
+      replaceSelectionWith: vi.fn().mockReturnThis(),
+      setSelection: vi.fn().mockReturnThis(),
+      doc: { resolve: vi.fn(() => resolvedPos) },
+    };
+
+    const mockView = {
+      state: {
+        selection: {
+          from: 4,
+          to: 4,
+          $from: { nodeAfter: null, nodeBefore: null },
+        },
+        doc: { textBetween: vi.fn(() => "") },
+        schema: { nodes: { math_inline: mathInlineType } },
+        tr: mockTr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+      dom: {
+        querySelector: vi.fn(() => mockMathInput),
+      },
+    };
+
+    const nearSpy = vi.spyOn(Selection, "near").mockReturnValue({} as never);
+
+    const context = createBaseContext({ view: mockView as never });
+    // Case 3: empty math insertion — focusMathInput(0) is called with cursorOffset=0
+    const result = insertInlineMath(context);
+
+    expect(result).toBe(true);
+    expect(mockMathInput.focus).toHaveBeenCalled();
+    // cursorOffset=0 IS defined, so setSelectionRange IS called
+    expect(mockMathInput.setSelectionRange).toHaveBeenCalledWith(0, 0);
+    nearSpy.mockRestore();
+  });
+});

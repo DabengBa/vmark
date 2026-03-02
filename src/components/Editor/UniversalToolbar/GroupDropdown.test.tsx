@@ -723,4 +723,152 @@ describe("GroupDropdown", () => {
       expect(buttons[1]).toHaveClass("disabled");
     });
   });
+
+  describe("ref forwarding", () => {
+    it("forwards function ref to the container div", () => {
+      const items = [makeItem("bold")];
+      const refCallback = vi.fn();
+
+      render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={items}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+          ref={refCallback}
+        />
+      );
+
+      // Function ref should be called with the DOM node
+      expect(refCallback).toHaveBeenCalledWith(expect.any(HTMLElement));
+    });
+
+    it("forwards object ref to the container div", () => {
+      const items = [makeItem("bold")];
+      const refObj = { current: null as HTMLDivElement | null };
+
+      render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={items}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+          ref={refObj}
+        />
+      );
+
+      expect(refObj.current).not.toBeNull();
+      expect(refObj.current).toBeInstanceOf(HTMLElement);
+    });
+  });
+
+  describe("ArrowRight falls back to onClose when onNavigateOut not provided", () => {
+    it("calls onClose on ArrowRight when onNavigateOut is absent", () => {
+      const items = [makeItem("bold")];
+
+      render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={items}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+          // onNavigateOut intentionally omitted
+        />
+      );
+
+      fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe("findNextEnabledButtonIndex edge cases", () => {
+    it("returns currentButtonIndex unchanged when enabledButtonIndices is empty (all disabled)", () => {
+      // All items disabled → enabledButtonIndices = []
+      // ArrowDown will call findNextEnabledButtonIndex, but guard prevents focus call
+      const items = [makeDisabledItem("bold"), makeDisabledItem("italic")];
+
+      render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={items}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+        />
+      );
+
+      const buttons = screen.getAllByRole("menuitemcheckbox");
+      // Focus the first disabled button
+      buttons[0].focus();
+
+      // ArrowDown with empty enabledButtonIndices — guard `if (enabledButtonIndices.length > 0)`
+      // means findNextEnabledButtonIndex is NOT called, but we verify no crash
+      fireEvent.keyDown(buttons[0], { key: "ArrowDown" });
+      // Focus should not have moved (guard prevents the call)
+      expect(document.activeElement).toBe(buttons[0]);
+    });
+
+    it("returns first enabled index when current button is disabled", () => {
+      // Items: disabled, enabled, enabled — focus the disabled one and press ArrowDown
+      // activeButtonIndex will be 0 (disabled), currentEnabledPos will be -1
+      // so findNextEnabledButtonIndex returns enabledButtonIndices[0] = 1
+      const items = [makeDisabledItem("bold"), makeItem("italic"), makeItem("code")];
+
+      render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={items}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+        />
+      );
+
+      const buttons = screen.getAllByRole("menuitemcheckbox");
+      // Manually focus the disabled button (not focused by default since first enabled is index 1)
+      buttons[0].focus();
+
+      fireEvent.keyDown(buttons[0], { key: "ArrowDown" });
+      // Should jump to first enabled (index 1)
+      expect(document.activeElement).toBe(buttons[1]);
+    });
+  });
+
+  describe("re-render does not steal focus (isInitialMount guard)", () => {
+    it("does not re-focus on re-render when items change", () => {
+      const initialItems = [makeItem("bold"), makeItem("italic")];
+
+      const { rerender } = render(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={initialItems}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+        />
+      );
+
+      const buttons = screen.getAllByRole("menuitemcheckbox");
+      // Manually focus second button
+      buttons[1].focus();
+      expect(document.activeElement).toBe(buttons[1]);
+
+      // Re-render with same items — should NOT re-focus first button
+      rerender(
+        <GroupDropdown
+          anchorRect={mockAnchorRect}
+          items={initialItems}
+          groupId="inline"
+          onSelect={onSelect}
+          onClose={onClose}
+        />
+      );
+
+      // Focus should remain on the button the user moved to
+      expect(document.activeElement).toBe(buttons[1]);
+    });
+  });
 });

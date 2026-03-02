@@ -744,6 +744,190 @@ describe("formatTable - collectCellInlineContent whitespace trimming", () => {
   });
 });
 
+// ---------- collectCellInlineContent: non-text first/last node (lines 232, 247) ----------
+
+describe("formatTable - non-text leading/trailing inline nodes (lines 232, 247)", () => {
+  it("handles cell where first inline content is a non-text node (line 232 else-break)", () => {
+    // Build a schema that has a hardBreak-like inline node
+    // We use the existing schema — tableCell with a paragraph whose first child
+    // is not a text node. We'll craft this by adding a node that has isText=false.
+    // The easiest way: create a paragraph with text but put content that spans multiple
+    // paragraphs so the separator " " text node is between non-whitespace nodes.
+    // Actually, we need isText=false for the FIRST fragment.
+    // collectCellInlineContent iterates block children, then their inline children.
+    // If a block's first inline child is a non-text node (e.g. a softbreak inline)
+    // the leading while-loop hits the `else { break; }` at line 232.
+    //
+    // Our schema only has text as inline. We'll test it by building the cell with
+    // two paragraphs where the first paragraph has ONLY content that produces
+    // a non-text first fragment. Since we only have text nodes in this schema,
+    // we rely on the fact that multi-paragraph separator " " + preceding content
+    // can put a non-text inline first via cross-paragraph merging.
+    //
+    // Simplest approach: a cell with two paragraphs where first para is empty.
+    // That produces no fragments from first para, then " " separator is skipped
+    // (no fragments yet), then second para's content. The leading trim while-loop
+    // will see the first fragment (a text) and trim normally.
+    //
+    // For a true non-text first node we need to extend the schema inline with an
+    // atom inline node. Let's build a custom schema for this test.
+    const schemaWithBreak = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { group: "block", content: "inline*" },
+        text: { group: "inline", inline: true },
+        hardBreak: {
+          group: "inline",
+          inline: true,
+          isLeaf: true,
+          atom: true,
+          parseDOM: [{ tag: "br" }],
+          toDOM() { return ["br"]; },
+        },
+        table: {
+          group: "block",
+          content: "tableRow+",
+          tableRole: "table",
+          parseDOM: [{ tag: "table" }],
+          toDOM() { return ["table", 0]; },
+        },
+        tableRow: {
+          content: "(tableCell | tableHeader)+",
+          tableRole: "row",
+          parseDOM: [{ tag: "tr" }],
+          toDOM() { return ["tr", 0]; },
+        },
+        tableCell: {
+          content: "block+",
+          attrs: { alignment: { default: null } },
+          tableRole: "cell",
+          parseDOM: [{ tag: "td" }],
+          toDOM() { return ["td", 0]; },
+        },
+        tableHeader: {
+          content: "block+",
+          attrs: { alignment: { default: null } },
+          tableRole: "header_cell",
+          parseDOM: [{ tag: "th" }],
+          toDOM() { return ["th", 0]; },
+        },
+      },
+    });
+
+    // Build a cell whose first inline child is a hardBreak (non-text)
+    const hdrCell = schemaWithBreak.nodes.tableHeader.create(null, [
+      schemaWithBreak.nodes.paragraph.create(null, [schemaWithBreak.text("h0")]),
+    ]);
+    const dataCell = schemaWithBreak.nodes.tableCell.create(null, [
+      schemaWithBreak.nodes.paragraph.create(null, [
+        schemaWithBreak.nodes.hardBreak.create(), // non-text FIRST
+        schemaWithBreak.text("world"),
+      ]),
+    ]);
+    const hdrRow = schemaWithBreak.nodes.tableRow.create(null, [hdrCell]);
+    const dataRow = schemaWithBreak.nodes.tableRow.create(null, [dataCell]);
+    const tbl = schemaWithBreak.nodes.table.create(null, [hdrRow, dataRow]);
+    const doc = schemaWithBreak.nodes.doc.create(null, [tbl]);
+    const state = EditorState.create({ doc, schema: schemaWithBreak });
+
+    // Cursor inside data cell paragraph
+    const pos = 1 + hdrRow.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+
+    const dispatchFn = vi.fn();
+    const view = {
+      state: stateWithSel,
+      dispatch: dispatchFn,
+      focus: vi.fn(),
+      dom: document.createElement("div"),
+      nodeDOM: vi.fn(() => null),
+    } as unknown as EditorView;
+
+    const result = formatTable(view);
+    expect(result).toBe(true);
+    expect(dispatchFn).toHaveBeenCalled();
+  });
+
+  it("handles cell where last inline content is a non-text node (line 247 else-break)", () => {
+    const schemaWithBreak = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { group: "block", content: "inline*" },
+        text: { group: "inline", inline: true },
+        hardBreak: {
+          group: "inline",
+          inline: true,
+          isLeaf: true,
+          atom: true,
+          parseDOM: [{ tag: "br" }],
+          toDOM() { return ["br"]; },
+        },
+        table: {
+          group: "block",
+          content: "tableRow+",
+          tableRole: "table",
+          parseDOM: [{ tag: "table" }],
+          toDOM() { return ["table", 0]; },
+        },
+        tableRow: {
+          content: "(tableCell | tableHeader)+",
+          tableRole: "row",
+          parseDOM: [{ tag: "tr" }],
+          toDOM() { return ["tr", 0]; },
+        },
+        tableCell: {
+          content: "block+",
+          attrs: { alignment: { default: null } },
+          tableRole: "cell",
+          parseDOM: [{ tag: "td" }],
+          toDOM() { return ["td", 0]; },
+        },
+        tableHeader: {
+          content: "block+",
+          attrs: { alignment: { default: null } },
+          tableRole: "header_cell",
+          parseDOM: [{ tag: "th" }],
+          toDOM() { return ["th", 0]; },
+        },
+      },
+    });
+
+    // Build a cell whose last inline child is a hardBreak (non-text)
+    const hdrCell = schemaWithBreak.nodes.tableHeader.create(null, [
+      schemaWithBreak.nodes.paragraph.create(null, [schemaWithBreak.text("h0")]),
+    ]);
+    const dataCell = schemaWithBreak.nodes.tableCell.create(null, [
+      schemaWithBreak.nodes.paragraph.create(null, [
+        schemaWithBreak.text("hello"),
+        schemaWithBreak.nodes.hardBreak.create(), // non-text LAST
+      ]),
+    ]);
+    const hdrRow = schemaWithBreak.nodes.tableRow.create(null, [hdrCell]);
+    const dataRow = schemaWithBreak.nodes.tableRow.create(null, [dataCell]);
+    const tbl = schemaWithBreak.nodes.table.create(null, [hdrRow, dataRow]);
+    const doc = schemaWithBreak.nodes.doc.create(null, [tbl]);
+    const state = EditorState.create({ doc, schema: schemaWithBreak });
+
+    const pos = 1 + hdrRow.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+
+    const dispatchFn = vi.fn();
+    const view = {
+      state: stateWithSel,
+      dispatch: dispatchFn,
+      focus: vi.fn(),
+      dom: document.createElement("div"),
+      nodeDOM: vi.fn(() => null),
+    } as unknown as EditorView;
+
+    const result = formatTable(view);
+    expect(result).toBe(true);
+    expect(dispatchFn).toHaveBeenCalled();
+  });
+});
+
 // ---------- getCellPosition out-of-bounds (lines 87, 95) ----------
 // getCellPosition is called with (rowIndex, colIndex) from getTableInfo.
 // To hit the out-of-bounds guards we need a state where getCellPosition

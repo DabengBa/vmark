@@ -11,6 +11,10 @@ vi.mock("@codemirror/state", () => ({
   },
 }));
 
+// Capture keymap bindings and updateListener callback so tests can invoke them
+let capturedKeymapBindings: Array<{ key: string; run: () => boolean }> = [];
+let capturedUpdateListener: ((update: unknown) => void) | null = null;
+
 vi.mock("@codemirror/view", () => {
   class MockCMView {
     destroy = mockDestroy;
@@ -20,10 +24,20 @@ vi.mock("@codemirror/view", () => {
   }
   (MockCMView as unknown as Record<string, unknown>).theme = vi.fn(() => ({}));
   (MockCMView as unknown as Record<string, unknown>).lineWrapping = {};
-  (MockCMView as unknown as Record<string, unknown>).updateListener = { of: vi.fn(() => ({})) };
+  (MockCMView as unknown as Record<string, unknown>).updateListener = {
+    of: vi.fn((cb: (update: unknown) => void) => {
+      capturedUpdateListener = cb;
+      return {};
+    }),
+  };
   return {
     EditorView: MockCMView,
-    keymap: { of: vi.fn(() => ({})) },
+    keymap: {
+      of: vi.fn((bindings: Array<{ key: string; run: () => boolean }>) => {
+        capturedKeymapBindings = bindings;
+        return {};
+      }),
+    },
   };
 });
 
@@ -162,5 +176,81 @@ describe("createCodeMirrorEditor", () => {
     const noop = () => {};
     const el = createCodeMirrorEditor("test", noop, noop, noop);
     expect(el.tagName).toBe("DIV");
+  });
+
+  it("handleSave keymap binding calls onSave and returns true (lines 52-53)", () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    const onUpdate = vi.fn();
+
+    createCodeMirrorEditor("test", onSave, onCancel, onUpdate);
+
+    // Find the Mod-Enter binding in captured keymap bindings
+    const saveBinding = capturedKeymapBindings.find((b) => b.key === "Mod-Enter");
+    expect(saveBinding).toBeDefined();
+
+    const result = saveBinding!.run();
+    expect(result).toBe(true);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("handleCancel keymap binding calls onCancel and returns true (lines 57-58)", () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    const onUpdate = vi.fn();
+
+    createCodeMirrorEditor("test", onSave, onCancel, onUpdate);
+
+    // Find the Escape binding in captured keymap bindings
+    const cancelBinding = capturedKeymapBindings.find((b) => b.key === "Escape");
+    expect(cancelBinding).toBeDefined();
+
+    const result = cancelBinding!.run();
+    expect(result).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("updateListener calls onUpdate when docChanged is true (lines 73-75)", () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    const onUpdate = vi.fn();
+
+    createCodeMirrorEditor("initial text", onSave, onCancel, onUpdate);
+
+    expect(capturedUpdateListener).not.toBeNull();
+
+    // Simulate a document change update
+    capturedUpdateListener!({
+      docChanged: true,
+      state: { doc: { toString: () => "updated text" } },
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith("updated text");
+  });
+
+  it("updateListener does not call onUpdate when docChanged is false", () => {
+    const onUpdate = vi.fn();
+    const noop = () => {};
+
+    createCodeMirrorEditor("test", noop, noop, onUpdate);
+
+    capturedUpdateListener!({
+      docChanged: false,
+      state: { doc: { toString: () => "test" } },
+    });
+
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("focuses the CM view via requestAnimationFrame (line 97)", () => {
+    vi.useFakeTimers();
+    const noop = () => {};
+    createCodeMirrorEditor("test", noop, noop, noop);
+
+    // requestAnimationFrame callback fires after flush
+    vi.runAllTimers();
+
+    expect(mockFocus).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

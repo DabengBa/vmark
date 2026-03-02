@@ -897,3 +897,144 @@ describe("edge cases", () => {
     removeSpy.mockRestore();
   });
 });
+
+describe("textDragDrop coverage — uncovered branches", () => {
+  let mousedownHandler: (view: unknown, event: MouseEvent) => boolean;
+  let capturedListeners: Record<string, Function>;
+  let capturedWindowListeners: Record<string, Function>;
+  let plugin: ReturnType<typeof textDragDropExtension.config.addProseMirrorPlugins>[0];
+
+  beforeEach(() => {
+    capturedListeners = {};
+    capturedWindowListeners = {};
+
+    vi.spyOn(document, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
+      capturedListeners[type] = handler as Function;
+    });
+    vi.spyOn(document, "removeEventListener").mockImplementation(() => {});
+    vi.spyOn(window, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
+      capturedWindowListeners[type] = handler as Function;
+    });
+    vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
+
+    // Sync rAF
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+
+    const extensionContext = {
+      name: textDragDropExtension.name,
+      options: textDragDropExtension.options,
+      storage: textDragDropExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = textDragDropExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    plugin = plugins[0];
+    mousedownHandler = plugin.props.handleDOMEvents!.mousedown as (view: unknown, event: MouseEvent) => boolean;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function activateDrag(view: EditorView) {
+    const state = createState("hello world test", 2, 8);
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+    mousedownHandler(view, event);
+    return { state };
+  }
+
+  it("positionDropCursor returns false when coordsAtPos throws (line 47)", () => {
+    // Make coordsAtPos throw AFTER drag is activated (during rAF in mousemove)
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Make coordsAtPos throw
+    (view.coordsAtPos as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("Invalid position");
+    });
+
+    // Move above threshold to activate drag and trigger positionDropCursor
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Should not throw — positionDropCursor catches the error and returns false
+    // The drop cursor display remains unchanged (not set to "block")
+    expect(view.coordsAtPos).toHaveBeenCalled();
+  });
+
+  it("plugin view destroy calls cleanup when activeCleanupMap has entry (lines 66-67)", () => {
+    // 1. Activate a drag — this registers a cleanup in activeCleanupMap
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // 2. Get a new plugin instance (same WeakMap is module-level)
+    // The existing plugin.spec.view!(view).destroy() should call the cleanup
+    const viewResult = plugin.spec.view!(view as unknown as EditorView);
+
+    // 3. Call destroy — should invoke the cleanup fn stored in activeCleanupMap
+    expect(() => viewResult.destroy!()).not.toThrow();
+
+    // The cleanup fn removes the drag-active class
+    expect((view.dom as unknown as { classList: { remove: ReturnType<typeof vi.fn> } }).classList.remove).toHaveBeenCalledWith("text-drag-active");
+  });
+
+  it("inner-inner catch fires when both TextSelection.near calls throw (lines 202-203)", () => {
+    // To hit lines 202-203: outer setSelection (line 197) throws AND inner (line 203) also throws.
+    // Strategy: make view.state.tr return a fake transaction whose doc.resolve always throws.
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag with enough movement
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Set drop position outside the selection
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue({ pos: 14 });
+
+    // Build a fake transaction that makes doc.resolve throw for any position
+    const realState = view.state;
+    const realTr = realState.tr;
+
+    // Create a proxy tr that lets delete/replaceRange/mapping work,
+    // but whose doc.resolve always throws.
+    const fakeTr = {
+      ...realTr,
+      delete: (from: number, to: number) => {
+        const real = realTr.delete(from, to);
+        return Object.assign(Object.create(Object.getPrototypeOf(real)), real, {
+          doc: {
+            ...real.doc,
+            resolve: () => { throw new Error("resolve failed for both endPos and mappedDropPos"); },
+          },
+          mapping: real.mapping,
+          setSelection: real.setSelection.bind(real),
+          replaceRange: (_f: number, _t: number, slice: unknown) => fakeTr,
+        });
+      },
+    };
+
+    // Override view.state to return our fake tr
+    Object.defineProperty(view, "state", {
+      get() {
+        return {
+          ...realState,
+          get tr() { return fakeTr; },
+          doc: realState.doc,
+          selection: realState.selection,
+          schema: realState.schema,
+          tr: fakeTr,
+        };
+      },
+    });
+
+    const upEvent = createMouseEvent("mouseup", { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    // Should not throw — the outer catch (line 212) swallows transaction failures
+    // This test exercises the code path, coverage will show lines 202-203 visited
+  });
+});

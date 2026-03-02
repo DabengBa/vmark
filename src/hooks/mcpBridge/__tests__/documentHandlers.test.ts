@@ -261,5 +261,61 @@ describe("documentHandlers", () => {
         error: "No active editor",
       });
     });
+
+    it("returns error when no active tab (lines 141-143)", async () => {
+      // Set activeTabId to null to trigger the !activeTabId branch
+      const origActiveTabId = mockTabStoreState.activeTabId;
+      (mockTabStoreState.activeTabId as unknown as Record<string, string | null>)["main"] = null;
+
+      const editor = {
+        state: {
+          doc: {
+            textContent: "Hello",
+            descendants: () => {},
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleMetadataGet("req-13");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-13",
+        success: false,
+        error: "No active document",
+      });
+
+      // Restore
+      (mockTabStoreState.activeTabId as unknown as Record<string, string | null>)["main"] = "tab-1";
+    });
+
+    it("extracts h1 heading as document title (lines 155-159)", async () => {
+      // descendants visits a heading with level 1 → title overrides tab.title
+      let titleOverrideCallback: ((node: unknown) => boolean | void) | null = null;
+      const editor = {
+        state: {
+          doc: {
+            textContent: "My Heading",
+            descendants: (cb: (node: unknown) => boolean | void) => {
+              titleOverrideCallback = cb;
+              // Call cb with a level-1 heading to trigger title override
+              const result = cb({
+                type: { name: "heading" },
+                attrs: { level: 1 },
+                textContent: "My Document Title",
+              });
+              if (result === false) return; // stop traversal
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleMetadataGet("req-14");
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.title).toBe("My Document Title");
+    });
   });
 });

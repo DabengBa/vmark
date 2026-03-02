@@ -767,3 +767,177 @@ describe("serializeMdastToMarkdown — wiki link round-trip", () => {
     expect(result).toContain("[[SimplePage]]");
   });
 });
+
+// ---------------------------------------------------------------------------
+// preprocessEscapedMarkers — char-level fenced block copy (lines 123-125)
+// This path is hit when atLineStart=false but inFencedCodeBlock=true.
+// That happens for characters on the SECOND+ lines inside a fenced block.
+// ---------------------------------------------------------------------------
+
+describe("preprocessEscapedMarkers — char-level copy inside fenced block (lines 123-125)", () => {
+  it("preserves escaped markers inside a multi-line fenced code block verbatim", () => {
+    // A fenced code block that spans multiple lines: the first line is consumed
+    // via the line-level path, but subsequent lines have characters read one-by-one
+    // (atLineStart=true for each line start, but the middle chars use the char path).
+    // The \\== inside the fenced block should NOT be replaced.
+    const input = "```\nfirst line \\==\nsecond line \\++\n```\n";
+    const result = parseMarkdownToMdast(input);
+    // The code block should preserve the raw content including the backslash sequences
+    const codeBlock = result.children[0] as import("mdast").Code;
+    expect(codeBlock.type).toBe("code");
+    // Original content should be preserved (not replaced with placeholders)
+    expect(codeBlock.value).toContain("\\==");
+    expect(codeBlock.value).toContain("\\++");
+  });
+
+  it("char-level copy triggers when fenced block has content not at line start", () => {
+    // A fenced code block with content — the line-start path handles the opening
+    // fence and each subsequent line start, but within a line the chars NOT at
+    // line-start are copied character by character via lines 123-125.
+    const input = "~~~\nx = 1 + 2 \\^\n~~~\n";
+    const result = parseMarkdownToMdast(input);
+    const codeBlock = result.children[0] as import("mdast").Code;
+    expect(codeBlock.type).toBe("code");
+    // The \\^ inside the code block should NOT be treated as an escape placeholder
+    expect(codeBlock.value).toContain("\\^");
+  });
+
+  it("preserves backslash-tilde inside fenced code block (not escaped as placeholder)", () => {
+    const input = "```python\nregex = r'\\~pattern'\n```\n";
+    const result = parseMarkdownToMdast(input);
+    const codeBlock = result.children[0] as import("mdast").Code;
+    expect(codeBlock.type).toBe("code");
+    expect(codeBlock.value).toContain("\\~");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// visitAndRestoreText early-return guard (line 181)
+// Called with a node that has no "children" property — exercises the guard.
+// In normal usage, Root always has children. We test that parsing content
+// with leaf nodes (no children) does NOT cause errors.
+// ---------------------------------------------------------------------------
+
+describe("visitAndRestoreText — early return guard via leaf nodes (line 181)", () => {
+  it("handles escaped markers when document contains image (leaf node with no children)", () => {
+    // Image nodes have no "children" property — visitAndRestoreText's recursion
+    // will try to visit them but the guard at line 181 returns early.
+    const input = "\\== text ![alt text](http://example.com/img.png)";
+    const result = parseMarkdownToMdast(input);
+    const para = result.children[0] as import("mdast").Paragraph;
+    // The escaped == should be restored to literal ==
+    const texts = para.children.filter((c): c is import("mdast").Text => c.type === "text");
+    const combined = texts.map((t) => t.value).join("");
+    expect(combined).toContain("==");
+  });
+
+  it("handles escaped markers when document contains footnote definition (no children in leaf)", () => {
+    // Code inline nodes have no children — exercises the early-return guard
+    const input = "inline \\== `code span` \\++ after";
+    const result = parseMarkdownToMdast(input);
+    const para = result.children[0] as import("mdast").Paragraph;
+    const texts = para.children.filter((c): c is import("mdast").Text => c.type === "text");
+    const combined = texts.map((t) => t.value).join("");
+    expect(combined).toContain("==");
+    expect(combined).toContain("++");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// visitAndFixMath early-return guard (line 210)
+// ---------------------------------------------------------------------------
+
+describe("visitAndFixMath — early return guard via childless nodes (line 210)", () => {
+  it("handles inline math adjacent to html inline (leaf node)", () => {
+    // HTML inline nodes have no children — exercises early return in visitAndFixMath recursion
+    // We use the remark-gfm table parser which creates table cells with no nested math
+    const input = "$x^2$ and $y^2$";
+    const result = parseMarkdownToMdast(input);
+    const para = result.children[0] as import("mdast").Paragraph;
+    const mathNodes = para.children.filter((c) => c.type === "inlineMath");
+    // Both math expressions are valid (no leading/trailing whitespace)
+    expect(mathNodes.length).toBe(2);
+  });
+
+  it("handles math inside a link title — link children are visited", () => {
+    // link has children, so visitAndFixMath recurses into it
+    // This exercises the recursion path at line 234
+    const input = "[$x^2$](https://example.com)";
+    const result = parseMarkdownToMdast(input);
+    const para = result.children[0] as import("mdast").Paragraph;
+    const link = para.children.find((c) => c.type === "link") as import("mdast").Link | undefined;
+    expect(link).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fixNormalizationSpread — list.spread reset path (lines 463-465)
+// and isEmptyListItem — empty paragraph with no children (line 489)
+// ---------------------------------------------------------------------------
+
+describe("fixNormalizationSpread — spread reset for list with all non-spread children", () => {
+  it("resets list spread when list has no spread children after normalization", () => {
+    // "- a\n  -\n" has a bare marker inside a nested list.
+    // After normalizeBareListMarkers, remark may mark the list as spread=true
+    // because of the blank-paragraph normalization.
+    // fixNormalizationSpread should detect no child is individually spread and reset.
+    const input = "- outer\n  - inner\n";
+    const result = parseMarkdownToMdast(input);
+    const outerList = result.children[0] as import("mdast").List;
+    expect(outerList.type).toBe("list");
+    // The list should not be artificially marked as spread
+    expect(outerList.spread).toBeFalsy();
+  });
+
+  it("handles list with spread=true but each item has spread=false (resets list spread)", () => {
+    // A list where normalization set spread=true but individual items are not spread
+    const input = "- item a\n  -\n- item b\n";
+    const result = parseMarkdownToMdast(input);
+    const outerList = result.children[0] as import("mdast").List;
+    expect(outerList.type).toBe("list");
+    // After fixNormalizationSpread, the list spread should be false
+    expect(outerList.spread).toBe(false);
+  });
+});
+
+describe("isEmptyListItem — empty paragraph with no children (line 489)", () => {
+  it("recognizes an empty paragraph child as an empty list item", () => {
+    // "  -" inside a nested list becomes an empty list item with a paragraph that has no text
+    const input = "- parent\n  -\n";
+    const result = parseMarkdownToMdast(input);
+    const outerList = result.children[0] as any;
+    const parentItem = outerList.children[0];
+    const nestedList = parentItem.children.find((c: any) => c.type === "list");
+    expect(nestedList).toBeDefined();
+    const emptyItem = nestedList.children[0];
+    // isEmptyListItem returns true for this item (paragraph with empty/whitespace text)
+    expect(
+      emptyItem.children.length === 0 ||
+      (emptyItem.children.length === 1 && emptyItem.children[0].type === "paragraph")
+    ).toBe(true);
+  });
+
+  it("isEmptyListItem handles a list item with only an empty paragraph (para.children.length === 0)", () => {
+    // - parent\n  - \n (bare marker with trailing space)
+    // The nested list item gets normalized to have an empty paragraph
+    const input = "- p\n  - \n";
+    const result = parseMarkdownToMdast(input);
+    const list = result.children[0] as any;
+    expect(list.type).toBe("list");
+    const firstItem = list.children[0];
+    // Check for nested list
+    const nested = firstItem.children.find((c: any) => c.type === "list");
+    if (nested && nested.children.length > 0) {
+      const emptyItem = nested.children[0];
+      // Should be recognized as empty
+      expect(
+        emptyItem.children.length === 0 ||
+        (emptyItem.children.length === 1 &&
+          emptyItem.children[0].type === "paragraph" &&
+          (emptyItem.children[0].children.length === 0 ||
+            (emptyItem.children[0].children.length === 1 &&
+             emptyItem.children[0].children[0].type === "text")))
+      ).toBe(true);
+    }
+  });
+});

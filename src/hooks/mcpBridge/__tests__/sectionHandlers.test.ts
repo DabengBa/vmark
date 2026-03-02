@@ -671,4 +671,128 @@ describe("sectionHandlers", () => {
       expect(call.data.preview.sectionHeading).toBe("Second H2");
     });
   });
+
+  describe("findSection — sectionId branch (lines 76-79)", () => {
+    it("returns not_found when target uses sectionId (unimplemented — always null)", async () => {
+      mockGetEditor.mockReturnValue(
+        createMockEditor([
+          { type: "heading", level: 1, text: "Title", nodeSize: 8 },
+          { type: "paragraph", text: "Content", nodeSize: 10 },
+        ])
+      );
+
+      // sectionId targeting is a no-op stub — always returns null
+      await handleSectionUpdate("req-31", {
+        baseRevision: "rev-1",
+        target: { sectionId: "some-id" },
+        newContent: "new text",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.data.code).toBe("not_found");
+    });
+  });
+
+  describe("handleSectionUpdate — nodesBetween return true (line 172)", () => {
+    it("returns true for non-heading nodes in nodesBetween", async () => {
+      // We need the nodesBetween callback to reach line 172 (return true path).
+      // This happens when the first node visited is NOT at pos === section.from.
+      // createMockEditor's nodesBetween visits nodes in range [from, to).
+      // If the heading is at pos 0 (section.from), nodesBetween starts there and
+      // hits the early return. But a paragraph coming before the heading would
+      // cause a non-heading visit first.
+      // The simplest approach: the nodesBetween mock in createMockEditor iterates ALL
+      // nodes where pos >= from AND pos < to. Since the heading IS at section.from,
+      // it hits the early return. We need a node BEFORE the heading within the range
+      // which is impossible given the heading is the first node.
+      // Alternative: use a section where the first node in nodesBetween is a paragraph
+      // at the start position (pos === section.from but not a heading).
+      // The real code: if pos === section.from AND node.type.name === "heading" → early return
+      // Otherwise → return true. To trigger: a heading found at pos=0, but nodesBetween
+      // also visits a paragraph node within range at pos > section.from.
+      // The mock nodesBetween in createMockEditor visits nodes where pos >= from AND pos < to.
+      // With heading(0..8) + para(8..18), section = {from:0, to:18}.
+      // nodesBetween visits: heading at pos 0 (matches early return) → stops.
+      // To get line 172: override nodesBetween to NOT match pos === section.from on first call.
+      const editor = createMockEditor([
+        { type: "heading", level: 2, text: "Intro", nodeSize: 8 },
+        { type: "paragraph", text: "Content", nodeSize: 10 },
+      ]);
+
+      // Override nodesBetween to call callback with a paragraph first (non-heading at section.from)
+      let callCount = 0;
+      const originalNodesBetween = editor.state.doc.nodesBetween.bind(editor.state.doc);
+      editor.state.doc.nodesBetween = (from: number, to: number, cb: (node: unknown, pos: number) => boolean | undefined) => {
+        callCount++;
+        // First call: invoke with a paragraph at section.from to trigger line 172
+        cb({ type: { name: "paragraph" }, attrs: {}, nodeSize: 10, isText: false, textContent: "" }, from);
+        // Then let the original run to ensure heading is found
+        originalNodesBetween(from, to, cb);
+      };
+
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleSectionUpdate("req-32", {
+        baseRevision: "rev-1",
+        target: { heading: "Intro" },
+        newContent: "new content",
+        mode: "dryRun",
+      });
+
+      expect(callCount).toBeGreaterThan(0);
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+    });
+  });
+
+  describe("handleSectionMove — target inside moving section (lines 458-465)", () => {
+    it("returns invalid_operation when target is inside the section being moved", async () => {
+      // We need afterSection.to > sectionRange.from && afterSection.to < sectionRange.to
+      // This requires two sections where the "after" section ends inside the "section" being moved.
+      // Create a doc where:
+      //   - "A" section: from=0, to=32 (covers nodes 0..32)
+      //   - "B" section starts and ends INSIDE "A" (nested section)
+      // Use 4 nodes: headingA(0..8), headingB(8..16), paraB(16..24), paraA(24..32)
+      // section A from=0, to=doc.size=32
+      // section B from=8, to=24 (ends before next same-level heading which is paraA at 24)
+      // Actually headingA is level 1, headingB is level 2: section B is nested inside A
+      // Move B "after B" would be self-move, that's caught earlier.
+      // We need "after" section whose .to is INSIDE the "section" being moved.
+      // Let's try: "move A after B" where B ends inside A. But A starts at 0 (contains B).
+      // sectionRange for "A": from=0, to=32
+      // afterSection for "B": from=8, to=24 (inside A)
+      // Check: afterSection.to=24 > sectionRange.from=0 AND 24 < sectionRange.to=32 → TRUE → error
+
+      // Layout: H1-A (0..8), H2-B (8..16), para-b (16..24), H1-C (24..32), para-c (32..40)
+      // sectionRange for "A" (L1, from=0): next L1 heading = H1-C at pos=24 → to=24
+      // afterSection for "B" (L2, from=8): next L2 heading = none, but H1-C at pos=24 has L1 ≤ 2 → to=24
+      // Guard: afterSection.to=24 > sectionRange.from=0 ✓ AND afterSection.to=24 < sectionRange.to=24 ✗ (equal)
+      // Actually equal won't work. Need afterSection.to strictly inside sectionRange.
+      // Use: H1-A (0..8), H2-B (8..16), para-b (16..20), H2-C (20..28), para-a-end (28..36)
+      // sectionRange for "A" (L1): no L1 heading after it → to=36 (doc size)
+      // afterSection for "B" (L2, from=8): next L2 heading = H2-C at pos=20 → to=20
+      // Guard: afterSection.to=20 > sectionRange.from=0 ✓ AND 20 < 36 ✓ → fires!
+      const editor = createMockEditor([
+        { type: "heading", level: 1, text: "A", nodeSize: 8 },
+        { type: "heading", level: 2, text: "B", nodeSize: 8 },
+        { type: "paragraph", text: "b content", nodeSize: 4 },
+        { type: "heading", level: 2, text: "C", nodeSize: 8 },
+        { type: "paragraph", text: "a-end content", nodeSize: 8 },
+      ]);
+      mockGetEditor.mockReturnValue(editor);
+
+      // Move "A" (from=0, to=36) after "B" (from=8, to=20).
+      // afterSection.to=20 is inside sectionRange (0..36) → invalid_operation
+      await handleSectionMove("req-33", {
+        baseRevision: "rev-1",
+        section: { heading: "A" },
+        after: { heading: "B" },
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.data?.code).toBe("invalid_operation");
+    });
+  });
 });

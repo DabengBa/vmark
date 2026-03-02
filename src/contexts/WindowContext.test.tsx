@@ -1192,6 +1192,121 @@ describe("WindowContext", () => {
     });
   });
 
+  describe("WindowProvider — cancelled listener callback paths", () => {
+    it("returns early in tab:transfer callback when cancelled (component unmounted before event fires)", async () => {
+      // This covers line 334: `if (cancelled) return;` inside the tab:transfer listener callback
+      // We need to: register the listener, unmount (sets cancelled=true), then fire the listener callback
+      let transferCallback: ((event: { payload: unknown }) => void) | null = null;
+
+      mockListen.mockImplementation((event: string, cb: (e: unknown) => void) => {
+        if (event === "tab:transfer") {
+          transferCallback = cb as (event: { payload: unknown }) => void;
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(transferCallback).not.toBeNull();
+      });
+
+      // Unmount sets cancelled = true
+      unmount();
+
+      // Fire the tab:transfer callback AFTER unmount — should return early (line 334)
+      // The applyTabTransferData should NOT be called
+      if (transferCallback) {
+        await transferCallback({
+          payload: {
+            tabId: "late-tab",
+            title: "Late",
+            content: "# Late",
+            filePath: null,
+            savedContent: "# Late",
+            workspaceRoot: null,
+          },
+        });
+      }
+
+      // applyTabTransferData calls createTransferredTab internally
+      // Since cancelled=true, it returns early so createTransferredTab is not called
+      expect(mockCreateTransferredTab).not.toHaveBeenCalled();
+    });
+
+    it("returns early in tab:remove-by-id callback when cancelled", async () => {
+      // This covers line 352: `if (cancelled) return;` inside the tab:remove-by-id callback
+      let removeCallback: ((event: { payload: { tabId: string } }) => void) | null = null;
+
+      mockListen.mockImplementation((event: string, cb: (e: unknown) => void) => {
+        if (event === "tab:remove-by-id") {
+          removeCallback = cb as (event: { payload: { tabId: string } }) => void;
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(removeCallback).not.toBeNull();
+      });
+
+      // Unmount sets cancelled = true
+      unmount();
+
+      // Fire the tab:remove-by-id callback AFTER unmount — should return early (line 352)
+      if (removeCallback) {
+        removeCallback({ payload: { tabId: "stale-tab" } });
+      }
+
+      // removeTransferredTabData calls detachTab internally
+      // Since cancelled=true, it returns early so detachTab is not called
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockDetachTab).not.toHaveBeenCalled();
+    });
+
+    it("calls unlistenRemove immediately when cancelled=true before tab:remove-by-id listen resolves", async () => {
+      // This covers line 357: `if (cancelled) { fn(); }` for the unlistenRemove path
+      let resolveRemove!: (fn: () => void) => void;
+      const removeListenPromise = new Promise<() => void>((resolve) => {
+        resolveRemove = resolve;
+      });
+      const unlistenRemoveFn = vi.fn();
+
+      mockListen.mockImplementation((event: string) => {
+        if (event === "tab:remove-by-id") return removeListenPromise;
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await new Promise((r) => setTimeout(r, 30));
+
+      // Unmount before the tab:remove-by-id promise resolves
+      unmount();
+
+      // Now resolve — the `if (cancelled) { fn(); }` branch fires
+      resolveRemove(unlistenRemoveFn);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(unlistenRemoveFn).toHaveBeenCalled();
+    });
+  });
+
   describe("WindowProvider — claim_tab_transfer returns null", () => {
     it("falls through to normal init when claim_tab_transfer returns null", async () => {
       vi.useFakeTimers();
