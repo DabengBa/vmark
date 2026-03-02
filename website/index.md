@@ -162,7 +162,7 @@ Claude Code, Claude Desktop, Codex CLI, Gemini CLI... can write directly to your
   <a href="https://www.rust-lang.org" target="_blank" class="tech-badge">Rust</a>
 </div>
 
-## Active Users
+## Anonymous Statistics
 
 <UserStats />
 
