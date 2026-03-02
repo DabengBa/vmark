@@ -415,6 +415,51 @@ describe("ModelComboBox", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
+  it("opens dropdown on ArrowUp when closed", () => {
+    render(
+      <ModelComboBox
+        provider="openai"
+        value=""
+        apiKey=""
+        endpoint=""
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("Model");
+
+    // Ensure closed first
+    fireEvent.blur(input);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    // ArrowUp should also open it (line 122 branch)
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+
+  it("ArrowUp from highlightIdx 0 wraps to last item (line 136 branch)", () => {
+    render(
+      <ModelComboBox
+        provider="anthropic"
+        value=""
+        apiKey=""
+        endpoint=""
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("Model");
+    fireEvent.focus(input);
+
+    // ArrowDown to idx 0, then ArrowUp wraps to last
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // idx 0
+    fireEvent.keyDown(input, { key: "ArrowUp" });   // wrap to last (idx = filtered.length - 1)
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Anthropic has 2 curated models, so last is idx 1
+    expect(onChange).toHaveBeenCalledWith("claude-haiku-4-5-20251001");
+  });
+
   it("opens dropdown on ArrowDown when closed", () => {
     render(
       <ModelComboBox
@@ -540,6 +585,29 @@ describe("ModelComboBox", () => {
       fireEvent.focus(screen.getByPlaceholderText("Model"));
       expect(screen.getByText("gpt-4o")).toBeInTheDocument();
     });
+  });
+
+  it("updates highlightIdx on mouseEnter over a list item", () => {
+    render(
+      <ModelComboBox
+        provider="openai"
+        value=""
+        apiKey=""
+        endpoint=""
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("Model");
+    fireEvent.focus(input);
+
+    // Get a list option and trigger mouseEnter
+    const options = screen.getAllByRole("option");
+    fireEvent.mouseEnter(options[2]);
+
+    // Now Enter should select the item the mouse entered
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith(options[2].textContent);
   });
 
   it("applies custom className", () => {

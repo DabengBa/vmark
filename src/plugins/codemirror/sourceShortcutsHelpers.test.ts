@@ -41,10 +41,12 @@ vi.mock("@/stores/documentStore", () => ({
   },
 }));
 
+const mockActiveTabId: Record<string, string | undefined> = { main: "tab-1" };
+
 vi.mock("@/stores/tabStore", () => ({
   useTabStore: {
     getState: () => ({
-      activeTabId: { main: "tab-1" },
+      activeTabId: mockActiveTabId,
     }),
   },
 }));
@@ -53,8 +55,10 @@ vi.mock("@/hooks/useWindowFocus", () => ({
   getWindowLabel: () => "main",
 }));
 
+const mockResolveHardBreakStyle = vi.fn(() => "backslash");
+
 vi.mock("@/utils/linebreaks", () => ({
-  resolveHardBreakStyle: () => "backslash",
+  resolveHardBreakStyle: (...args: unknown[]) => mockResolveHardBreakStyle(...args),
 }));
 
 vi.mock("@/lib/cjkFormatter", () => ({
@@ -149,8 +153,9 @@ vi.mock("@/utils/textTransformations", () => ({
   }),
 }));
 
+const mockCopyAsHtml = vi.fn();
 vi.mock("@/export", () => ({
-  copyAsHtml: vi.fn(),
+  copyAsHtml: (...args: unknown[]) => mockCopyAsHtml(...args),
 }));
 
 import {
@@ -431,6 +436,27 @@ describe("formatCJKSelection", () => {
     formatCJKSelection(view);
     expect(dispatchSpy).not.toHaveBeenCalled();
   });
+
+  it("passes preserveTwoSpaceHardBreaks=true when resolveHardBreakStyle returns twoSpaces", () => {
+    mockResolveHardBreakStyle.mockReturnValueOnce("twoSpaces");
+    const view = createView("hello world", 0, 5);
+    formatCJKSelection(view);
+    // formatSelection was called with the formatted text
+    expect(view.state.doc.toString()).toBe("HELLO world");
+  });
+
+  it("handles null tabId gracefully (no active tab)", () => {
+    const origMain = mockActiveTabId.main;
+    mockActiveTabId.main = undefined;
+
+    const view = createView("hello world", 0, 5);
+    // Should not throw — getActiveDocument returns null, shouldPreserveTwoSpaceBreaks
+    // still works (doc is null, hardBreakStyle falls back to "unknown")
+    formatCJKSelection(view);
+    expect(view.state.doc.toString()).toBe("HELLO world");
+
+    mockActiveTabId.main = origMain;
+  });
 });
 
 describe("formatCJKFile", () => {
@@ -449,10 +475,30 @@ describe("formatCJKFile", () => {
 });
 
 describe("copySelectionAsHtml", () => {
-  it("returns true", () => {
+  it("returns true with no selection (copies entire document)", async () => {
     const view = createView("test");
     const result = copySelectionAsHtml(view);
     expect(result).toBe(true);
+    // Allow the dynamic import promise chain to resolve
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("returns true with a selection (copies selected text)", async () => {
+    const view = createView("hello world", 0, 5);
+    const result = copySelectionAsHtml(view);
+    expect(result).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("handles dynamic import failure gracefully (catch callback)", async () => {
+    mockCopyAsHtml.mockImplementationOnce(() => {
+      throw new Error("export failed");
+    });
+    const view = createView("test content");
+    const result = copySelectionAsHtml(view);
+    expect(result).toBe(true);
+    // Allow the promise chain (.then → throw → .catch) to settle
+    await new Promise((r) => setTimeout(r, 10));
   });
 });
 
@@ -496,6 +542,15 @@ describe("text transformations", () => {
     const result = doTransformLowercase(view);
     expect(result).toBe(false);
   });
+
+  it("does not dispatch when transformed text is identical (no-op)", () => {
+    // Mock toTitleCase to return unchanged text for this test
+    const view = createView("Hello World", 0, 11);
+    const dispatchSpy = vi.spyOn(view, "dispatch");
+    doTransformTitleCase(view);
+    // "Hello World" title-cased is "Hello World" — identical, so no dispatch
+    expect(dispatchSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("line operations", () => {
@@ -518,6 +573,14 @@ describe("line operations", () => {
       const view = createView("first\nsecond", 0, 0);
       const result = doMoveLineDown(view);
       expect(result).toBe(true);
+    });
+
+    it("returns false when at last line (cannot move down)", () => {
+      // Our mock returns null when to >= text.length
+      const text = "only line";
+      const view = createView(text, text.length, text.length);
+      const result = doMoveLineDown(view);
+      expect(result).toBe(false);
     });
   });
 

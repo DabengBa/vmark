@@ -866,6 +866,24 @@ describe("commands", () => {
     });
   });
 
+  describe("selectAllOccurrences — primaryIndex detection (line 210-218)", () => {
+    it("sets primaryIndex to match the original selection position", () => {
+      // "hello world hello" — select second "hello" (13-18)
+      // selectAllOccurrences should set primary to the occurrence that matches (13-18)
+      const state = createState("hello world hello", { anchor: 13, head: 18 });
+      const result = selectAllOccurrences(state);
+
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = state.apply(result);
+        const multiSel = newState.selection as MultiSelection;
+        expect(multiSel.ranges).toHaveLength(2);
+        // Primary should be at the second occurrence (index 1)
+        expect(multiSel.primaryIndex).toBe(1);
+      }
+    });
+  });
+
   describe("selectAllOccurrences — empty searchText (line 192)", () => {
     it("returns null when getSelectionText returns empty string (cross-block selection)", () => {
       // textBetween returns '' when selection spans block boundaries with no text node

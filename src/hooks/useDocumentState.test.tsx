@@ -370,6 +370,69 @@ describe("useDocumentActions", () => {
   });
 });
 
+describe("useDocumentState — undefined document fallbacks (lines 32-68, 86)", () => {
+  beforeEach(resetStores);
+
+  // Create a tab but do NOT init a document — documents[tabId] is undefined.
+  // This covers the outer `?? ""` / `?? null` / `?? false` / `?? 0` branches.
+
+  it("useDocumentContent returns empty string when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    // No initDocument — documents[tabId] is undefined
+    const { result } = renderHook(() => useDocumentContent());
+    expect(result.current).toBe("");
+  });
+
+  it("useDocumentFilePath returns null when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentFilePath());
+    expect(result.current).toBeNull();
+  });
+
+  it("useDocumentIsDirty returns false when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentIsDirty());
+    expect(result.current).toBe(false);
+  });
+
+  it("useDocumentIsMissing returns false when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentIsMissing());
+    expect(result.current).toBe(false);
+  });
+
+  it("useDocumentIsDivergent returns false when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentIsDivergent());
+    expect(result.current).toBe(false);
+  });
+
+  it("useDocumentId returns 0 when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentId());
+    expect(result.current).toBe(0);
+  });
+
+  it("useDocumentCursorInfo returns null when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentCursorInfo());
+    expect(result.current).toBeNull();
+  });
+
+  it("useDocumentLastAutoSave returns null when document is undefined", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    const { result } = renderHook(() => useDocumentLastAutoSave());
+    expect(result.current).toBeNull();
+  });
+
+  it("getContent returns empty string when document is undefined (line 86)", () => {
+    useTabStore.getState().createTab(WINDOW, null);
+    // No initDocument
+    const { result } = renderHook(() => useDocumentActions());
+    expect(result.current.getContent()).toBe("");
+  });
+});
+
 describe("useTabDocument", () => {
   beforeEach(resetStores);
 

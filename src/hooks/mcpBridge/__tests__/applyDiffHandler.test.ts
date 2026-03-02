@@ -445,4 +445,63 @@ describe("applyDiffHandler", () => {
       expect.objectContaining({ from: 20, to: 25 })
     );
   });
+
+  it("dryRun with matchPolicy=error_if_multiple returns appliedCount=1", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-15", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "error_if_multiple",
+      mode: "dryRun",
+    });
+
+    const call = mockRespond.mock.calls[0][0];
+    expect(call.success).toBe(true);
+    expect(call.data.isDryRun).toBe(true);
+    expect(call.data.appliedCount).toBe(1);
+  });
+
+  it("creates suggestion with error_if_multiple and single match in suggest mode", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockIsAutoApproveEnabled.mockReturnValue(false);
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-16", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "error_if_multiple",
+      mode: "suggest",
+    });
+
+    expect(mockAddSuggestion).toHaveBeenCalledTimes(1);
+    const call = mockRespond.mock.calls[0][0];
+    expect(call.data.suggestionIds).toHaveLength(1);
+  });
+
+  it("handles non-Error thrown value in catch (String(error) branch)", async () => {
+    mockGetEditor.mockImplementation(() => {
+      throw "raw string error";
+    });
+
+    await handleApplyDiff("req-str-1", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "first",
+    });
+
+    expect(mockRespond).toHaveBeenCalledWith({
+      id: "req-str-1",
+      success: false,
+      error: "raw string error",
+    });
+  });
 });

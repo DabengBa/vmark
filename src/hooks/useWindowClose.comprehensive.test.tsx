@@ -544,3 +544,58 @@ describe("useWindowClose — handleCloseRequest catch block (lines 144-146)", ()
     consoleSpy.mockRestore();
   });
 });
+
+describe("useWindowClose — dirtyContexts filter when doc becomes clean (line 113)", () => {
+  beforeEach(() => {
+    listeners.clear();
+    resetStores();
+    vi.clearAllMocks();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+  });
+
+  it("filters out tab whose doc becomes clean between dirty check and context build", async () => {
+    const tabId = useTabStore.getState().createTab(WINDOW, null);
+    useDocumentStore.getState().initDocument(tabId, "initial", null);
+    useDocumentStore.getState().setContent(tabId, "dirty");
+
+    // Mock multi-doc prompt in case it's reached (empty array)
+    mockPromptSaveForMultipleDocuments.mockResolvedValue({ action: "discard" });
+
+    await act(async () => {
+      render(<TestHarness />);
+    });
+    await waitFor(() => expect(listeners.has("window:close-requested")).toBe(true));
+
+    // Spy on getDocument — first call (filter, line 93) returns dirty doc,
+    // second call (map, line 112) returns doc with isDirty=false.
+    const realGetState = useDocumentStore.getState.bind(useDocumentStore);
+    let getDocCallCount = 0;
+    const getStateSpy = vi.spyOn(useDocumentStore, "getState").mockImplementation(() => {
+      const real = realGetState();
+      return {
+        ...real,
+        getDocument: (id: string) => {
+          getDocCallCount++;
+          const doc = real.getDocument(id);
+          if (!doc) return undefined;
+          // First call: return dirty (for filter at line 93)
+          // Second call: return clean (for map at line 112) — triggers line 113
+          if (getDocCallCount >= 2 && id === tabId) {
+            return { ...doc, isDirty: false };
+          }
+          return doc;
+        },
+      };
+    });
+
+    await act(async () => {
+      await listeners.get("window:close-requested")!({ payload: WINDOW });
+    });
+
+    getStateSpy.mockRestore();
+
+    // dirtyContexts should be empty after filtering null, so promptSaveForMultipleDocuments
+    // is called with empty array (or single-doc prompt is not called)
+    expect(mockPromptSaveForDirtyDocument).not.toHaveBeenCalled();
+  });
+});

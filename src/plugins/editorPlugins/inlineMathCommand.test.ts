@@ -133,6 +133,34 @@ describe("handleInlineMathShortcut", () => {
       view.destroy();
     });
 
+    it("unwraps nodeAfter math_inline with empty content (lines 65-69)", () => {
+      // Cursor right before an empty math node — nodeAfter is math_inline with content=""
+      const mathNode = schema.nodes.math_inline.create({ content: "" });
+      const content = [schema.text("ab"), mathNode, schema.text("cd")];
+      // cursor at pos 3 => nodeAfter is the empty math node
+      const view = createView(content, 3);
+
+      const result = handleInlineMathShortcut(view);
+      expect(result).toBe(true);
+      // Empty math_inline removed, leaving just "abcd"
+      expect(view.state.doc.textContent).toBe("abcd");
+      view.destroy();
+    });
+
+    it("unwraps nodeBefore math_inline with empty content (lines 82-86)", () => {
+      // Cursor right after an empty math node — nodeBefore is math_inline with content=""
+      const mathNode = schema.nodes.math_inline.create({ content: "" });
+      const content = [schema.text("ab"), mathNode, schema.text("cd")];
+      // cursor at pos 4 => nodeBefore is the empty math node
+      const view = createView(content, 4);
+
+      const result = handleInlineMathShortcut(view);
+      expect(result).toBe(true);
+      // Empty math_inline removed, leaving just "abcd"
+      expect(view.state.doc.textContent).toBe("abcd");
+      view.destroy();
+    });
+
     it("unwraps when cursor nodeBefore is math_inline", () => {
       // Cursor is right after math node
       const mathNode = schema.nodes.math_inline.create({ content: "z" });

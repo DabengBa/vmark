@@ -97,4 +97,54 @@ describe("terminalSessionStore", () => {
     const s3 = useTerminalSessionStore.getState().createSession()!;
     expect(s3.label).toBe("Terminal 1");
   });
+
+  it("ignores custom labels when generating next label number", () => {
+    // Create session and rename it to a custom (non-Terminal N) label
+    const s1 = useTerminalSessionStore.getState().createSession()!;
+    useTerminalSessionStore.getState().renameSession(s1.id, "My Shell");
+
+    // Next session should get "Terminal 1" since "My Shell" doesn't occupy a number
+    const s2 = useTerminalSessionStore.getState().createSession()!;
+    expect(s2.label).toBe("Terminal 1");
+  });
+
+  it("does not switch active when removing non-active session", () => {
+    const s1 = useTerminalSessionStore.getState().createSession()!;
+    const s2 = useTerminalSessionStore.getState().createSession()!;
+
+    // s2 is active; remove s1 (non-active)
+    useTerminalSessionStore.getState().removeSession(s1.id);
+    const state = useTerminalSessionStore.getState();
+    expect(state.sessions).toHaveLength(1);
+    expect(state.activeSessionId).toBe(s2.id);
+  });
+
+  it("sets activeSessionId to null when removing last session", () => {
+    const s1 = useTerminalSessionStore.getState().createSession()!;
+    useTerminalSessionStore.getState().removeSession(s1.id);
+    expect(useTerminalSessionStore.getState().activeSessionId).toBeNull();
+    expect(useTerminalSessionStore.getState().sessions).toHaveLength(0);
+  });
+
+  it("ignores setActiveSession with non-existent id", () => {
+    const s1 = useTerminalSessionStore.getState().createSession()!;
+    useTerminalSessionStore.getState().setActiveSession("non-existent-id");
+    expect(useTerminalSessionStore.getState().activeSessionId).toBe(s1.id);
+  });
+
+  it("renameSession is a no-op for non-existent id", () => {
+    useTerminalSessionStore.getState().createSession();
+    const before = useTerminalSessionStore.getState().sessions.slice();
+    useTerminalSessionStore.getState().renameSession("non-existent", "New Name");
+    expect(useTerminalSessionStore.getState().sessions).toEqual(before);
+  });
+
+  it("markSessionDead/Alive is a no-op for non-existent id", () => {
+    useTerminalSessionStore.getState().createSession();
+    const before = useTerminalSessionStore.getState().sessions.slice();
+    useTerminalSessionStore.getState().markSessionDead("non-existent");
+    expect(useTerminalSessionStore.getState().sessions).toEqual(before);
+    useTerminalSessionStore.getState().markSessionAlive("non-existent");
+    expect(useTerminalSessionStore.getState().sessions).toEqual(before);
+  });
 });

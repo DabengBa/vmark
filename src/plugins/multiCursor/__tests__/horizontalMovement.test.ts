@@ -238,5 +238,245 @@ describe("handleMultiCursorHorizontal", () => {
       const tr = handleMultiCursorHorizontal(state, "ArrowRight", true, "char");
       expect(tr).not.toBeNull();
     });
+
+    it("handles backward flag with ArrowLeft extend on char unit", () => {
+      const state = createMultiState(
+        "hello world",
+        [{ from: 3, to: 8 }],
+        0,
+        [true]
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", true, "char");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // With backward=true, head is at $from position, moving left should shrink from left
+        expect(multiSel.ranges[0]).toBeDefined();
+      }
+    });
+
+    it("handles backward flag with word movement", () => {
+      const state = createMultiState(
+        "hello world",
+        [{ from: 1, to: 8 }],
+        0,
+        [true]
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", true, "word");
+      expect(tr).not.toBeNull();
+    });
+
+    it("handles backward flag with line movement", () => {
+      const state = createMultiState(
+        "hello world",
+        [{ from: 1, to: 8 }],
+        0,
+        [true]
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", true, "line");
+      expect(tr).not.toBeNull();
+    });
+  });
+
+  describe("edge cases", () => {
+    it("extends word movement right", () => {
+      const state = createMultiState("hello world", [
+        { from: 3, to: 3 },
+      ]);
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", true, "word");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // Extending right by word from position 3 should include more text
+        expect(multiSel.ranges[0].$to.pos).toBeGreaterThan(3);
+      }
+    });
+
+    it("extends line movement right", () => {
+      const state = createMultiState("hello world", [
+        { from: 3, to: 3 },
+      ]);
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", true, "line");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // Should extend to end of line
+        expect(multiSel.ranges[0].$to.pos).toBe(12);
+      }
+    });
+
+    it("collapses non-empty selection to start on word ArrowLeft", () => {
+      const state = createMultiState("hello world", [
+        { from: 1, to: 6 },
+      ]);
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", false, "word");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // Should collapse to $from position
+        expect(multiSel.ranges[0].$from.pos).toBe(multiSel.ranges[0].$to.pos);
+      }
+    });
+
+    it("collapses non-empty selection to end on line ArrowRight", () => {
+      const state = createMultiState("hello world", [
+        { from: 1, to: 6 },
+      ]);
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", false, "line");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // Should collapse to $to position
+        expect(multiSel.ranges[0].$from.pos).toBe(multiSel.ranges[0].$to.pos);
+      }
+    });
+
+    it("handles multiple cursors with mixed backward flags", () => {
+      const state = createMultiState(
+        "hello world",
+        [
+          { from: 2, to: 5 },
+          { from: 7, to: 10 },
+        ],
+        0,
+        [true, false]
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", true, "char");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        expect(newState.selection instanceof MultiSelection).toBe(true);
+      }
+    });
+
+    it("newBackward returns false for collapsed ranges after extend", () => {
+      // When extend is true but a range collapses to empty after movement
+      const state = createMultiState("ab", [
+        { from: 1, to: 2 },  // Select "b"
+      ], 0, [false]);
+
+      // Move left with extend — could collapse if anchor and head meet
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", true, "char");
+      expect(tr).not.toBeNull();
+    });
+
+    it("newBackward returns false when extend is false", () => {
+      const state = createMultiState("hello", [
+        { from: 3, to: 3 },
+      ]);
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", false, "char");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // All backward flags should be false since extend=false
+        expect(multiSel.backward.every((b) => b === false)).toBe(true);
+      }
+    });
+
+    it("handles headPos computation via fallback branch (neither from nor to matches anchor)", () => {
+      // This tests line 108: the fallback branch where neither range.$from.pos
+      // nor range.$to.pos equals anchorPos
+      // This can happen when normalization shifts positions
+      const state = createMultiState(
+        "hello world test",
+        [
+          { from: 1, to: 6 },
+          { from: 7, to: 12 },
+        ],
+        0,
+        [true, false]
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", true, "char");
+      expect(tr).not.toBeNull();
+    });
+
+    it("newBackward: extend=false always returns false in backward array", () => {
+      // Tests line 101: if (!extend) return false
+      const state = createMultiState(
+        "hello world",
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+        ],
+        0,
+        [false, false]
+      );
+
+      // extend=false → collapses selections and backward should be all false
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", false, "char");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        expect(multiSel.backward.every((b) => b === false)).toBe(true);
+      }
+    });
+
+    it("char movement at document start boundary (Selection.findFrom returns null)", () => {
+      // At position 1 (start of text content), moving left to position 0
+      // then trying to find a selection — at boundary this could return null
+      const state = createMultiState("a", [
+        { from: 1, to: 1 },
+      ]);
+
+      // Move left — at start of doc, findFrom might return null
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", false, "char");
+      expect(tr).not.toBeNull();
+    });
+
+    it("char movement with extend=true and backward flag", () => {
+      // Tests the backward anchor logic with char extend
+      const state = createMultiState(
+        "hello world",
+        [{ from: 3, to: 8 }],
+        0,
+        [true] // backward: anchor is at $to (8), head at $from (3)
+      );
+
+      const tr = handleMultiCursorHorizontal(state, "ArrowLeft", true, "char");
+      expect(tr).not.toBeNull();
+
+      if (tr) {
+        const newState = state.apply(tr);
+        const multiSel = newState.selection as MultiSelection;
+        // Should extend the selection further left
+        expect(multiSel.ranges[0].$from.pos).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it("word movement returns range unchanged when findWordEdge returns null", () => {
+      // Create a single-char document where word edge may not be found
+      const state = createMultiState(" ", [
+        { from: 1, to: 1 },
+      ]);
+
+      // Try word movement in space — findWordEdge may return null
+      const tr = handleMultiCursorHorizontal(state, "ArrowRight", false, "word");
+      expect(tr).not.toBeNull();
+    });
   });
 });

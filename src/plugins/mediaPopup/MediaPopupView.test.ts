@@ -829,4 +829,383 @@ describe("MediaPopupView — scroll handling", () => {
 
     expect(mockClosePopup).toHaveBeenCalled();
   });
+
+  it("does not close popup on scroll when not open", () => {
+    popup = new MediaPopupView(view);
+    store._state.isOpen = false;
+
+    const editorContainer = (view.dom as HTMLElement).closest(".editor-container");
+    if (editorContainer) {
+      editorContainer.dispatchEvent(new Event("scroll"));
+    }
+
+    expect(mockClosePopup).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — src/alt/title/poster input change handlers", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    view = createMockView();
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+  });
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handles src input change and updates node attr", () => {
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.srcInput.value = "new-src.png";
+    dom.srcInput.dispatchEvent(new Event("input"));
+
+    expect(mockSetSrc).toHaveBeenCalledWith("new-src.png");
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("handles alt input change and updates node attr", () => {
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.altInput.value = "new alt text";
+    dom.altInput.dispatchEvent(new Event("input"));
+
+    expect(mockSetAlt).toHaveBeenCalledWith("new alt text");
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("handles title input change and updates node attr", () => {
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.titleInput.value = "new title";
+    dom.titleInput.dispatchEvent(new Event("input"));
+
+    expect(mockSetTitle).toHaveBeenCalledWith("new title");
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("handles poster input change and updates node attr", () => {
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.posterInput.value = "poster.jpg";
+    dom.posterInput.dispatchEvent(new Event("input"));
+
+    expect(mockSetPoster).toHaveBeenCalledWith("poster.jpg");
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("updateNodeAttr skips when mediaNodePos is negative", () => {
+    store._state.mediaNodePos = -1;
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.srcInput.value = "new.png";
+    dom.srcInput.dispatchEvent(new Event("input"));
+
+    // setSrc called on store, but dispatch should NOT be called (guard at line 430)
+    expect(mockSetSrc).toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("updateNodeAttr silently ignores when node type does not match", () => {
+    // nodeAt returns a node with type name "block_video" but store says "image"
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: "block_video" },
+          attrs: { src: "video.mp4" },
+          nodeSize: 1,
+        })),
+      },
+    };
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.srcInput.value = "new.png";
+    dom.srcInput.dispatchEvent(new Event("input"));
+
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("updateNodeAttr catches exceptions silently", () => {
+    // Make dispatch throw
+    (view as unknown as { dispatch: ReturnType<typeof vi.fn> }).dispatch.mockImplementation(() => {
+      throw new Error("dispatch error");
+    });
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    dom.srcInput.value = "new.png";
+    expect(() => dom.srcInput.dispatchEvent(new Event("input"))).not.toThrow();
+  });
+});
+
+describe("MediaPopupView — handleSave edge cases", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handleSave removes node when src is empty (calls handleRemove)", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    store._state.isOpen = true;
+    store._state.mediaSrc = "";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+
+    // Clear the src input (empty)
+    dom.srcInput.value = "";
+
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+    handlers.onInputKeydown(event);
+
+    // Should call dispatch (via handleRemove)
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("handleSave returns early when node type does not match", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    // nodeAt returns a node with a different type than mediaNodeType
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: "block_video" },
+          attrs: { src: "video.mp4" },
+          nodeSize: 1,
+        })),
+      },
+    };
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+    dom.srcInput.value = "updated.png";
+
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+    handlers.onInputKeydown(event);
+
+    // dispatch should NOT be called since node type doesn't match
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("handleSave catches errors and closes popup", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    // Make setNodeMarkup throw
+    const mockTr = {
+      setNodeMarkup: vi.fn(() => { throw new Error("tr error"); }),
+    };
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      tr: mockTr,
+    };
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+    dom.srcInput.value = "updated.png";
+
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+    expect(() => handlers.onInputKeydown(event)).not.toThrow();
+    expect(mockClosePopup).toHaveBeenCalled();
+  });
+
+  it("handleSave builds video/audio attrs with title and poster", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: "block_video" },
+          attrs: { src: "old.mp4", title: "", poster: "" },
+          nodeSize: 1,
+        })),
+      },
+    };
+    store._state.isOpen = true;
+    store._state.mediaSrc = "old.mp4";
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "block_video";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const dom = vi.mocked(createMediaPopupDom).mock.results[0].value;
+    dom.srcInput.value = "new.mp4";
+    dom.titleInput.value = "My Video";
+    dom.posterInput.value = "poster.jpg";
+
+    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+    handlers.onInputKeydown(event);
+
+    expect(view.dispatch).toHaveBeenCalled();
+    expect(mockClosePopup).toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — handleToggle edge cases", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handleToggle catches error and does not crash", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    const mockTr = {
+      replaceWith: vi.fn(() => { throw new Error("replace error"); }),
+    };
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      tr: mockTr,
+    };
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    expect(() => handlers.onToggle()).not.toThrow();
+  });
+
+  it("handleToggle with nodeAt returning null does not dispatch", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => null),
+      },
+    };
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "block_image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    handlers.onToggle();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — handleRemove edge cases", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handleRemove returns early when node type does not match", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: "block_video" },
+          attrs: {},
+          nodeSize: 1,
+        })),
+      },
+    };
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    handlers.onRemove();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("handleRemove catches error and closes popup", () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    const mockTr = {
+      delete: vi.fn(() => { throw new Error("delete error"); }),
+    };
+    (view as unknown as Record<string, unknown>).state = {
+      ...(view as unknown as { state: Record<string, unknown> }).state,
+      tr: mockTr,
+    };
+    store._state.isOpen = true;
+    store._state.mediaNodePos = 0;
+    store._state.mediaNodeType = "image";
+
+    popup = new MediaPopupView(view as unknown as import("@tiptap/pm/view").EditorView);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    expect(() => handlers.onRemove()).not.toThrow();
+    expect(mockClosePopup).toHaveBeenCalled();
+  });
+});
+
+describe("MediaPopupView — handleCopy error path", () => {
+  let view: ReturnType<typeof createMockView>;
+  let popup: MediaPopupView;
+
+  afterEach(() => {
+    if (popup) popup.destroy();
+  });
+
+  it("handles clipboard writeText failure gracefully", async () => {
+    vi.clearAllMocks();
+    view = createMockView();
+    store._state.isOpen = true;
+    store._state.mediaSrc = "test.png";
+
+    const writeTextSpy = vi.fn(() => Promise.reject(new Error("clipboard error")));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    popup = new MediaPopupView(view);
+    const handlers = vi.mocked(createMediaPopupDom).mock.calls[0][0];
+
+    await handlers.onCopy();
+    expect(mockClosePopup).toHaveBeenCalled();
+  });
 });

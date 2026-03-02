@@ -1027,3 +1027,190 @@ describe("ImagePreviewView stale load cancellation", () => {
     view.destroy();
   });
 });
+
+describe("ImagePreviewView — rAF repositioning after load", () => {
+  let container: HTMLElement;
+  const anchorRect: AnchorRect = { top: 200, left: 150, bottom: 220, right: 250 };
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    container = createEditorContainer();
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("repositions after image loads when visible and anchorRect exists", async () => {
+    // Use mock Image that fires onload after rAF
+    const origImage = globalThis.Image;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        Promise.resolve().then(() => { if (this.onload) this.onload(); });
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+
+    // Wait for resolve + onload
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Wait for rAF to fire (repositioning)
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // View should still be visible with repositioned popup
+    expect(view.isVisible()).toBe(true);
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("does not reposition after image loads when hidden", async () => {
+    const origImage = globalThis.Image;
+    let savedOnload: (() => void) | null = null;
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        // Don't auto-fire — we'll fire manually
+        setTimeout(() => { savedOnload = this.onload; }, 10);
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("data:image/png;base64,abc", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Hide first, then trigger onload
+    view.hide();
+    if (savedOnload) savedOnload();
+
+    // Wait for rAF
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // View should remain hidden
+    expect(view.isVisible()).toBe(false);
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("repositions after video loads when visible", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    // Wait for rAF
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    expect(view.isVisible()).toBe(true);
+
+    view.destroy();
+  });
+
+  it("does not reposition after video loads when hidden", async () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("https://example.com/video.mp4", anchorRect, editorDom, "video");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const video = container.querySelector(".image-preview-video") as HTMLVideoElement;
+
+    // Hide, then fire loadedmetadata (will be ignored by stale token)
+    view.hide();
+    video.dispatchEvent(new Event("loadedmetadata"));
+
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    expect(view.isVisible()).toBe(false);
+
+    view.destroy();
+  });
+
+  it("ignores stale resolveImageSrc then-callback when token changed", async () => {
+    // Trigger two rapid show() calls — the first should be cancelled by the second
+    const origImage = globalThis.Image;
+    const onloadCallbacks: Array<(() => void) | null> = [];
+    globalThis.Image = class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+      get src() { return this._src; }
+      set src(val: string) {
+        this._src = val;
+        onloadCallbacks.push(this.onload);
+      }
+    } as unknown as typeof Image;
+
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    // First show
+    view.show("data:image/png;base64,first", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Second show (increments token, making first stale)
+    view.show("data:image/png;base64,second", anchorRect, editorDom);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Fire the first onload (stale) — should be ignored
+    if (onloadCallbacks[0]) onloadCallbacks[0]();
+
+    // Image should remain in loading state from second load
+    const img = container.querySelector(".image-preview-img") as HTMLElement;
+    expect(img.style.display).toBe("none");
+
+    globalThis.Image = origImage;
+    view.destroy();
+  });
+
+  it("updateContent without anchorRect does not reposition", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.png", anchorRect, editorDom, "image");
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    const topBefore = popup.style.top;
+
+    // Update without anchorRect — position should not change
+    view.updateContent("test2.png");
+
+    expect(popup.style.top).toBe(topBefore);
+
+    view.destroy();
+  });
+
+  it("updateContent without type keeps existing media type", () => {
+    const view = new ImagePreviewView();
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+
+    view.show("test.mp4", anchorRect, editorDom, "video");
+    const popup = container.querySelector(".image-preview-popup") as HTMLElement;
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(true);
+
+    // Update without type — should keep "video" type
+    view.updateContent("test2.mp4");
+    expect(popup.classList.contains("image-preview-popup--interactive")).toBe(true);
+
+    view.destroy();
+  });
+});

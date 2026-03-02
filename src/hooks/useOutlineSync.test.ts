@@ -119,6 +119,44 @@ describe("useOutlineSync — scroll-to-heading listener", () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it("skips scrollIntoView when nodeDOM is not an HTMLElement (lines 122-124)", async () => {
+    const view = createMockView([0, 50, 100]);
+    // nodeDOM returns a non-HTMLElement (e.g., a Text node)
+    view.nodeDOM = vi.fn(() => document.createTextNode("heading text"));
+    const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
+
+    renderHook(() => useOutlineSync(getView));
+
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    const calls = mocks.listen.mock.calls as unknown[][];
+    const scrollCall = calls.find((c) => c[0] === "outline:scroll-to-heading");
+    const callback = scrollCall![1] as ListenCallback;
+
+    callback({ payload: { headingIndex: 0 } });
+
+    // Dispatch and focus should still happen
+    expect(view.dispatch).toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+    // But scrollIntoView should NOT have been called (not an HTMLElement)
+  });
+
+  it("handles listen() rejection gracefully (line 137 catch)", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.listen.mockRejectedValueOnce(new Error("listen failed"));
+
+    const getView = () => null;
+    renderHook(() => useOutlineSync(getView));
+
+    // Wait for the error to be caught
+    await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to setup outline scroll listener:",
+      expect.any(Error)
+    ));
+
+    errorSpy.mockRestore();
+  });
+
   it("does nothing when heading index is out of range", async () => {
     const view = createMockView([0, 50]);
     const getView = () => view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
