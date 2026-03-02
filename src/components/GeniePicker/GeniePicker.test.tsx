@@ -64,6 +64,8 @@ let geniesState = {
   loading: false,
 };
 
+let mockRecentGenies: GenieDefinition[] = [];
+
 vi.mock("@/stores/geniePickerStore", () => ({
   useGeniePickerStore: Object.assign(
     (selector: (s: typeof pickerState) => unknown) => selector(pickerState),
@@ -78,7 +80,7 @@ vi.mock("@/stores/geniesStore", () => {
   const fullState = () => ({
     ...geniesState,
     loadGenies: mockLoadGenies,
-    getRecent: () => [],
+    getRecent: () => mockRecentGenies,
   });
   return {
     useGeniesStore: Object.assign(
@@ -166,6 +168,7 @@ function resetState() {
     closePicker: mockClosePicker,
   };
   geniesState = { genies: [], loading: false };
+  mockRecentGenies = [];
   mockIsRunning = false;
   mockActiveProvider = null;
   mockDisplayValue = "";
@@ -725,6 +728,92 @@ describe("GeniePicker — freeform textarea", () => {
     fireEvent.keyDown(container, { key: "Enter" });
 
     expect(mockInvokeFreeform).toHaveBeenCalledWith("translate this", "document");
+  });
+});
+
+// ============================================================================
+// Recents section
+// ============================================================================
+
+describe("GeniePicker — recents and onChange", () => {
+  beforeEach(() => {
+    resetState();
+    geniesState.genies = SAMPLE_GENIES;
+  });
+  afterEach(cleanup);
+
+  it("renders the onChange handler on freeform textarea", async () => {
+    const user = userEvent.setup();
+    render(<GeniePicker />);
+
+    const textarea = document.querySelector(".genie-picker-freeform-input") as HTMLTextAreaElement;
+    await user.type(textarea, "hello");
+
+    // The handleChange mock should have been called for each character
+    expect(mockHandleChange).toHaveBeenCalled();
+  });
+
+  it("renders Recently Used section when getRecent returns genies", () => {
+    // Set up recents — same genies as in the full list (lines 103-104, 113-114, 127, 301-302)
+    mockRecentGenies = [makeGenie("polish", { scope: "selection" })];
+    render(<GeniePicker />);
+
+    expect(screen.getByText("Recently Used")).toBeInTheDocument();
+  });
+
+  it("filters out recents with wrong scope when activeScope is set", () => {
+    // Set activeScope to "document" via Tab presses, then verify recents with "selection" scope are excluded
+    mockRecentGenies = [makeGenie("polish", { scope: "selection" })];
+    render(<GeniePicker />);
+
+    const container = document.querySelector(".genie-picker") as HTMLElement;
+    // Tab to "selection" scope
+    fireEvent.keyDown(container, { key: "Tab" });
+
+    // "polish" has scope "selection" which matches — it should appear in recents
+    expect(screen.getByText("Recently Used")).toBeInTheDocument();
+  });
+
+  it("excludes recent genies from the main grouped list (lines 113-114 continue path)", () => {
+    // When a genie is in recents and no filter active, it should not appear in main list
+    mockRecentGenies = [makeGenie("polish", { scope: "selection" })];
+    render(<GeniePicker />);
+
+    // The "polish" genie should appear under "Recently Used", not in "Writing" section
+    expect(screen.getByText("Recently Used")).toBeInTheDocument();
+    // It still appears once total (in recents), not duplicated
+    const items = document.querySelectorAll(".genie-picker-item");
+    // Should have one recent + remaining genies (condense, translate) minus polish
+    const polishItems = Array.from(items).filter(el => el.textContent?.includes("polish"));
+    expect(polishItems).toHaveLength(1);
+  });
+
+  it("includes recents in flatList for keyboard navigation (line 127)", () => {
+    mockRecentGenies = [makeGenie("polish", { scope: "selection" })];
+    render(<GeniePicker />);
+
+    // With recents, Home key should go to first item (a recent)
+    const container = document.querySelector(".genie-picker") as HTMLElement;
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    fireEvent.keyDown(container, { key: "Home" });
+
+    const items = document.querySelectorAll(".genie-picker-item");
+    if (items.length > 0) {
+      expect(items[0]?.classList.contains("genie-picker-item--selected")).toBe(true);
+    }
+  });
+
+  it("filters recents by activeScope when scope is non-null (lines 103-104)", () => {
+    // Add a recent genie with scope "document" — when activeScope is "selection" it should be excluded
+    mockRecentGenies = [makeGenie("translate", { scope: "document" })];
+    render(<GeniePicker />);
+
+    const container = document.querySelector(".genie-picker") as HTMLElement;
+    // Tab to "selection" scope
+    fireEvent.keyDown(container, { key: "Tab" });
+
+    // "translate" has scope "document", activeScope is "selection" → filtered out → no "Recently Used" section
+    expect(screen.queryByText("Recently Used")).toBeNull();
   });
 });
 

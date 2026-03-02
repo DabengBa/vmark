@@ -392,4 +392,78 @@ describe("insertLink", () => {
     expect(openPopup).toHaveBeenCalled();
     view.destroy();
   });
+
+  it("returns false when getAnchorRectFromRange returns null for existing link", async () => {
+    // Make getAnchorRectFromRange return null → showLinkPopupForExistingLink returns false
+    const { getAnchorRectFromRange } = await import("@/plugins/sourcePopup/sourcePopupUtils");
+    vi.mocked(getAnchorRectFromRange).mockReturnValueOnce(null);
+
+    const openPopup = vi.fn();
+    vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
+
+    const view = createView("[text](https://example.com)", 3);
+    const result = await insertLink(view);
+    // anchorRect is null → popup not opened, falls through to other cases
+    expect(openPopup).not.toHaveBeenCalled();
+    view.destroy();
+  });
+});
+
+describe("insertSourceBookmarkLink — callback", () => {
+  it("inserts bookmark link when heading picker callback is invoked", async () => {
+    const view = createView("# My Heading\nsome text", 15);
+    vi.spyOn(view, "coordsAtPos").mockReturnValue({ top: 10, bottom: 30, left: 50, right: 60 });
+
+    let capturedCallback: ((id: string, text: string) => void) | null = null;
+    const openPicker = vi.fn((_, cb) => { capturedCallback = cb; });
+    vi.mocked(useHeadingPickerStore.getState).mockReturnValue({ openPicker } as never);
+
+    const result = insertSourceBookmarkLink(view);
+    expect(result).toBe(true);
+    expect(capturedCallback).toBeDefined();
+
+    // Invoke the callback with a heading id and text
+    capturedCallback!("my-heading", "My Heading");
+
+    // Verify bookmark link was inserted
+    expect(view.state.doc.toString()).toContain("[My Heading](#my-heading)");
+    view.destroy();
+  });
+
+  it("uses selected text as link text when selection exists", async () => {
+    const view = createView("# Title\nclick here", 8, 13);
+    vi.spyOn(view, "coordsAtPos").mockReturnValue({ top: 10, bottom: 30, left: 50, right: 60 });
+
+    let capturedCallback: ((id: string, text: string) => void) | null = null;
+    const openPicker = vi.fn((_, cb) => { capturedCallback = cb; });
+    vi.mocked(useHeadingPickerStore.getState).mockReturnValue({ openPicker } as never);
+
+    insertSourceBookmarkLink(view);
+    capturedCallback!("title", "Title");
+
+    // "click" is the selected text, so it should be used as link text
+    expect(view.state.doc.toString()).toContain("[click](#title)");
+    view.destroy();
+  });
+});
+
+describe("openLinkCreatePopup — null anchor rect guard", () => {
+  it("does not open popup when getAnchorRectFromRange returns null", async () => {
+    const { getAnchorRectFromRange } = await import("@/plugins/sourcePopup/sourcePopupUtils");
+    vi.mocked(getAnchorRectFromRange).mockReturnValueOnce(null);
+
+    const openPopup = vi.fn();
+    vi.mocked(useLinkCreatePopupStore.getState).mockReturnValue({
+      isOpen: false,
+      openPopup,
+    } as never);
+
+    // Trigger openLinkCreatePopup via insertLink with selection but no clipboard URL
+    const view = createView("some text here", 5, 9);
+    await insertLink(view);
+
+    // With null anchorRect, openPopup should not be called
+    expect(openPopup).not.toHaveBeenCalled();
+    view.destroy();
+  });
 });

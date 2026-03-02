@@ -437,6 +437,98 @@ describe("BlockImageNodeView", () => {
     });
   });
 
+  describe("updateSrc additional branches", () => {
+    it("restores original title when updateSrc is called after an error set data-original-title (lines 125-126)", async () => {
+      // Simulate an error first so data-original-title is set, then call updateSrc with a new src
+      mockIsExternalUrl.mockReturnValue(false);
+      mockResolveMediaSrc.mockRejectedValue(new Error("not found"));
+      createNodeView({ src: "bad.png", title: "My Title" });
+
+      // Wait for error handler to run
+      await vi.waitFor(() => expect(mockShowMediaError).toHaveBeenCalled());
+
+      // Now update with a new src — updateSrc should restore the title
+      vi.clearAllMocks();
+      const img = nodeView.dom.querySelector("img")!;
+      img.setAttribute("data-original-title", "My Title");
+
+      mockIsExternalUrl.mockReturnValue(false);
+      mockResolveMediaSrc.mockResolvedValue("resolved://new.png");
+      nodeView.update(createMockNode({ src: "new.png", title: "My Title" }));
+
+      // The data-original-title attribute should be removed
+      await vi.waitFor(() => {
+        expect(img.getAttribute("data-original-title")).toBeNull();
+      });
+    });
+
+    it("fast-paths external URL that is already cached (lines 141-144)", () => {
+      mockIsExternalUrl.mockReturnValue(true);
+      const mockCleanup = vi.fn();
+      mockAttachMediaLoadHandlers.mockReturnValue(mockCleanup);
+
+      createNodeView({ src: "https://example.com/cached.png" });
+      const img = nodeView.dom.querySelector("img")!;
+
+      // Simulate an already-loaded image (naturalWidth > 0, complete)
+      Object.defineProperty(img, "complete", { value: true, configurable: true });
+      Object.defineProperty(img, "naturalWidth", { value: 800, configurable: true });
+
+      // Re-call update to trigger updateSrc again with the same external src
+      vi.clearAllMocks();
+      mockIsExternalUrl.mockReturnValue(true);
+      mockAttachMediaLoadHandlers.mockReturnValue(mockCleanup);
+
+      nodeView.update(createMockNode({ src: "https://example.com/cached2.png" }));
+
+      // Fast-path: attachMediaLoadHandlers was called but then cleanup was called for the cached image
+      expect(mockAttachMediaLoadHandlers).toHaveBeenCalled();
+    });
+
+    it("ignores stale request in catch handler (line 163)", async () => {
+      mockIsExternalUrl.mockReturnValue(false);
+      let reject1: (e: Error) => void;
+      mockResolveMediaSrc
+        .mockReturnValueOnce(new Promise((_, r) => { reject1 = r; }))
+        .mockResolvedValueOnce("resolved://second.png");
+
+      createNodeView({ src: "first.png" });
+
+      // Issue a second request (increments resolveRequestId)
+      nodeView.update(createMockNode({ src: "second.png" }));
+      await vi.waitFor(() => expect(mockAttachMediaLoadHandlers).toHaveBeenCalled());
+
+      // Now reject the first request — stale, should be ignored
+      vi.clearAllMocks();
+      reject1!(new Error("stale error"));
+      await Promise.resolve();
+
+      // showMediaError should NOT have been called for the stale rejection
+      expect(mockShowMediaError).not.toHaveBeenCalled();
+    });
+
+    it("success callback in setupLoadHandlers sets opacity to 1 (lines 174-175)", () => {
+      mockIsExternalUrl.mockReturnValue(true);
+
+      let capturedOnLoad: (() => void) | undefined;
+      mockAttachMediaLoadHandlers.mockImplementation(
+        (_img: unknown, _dom: unknown, _config: unknown, onLoad: () => void) => {
+          capturedOnLoad = onLoad;
+          return vi.fn();
+        }
+      );
+
+      createNodeView({ src: "https://example.com/photo.png" });
+      const img = nodeView.dom.querySelector("img")!;
+      img.style.opacity = "0";
+
+      // Invoke the captured onLoad callback
+      expect(capturedOnLoad).toBeDefined();
+      capturedOnLoad!();
+      expect(img.style.opacity).toBe("1");
+    });
+  });
+
   describe("context menu", () => {
     it("opens image context menu on right-click", () => {
       createNodeView({ src: "photo.png" });

@@ -61,8 +61,11 @@ vi.mock("@codemirror/search", () => ({
   selectSelectionMatches: vi.fn(),
 }));
 
+const { editorStoreState } = vi.hoisted(() => ({
+  editorStoreState: { toggleWordWrap: vi.fn() },
+}));
 vi.mock("@/stores/editorStore", () => ({
-  useEditorStore: { getState: () => ({ toggleWordWrap: vi.fn() }) },
+  useEditorStore: { getState: vi.fn(() => editorStoreState) },
 }));
 
 vi.mock("@/utils/workspaceStorage", () => ({
@@ -162,6 +165,12 @@ import {
   lineNumbersCompartment,
   shortcutKeymapCompartment,
 } from "./sourceEditorExtensions";
+import { keymap } from "@codemirror/view";
+import { selectNextOccurrence, selectSelectionMatches } from "@codemirror/search";
+import { useEditorStore } from "@/stores/editorStore";
+import { performUnifiedUndo, performUnifiedRedo } from "@/hooks/useUnifiedHistory";
+import { toggleTaskList } from "@/plugins/sourceContextDetection/taskListActions";
+import { isMacPlatform } from "@/utils/shortcutMatch";
 
 describe("createSourceEditorExtensions", () => {
   it("returns a non-empty array of extensions", () => {
@@ -221,5 +230,116 @@ describe("exported compartments", () => {
     expect(typeof autoPairCompartment.of).toBe("function");
     expect(typeof lineNumbersCompartment.of).toBe("function");
     expect(typeof shortcutKeymapCompartment.of).toBe("function");
+  });
+});
+
+describe("createSourceEditorExtensions — keymap run() callbacks", () => {
+  // The keymap array is embedded inside a keymap.of() call.
+  // Since keymap.of is mocked as identity (returns its arg), we can intercept
+  // the call to extract the keybinding objects and invoke their run() directly.
+
+  type KeyBinding = { key: string; run: (view: unknown) => boolean };
+
+  function getKeyBindings(): KeyBinding[] {
+    const allBindings: KeyBinding[] = [];
+    const origOf = vi.mocked(keymap.of);
+    origOf.mockImplementation((bindings: unknown) => {
+      if (Array.isArray(bindings)) {
+        for (const b of bindings) {
+          if (b && typeof b === "object" && "key" in b && "run" in b) {
+            allBindings.push(b as KeyBinding);
+          }
+        }
+      }
+      return bindings as any;
+    });
+
+    createSourceEditorExtensions({
+      initialWordWrap: false,
+      initialShowBrTags: false,
+      initialAutoPair: false,
+      initialShowLineNumbers: false,
+      updateListener: "listener" as any,
+    });
+
+    // Restore default mock
+    origOf.mockImplementation((keys: unknown) => keys as any);
+    return allBindings;
+  }
+
+  it("Mod-Shift-Enter run: calls toggleTaskList", () => {
+    const mockView = {};
+    const bindings = getKeyBindings();
+    // Multiple bindings may share "Mod-Shift-Enter" (e.g. tableModShiftEnterKeymap).
+    // The toggleTaskList binding is added later, so use findLast to get it.
+    const binding = bindings.findLast((b) => b.key === "Mod-Shift-Enter");
+    expect(binding).toBeDefined();
+    vi.mocked(toggleTaskList).mockClear();
+    binding!.run(mockView);
+    // toggleTaskList is the vi.fn() from vi.mock
+    expect(toggleTaskList).toHaveBeenCalledWith(mockView);
+  });
+
+  it("Mod-d run: calls selectNextOccurrence", () => {
+    const mockDispatch = vi.fn();
+    const mockView = { state: "mockState", dispatch: mockDispatch };
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-d");
+    expect(binding).toBeDefined();
+    binding!.run(mockView);
+    expect(vi.mocked(selectNextOccurrence)).toHaveBeenCalledWith({
+      state: "mockState",
+      dispatch: mockDispatch,
+    });
+  });
+
+  it("Mod-Shift-l run: calls selectSelectionMatches", () => {
+    const mockDispatch = vi.fn();
+    const mockView = { state: "mockState", dispatch: mockDispatch };
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-Shift-l");
+    expect(binding).toBeDefined();
+    binding!.run(mockView);
+    expect(vi.mocked(selectSelectionMatches)).toHaveBeenCalledWith({
+      state: "mockState",
+      dispatch: mockDispatch,
+    });
+  });
+
+  it("Mod-Alt-w run: calls toggleWordWrap and returns true", () => {
+    editorStoreState.toggleWordWrap.mockClear();
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-Alt-w");
+    expect(binding).toBeDefined();
+    const result = binding!.run({});
+    expect(editorStoreState.toggleWordWrap).toHaveBeenCalled();
+    expect(result).toBe(true);
+  });
+
+  it("Mod-z run: calls performUnifiedUndo", () => {
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-z");
+    expect(binding).toBeDefined();
+    binding!.run({});
+    expect(vi.mocked(performUnifiedUndo)).toHaveBeenCalledWith("main");
+  });
+
+  it("Mod-Shift-z run: calls performUnifiedRedo", () => {
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-Shift-z");
+    expect(binding).toBeDefined();
+    binding!.run({});
+    expect(vi.mocked(performUnifiedRedo)).toHaveBeenCalledWith("main");
+  });
+
+  it("Mod-y run: calls performUnifiedRedo on non-mac", () => {
+    // Override isMacPlatform to return false so the Mod-y binding is included
+    vi.mocked(isMacPlatform).mockReturnValueOnce(false);
+
+    const bindings = getKeyBindings();
+    const binding = bindings.find((b) => b.key === "Mod-y");
+    expect(binding).toBeDefined();
+    binding!.run({});
+    expect(vi.mocked(performUnifiedRedo)).toHaveBeenCalledWith("main");
   });
 });

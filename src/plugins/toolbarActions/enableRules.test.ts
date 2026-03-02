@@ -707,6 +707,127 @@ describe("getToolbarButtonState (source)", () => {
     });
     expect(state.disabled).toBe(true);
   });
+
+  it("enables actions with enabledIn: table when in table", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["table"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inTable: { nodePos: 0 } }),
+    });
+    expect(state.disabled).toBe(false);
+  });
+
+  it("disables actions with enabledIn: table when NOT in table", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["table"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inTable: null }),
+    });
+    expect(state.disabled).toBe(true);
+  });
+
+  it("disables actions with enabledIn: heading when NOT in heading (break path)", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["heading"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inHeading: null }),
+    });
+    expect(state.disabled).toBe(true);
+  });
+
+  it("disables actions with enabledIn: list when NOT in list (break path)", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["list"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inList: null }),
+    });
+    expect(state.disabled).toBe(true);
+  });
+
+  it("disables actions with enabledIn: never (never case break path)", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["never"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx(),
+    });
+    expect(state.disabled).toBe(true);
+    expect(state.notImplemented).toBe(true);
+  });
+
+  it("returns false for matchesEnabledContext when no rules match (return false path)", () => {
+    // Use enabledIn: ["blockquote"] but not in blockquote → all rules fall through → return false
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["blockquote"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inBlockquote: null }),
+    });
+    expect(state.disabled).toBe(true);
+  });
+
+  it("disables actions with enabledIn: codeblock when NOT in code block (break path)", () => {
+    const button: ToolbarGroupButton = {
+      id: "test",
+      type: "button",
+      icon: "",
+      label: "test",
+      action: "test",
+      enabledIn: ["codeblock"],
+    };
+    const state = getToolbarButtonState(button, {
+      surface: "source",
+      view,
+      context: sourceCtx({ inCodeBlock: null }),
+    });
+    expect(state.disabled).toBe(true);
+  });
 });
 
 describe("getToolbarItemState", () => {

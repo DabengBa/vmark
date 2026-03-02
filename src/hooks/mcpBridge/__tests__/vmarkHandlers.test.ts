@@ -23,6 +23,7 @@ import {
   handleInsertMathInline,
   handleInsertMathBlock,
   handleInsertMermaid,
+  handleInsertMarkmap,
   handleInsertSvg,
   handleInsertWikiLink,
   handleCjkPunctuationConvert,
@@ -122,6 +123,45 @@ describe("vmarkHandlers", () => {
         error: "latex is required",
       });
     });
+
+    it("returns error when no editor", async () => {
+      mockGetEditor.mockReturnValue(null);
+
+      await handleInsertMathBlock("req-5b", { latex: "x" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-5b",
+        success: false,
+        error: "No active editor",
+      });
+    });
+  });
+
+  describe("handleInsertMarkmap", () => {
+    it("inserts code block with markmap language", async () => {
+      const editor = createMockEditor();
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleInsertMarkmap("req-markmap", { code: "# Root\n## Child" });
+
+      expect(editor._chainMethods.insertContent).toHaveBeenCalledWith({
+        type: "codeBlock",
+        attrs: { language: "markmap" },
+        content: [{ type: "text", text: "# Root\n## Child" }],
+      });
+    });
+
+    it("returns error when no editor for markmap", async () => {
+      mockGetEditor.mockReturnValue(null);
+
+      await handleInsertMarkmap("req-markmap-no-editor", { code: "# Root" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-markmap-no-editor",
+        success: false,
+        error: "No active editor",
+      });
+    });
   });
 
   describe("handleInsertMermaid", () => {
@@ -205,6 +245,18 @@ describe("vmarkHandlers", () => {
         error: "target is required",
       });
     });
+
+    it("returns error when no editor", async () => {
+      mockGetEditor.mockReturnValue(null);
+
+      await handleInsertWikiLink("req-11b", { target: "Page" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-11b",
+        success: false,
+        error: "No active editor",
+      });
+    });
   });
 
   describe("handleCjkPunctuationConvert", () => {
@@ -253,6 +305,40 @@ describe("vmarkHandlers", () => {
         error: "No text selected",
       });
     });
+
+    it("returns error when no editor", async () => {
+      mockGetEditor.mockReturnValue(null);
+
+      await handleCjkPunctuationConvert("req-14b", { direction: "to-fullwidth" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-14b",
+        success: false,
+        error: "No active editor",
+      });
+    });
+
+    it("converts full-width to half-width (to-halfwidth direction)", async () => {
+      const editor = createMockEditor({
+        state: {
+          selection: { from: 0, to: 3, empty: false },
+          doc: { textBetween: vi.fn().mockReturnValue("，。！") },
+        },
+      });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleCjkPunctuationConvert("req-14c", { direction: "to-halfwidth" });
+
+      expect(editor._chainMethods.insertContentAt).toHaveBeenCalledWith(
+        0,
+        expect.stringContaining(",")
+      );
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-14c",
+        success: true,
+        data: null,
+      });
+    });
   });
 
   describe("handleCjkSpacingFix", () => {
@@ -293,6 +379,40 @@ describe("vmarkHandlers", () => {
 
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-17",
+        success: true,
+        data: null,
+      });
+    });
+
+    it("returns error when no editor", async () => {
+      mockGetEditor.mockReturnValue(null);
+
+      await handleCjkSpacingFix("req-17b", { action: "add" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-17b",
+        success: false,
+        error: "No active editor",
+      });
+    });
+
+    it("removes CJK spacing when action is remove", async () => {
+      const editor = createMockEditor({
+        state: {
+          selection: { from: 0, to: 12, empty: false },
+          doc: { textBetween: vi.fn().mockReturnValue("你好 world 测试 test") },
+        },
+      });
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleCjkSpacingFix("req-18", { action: "remove" });
+
+      expect(editor._chainMethods.insertContentAt).toHaveBeenCalledWith(
+        0,
+        expect.stringContaining("你好world")
+      );
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-18",
         success: true,
         data: null,
       });

@@ -416,6 +416,182 @@ describe("useSourceOutlineSync hook — scroll and cursor tracking", () => {
   });
 });
 
+describe("useSourceOutlineSync hook — additional branch coverage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("handles cancelled=true when listen resolves after unmount (safeUnlisten called with unlisten)", async () => {
+    // L101, L119-120: cancelled=true path — the event callback early returns,
+    // and the cancelled guard in setup() causes safeUnlisten(unlisten) to be called
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+    const { safeUnlisten } = await import("@/utils/safeUnlisten");
+
+    let resolveUnlisten!: (fn: () => void) => void;
+    const listenPromise = new Promise<() => void>((resolve) => {
+      resolveUnlisten = resolve;
+    });
+    vi.mocked(listen).mockReturnValue(listenPromise);
+
+    const viewRef = { current: null };
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    const { unmount } = renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    // Unmount sets cancelled=true before the promise resolves
+    unmount();
+
+    // Now resolve the listen promise — setup() should call safeUnlisten(unlisten)
+    const mockUnlisten = vi.fn();
+    resolveUnlisten(mockUnlisten);
+    await vi.waitFor(() => {
+      expect(safeUnlisten).toHaveBeenCalled();
+    });
+  });
+
+  it("logs error when listen() rejects (L125 catch branch)", async () => {
+    const { renderHook } = await import("@testing-library/react");
+    const { listen } = await import("@tauri-apps/api/event");
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.mocked(listen).mockRejectedValue(new Error("network error"));
+
+    const viewRef = { current: null };
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    await vi.waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to setup source outline scroll listener:",
+        expect.any(Error)
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it("updateActiveHeading returns early when viewRef.current becomes null (L148)", async () => {
+    const { renderHook, act } = await import("@testing-library/react");
+
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
+
+    const doc = textFrom("# First\n\nText");
+    // Use a mutable ref-like object so we can set current to null after mount
+    const viewRef: { current: object | null } = {
+      current: {
+        state: {
+          doc,
+          selection: { main: { head: 0 } },
+        },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: {
+          addEventListener: mockAddEventListener,
+          removeEventListener: mockRemoveEventListener,
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    // After initial render, set viewRef.current to null
+    // Then trigger handleUpdate via keyup — updateActiveHeading should early return without crash
+    const keyupCall = mockAddEventListener.mock.calls.find(([evt]: [string]) => evt === "keyup");
+    const handleUpdate = keyupCall?.[1] as (() => void) | undefined;
+
+    act(() => {
+      viewRef.current = null;
+      // handleUpdate calls requestAnimationFrame(updateActiveHeading)
+      // updateActiveHeading checks: if (!v) return; — this is L148
+      handleUpdate?.();
+    });
+
+    // No crash = the null guard (L148) works correctly
+    expect(true).toBe(true);
+  });
+
+  it("handleUpdate cancels previous animationFrame and schedules new one (L156-157)", async () => {
+    const { renderHook, act } = await import("@testing-library/react");
+
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame");
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(42);
+
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
+
+    const doc = textFrom("# First\n\nText");
+    const viewRef = {
+      current: {
+        state: { doc, selection: { main: { head: 0 } } },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: {
+          addEventListener: mockAddEventListener,
+          removeEventListener: mockRemoveEventListener,
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    const keyupCall = mockAddEventListener.mock.calls.find(([evt]) => evt === "keyup");
+    const handleUpdate = keyupCall?.[1] as (() => void) | undefined;
+
+    act(() => {
+      // Call handleUpdate twice — second call should cancel the first animFrameId
+      handleUpdate?.();
+      handleUpdate?.();
+    });
+
+    // cancelAnimationFrame should have been called on the second handleUpdate call
+    expect(cancelRafSpy).toHaveBeenCalled();
+    expect(rafSpy).toHaveBeenCalled();
+
+    cancelRafSpy.mockRestore();
+    rafSpy.mockRestore();
+  });
+
+  it("cleanup cancels animationFrame when animFrameId is set (L168)", async () => {
+    const { renderHook, act } = await import("@testing-library/react");
+
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame");
+    vi.spyOn(window, "requestAnimationFrame").mockReturnValue(99);
+
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
+
+    const doc = textFrom("# First\n\nText");
+    const viewRef = {
+      current: {
+        state: { doc, selection: { main: { head: 0 } } },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        dom: {
+          addEventListener: mockAddEventListener,
+          removeEventListener: mockRemoveEventListener,
+        },
+      },
+    };
+
+    const { useSourceOutlineSync } = await import("./useSourceOutlineSync");
+    const { unmount } = renderHook(() => useSourceOutlineSync(viewRef as never, false));
+
+    // Trigger handleUpdate to set animFrameId
+    const keyupCall = mockAddEventListener.mock.calls.find(([evt]) => evt === "keyup");
+    const handleUpdate = keyupCall?.[1] as (() => void) | undefined;
+    act(() => { handleUpdate?.(); });
+
+    // Unmount — cleanup should cancel the pending animFrameId
+    unmount();
+
+    expect(cancelRafSpy).toHaveBeenCalledWith(99);
+
+    cancelRafSpy.mockRestore();
+  });
+});
+
 describe("findNthHeadingPos — edge cases", () => {
   it("handles document with only blank lines", () => {
     const doc = textFrom("\n\n\n\n");

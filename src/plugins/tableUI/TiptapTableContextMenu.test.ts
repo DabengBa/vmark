@@ -173,3 +173,112 @@ describe("TiptapTableContextMenu", () => {
     // Should still be visible (click inside does not trigger hide)
   });
 });
+
+// ---------------------------------------------------------------------------
+// Additional coverage: requestAnimationFrame position adjustment (lines 161-177)
+// These run inside requestAnimationFrame after show() — use fake RAF.
+// ---------------------------------------------------------------------------
+
+describe("TiptapTableContextMenu — rAF position adjustment", () => {
+  let menu2: TiptapTableContextMenu;
+  let view2: ReturnType<typeof createMockView>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTableFitToWidth = false;
+    view2 = createMockView();
+    menu2 = new TiptapTableContextMenu(view2 as never);
+  });
+
+  afterEach(() => {
+    menu2.destroy();
+  });
+
+  it("adjusts left position when container extends beyond viewport right edge (line 166)", () => {
+    // Mock getBoundingClientRect to return a rect that overflows right edge
+    const container = (menu2 as unknown as { container: HTMLElement }).container;
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 100, bottom: 200, left: 750, right: 820,
+      width: 70, height: 100,
+      x: 750, y: 100, toJSON: () => {},
+    } as DOMRect);
+
+    // Mock innerWidth to be 800 (so right=820 > 800-10=790)
+    Object.defineProperty(window, "innerWidth", { value: 800, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 600, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    menu2.show(750, 100);
+
+    // Run the rAF callback manually
+    if (rafCallback) {
+      rafCallback(0);
+    }
+
+    // The container left should have been adjusted (newLeft = 800 - 70 - 10 = 720)
+    // host === document.body in this test (getPopupHostForDom returns null → document.body)
+    expect(container.style.left).toBe("720px");
+  });
+
+  it("adjusts top position when container extends beyond viewport bottom edge (line 176)", () => {
+    const container = (menu2 as unknown as { container: HTMLElement }).container;
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 500, bottom: 640, left: 100, right: 200,
+      width: 100, height: 140,
+      x: 100, y: 500, toJSON: () => {},
+    } as DOMRect);
+
+    // Mock innerHeight to 600 (so bottom=640 > 600-10=590)
+    // editorContainer is null (closest returns null)
+    Object.defineProperty(window, "innerWidth", { value: 1200, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 600, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    menu2.show(100, 500);
+
+    if (rafCallback) {
+      rafCallback(0);
+    }
+
+    // maxBottom = viewportHeight - 10 = 590, newTop = 590 - 140 = 450
+    expect(container.style.top).toBe("450px");
+  });
+
+  it("runs rAF callback without adjustments when menu fits in viewport", () => {
+    const container = (menu2 as unknown as { container: HTMLElement }).container;
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 100, bottom: 200, left: 100, right: 200,
+      width: 100, height: 100,
+      x: 100, y: 100, toJSON: () => {},
+    } as DOMRect);
+
+    Object.defineProperty(window, "innerWidth", { value: 1200, writable: true });
+    Object.defineProperty(window, "innerHeight", { value: 900, writable: true });
+
+    let rafCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    menu2.show(100, 100);
+
+    if (rafCallback) {
+      rafCallback(0);
+    }
+
+    // No adjustment needed — position stays as-is (100, 100)
+    expect(container.style.left).toBe("100px");
+    expect(container.style.top).toBe("100px");
+  });
+});

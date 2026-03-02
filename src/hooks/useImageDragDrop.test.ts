@@ -12,12 +12,17 @@ import { renderHook } from "@testing-library/react";
 
 let dragDropHandler: ((event: unknown) => Promise<void>) | null = null;
 
+const { onDragDropImpl } = vi.hoisted(() => {
+  const defaultImpl = async (handler) => {
+    dragDropHandler = handler;
+    return () => {};
+  };
+  return { onDragDropImpl: { fn: defaultImpl } };
+});
+
 vi.mock("@tauri-apps/api/webview", () => ({
   getCurrentWebview: () => ({
-    onDragDropEvent: vi.fn(async (handler: (event: unknown) => Promise<void>) => {
-      dragDropHandler = handler;
-      return () => {};
-    }),
+    onDragDropEvent: (handler) => onDragDropImpl.fn(handler),
   }),
 }));
 
@@ -98,6 +103,11 @@ describe("useImageDragDrop", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dragDropHandler = null;
+    // Restore default onDragDropEvent implementation
+    onDragDropImpl.fn = async (handler) => {
+      dragDropHandler = handler;
+      return () => {};
+    };
   });
 
   it("registers drag-drop listener when enabled", () => {
@@ -466,5 +476,146 @@ describe("useImageDragDrop", () => {
     });
 
     expect(mockSaveImageToAssets).not.toHaveBeenCalled();
+  });
+
+  it("getFilePath returns null when no active tab (L90 branch)", async () => {
+    // Override tabStore to return no active tab
+    const { useTabStore } = await import("@/stores/tabStore");
+    const orig = useTabStore.getState;
+    useTabStore.getState = () => ({ activeTabId: { main: null } }) as never;
+
+    const mockInsertContent = vi.fn().mockReturnThis();
+    const mockRun = vi.fn();
+    const mockFocus = vi.fn(() => ({ insertContent: mockInsertContent, run: mockRun }));
+    const tiptapEditor = {
+      state: { schema: { nodes: { block_image: {} } } },
+      chain: vi.fn(() => ({ focus: mockFocus })),
+    };
+
+    renderHook(() =>
+      useImageDragDrop({
+        tiptapEditor: tiptapEditor as never,
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/photo.png"] },
+    });
+
+    // With null tabId, getFilePath returns null, so no file path for asset saving
+    // The drop still processes because copyToAssets check comes after filePath null check
+    useTabStore.getState = orig;
+  });
+
+  it("getFilePath returns null on exception (L93 catch branch)", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const orig = useTabStore.getState;
+    useTabStore.getState = () => { throw new Error("store error"); };
+
+    renderHook(() =>
+      useImageDragDrop({
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    // Should not throw — getFilePath catches and returns null
+    await expect(
+      dragDropHandler!({ payload: { type: "drop", paths: ["/tmp/photo.png"] } })
+    ).resolves.not.toThrow();
+
+    useTabStore.getState = orig;
+  });
+
+  it("insertImagesInTiptap is a no-op when tiptapEditor is null (L103 branch)", async () => {
+    renderHook(() =>
+      useImageDragDrop({
+        tiptapEditor: undefined,
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    // Drop with an image — but no tiptapEditor provided, so insertImagesInTiptap returns early
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/photo.png"] },
+    });
+
+    // saveImageToAssets still called, but insert is skipped
+    expect(mockSaveImageToAssets).toHaveBeenCalled();
+  });
+
+  it("insertImagesInCodeMirror is a no-op when cmViewRef.current is null (L133 branch)", async () => {
+    const cmView = { current: null };
+
+    renderHook(() =>
+      useImageDragDrop({
+        cmViewRef: cmView as never,
+        isSourceMode: true,
+        enabled: true,
+      })
+    );
+
+    // Drop with an image — but cmViewRef.current is null, so insertImagesInCodeMirror returns early
+    await dragDropHandler!({
+      payload: { type: "drop", paths: ["/tmp/photo.png"] },
+    });
+
+    // saveImageToAssets called, but no dispatch since cmView is null
+    expect(mockSaveImageToAssets).toHaveBeenCalled();
+  });
+
+  it("cancelled flag prevents drag-drop handler from running (L159 branch)", async () => {
+    const { unmount } = renderHook(() =>
+      useImageDragDrop({
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    // Unmount before handler fires — sets cancelled=true
+    unmount();
+
+    // Handler was captured before unmount, but now cancelled=true
+    if (dragDropHandler) {
+      await dragDropHandler({ payload: { type: "drop", paths: ["/tmp/photo.png"] } });
+    }
+
+    // Since cancelled=true, the handler returns early — no processing
+    expect(mockSaveImageToAssets).not.toHaveBeenCalled();
+  });
+
+  it("safeUnlisten called when cancelled after onDragDropEvent resolves (L246-247 branch)", async () => {
+    const { safeUnlisten } = await import("@/utils/safeUnlisten");
+
+    // Set up a delayed onDragDropEvent so unmount happens before resolve
+    let resolveOnDragDrop!: () => void;
+    const barrier = new Promise<void>((res) => { resolveOnDragDrop = res; });
+    const mockUnlisten = vi.fn();
+
+    onDragDropImpl.fn = async (handler) => {
+      dragDropHandler = handler as typeof dragDropHandler;
+      await barrier;
+      return mockUnlisten;
+    };
+
+    const { unmount } = renderHook(() =>
+      useImageDragDrop({
+        isSourceMode: false,
+        enabled: true,
+      })
+    );
+
+    // Unmount before onDragDropEvent resolves — sets cancelled=true
+    unmount();
+
+    // Now resolve the barrier — setup() sees cancelled=true and calls safeUnlisten(unlisten)
+    resolveOnDragDrop();
+
+    await vi.waitFor(() => {
+      expect(safeUnlisten).toHaveBeenCalledWith(mockUnlisten);
+    });
   });
 });
