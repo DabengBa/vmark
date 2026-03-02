@@ -1228,6 +1228,178 @@ describe("CodeBlockWithLineNumbers", () => {
         dropdown.remove();
       });
     });
+
+    describe("guard branches — stale event listeners after dropdown close", () => {
+      // These tests cover the defensive guard returns that fire when the dropdown
+      // has been closed (this.dropdown === null) but a stale event listener still
+      // fires on a captured DOM element (e.g., the search input or list items that
+      // were removed from the DOM together with the dropdown).
+
+      it("filterLanguages (L269): input event on captured searchInput after dropdown is closed is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Close dropdown via Escape key (this sets this.dropdown = null)
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        expect(document.querySelector(".code-lang-dropdown")).toBeNull();
+
+        // Now fire input on the stale captured searchInput — filterLanguages guard (L269) fires
+        searchInput.value = "java";
+        expect(() => searchInput.dispatchEvent(new Event("input"))).not.toThrow();
+
+        nodeView.destroy();
+      });
+
+      it("handleSearchKeydown (L316): keydown on captured searchInput after dropdown is closed is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Close dropdown via outside click
+        document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        expect(document.querySelector(".code-lang-dropdown")).toBeNull();
+
+        // Fire keydown on the stale searchInput — handleSearchKeydown guard (L316) fires
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }))).not.toThrow();
+
+        nodeView.destroy();
+      });
+
+      it("handleSearchKeydown (L319): no .code-lang-list in dropdown — keydown is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Remove the list from the dropdown (while keeping the dropdown open)
+        const list = dropdown.querySelector(".code-lang-list");
+        list?.remove();
+        expect(dropdown.querySelector(".code-lang-list")).toBeNull();
+
+        // Fire keydown — handleSearchKeydown runs, passes L316 guard (dropdown exists),
+        // fails L319 guard (no .code-lang-list), returns early
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }))).not.toThrow();
+        expect(() => searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }))).not.toThrow();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+
+      it("handleListKeydown (L362): keydown on captured list item after dropdown is closed is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const items = Array.from(dropdown.querySelectorAll(".code-lang-item")) as HTMLElement[];
+        expect(items.length).toBeGreaterThan(0);
+        const firstItem = items[0];
+
+        // Close dropdown via Escape
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        expect(document.querySelector(".code-lang-dropdown")).toBeNull();
+
+        // Fire keydown on stale captured item — handleListKeydown guard (L362) fires
+        expect(() => firstItem.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }))).not.toThrow();
+        expect(() => firstItem.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }))).not.toThrow();
+
+        nodeView.destroy();
+      });
+
+      it("handleListKeydown (L365): no .code-lang-list in dropdown — keydown is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown and navigate to a list item
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted") as HTMLElement;
+        expect(highlighted).not.toBeNull();
+
+        // Remove the list from the dropdown (dropdown still open, this.dropdown !== null)
+        const list = dropdown.querySelector(".code-lang-list");
+        list?.remove();
+        expect(dropdown.querySelector(".code-lang-list")).toBeNull();
+
+        // Fire keydown on the highlighted item — handleListKeydown runs, passes L362 guard,
+        // fails L365 guard (no list), returns early
+        expect(() => highlighted.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }))).not.toThrow();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+
+      it("handleListKeydown (L368): empty items list — keydown on a stale item is a no-op", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown and navigate to a list item
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted") as HTMLElement;
+        expect(highlighted).not.toBeNull();
+
+        // Remove all items from the list (keeping the list element but clearing items)
+        const list = dropdown.querySelector(".code-lang-list") as HTMLElement;
+        while (list.firstChild) list.removeChild(list.firstChild);
+        expect(list.querySelectorAll(".code-lang-item").length).toBe(0);
+
+        // Fire keydown on the stale highlighted item — handleListKeydown runs, passes L362 + L365 guards,
+        // fails L368 guard (items.length === 0), returns early
+        expect(() => highlighted.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }))).not.toThrow();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+
+      it("moveHighlight (L420): ArrowDown at last item stays at last item (upper clamp)", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+        const items = dropdown.querySelectorAll(".code-lang-item");
+
+        // Press ArrowDown many times to get to the last item and beyond
+        for (let i = 0; i < items.length + 2; i++) {
+          searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+        }
+
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted");
+        expect(highlighted).not.toBeNull();
+        // The highlighted item should be the last one
+        expect(highlighted).toBe(items[items.length - 1]);
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
   });
 
   describe("language rendering in list", () => {
@@ -1288,4 +1460,5 @@ describe("CodeBlockWithLineNumbers", () => {
       expect(highlightIndex).toBe(0);
     });
   });
+
 });

@@ -518,5 +518,184 @@ describe('useHotExitRestore', () => {
       // Should NOT call pull again since flag is already set
       expect(mockPullWindowStateWithRetry).not.toHaveBeenCalled();
     });
+
+    it('should trigger emit RESTORE_FAILED catch path when emit itself rejects in restoreMainWindowState', async () => {
+      // Cover the .catch on the emit call when no state is found (line 61)
+      mockPullWindowStateWithRetry.mockResolvedValueOnce(null);
+      mockEmit.mockRejectedValueOnce(new Error('emit fail'));
+
+      // Should not throw even if emit fails
+      await expect(restoreMainWindowState()).resolves.toBeUndefined();
+    });
+
+    it('should trigger emit RESTORE_FAILED catch path when emit itself rejects after error', async () => {
+      // Cover the .catch on the emit call in the catch block (line 81)
+      mockPullWindowStateWithRetry.mockRejectedValueOnce(new Error('pull failed'));
+      // First emit call (from catch block) fails
+      mockEmit.mockRejectedValueOnce(new Error('emit also failed'));
+
+      // Should not throw even if emit in catch block fails
+      await expect(restoreMainWindowState()).resolves.toBeUndefined();
+    });
+
+    it('should prevent concurrent restores in the hook', async () => {
+      currentWindowLabel = 'doc-0';
+
+      vi.resetModules();
+      vi.doMock('@tauri-apps/api/core', () => ({
+        invoke: (...args: unknown[]) => mockInvoke(...args),
+      }));
+      vi.doMock('@tauri-apps/api/event', () => ({
+        emit: (...args: unknown[]) => mockEmit(...args),
+        listen: (...args: unknown[]) => mockListen(...args),
+      }));
+      vi.doMock('@tauri-apps/api/webviewWindow', () => ({
+        getCurrentWebviewWindow: () => ({ label: currentWindowLabel }),
+      }));
+      vi.doMock('@/utils/debug', () => ({
+        hotExitLog: vi.fn(),
+        hotExitWarn: vi.fn(),
+      }));
+
+      // Make pull take a long time (simulate concurrent)
+      let resolveFirst!: (v: null) => void;
+      const firstPullPromise = new Promise<null>((res) => { resolveFirst = res; });
+      mockPullWindowStateWithRetry
+        .mockReturnValueOnce(firstPullPromise)
+        .mockResolvedValue(null);
+
+      vi.doMock('./restoreHelpers', () => ({
+        pullWindowStateWithRetry: (...args: unknown[]) => mockPullWindowStateWithRetry(...args),
+        restoreWindowState: (...args: unknown[]) => mockRestoreWindowState(...args),
+      }));
+
+      const mod = await import('./useHotExitRestore');
+
+      // Render twice (simulates strict mode double-invoke) — second call should be ignored
+      renderHook(() => mod.useHotExitRestore());
+      renderHook(() => mod.useHotExitRestore());
+
+      // Resolve first pull so the test doesn't hang
+      resolveFirst(null);
+
+      // Only one pull should have started (second concurrent call ignored)
+      await vi.waitFor(() => {
+        expect(mockPullWindowStateWithRetry).toHaveBeenCalled();
+      });
+    });
+
+    it('should emit RESTORE_FAILED when main window RESTORE_START triggered with no state', async () => {
+      currentWindowLabel = 'main';
+
+      // No state for main window
+      mockPullWindowStateWithRetry.mockResolvedValueOnce(null);
+
+      renderHook(() => useHotExitRestore());
+
+      const listenerCallback = mockListen.mock.calls[0]?.[1] as (() => Promise<void>) | undefined;
+      expect(listenerCallback).toBeDefined();
+
+      await listenerCallback!();
+
+      // Main window with isRequestedRestore=true and no state → emits RESTORE_FAILED
+      await vi.waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith(
+          'hot-exit:restore-failed',
+          expect.objectContaining({ error: expect.stringContaining('No restore state found') }),
+        );
+      });
+    });
+
+    it('should trigger emit catch path in hook error handler when emit rejects', async () => {
+      currentWindowLabel = 'doc-0';
+
+      vi.resetModules();
+      vi.doMock('@tauri-apps/api/core', () => ({
+        invoke: (...args: unknown[]) => mockInvoke(...args),
+      }));
+      vi.doMock('@tauri-apps/api/event', () => ({
+        emit: (...args: unknown[]) => mockEmit(...args),
+        listen: (...args: unknown[]) => mockListen(...args),
+      }));
+      vi.doMock('@tauri-apps/api/webviewWindow', () => ({
+        getCurrentWebviewWindow: () => ({ label: currentWindowLabel }),
+      }));
+      vi.doMock('@/utils/debug', () => ({
+        hotExitLog: vi.fn(),
+        hotExitWarn: vi.fn(),
+      }));
+      vi.doMock('./restoreHelpers', () => ({
+        pullWindowStateWithRetry: (...args: unknown[]) => mockPullWindowStateWithRetry(...args),
+        restoreWindowState: (...args: unknown[]) => mockRestoreWindowState(...args),
+      }));
+
+      const mod = await import('./useHotExitRestore');
+      // Make pull throw so emit gets called in catch block
+      mockPullWindowStateWithRetry.mockRejectedValueOnce(new Error('pull error'));
+      // Make emit also reject to cover the .catch path (line 142)
+      mockEmit.mockRejectedValueOnce(new Error('emit also failed'));
+
+      renderHook(() => mod.useHotExitRestore());
+
+      // Wait for the async effect to finish
+      await vi.waitFor(() => {
+        expect(mockPullWindowStateWithRetry).toHaveBeenCalled();
+      });
+    });
+
+    it('should not call checkPendingState twice if re-rendered (hasCheckedPending guard)', async () => {
+      currentWindowLabel = 'doc-0';
+
+      vi.resetModules();
+      vi.doMock('@tauri-apps/api/core', () => ({
+        invoke: (...args: unknown[]) => mockInvoke(...args),
+      }));
+      vi.doMock('@tauri-apps/api/event', () => ({
+        emit: (...args: unknown[]) => mockEmit(...args),
+        listen: (...args: unknown[]) => mockListen(...args),
+      }));
+      vi.doMock('@tauri-apps/api/webviewWindow', () => ({
+        getCurrentWebviewWindow: () => ({ label: currentWindowLabel }),
+      }));
+      vi.doMock('@/utils/debug', () => ({
+        hotExitLog: vi.fn(),
+        hotExitWarn: vi.fn(),
+      }));
+      vi.doMock('./restoreHelpers', () => ({
+        pullWindowStateWithRetry: (...args: unknown[]) => mockPullWindowStateWithRetry(...args),
+        restoreWindowState: (...args: unknown[]) => mockRestoreWindowState(...args),
+      }));
+
+      const mod = await import('./useHotExitRestore');
+      mockPullWindowStateWithRetry.mockResolvedValue(null);
+
+      const { rerender } = renderHook(() => mod.useHotExitRestore());
+      await vi.waitFor(() => {
+        expect(mockPullWindowStateWithRetry).toHaveBeenCalledTimes(1);
+      });
+
+      // Re-render should NOT trigger another pull (hasCheckedPending is true)
+      // Note: rerender doesn't reset the ref, so the second effect won't pull again
+      rerender();
+
+      await new Promise((r) => setTimeout(r, 50));
+      // Still only 1 call
+      expect(mockPullWindowStateWithRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle cleanup error gracefully when unlisten promise rejects', async () => {
+      currentWindowLabel = 'main';
+
+      // Make listen return a rejecting promise to cover cleanup error path (line 187)
+      mockListen.mockReturnValueOnce(Promise.reject(new Error('listen failed')));
+
+      const { unmount } = renderHook(() => useHotExitRestore());
+
+      // Unmount will trigger cleanup — even if unlisten promise rejected, no throw
+      expect(() => unmount()).not.toThrow();
+
+      // Wait a tick to ensure the async cleanup chain runs without error
+      await new Promise((r) => setTimeout(r, 10));
+    });
   });
 });

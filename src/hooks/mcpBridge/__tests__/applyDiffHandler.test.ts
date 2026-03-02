@@ -330,6 +330,51 @@ describe("applyDiffHandler", () => {
     expect(call.data.appliedCount).toBe(1);
   });
 
+  it("dryRun with matchPolicy=all returns count of all matches", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+      { from: 20, to: 25, nodeId: "p-1", context: { before: "", after: "" } },
+      { from: 40, to: 45, nodeId: "p-2", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-13a", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "all",
+      mode: "dryRun",
+    });
+
+    const call = mockRespond.mock.calls[0][0];
+    expect(call.success).toBe(true);
+    expect(call.data.isDryRun).toBe(true);
+    expect(call.data.matchCount).toBe(3);
+    expect(call.data.appliedCount).toBe(3);
+  });
+
+  it("dryRun with matchPolicy=nth returns appliedCount=1", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+      { from: 20, to: 25, nodeId: "p-1", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-13b", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "nth",
+      nth: 1,
+      mode: "dryRun",
+    });
+
+    const call = mockRespond.mock.calls[0][0];
+    expect(call.success).toBe(true);
+    expect(call.data.isDryRun).toBe(true);
+    expect(call.data.appliedCount).toBe(1);
+  });
+
   it("creates suggestions in suggest mode", async () => {
     mockGetEditor.mockReturnValue(createMockEditor());
     mockIsAutoApproveEnabled.mockReturnValue(false);
@@ -355,5 +400,49 @@ describe("applyDiffHandler", () => {
     });
     const call = mockRespond.mock.calls[0][0];
     expect(call.data.suggestionIds).toHaveLength(1);
+  });
+
+  it("creates suggestions for all matches in suggest mode with matchPolicy=all", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockIsAutoApproveEnabled.mockReturnValue(false);
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+      { from: 20, to: 25, nodeId: "p-1", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-14a", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "all",
+      mode: "suggest",
+    });
+
+    expect(mockAddSuggestion).toHaveBeenCalledTimes(2);
+    const call = mockRespond.mock.calls[0][0];
+    expect(call.data.suggestionIds).toHaveLength(2);
+  });
+
+  it("creates suggestion for nth match in suggest mode", async () => {
+    mockGetEditor.mockReturnValue(createMockEditor());
+    mockIsAutoApproveEnabled.mockReturnValue(false);
+    mockFindTextMatches.mockReturnValue([
+      { from: 0, to: 5, nodeId: "p-0", context: { before: "", after: "" } },
+      { from: 20, to: 25, nodeId: "p-1", context: { before: "", after: "" } },
+    ]);
+
+    await handleApplyDiff("req-14b", {
+      baseRevision: "rev-1",
+      original: "Hello",
+      replacement: "Hi",
+      matchPolicy: "nth",
+      nth: 1,
+      mode: "suggest",
+    });
+
+    expect(mockAddSuggestion).toHaveBeenCalledTimes(1);
+    expect(mockAddSuggestion).toHaveBeenCalledWith(
+      expect.objectContaining({ from: 20, to: 25 })
+    );
   });
 });

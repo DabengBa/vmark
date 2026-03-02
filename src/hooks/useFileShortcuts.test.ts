@@ -505,4 +505,230 @@ describe("useFileShortcuts", () => {
       });
     });
   });
+
+  describe("cancelled guards for each listener (lines 52, 67, 74, 81, 92, 102)", () => {
+    // Each listener has: `if (cancelled) { unlistenX(); return; }`
+    // We trigger it by unmounting between each sequential await.
+
+    it("cancelled guard fires for menu:save listener (3rd listener, line 67)", async () => {
+      // Let first 2 listeners resolve, block 3rd, unmount, resolve 3rd
+      let callCount = 0;
+      let resolveThird: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.resolve(vi.fn());
+        }
+        if (callCount === 3) {
+          return new Promise<() => void>((resolve) => {
+            resolveThird = resolve;
+          });
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(3);
+      });
+
+      unmount();
+
+      const unlisten3 = vi.fn();
+      if (resolveThird) resolveThird(unlisten3);
+
+      await vi.waitFor(() => {
+        expect(unlisten3).toHaveBeenCalled();
+      });
+    });
+
+    it("cancelled guard fires for menu:save-as listener (4th listener, line 74)", async () => {
+      let callCount = 0;
+      let resolveFourth: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount <= 3) return Promise.resolve(vi.fn());
+        if (callCount === 4) {
+          return new Promise<() => void>((resolve) => {
+            resolveFourth = resolve;
+          });
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(4);
+      });
+
+      unmount();
+
+      const unlisten4 = vi.fn();
+      if (resolveFourth) resolveFourth(unlisten4);
+
+      await vi.waitFor(() => {
+        expect(unlisten4).toHaveBeenCalled();
+      });
+    });
+
+    it("cancelled guard fires for menu:move-to listener (5th listener, line 81)", async () => {
+      let callCount = 0;
+      let resolveFifth: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount <= 4) return Promise.resolve(vi.fn());
+        if (callCount === 5) {
+          return new Promise<() => void>((resolve) => {
+            resolveFifth = resolve;
+          });
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(5);
+      });
+
+      unmount();
+
+      const unlisten5 = vi.fn();
+      if (resolveFifth) resolveFifth(unlisten5);
+
+      await vi.waitFor(() => {
+        expect(unlisten5).toHaveBeenCalled();
+      });
+    });
+
+    it("cancelled guard fires for menu:save-all-quit listener (6th listener, line 92)", async () => {
+      let callCount = 0;
+      let resolveSixth: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount <= 5) return Promise.resolve(vi.fn());
+        if (callCount === 6) {
+          return new Promise<() => void>((resolve) => {
+            resolveSixth = resolve;
+          });
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(6);
+      });
+
+      unmount();
+
+      const unlisten6 = vi.fn();
+      if (resolveSixth) resolveSixth(unlisten6);
+
+      await vi.waitFor(() => {
+        expect(unlisten6).toHaveBeenCalled();
+      });
+    });
+
+    it("cancelled guard fires for open-file listener (7th listener, line 102)", async () => {
+      let callCount = 0;
+      let resolveSeventh: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation((_eventName: string, _callback: unknown) => {
+        callCount++;
+        if (callCount <= 6) return Promise.resolve(vi.fn());
+        if (callCount === 7) {
+          return new Promise<() => void>((resolve) => {
+            resolveSeventh = resolve;
+          });
+        }
+        return Promise.resolve(vi.fn());
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalledTimes(7);
+      });
+
+      unmount();
+
+      const unlisten7 = vi.fn();
+      if (resolveSeventh) resolveSeventh(unlisten7);
+
+      await vi.waitFor(() => {
+        expect(unlisten7).toHaveBeenCalled();
+      });
+    });
+
+    it("cancelled=true after safeUnlistenAll on re-render skips setup (line 41)", async () => {
+      // When the effect cleanup runs and cancelled is set, a second setupListeners
+      // call (from a re-render) will check `if (cancelled) return` after safeUnlistenAll.
+      // We simulate this by unmounting immediately so cancelled fires before listeners resolve.
+      let resolveFirst: ((fn: () => void) => void) | undefined;
+
+      mockListen.mockImplementation(() => {
+        return new Promise<() => void>((resolve) => {
+          resolveFirst = resolve;
+        });
+      });
+
+      const { unmount } = renderHook(() => useFileShortcuts("main"));
+
+      // Unmount before any listener resolves — cancelled becomes true
+      unmount();
+
+      // Resolve the first listener after unmount
+      const unlisten = vi.fn();
+      if (resolveFirst) resolveFirst(unlisten);
+
+      await vi.waitFor(() => {
+        expect(unlisten).toHaveBeenCalled();
+      });
+    });
+
+    it("keydown handler treats INPUT target as skippable (line 114)", async () => {
+      // This test verifies that the INPUT guard (line 114) is properly exercised.
+      // We use a custom mockMatchesShortcutEvent to verify the handler exits before matching.
+      mockMatchesShortcutEvent.mockImplementation(() => true);
+
+      // Track whether matchesShortcutEvent was called
+      let matchCallCount = 0;
+      mockMatchesShortcutEvent.mockImplementation(() => {
+        matchCallCount++;
+        return true;
+      });
+
+      renderHook(() => useFileShortcuts("main"));
+
+      await vi.waitFor(() => {
+        expect(mockListen).toHaveBeenCalled();
+      });
+
+      // Create a keyboard event — use a trick to make target.tagName === "INPUT"
+      // by using a synthetic event with a proper target via addEventListener spy
+      const inputEl = document.createElement("input");
+      document.body.appendChild(inputEl);
+
+      // Dispatch directly on the input element — when it bubbles to window,
+      // event.target will be the input
+      inputEl.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "s",
+        metaKey: true,
+        bubbles: true,
+      }));
+
+      // handleSave should NOT be called because target is INPUT
+      expect(mockHandleSave).not.toHaveBeenCalled();
+
+      document.body.removeChild(inputEl);
+    });
+  });
 });

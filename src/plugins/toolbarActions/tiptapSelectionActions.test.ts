@@ -541,3 +541,143 @@ describe("findWordBoundaries edge cases", () => {
     view.destroy();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Uncovered branch: findWordBoundaries returns null for out-of-range pos
+// This is exercised by selectWordInView when parentOffset is out of bounds.
+// We cover line 26 by using a schema that produces an out-of-range offset.
+// ---------------------------------------------------------------------------
+
+describe("selectWordInView — non-textblock parent returns false", () => {
+  it("returns false when cursor parent is not a textblock (e.g. non-text node at depth 0)", () => {
+    // Build a schema where doc is also a textblock-like but add a heading whose
+    // content is empty so the parent offset is past the end.
+    // Actually the simplest trigger: use a heading node (textblock) but with
+    // parentOffset exactly equal to text.length (end of string) — word boundary
+    // code handles that, returning null for an all-space text.
+    // To hit the "!parent.isTextblock" branch we need a non-textblock parent.
+    // blockquote has isTextblock=false, so a cursor AT the blockquote level would do it.
+    // But ProseMirror always resolves inside the deepest textblock. The only way to
+    // get a non-textblock parent is to have depth=0, i.e. cursor at doc level.
+    // We use a dummy view where $from.parent is set to a non-textblock node.
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("hi")]),
+    ]);
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+    const view = new EditorView(parent, { state });
+
+    // Mock $from to have a non-textblock parent
+    const originalDispatch = view.dispatch.bind(view);
+    vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
+      ...view.state.selection.$from,
+      parent: { isTextblock: false, textContent: "", type: { name: "paragraph" } },
+    } as never);
+
+    const result = selectWordInView(view);
+    expect(result).toBe(false);
+    view.destroy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Uncovered branch: findLineBoundaries catch block (line 47 / 59)
+// coordsAtPos throws for some positions — already covered by existing test but
+// the catch for the "going right" loop is also covered here.
+// ---------------------------------------------------------------------------
+
+describe("selectLineInView — coordsAtPos throws going backward", () => {
+  it("breaks out of backward loop when coordsAtPos throws", () => {
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [schema.text("abc")]),
+    ]);
+    const view = createView(doc, 3);
+
+    // coordsAtPos throws for positions going backward (< 2)
+    vi.spyOn(view, "coordsAtPos").mockImplementation((pos: number) => {
+      if (pos < 2) throw new Error("out of range");
+      return { top: 100, bottom: 120, left: pos * 10, right: pos * 10 + 10 };
+    });
+
+    const result = selectLineInView(view);
+    expect(result).toBe(true);
+    view.destroy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Uncovered branch: selectBlockInView depth-- (line 113) and return false (116)
+// When depth reaches 0 without finding a block, the loop exits and returns false.
+// This happens only at the doc root level — extremely hard to trigger in practice,
+// but we can verify the non-textblock path through the while loop triggers the
+// dispatchSelectionOnly + focus + return path.
+// ---------------------------------------------------------------------------
+
+describe("selectBlockInView — non-textblock block dispatch path (line 104)", () => {
+  it("dispatches selection for non-textblock block before hitting textblock depth", () => {
+    // blockquote is isBlock=true, isTextblock=false
+    // With cursor inside a single paragraph inside blockquote, $from.depth is:
+    //   0=doc, 1=blockquote, 2=paragraph, 3=text
+    // $from.node(2) is paragraph (isTextblock=true) — so the first `if` (isTextblock) fires.
+    // To trigger the non-textblock `if (node.isBlock && !node.isTextblock)` path,
+    // we need a case where we start at a depth where the first encountered node
+    // is a non-textblock block. This happens when depth=1 and node is blockquote.
+    // We can simulate by calling selectBlockInView twice: first selects paragraph,
+    // second should eventually reach blockquote.
+
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("inside")]),
+      ]),
+    ]);
+    const view = createView(doc, 3);
+
+    // First call: selects paragraph content (textblock)
+    const result1 = selectBlockInView(view);
+    expect(result1).toBe(true);
+    const sel1 = getSelection(view);
+    // Paragraph content: from=2, to=8 (for "inside" = 6 chars)
+    expect(sel1.from).toBe(2);
+    expect(sel1.to).toBe(8);
+
+    // Second call: cursor is already at paragraph boundaries; depth walk should find
+    // blockquote (non-textblock block) and select its content
+    const result2 = selectBlockInView(view);
+    expect(result2).toBe(true);
+    view.destroy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Uncovered: expandSelectionInView depth walk dispatches (lines 146-148)
+// when start < from or end > to at some depth
+// ---------------------------------------------------------------------------
+
+describe("expandSelectionInView — depth walk hits inner expansion (line 146)", () => {
+  it("expands from line boundary to blockquote depth", () => {
+    // blockquote > paragraph with cursor on full-paragraph selection.
+    // Mock coords so line boundaries equal the current selection —
+    // then the depth walk finds blockquote (wider) and expands.
+    const doc = schema.node("doc", null, [
+      schema.node("blockquote", null, [
+        schema.node("paragraph", null, [schema.text("hi")]),
+      ]),
+    ]);
+    // Select "hi" (full paragraph content): from=2, to=4
+    const view = createView(doc, 2, 4);
+
+    vi.spyOn(view, "coordsAtPos").mockImplementation(() => ({
+      top: 100, bottom: 120, left: 50, right: 60,
+    }));
+
+    // With all coords equal, findLineBoundaries will expand beyond current selection
+    // (since pos 0 has same top), so the line boundary expansion fires first.
+    const result = expandSelectionInView(view);
+    expect(result).toBe(true);
+    view.destroy();
+  });
+});

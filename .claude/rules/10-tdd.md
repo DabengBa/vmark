@@ -173,10 +173,10 @@ Coverage thresholds are defined in `vitest.config.ts`:
 
 ```ts
 thresholds: {
-  statements: 96,
-  branches: 89,
-  functions: 96,
-  lines: 97,
+  statements: 97,
+  branches: 90,
+  functions: 97,
+  lines: 98,
 }
 ```
 

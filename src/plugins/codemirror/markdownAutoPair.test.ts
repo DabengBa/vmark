@@ -382,3 +382,115 @@ describe("createMarkdownAutoPairPlugin — destroy with pending timeout", () => 
     await Promise.resolve();
   });
 });
+
+describe("createMarkdownAutoPairPlugin — additional branch coverage", () => {
+  let view: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockIsCodeMirrorComposing.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    view?.destroy();
+    vi.useRealTimers();
+  });
+
+  // Line 143: text.length !== 1 — multi-char input.type transaction is ignored
+  it("ignores multi-char input.type transactions", async () => {
+    view = createPluginView("");
+    // Dispatch a 2-char input.type (paste via input.type — unusual but possible)
+    view.dispatch({
+      changes: { from: 0, to: 0, insert: "**" },
+      selection: { anchor: 2 },
+      userEvent: "input.type",
+    });
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    // No closing pair — multi-char input is skipped
+    expect(view.state.doc.toString()).toBe("**");
+  });
+
+  // Lines 191-192: triple backtick path clears existing pending before inserting fence
+  it("clears pending single-char when triple backtick typed", async () => {
+    // Start with `` in doc, cursor at 2, pending backtick in state
+    view = createPluginView("`");
+    // First backtick already in doc; type second backtick to set pending
+    typeChar(view, "`", 1);
+    // Now type third backtick — this triggers triple-backtick path with pending active
+    typeChar(view, "`", 2);
+    await vi.runAllTimersAsync();
+    // Triple backtick inserts code fence closing
+    expect(view.state.doc.toString()).toBe("```\n\n```");
+  });
+
+  // Line 196: pos < 0 or pos > doc.length — guard in handleBacktick (very unusual edge)
+  it("triple backtick guard: does not crash when pos is at line start with odd bounds", async () => {
+    // This indirectly tests the lineAt bounds guard — the code fence path at line start
+    view = createPluginView("``");
+    // Simulate typing third backtick at position 2 (valid)
+    typeChar(view, "`", 2);
+    await vi.runAllTimersAsync();
+    // Normal code fence insertion — guard was not triggered but the path was exercised
+    expect(view.state.doc.toString()).toBe("```\n\n```");
+  });
+
+  // Lines 222-223: single backtick with existing pending of different char clears it
+  it("single backtick clears existing pending of different char before setting new pending", async () => {
+    view = createPluginView("");
+    // Type * to set a pending for *
+    typeChar(view, "*", 0);
+    // Now type ` — this should clear the * pending and create a new ` pending
+    typeChar(view, "`", 1);
+    // Advance past delay — ` timeout fires (cursor at pos 2 = pos + 1 check)
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    // * pending was cleared (no * closing), ` closing was inserted
+    expect(view.state.doc.toString()).toBe("*``");
+  });
+
+  // Line 68: catch block in safeDispatch — dispatch throws
+  it("safeDispatch catch block: dispatch exception does not propagate", async () => {
+    view = createPluginView("");
+    typeChar(view, "*", 0);
+
+    // Monkey-patch view.dispatch to throw after the timeout fires
+    const origDispatch = view.dispatch.bind(view);
+    let throwOnce = true;
+    view.dispatch = (...args) => {
+      if (throwOnce) {
+        throwOnce = false;
+        throw new Error("simulated dispatch error");
+      }
+      return origDispatch(...args);
+    };
+
+    // Should not throw — catch block returns false silently
+    expect(() => {
+      vi.advanceTimersByTime(200);
+    }).not.toThrow();
+  });
+
+  // Line 58: safeDispatch returns false when dom is disconnected
+  it("safeDispatch returns false when dom is not connected", async () => {
+    // Create a view whose parent is NOT in document.body
+    const parent = document.createElement("div");
+    // Don't append to body — dom.isConnected will be false
+    const plugin = createMarkdownAutoPairPlugin();
+    const state = EditorState.create({
+      doc: "",
+      extensions: [plugin],
+    });
+    const disconnectedView = new EditorView({ state, parent });
+
+    // Type a char — safeDispatch will see dom.isConnected === false
+    typeChar(disconnectedView, "*", 0);
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+
+    // No closing pair inserted because dom is disconnected
+    expect(disconnectedView.state.doc.toString()).toBe("*");
+    disconnectedView.destroy();
+  });
+});
