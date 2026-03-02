@@ -423,4 +423,209 @@ describe("buildEditorKeymapBindings handler execution", () => {
       }
     }
   });
+
+  it("subscript and superscript bindings return false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const marks = ["subscript", "superscript"];
+
+    for (const name of marks) {
+      const key = shortcuts.getShortcut(name);
+      if (key && bindings[key]) {
+        const result = bindings[key]({} as never, undefined, undefined);
+        expect(result).toBe(false);
+      }
+    }
+  });
+
+  it("unlink binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("unlink");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("wikiLink binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("wikiLink");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("bookmarkLink binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("bookmarkLink");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("inlineMath binding returns false when view is undefined", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("inlineMath");
+    if (key && bindings[key]) {
+      const result = bindings[key]({} as never, undefined, undefined);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("Escape closes universal toolbar when visible", async () => {
+    const { useUIStore } = await import("@/stores/uiStore");
+    const { useSourcePeekStore } = await import("@/stores/sourcePeekStore");
+    // Ensure source peek is closed
+    useSourcePeekStore.setState({ isOpen: false });
+    useUIStore.getState().setUniversalToolbarVisible(true);
+
+    const bindings = buildEditorKeymapBindings();
+    const mockView = { dom: {} };
+    const result = bindings.Escape({} as never, vi.fn(), mockView);
+    expect(result).toBe(true);
+    expect(useUIStore.getState().universalToolbarVisible).toBe(false);
+  });
+
+  it("blockquote binding returns true with a view", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      // Create a mock view that has dom.editor
+      const { Schema } = require("@tiptap/pm/model");
+      const { EditorState } = require("@tiptap/pm/state");
+      const testSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          blockquote: { group: "block", content: "block+" },
+          text: { group: "inline" },
+        },
+      });
+      const doc = testSchema.node("doc", null, [
+        testSchema.node("paragraph", null, [testSchema.text("hello")]),
+      ]);
+      const state = EditorState.create({ doc, schema: testSchema });
+
+      const mockEditor = {
+        isActive: vi.fn(() => false),
+      };
+      const mockDom = document.createElement("div");
+      (mockDom as unknown as Record<string, unknown>).editor = mockEditor;
+      const mockView = {
+        dom: mockDom,
+        state,
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+      };
+
+      const result = bindings[key](state as never, vi.fn(), mockView);
+      expect(result).toBe(true);
+    }
+  });
+
+  it("blockquote binding removes blockquote when already active", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const { Schema } = require("@tiptap/pm/model");
+      const { EditorState } = require("@tiptap/pm/state");
+      const testSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          blockquote: { group: "block", content: "block+" },
+          text: { group: "inline" },
+        },
+      });
+      const doc = testSchema.node("doc", null, [
+        testSchema.node("blockquote", null, [
+          testSchema.node("paragraph", null, [testSchema.text("quoted")]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema: testSchema });
+
+      const mockEditor = {
+        isActive: vi.fn(() => true), // blockquote is active
+      };
+      const mockDom = document.createElement("div");
+      (mockDom as unknown as Record<string, unknown>).editor = mockEditor;
+      const mockView = {
+        dom: mockDom,
+        state,
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+      };
+
+      const result = bindings[key](state as never, vi.fn(), mockView);
+      expect(result).toBe(true);
+    }
+  });
+
+  it("blockquote binding returns false when view has no editor", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const mockDom = document.createElement("div");
+      // No editor on dom
+      const mockView = { dom: mockDom };
+      const result = bindings[key]({} as never, vi.fn(), mockView);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("blockquote binding returns false when no blockquote type in schema", () => {
+    const bindings = buildEditorKeymapBindings();
+    const shortcuts = useShortcutsStore.getState();
+    const key = shortcuts.getShortcut("blockquote");
+    if (key && bindings[key]) {
+      const { Schema } = require("@tiptap/pm/model");
+      const { EditorState } = require("@tiptap/pm/state");
+      // Schema without blockquote node
+      const testSchema = new Schema({
+        nodes: {
+          doc: { content: "paragraph+" },
+          paragraph: { content: "text*" },
+          text: { inline: true },
+        },
+      });
+      const doc = testSchema.node("doc", null, [
+        testSchema.node("paragraph", null, [testSchema.text("hello")]),
+      ]);
+      const state = EditorState.create({ doc, schema: testSchema });
+
+      const mockEditor = { isActive: vi.fn(() => false) };
+      const mockDom = document.createElement("div");
+      (mockDom as unknown as Record<string, unknown>).editor = mockEditor;
+      const mockView = {
+        dom: mockDom,
+        state,
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+      };
+
+      const result = bindings[key](state as never, vi.fn(), mockView);
+      expect(result).toBe(false);
+    }
+  });
+
+  it("sourcePeek binding returns false when source peek fails to open", () => {
+    const bindings = buildEditorKeymapBindings();
+    // F5 is the default source peek key
+    if (bindings.F5) {
+      // openSourcePeekInline needs a real editor state. Without it, it should
+      // throw or return false. We just verify the binding is callable.
+      // The actual source peek behavior is tested in its own test suite.
+      const result = bindings.F5({} as never, vi.fn(), undefined);
+      expect(result).toBe(false);
+    }
+  });
 });

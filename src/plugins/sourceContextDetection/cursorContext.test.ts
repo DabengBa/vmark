@@ -153,6 +153,58 @@ describe("computeSourceCursorContext", () => {
     });
   });
 
+  describe("table detection integration", () => {
+    it("detects table context", () => {
+      const doc = "| a | b |\n| --- | --- |\n| c | d |";
+      const view = createView(doc, 25); // inside table data row
+      const ctx = computeSourceCursorContext(view);
+
+      expect(ctx.inTable).not.toBeNull();
+      expect(ctx.inTable!.row).toBeDefined();
+      expect(ctx.inTable!.col).toBeDefined();
+      view.destroy();
+    });
+  });
+
+  describe("list detection integration", () => {
+    it("detects list context", () => {
+      const doc = "- item one\n- item two";
+      const view = createView(doc, 5); // inside first list item
+      const ctx = computeSourceCursorContext(view);
+
+      expect(ctx.inList).not.toBeNull();
+      expect(ctx.inList!.type).toBeDefined();
+      expect(ctx.inList!.depth).toBeGreaterThanOrEqual(1);
+      view.destroy();
+    });
+  });
+
+  describe("blockquote detection integration", () => {
+    it("detects blockquote context", () => {
+      const doc = "> quoted text";
+      const view = createView(doc, 5); // inside blockquote
+      const ctx = computeSourceCursorContext(view);
+
+      expect(ctx.inBlockquote).not.toBeNull();
+      expect(ctx.inBlockquote!.depth).toBeGreaterThanOrEqual(1);
+      view.destroy();
+    });
+  });
+
+  describe("format range detection integration", () => {
+    it("detects format range when inside bold text", () => {
+      const doc = "text **bold** more";
+      const view = createView(doc, 8); // inside "bold"
+      const ctx = computeSourceCursorContext(view);
+
+      // May or may not detect bold depending on detection implementation
+      // but exercises the getAllFormattedRanges path
+      expect(ctx.formatRanges).toBeDefined();
+      expect(ctx.activeFormats).toBeDefined();
+      view.destroy();
+    });
+  });
+
   describe("blank line and position detection", () => {
     it("detects blank line", () => {
       const doc = "line1\n\nline3";

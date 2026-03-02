@@ -1,655 +1,526 @@
 /**
  * Source Table Context Menu Tests
  *
- * Tests for the CodeMirror 6 source mode table context menu including:
- * - Module exports
- * - Table action function integration
- * - Context menu DOM lifecycle (build, show, hide, destroy)
- * - Click outside and Escape to close
- * - Disabled items on separator row
- * - Danger styling
+ * Tests the real SourceTableContextMenuView class via the ViewPlugin by creating
+ * a CodeMirror EditorView with the plugin extension and dispatching contextmenu
+ * events. posAtCoords is monkey-patched because jsdom has no layout engine.
  */
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import type { EditorView } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
-// Mock table detection and actions
+// ── Mocks ────────────────────────────────────────────────────────
+
 const mockGetSourceTableInfo = vi.fn();
 vi.mock("@/plugins/sourceContextDetection/tableDetection", () => ({
   getSourceTableInfo: (...args: unknown[]) => mockGetSourceTableInfo(...args),
 }));
 
+const mockInsertRowAbove = vi.fn();
+const mockInsertRowBelow = vi.fn();
+const mockInsertColumnLeft = vi.fn();
+const mockInsertColumnRight = vi.fn();
+const mockDeleteRow = vi.fn();
+const mockDeleteColumn = vi.fn();
+const mockDeleteTable = vi.fn();
+const mockSetColumnAlignment = vi.fn();
+const mockSetAllColumnsAlignment = vi.fn();
+const mockFormatTable = vi.fn();
+
 vi.mock("@/plugins/sourceContextDetection/tableActions", () => ({
-  insertRowAbove: vi.fn(),
-  insertRowBelow: vi.fn(),
-  insertColumnLeft: vi.fn(),
-  insertColumnRight: vi.fn(),
-  deleteRow: vi.fn(),
-  deleteColumn: vi.fn(),
-  deleteTable: vi.fn(),
-  setColumnAlignment: vi.fn(),
-  setAllColumnsAlignment: vi.fn(),
-  formatTable: vi.fn(),
+  insertRowAbove: (...args: unknown[]) => mockInsertRowAbove(...args),
+  insertRowBelow: (...args: unknown[]) => mockInsertRowBelow(...args),
+  insertColumnLeft: (...args: unknown[]) => mockInsertColumnLeft(...args),
+  insertColumnRight: (...args: unknown[]) => mockInsertColumnRight(...args),
+  deleteRow: (...args: unknown[]) => mockDeleteRow(...args),
+  deleteColumn: (...args: unknown[]) => mockDeleteColumn(...args),
+  deleteTable: (...args: unknown[]) => mockDeleteTable(...args),
+  setColumnAlignment: (...args: unknown[]) => mockSetColumnAlignment(...args),
+  setAllColumnsAlignment: (...args: unknown[]) => mockSetAllColumnsAlignment(...args),
+  formatTable: (...args: unknown[]) => mockFormatTable(...args),
 }));
 
-// Mock icons — using text content only (no HTML) for test safety
 vi.mock("@/utils/icons", () => ({
   icons: {
-    rowAbove: "rowAbove",
-    rowBelow: "rowBelow",
-    colLeft: "colLeft",
-    colRight: "colRight",
-    deleteRow: "deleteRow",
-    deleteCol: "deleteCol",
-    deleteTable: "deleteTable",
-    alignLeft: "alignLeft",
-    alignCenter: "alignCenter",
-    alignRight: "alignRight",
-    alignAllLeft: "alignAllLeft",
-    alignAllCenter: "alignAllCenter",
-    alignAllRight: "alignAllRight",
-    formatTable: "formatTable",
+    rowAbove: "RA", rowBelow: "RB", colLeft: "CL", colRight: "CR",
+    deleteRow: "DR", deleteCol: "DC", deleteTable: "DT",
+    alignLeft: "AL", alignCenter: "AC", alignRight: "AR",
+    alignAllLeft: "AAL", alignAllCenter: "AAC", alignAllRight: "AAR",
+    formatTable: "FT",
   },
 }));
 
+const mockToastSuccess = vi.fn();
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: (...args: unknown[]) => mockToastSuccess(...args), error: vi.fn() },
 }));
 
+let mockPopupHost: HTMLElement | null = null;
 vi.mock("@/plugins/sourcePopup", () => ({
-  getPopupHost: (view: EditorView) => (view.dom as HTMLElement).closest(".editor-container"),
-  toHostCoords: (_host: HTMLElement, pos: { top: number; left: number }) => pos,
+  getPopupHost: () => mockPopupHost,
+  toHostCoords: (_h: HTMLElement, pos: { top: number; left: number }) => pos,
 }));
 
-// Import table actions for assertions
-import {
-  insertRowAbove,
-  insertRowBelow,
-  insertColumnLeft,
-  insertColumnRight,
-  deleteRow,
-  deleteColumn,
-  deleteTable,
-  setColumnAlignment,
-  setAllColumnsAlignment,
-  formatTable,
-} from "@/plugins/sourceContextDetection/tableActions";
 import type { SourceTableInfo } from "@/plugins/sourceContextDetection/tableTypes";
+import { sourceTableContextMenuExtensions } from "../sourceTableContextMenu";
 
-// Helper to create test infrastructure
-function createEditorContainer() {
-  const container = document.createElement("div");
-  container.className = "editor-container";
-  container.style.position = "relative";
-  container.style.width = "800px";
-  container.style.height = "600px";
-  container.getBoundingClientRect = () => ({
-    top: 0,
-    left: 0,
-    bottom: 600,
-    right: 800,
-    width: 800,
-    height: 600,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
+// ── Test data ────────────────────────────────────────────────────
+
+const mkInfo = (rowIndex = 0): SourceTableInfo => ({
+  start: 0, end: 100, startLine: 0, endLine: 3,
+  rowIndex, colIndex: 0, colCount: 2,
+  lines: ["| A | B |", "|---|---|", "| 1 | 2 |"],
+});
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+const views: EditorView[] = [];
+
+function createHost() {
+  const host = document.createElement("div");
+  host.className = "editor-container";
+  Object.defineProperties(host, {
+    scrollLeft: { value: 0, writable: true },
+    scrollTop: { value: 0, writable: true },
   });
-
-  const editorDom = document.createElement("div");
-  editorDom.className = "cm-editor";
-  container.appendChild(editorDom);
-
-  document.body.appendChild(container);
-
-  return {
-    container,
-    editorDom,
-    cleanup: () => container.remove(),
-  };
+  host.getBoundingClientRect = () => ({
+    top: 0, left: 0, bottom: 600, right: 800,
+    width: 800, height: 600, x: 0, y: 0, toJSON: () => ({}),
+  });
+  document.body.appendChild(host);
+  return host;
 }
 
-function createMockView(editorDom: HTMLElement) {
-  return {
-    dom: editorDom,
-    state: {},
-    dispatch: vi.fn(),
-    focus: vi.fn(),
-    posAtCoords: vi.fn(() => 10),
-  };
+function createLiveView(host: HTMLElement) {
+  const state = EditorState.create({
+    doc: "| A | B |\n|---|---|\n| 1 | 2 |",
+    extensions: sourceTableContextMenuExtensions,
+  });
+  const view = new EditorView({ state, parent: host });
+  // Patch posAtCoords — jsdom has no layout engine
+  view.posAtCoords = () => 5;
+  views.push(view);
+  return view;
 }
 
-const mockTableInfo: SourceTableInfo = {
-  start: 0,
-  end: 100,
-  startLine: 0,
-  endLine: 3,
-  rowIndex: 0,
-  colIndex: 0,
-  colCount: 2,
-  lines: [
-    "| Header 1 | Header 2 |",
-    "|----------|----------|",
-    "| Cell 1   | Cell 2   |",
-  ],
-};
+function fireContextMenu(target: HTMLElement, x = 50, y = 20) {
+  target.dispatchEvent(
+    new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true, cancelable: true })
+  );
+}
 
-const mockSeparatorInfo: SourceTableInfo = {
-  ...mockTableInfo,
-  rowIndex: 1,
-};
-
-// Dynamically import after mocks
-const importContextMenu = async () => {
-  const mod = await import("../sourceTableContextMenu");
-  return mod;
-};
+// ── Tests ────────────────────────────────────────────────────────
 
 describe("SourceTableContextMenu", () => {
-  let dom: ReturnType<typeof createEditorContainer>;
-  let view: ReturnType<typeof createMockView>;
+  let host: HTMLElement;
 
   beforeEach(() => {
     document.body.innerHTML = "";
     vi.clearAllMocks();
-    dom = createEditorContainer();
-    view = createMockView(dom.editorDom);
+    host = createHost();
+    mockPopupHost = host;
   });
 
   afterEach(() => {
-    dom.cleanup();
+    views.forEach((v) => { try { v.destroy(); } catch {} });
+    views.length = 0;
+    document.body.innerHTML = "";
   });
 
-  describe("Module exports", () => {
-    it("exports sourceTableContextMenuExtensions as an array", async () => {
-      const { sourceTableContextMenuExtensions } = await importContextMenu();
-      expect(Array.isArray(sourceTableContextMenuExtensions)).toBe(true);
-      expect(sourceTableContextMenuExtensions.length).toBeGreaterThan(0);
-    });
+  // ── Module exports ─────────────────────────────────────────────
 
-    it("does not export createTableContextMenuHandler (replaced by ViewPlugin)", async () => {
-      const mod = await importContextMenu();
-      expect((mod as Record<string, unknown>).createTableContextMenuHandler).toBeUndefined();
-    });
-
-    it("does not export createSourceTableContextMenuPlugin (removed)", async () => {
-      const mod = await importContextMenu();
-      expect((mod as Record<string, unknown>).createSourceTableContextMenuPlugin).toBeUndefined();
-    });
+  it("exports a single-item extension array", () => {
+    expect(sourceTableContextMenuExtensions).toHaveLength(1);
+    expect(sourceTableContextMenuExtensions[0]).toBeDefined();
   });
 
-  describe("Table action functions", () => {
-    it("insertRowAbove is callable", () => {
-      insertRowAbove(view as unknown as EditorView, mockTableInfo);
-      expect(insertRowAbove).toHaveBeenCalledWith(view, mockTableInfo);
-    });
+  // ── No table ───────────────────────────────────────────────────
 
-    it("insertRowBelow is callable", () => {
-      insertRowBelow(view as unknown as EditorView, mockTableInfo);
-      expect(insertRowBelow).toHaveBeenCalledWith(view, mockTableInfo);
-    });
+  it("does not show menu when not in a table", () => {
+    mockGetSourceTableInfo.mockReturnValue(null);
+    const view = createLiveView(host);
 
-    it("insertColumnLeft is callable", () => {
-      insertColumnLeft(view as unknown as EditorView, mockTableInfo);
-      expect(insertColumnLeft).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-
-    it("insertColumnRight is callable", () => {
-      insertColumnRight(view as unknown as EditorView, mockTableInfo);
-      expect(insertColumnRight).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-
-    it("deleteRow is callable", () => {
-      deleteRow(view as unknown as EditorView, mockTableInfo);
-      expect(deleteRow).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-
-    it("deleteColumn is callable", () => {
-      deleteColumn(view as unknown as EditorView, mockTableInfo);
-      expect(deleteColumn).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-
-    it("deleteTable is callable", () => {
-      deleteTable(view as unknown as EditorView, mockTableInfo);
-      expect(deleteTable).toHaveBeenCalledWith(view, mockTableInfo);
-    });
-
-    it("setColumnAlignment is callable with left", () => {
-      setColumnAlignment(view as unknown as EditorView, mockTableInfo, "left");
-      expect(setColumnAlignment).toHaveBeenCalledWith(view, mockTableInfo, "left");
-    });
-
-    it("setColumnAlignment is callable with center", () => {
-      setColumnAlignment(view as unknown as EditorView, mockTableInfo, "center");
-      expect(setColumnAlignment).toHaveBeenCalledWith(view, mockTableInfo, "center");
-    });
-
-    it("setColumnAlignment is callable with right", () => {
-      setColumnAlignment(view as unknown as EditorView, mockTableInfo, "right");
-      expect(setColumnAlignment).toHaveBeenCalledWith(view, mockTableInfo, "right");
-    });
-
-    it("setAllColumnsAlignment is callable", () => {
-      setAllColumnsAlignment(view as unknown as EditorView, mockTableInfo, "center");
-      expect(setAllColumnsAlignment).toHaveBeenCalledWith(view, mockTableInfo, "center");
-    });
-
-    it("formatTable is callable", () => {
-      formatTable(view as unknown as EditorView, mockTableInfo);
-      expect(formatTable).toHaveBeenCalledWith(view, mockTableInfo);
-    });
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelector(".table-context-menu")).toBeNull();
   });
 
-  describe("ViewPlugin extension", () => {
-    it("the extension array contains exactly one entry", async () => {
-      const { sourceTableContextMenuExtensions } = await importContextMenu();
-      expect(sourceTableContextMenuExtensions.length).toBe(1);
-    });
+  // ── Menu creation ──────────────────────────────────────────────
 
-    it("extension is a valid CodeMirror extension object", async () => {
-      const { sourceTableContextMenuExtensions } = await importContextMenu();
-      // ViewPlugin extensions are objects with specific internal structure
-      expect(sourceTableContextMenuExtensions[0]).toBeDefined();
-    });
+  it("creates menu container on contextmenu inside table", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelector(".table-context-menu")).not.toBeNull();
   });
 
-  describe("Separator row disabled state", () => {
-    it("separator row info has rowIndex 1", () => {
-      expect(mockSeparatorInfo.rowIndex).toBe(1);
-    });
+  it("builds 14 menu items", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
 
-    it("separator row disables alignment and delete-row actions", () => {
-      // On separator (rowIndex === 1), these actions should be disabled:
-      // deleteRow, alignColumn(left/center/right), alignAll(left/center/right)
-      // This tests the data contract — the menu builder uses rowIndex === 1
-      const onSeparator = mockSeparatorInfo.rowIndex === 1;
-      expect(onSeparator).toBe(true);
-    });
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item")).toHaveLength(14);
   });
 
-  describe("Alignment action factories", () => {
-    it("setColumnAlignment works with all alignment types", () => {
-      const alignments = ["left", "center", "right"] as const;
-      for (const align of alignments) {
-        vi.clearAllMocks();
-        setColumnAlignment(view as unknown as EditorView, mockTableInfo, align);
-        expect(setColumnAlignment).toHaveBeenCalledWith(view, mockTableInfo, align);
+  it("creates icon and label spans for each item", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-icon")).toHaveLength(14);
+    expect(host.querySelectorAll(".table-context-menu-label")).toHaveLength(14);
+  });
+
+  it("has correct label order", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    const labels = [...host.querySelectorAll(".table-context-menu-label")]
+      .map((el) => el.textContent);
+    expect(labels).toEqual([
+      "Insert Row Above", "Insert Row Below",
+      "Insert Column Left", "Insert Column Right",
+      "Delete Row", "Delete Column", "Delete Table",
+      "Align Column Left", "Align Column Center", "Align Column Right",
+      "Align All Left", "Align All Center", "Align All Right",
+      "Format Table",
+    ]);
+  });
+
+  it("marks 3 items as danger", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item-danger")).toHaveLength(3);
+  });
+
+  it("creates 4 dividers", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-divider")).toHaveLength(4);
+  });
+
+  it("no items disabled on non-separator row", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo(0));
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item-disabled")).toHaveLength(0);
+  });
+
+  // ── Separator row ──────────────────────────────────────────────
+
+  it("disables 7 items on separator row (rowIndex=1)", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo(1));
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item-disabled")).toHaveLength(7);
+    expect(host.querySelectorAll("button[disabled]")).toHaveLength(7);
+  });
+
+  // ── Actions ────────────────────────────────────────────────────
+
+  const actionTests: Array<{ idx: number; label: string; fn: () => ReturnType<typeof vi.fn>; extraArgs?: unknown[] }> = [
+    { idx: 0, label: "Insert Row Above", fn: () => mockInsertRowAbove },
+    { idx: 1, label: "Insert Row Below", fn: () => mockInsertRowBelow },
+    { idx: 2, label: "Insert Column Left", fn: () => mockInsertColumnLeft },
+    { idx: 3, label: "Insert Column Right", fn: () => mockInsertColumnRight },
+    { idx: 4, label: "Delete Row", fn: () => mockDeleteRow },
+    { idx: 5, label: "Delete Column", fn: () => mockDeleteColumn },
+    { idx: 6, label: "Delete Table", fn: () => mockDeleteTable },
+    { idx: 7, label: "Align Column Left", fn: () => mockSetColumnAlignment, extraArgs: ["left"] },
+    { idx: 8, label: "Align Column Center", fn: () => mockSetColumnAlignment, extraArgs: ["center"] },
+    { idx: 9, label: "Align Column Right", fn: () => mockSetColumnAlignment, extraArgs: ["right"] },
+    { idx: 10, label: "Align All Left", fn: () => mockSetAllColumnsAlignment, extraArgs: ["left"] },
+    { idx: 11, label: "Align All Center", fn: () => mockSetAllColumnsAlignment, extraArgs: ["center"] },
+    { idx: 12, label: "Align All Right", fn: () => mockSetAllColumnsAlignment, extraArgs: ["right"] },
+  ];
+
+  for (const { idx, label, fn, extraArgs } of actionTests) {
+    it(`clicking "${label}" calls the correct action`, () => {
+      const info = mkInfo();
+      mockGetSourceTableInfo.mockReturnValue(info);
+      const view = createLiveView(host);
+
+      fireContextMenu(view.contentDOM);
+      const items = host.querySelectorAll(".table-context-menu-item");
+      (items[idx] as HTMLButtonElement).click();
+
+      const mock = fn();
+      if (extraArgs) {
+        expect(mock).toHaveBeenCalledWith(view, info, ...extraArgs);
+      } else {
+        expect(mock).toHaveBeenCalledWith(view, info);
       }
     });
+  }
 
-    it("setAllColumnsAlignment works with all alignment types", () => {
-      const alignments = ["left", "center", "right"] as const;
-      for (const align of alignments) {
-        vi.clearAllMocks();
-        setAllColumnsAlignment(view as unknown as EditorView, mockTableInfo, align);
-        expect(setAllColumnsAlignment).toHaveBeenCalledWith(view, mockTableInfo, align);
-      }
-    });
+  it("clicking action hides the menu", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    const items = host.querySelectorAll(".table-context-menu-item");
+    (items[0] as HTMLButtonElement).click();
+
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("none");
   });
 
-  describe("Menu action count", () => {
-    it("defines 14 actions (4 insert + 3 delete + 3 align col + 3 align all + 1 format)", () => {
-      // The menu has exactly 14 items:
-      // Insert Row Above, Insert Row Below, Insert Column Left, Insert Column Right
-      // Delete Row, Delete Column, Delete Table
-      // Align Column Left/Center/Right
-      // Align All Left/Center/Right
-      // Format Table
-      const expectedActionCount = 14;
-      expect(expectedActionCount).toBe(14);
-    });
+  it("Format Table shows toast on success", () => {
+    mockFormatTable.mockReturnValue(true);
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    const items = host.querySelectorAll(".table-context-menu-item");
+    (items[13] as HTMLButtonElement).click();
+    expect(mockFormatTable).toHaveBeenCalled();
+    expect(mockToastSuccess).toHaveBeenCalledWith("Table formatted");
   });
 
-  describe("SourceTableContextMenuView DOM lifecycle", () => {
-    it("context menu container is initially hidden", () => {
-      const container = document.createElement("div");
-      container.className = "table-context-menu";
-      container.style.display = "none";
+  it("Format Table does NOT show toast when returns false", () => {
+    mockFormatTable.mockReturnValue(false);
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
 
-      expect(container.style.display).toBe("none");
-    });
-
-    it("menu items can be built with correct structure", () => {
-      const menuItem = document.createElement("button");
-      menuItem.className = "table-context-menu-item";
-      menuItem.type = "button";
-
-      const iconSpan = document.createElement("span");
-      iconSpan.className = "table-context-menu-icon";
-      iconSpan.textContent = "testIcon";
-      menuItem.appendChild(iconSpan);
-
-      const labelSpan = document.createElement("span");
-      labelSpan.className = "table-context-menu-label";
-      labelSpan.textContent = "Test Action";
-      menuItem.appendChild(labelSpan);
-
-      expect(menuItem.querySelector(".table-context-menu-icon")).toBeTruthy();
-      expect(menuItem.querySelector(".table-context-menu-label")?.textContent).toBe("Test Action");
-    });
-
-    it("danger items get the danger class", () => {
-      const menuItem = document.createElement("button");
-      let className = "table-context-menu-item";
-      const isDanger = true;
-      if (isDanger) className += " table-context-menu-item-danger";
-      menuItem.className = className;
-
-      expect(menuItem.classList.contains("table-context-menu-item-danger")).toBe(true);
-    });
-
-    it("disabled items get the disabled class and attribute", () => {
-      const menuItem = document.createElement("button");
-      let className = "table-context-menu-item";
-      const isDisabled = true;
-      if (isDisabled) className += " table-context-menu-item-disabled";
-      menuItem.className = className;
-      menuItem.disabled = true;
-
-      expect(menuItem.classList.contains("table-context-menu-item-disabled")).toBe(true);
-      expect(menuItem.disabled).toBe(true);
-    });
-
-    it("divider elements are created after marked items", () => {
-      const divider = document.createElement("div");
-      divider.className = "table-context-menu-divider";
-
-      expect(divider.className).toBe("table-context-menu-divider");
-    });
-
-    it("Escape key handler hides menu and focuses view", () => {
-      let isVisible = true;
-      const mockViewFocus = vi.fn();
-
-      const handleKeydown = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && isVisible) {
-          isVisible = false;
-          mockViewFocus();
-        }
-      };
-
-      document.addEventListener("keydown", handleKeydown);
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-
-      expect(isVisible).toBe(false);
-      expect(mockViewFocus).toHaveBeenCalled();
-      document.removeEventListener("keydown", handleKeydown);
-    });
-
-    it("Escape key does nothing when menu is not visible", () => {
-      let isVisible = false;
-      const mockViewFocus = vi.fn();
-
-      const handleKeydown = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && isVisible) {
-          isVisible = false;
-          mockViewFocus();
-        }
-      };
-
-      document.addEventListener("keydown", handleKeydown);
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-
-      expect(isVisible).toBe(false);
-      expect(mockViewFocus).not.toHaveBeenCalled();
-      document.removeEventListener("keydown", handleKeydown);
-    });
-
-    it("click outside hides the menu", () => {
-      let isVisible = true;
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-
-      const handleClickOutside = (e: MouseEvent) => {
-        if (!isVisible) return;
-        const target = e.target as Node;
-        if (!container.contains(target)) {
-          isVisible = false;
-        }
-      };
-
-      document.addEventListener("mousedown", handleClickOutside);
-      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-
-      expect(isVisible).toBe(false);
-      document.removeEventListener("mousedown", handleClickOutside);
-      container.remove();
-    });
-
-    it("click inside does not hide the menu", () => {
-      let isVisible = true;
-      const container = document.createElement("div");
-      const child = document.createElement("button");
-      container.appendChild(child);
-      document.body.appendChild(container);
-
-      const handleClickOutside = (e: MouseEvent) => {
-        if (!isVisible) return;
-        const target = e.target as Node;
-        if (!container.contains(target)) {
-          isVisible = false;
-        }
-      };
-
-      document.addEventListener("mousedown", handleClickOutside);
-      child.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-
-      expect(isVisible).toBe(true);
-      document.removeEventListener("mousedown", handleClickOutside);
-      container.remove();
-    });
-
-    it("destroy removes container from DOM", () => {
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      expect(document.body.contains(container)).toBe(true);
-
-      container.remove();
-      expect(document.body.contains(container)).toBe(false);
-    });
+    fireContextMenu(view.contentDOM);
+    const items = host.querySelectorAll(".table-context-menu-item");
+    (items[13] as HTMLButtonElement).click();
+    expect(mockToastSuccess).not.toHaveBeenCalled();
   });
 
-  describe("Context menu positioning logic", () => {
-    it("adjusts left when menu overflows right edge", () => {
-      const hostWidth = 800;
-      const menuWidth = 200;
-      const scrollLeft = 0;
+  it("disabled items do not fire action", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo(1));
+    const view = createLiveView(host);
 
-      const menuRight = 810;
-      const hostRight = 800;
-
-      if (menuRight > hostRight - 10) {
-        const adjustedLeft = hostWidth - menuWidth - 10 + scrollLeft;
-        expect(adjustedLeft).toBe(590);
-      }
-    });
-
-    it("adjusts top when menu overflows bottom edge", () => {
-      const hostHeight = 600;
-      const menuHeight = 300;
-      const scrollTop = 0;
-
-      const menuBottom = 610;
-      const hostBottom = 600;
-
-      if (menuBottom > hostBottom - 10) {
-        const adjustedTop = hostHeight - menuHeight - 10 + scrollTop;
-        expect(adjustedTop).toBe(290);
-      }
-    });
-
-    it("does not adjust when menu fits within bounds", () => {
-      const hostWidth = 800;
-      const menuRight = 300;
-      const hostRight = 800;
-
-      const needsLeftAdjust = menuRight > hostRight - 10;
-      expect(needsLeftAdjust).toBe(false);
-    });
-
-    it("accounts for scroll offset in adjustment", () => {
-      const hostWidth = 800;
-      const menuWidth = 200;
-      const scrollLeft = 50;
-
-      const adjustedLeft = hostWidth - menuWidth - 10 + scrollLeft;
-      expect(adjustedLeft).toBe(640);
-    });
+    fireContextMenu(view.contentDOM);
+    const disabled = host.querySelectorAll("button[disabled]");
+    (disabled[0] as HTMLButtonElement).click();
+    expect(mockDeleteRow).not.toHaveBeenCalled();
   });
 
-  describe("SourceTableContextMenuView — menu building and action execution", () => {
-    it("builds 14 menu items for a non-separator row", async () => {
-      const { sourceTableContextMenuExtensions } = await importContextMenu();
-      expect(sourceTableContextMenuExtensions).toBeDefined();
+  it("mousedown on item calls preventDefault", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
 
-      // Verify the action count by simulating the menu build
-      // We create a container and manually exercise the build logic
-      const container = document.createElement("div");
-      container.className = "table-context-menu";
-
-      const onSeparator = false;
-      const actionLabels = [
-        "Insert Row Above", "Insert Row Below", "Insert Column Left", "Insert Column Right",
-        "Delete Row", "Delete Column", "Delete Table",
-        "Align Column Left", "Align Column Center", "Align Column Right",
-        "Align All Left", "Align All Center", "Align All Right",
-        "Format Table",
-      ];
-
-      for (const label of actionLabels) {
-        const menuItem = document.createElement("button");
-        menuItem.className = "table-context-menu-item";
-        menuItem.type = "button";
-        const labelSpan = document.createElement("span");
-        labelSpan.className = "table-context-menu-label";
-        labelSpan.textContent = label;
-        menuItem.appendChild(labelSpan);
-        container.appendChild(menuItem);
-      }
-
-      expect(container.querySelectorAll(".table-context-menu-item").length).toBe(14);
-    });
-
-    it("menu item click handler calls action and hides menu", () => {
-      let isVisible = true;
-      const actionFn = vi.fn();
-      const hide = () => { isVisible = false; };
-
-      const menuItem = document.createElement("button");
-      menuItem.type = "button";
-      menuItem.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        actionFn();
-        hide();
-      });
-
-      menuItem.click();
-
-      expect(actionFn).toHaveBeenCalled();
-      expect(isVisible).toBe(false);
-    });
-
-    it("disabled menu item does not fire action on click", () => {
-      const actionFn = vi.fn();
-      const menuItem = document.createElement("button");
-      menuItem.type = "button";
-      menuItem.disabled = true;
-      menuItem.className = "table-context-menu-item table-context-menu-item-disabled";
-
-      // Only add click handler if not disabled (matching source behavior)
-      if (!menuItem.disabled) {
-        menuItem.addEventListener("click", () => { actionFn(); });
-      }
-
-      menuItem.click();
-      expect(actionFn).not.toHaveBeenCalled();
-    });
-
-    it("mousedown on menu item calls preventDefault", () => {
-      const menuItem = document.createElement("button");
-      menuItem.type = "button";
-      const preventDefaultFn = vi.fn();
-
-      menuItem.addEventListener("mousedown", (e) => {
-        preventDefaultFn();
-      });
-
-      menuItem.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-      expect(preventDefaultFn).toHaveBeenCalled();
-    });
-
-    it("format table action calls formatTable and shows toast on success", () => {
-      (formatTable as ReturnType<typeof vi.fn>).mockReturnValue(true);
-      formatTable(view as unknown as EditorView, mockTableInfo);
-      expect(formatTable).toHaveBeenCalledWith(view, mockTableInfo);
-    });
+    fireContextMenu(view.contentDOM);
+    const items = host.querySelectorAll(".table-context-menu-item");
+    const ev = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(ev, "preventDefault");
+    items[0].dispatchEvent(ev);
+    expect(spy).toHaveBeenCalled();
   });
 
-  describe("ViewPlugin contextmenu event handler contract", () => {
-    it("contextmenu handler should detect table info and show menu", async () => {
-      // The plugin's eventHandlers.contextmenu:
-      // 1. Gets pos from coords
-      // 2. Dispatches selection
-      // 3. Checks getSourceTableInfo
-      // 4. If table: preventDefault + show context menu
-      // 5. If not table: return false
-      const { sourceTableContextMenuExtensions } = await importContextMenu();
-      expect(sourceTableContextMenuExtensions[0]).toBeDefined();
+  // ── Show / Hide / Escape / Click outside ───────────────────────
 
-      // Verify the contract: when not in table, handler returns false
-      mockGetSourceTableInfo.mockReturnValue(null);
-      // The handler cannot be called directly on the ViewPlugin,
-      // but we verify the detection function is available
-      expect(mockGetSourceTableInfo).toBeDefined();
-    });
+  it("menu is visible after show", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
 
-    it("contextmenu handler should create menu on first invocation", () => {
-      // Test the contract: contextMenu is null initially and created on first contextmenu
-      mockGetSourceTableInfo.mockReturnValue(mockTableInfo);
-      // The menu is lazily created — verified by the plugin structure
-      expect(mockGetSourceTableInfo(view)).toEqual(mockTableInfo);
-    });
-
-    it("contextmenu handler should reuse existing menu instance", () => {
-      mockGetSourceTableInfo.mockReturnValue(mockTableInfo);
-      // Second call to getSourceTableInfo — menu should already exist
-      const info1 = mockGetSourceTableInfo(view);
-      const info2 = mockGetSourceTableInfo(view);
-      expect(info1).toEqual(info2);
-    });
-
-    it("contextmenu handler returns false when posAtCoords returns null", () => {
-      // When pos is null, the handler should return false
-      view.posAtCoords.mockReturnValue(null);
-      const result = view.posAtCoords({ x: 0, y: 0 });
-      expect(result).toBeNull();
-    });
+    fireContextMenu(view.contentDOM);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("flex");
   });
 
-  describe("separator row data contract", () => {
-    it("on separator row, deleteRow is disabled", () => {
-      const onSeparator = mockSeparatorInfo.rowIndex === 1;
-      expect(onSeparator).toBe(true);
-      const deleteRowDisabled = onSeparator;
-      expect(deleteRowDisabled).toBe(true);
+  it("Escape hides menu", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("none");
+  });
+
+  it("Escape when not visible does nothing", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("none");
+  });
+
+  it("non-Escape key does not hide", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("flex");
+  });
+
+  it("click outside hides menu", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("none");
+  });
+
+  it("click inside menu does not hide it", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    const item = menu.querySelector(".table-context-menu-item")!;
+    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    expect(menu.style.display).toBe("flex");
+  });
+
+  it("click outside when hidden is a no-op", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.display).toBe("none");
+  });
+
+  // ── Reuse / Rebuild ────────────────────────────────────────────
+
+  it("reuses same menu container on second contextmenu", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM, 50, 20);
+    fireContextMenu(view.contentDOM, 100, 100);
+    expect(host.querySelectorAll(".table-context-menu")).toHaveLength(1);
+  });
+
+  it("rebuilds items when called with different table info", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo(0));
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item-disabled")).toHaveLength(0);
+
+    mockGetSourceTableInfo.mockReturnValue(mkInfo(1));
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelectorAll(".table-context-menu-item-disabled")).toHaveLength(7);
+  });
+
+  // ── Positioning ────────────────────────────────────────────────
+
+  it("sets absolute position on container", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.position).toBe("absolute");
+  });
+
+  it("sets left and top from mouse coords", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM, 123, 456);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    expect(menu.style.left).toBe("123px");
+    expect(menu.style.top).toBe("456px");
+  });
+
+  it("adjusts left when overflowing right edge (rAF)", async () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM, 750, 50);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    menu.getBoundingClientRect = () => ({
+      top: 50, left: 750, bottom: 250, right: 950,
+      width: 200, height: 200, x: 750, y: 50, toJSON: () => ({}),
     });
 
-    it("on non-separator row, deleteRow is enabled", () => {
-      const nonSeparatorInfo = { ...mockTableInfo, rowIndex: 0 };
-      const onSeparator = nonSeparatorInfo.rowIndex === 1;
-      expect(onSeparator).toBe(false);
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    expect(parseFloat(menu.style.left)).toBeLessThan(750);
+  });
+
+  it("adjusts top when overflowing bottom edge (rAF)", async () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM, 50, 500);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    menu.getBoundingClientRect = () => ({
+      top: 500, left: 50, bottom: 800, right: 250,
+      width: 200, height: 300, x: 50, y: 500, toJSON: () => ({}),
     });
 
-    it("on separator row, alignment actions are disabled", () => {
-      const onSeparator = mockSeparatorInfo.rowIndex === 1;
-      const disabledCount = onSeparator ? 7 : 0;
-      expect(disabledCount).toBe(7);
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    expect(parseFloat(menu.style.top)).toBeLessThan(500);
+  });
+
+  it("does not adjust when menu fits", async () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM, 50, 50);
+    const menu = host.querySelector(".table-context-menu") as HTMLElement;
+    menu.getBoundingClientRect = () => ({
+      top: 50, left: 50, bottom: 200, right: 250,
+      width: 200, height: 150, x: 50, y: 50, toJSON: () => ({}),
     });
 
-    it("on data row (rowIndex > 1), nothing is disabled", () => {
-      const dataRowInfo = { ...mockTableInfo, rowIndex: 2 };
-      const onSeparator = dataRowInfo.rowIndex === 1;
-      expect(onSeparator).toBe(false);
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    expect(menu.style.left).toBe("50px");
+    expect(menu.style.top).toBe("50px");
+  });
+
+  // ── Destroy ────────────────────────────────────────────────────
+
+  it("destroy removes menu from DOM", () => {
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+    const view = createLiveView(host);
+
+    fireContextMenu(view.contentDOM);
+    expect(host.querySelector(".table-context-menu")).not.toBeNull();
+    view.destroy();
+    expect(host.querySelector(".table-context-menu")).toBeNull();
+  });
+
+  it("destroy with no menu is safe", () => {
+    const view = createLiveView(host);
+    expect(() => view.destroy()).not.toThrow();
+  });
+
+  // ── Popup host fallback ────────────────────────────────────────
+
+  it("falls back to view.dom when getPopupHost returns null", () => {
+    mockPopupHost = null;
+    mockGetSourceTableInfo.mockReturnValue(mkInfo());
+
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+
+    const state = EditorState.create({
+      doc: "| A | B |",
+      extensions: sourceTableContextMenuExtensions,
     });
+    const view = new EditorView({ state, parent });
+    view.posAtCoords = () => 3;
+    views.push(view);
+
+    fireContextMenu(view.contentDOM);
+
+    const menu = view.dom.querySelector(".table-context-menu");
+    expect(menu).not.toBeNull();
+
+    mockPopupHost = host; // restore
   });
 });

@@ -408,6 +408,83 @@ describe("geniesStore", () => {
     });
   });
 
+  // ── loadGenies ─────────────────────────────────────────────────────
+
+  describe("loadGenies", () => {
+    it("loads genies and prunes stale recents/favorites (lines 113-129)", async () => {
+      const mockInvoke = vi.mocked(invoke);
+      // list_genies returns two entries
+      mockInvoke.mockImplementation(async (cmd: string, args?: Record<string, unknown>) => {
+        if (cmd === "list_genies") {
+          return [
+            { path: "/genies/Alpha.md", category: "cat-a" },
+            { path: "/genies/Beta.md", category: "cat-b" },
+          ];
+        }
+        if (cmd === "read_genie") {
+          const path = (args as { path: string }).path;
+          if (path.includes("Alpha")) {
+            return { metadata: { name: "Alpha", description: "d", scope: "selection" }, template: "t" };
+          }
+          return { metadata: { name: "Beta", description: "d", scope: "document" }, template: "t" };
+        }
+        return null;
+      });
+
+      // Set stale recents/favorites that include a non-existent genie
+      useGeniesStore.setState({
+        recentGenieNames: ["Alpha", "Deleted"],
+        favoriteGenieNames: ["Beta", "Gone"],
+      });
+
+      await useGeniesStore.getState().loadGenies();
+
+      const state = useGeniesStore.getState();
+      expect(state.genies).toHaveLength(2);
+      expect(state.loading).toBe(false);
+      // Stale names should be pruned
+      expect(state.recentGenieNames).toEqual(["Alpha"]);
+      expect(state.favoriteGenieNames).toEqual(["Beta"]);
+    });
+
+    it("handles list_genies failure gracefully (line 127-131)", async () => {
+      const mockInvoke = vi.mocked(invoke);
+      mockInvoke.mockRejectedValueOnce(new Error("invoke failed"));
+
+      await useGeniesStore.getState().loadGenies();
+
+      const state = useGeniesStore.getState();
+      expect(state.loading).toBe(false);
+    });
+
+    it("skips individual genie read failures (line 107-109)", async () => {
+      const mockInvoke = vi.mocked(invoke);
+      let callCount = 0;
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === "list_genies") {
+          return [
+            { path: "/genies/Good.md", category: "cat" },
+            { path: "/genies/Bad.md", category: "cat" },
+          ];
+        }
+        if (cmd === "read_genie") {
+          callCount++;
+          if (callCount === 1) {
+            return { metadata: { name: "Good", description: "d", scope: "selection" }, template: "t" };
+          }
+          throw new Error("read failed");
+        }
+        return null;
+      });
+
+      await useGeniesStore.getState().loadGenies();
+
+      const state = useGeniesStore.getState();
+      expect(state.genies).toHaveLength(1);
+      expect(state.genies[0].metadata.name).toBe("Good");
+    });
+  });
+
   // ── SSR guard ───────────────────────────────────────────────────────
 
   it("store is functional (SSR guard does not break initialization)", () => {

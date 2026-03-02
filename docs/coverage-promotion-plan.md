@@ -18,6 +18,107 @@ toolbar adapters, CodeMirror plugins, popup views, hooks/context, components/uti
 **Result:** 89.56% statements, 81.65% branches, 91.23% functions, 90.86% lines
 **Target:** 88%+ statements, 80%+ branches, 90%+ functions, 89%+ lines — all exceeded
 
+---
+
+## Phase 4 — Current
+
+**Baseline:** 89.6% statements, 81.7% branches, 91.3% functions, 90.9% lines
+**Target:** 100% statements, 100% branches, 100% functions, 100% lines
+
+### Strategy
+
+Push remaining 3,158 uncovered statements across 281 files to 100%. Organized by
+uncovered count: 27 HIGH files (30+ uncov, 1,418 total), 34 MID files (15-29, 684),
+88 LOW files (5-14, 773), 132 TINY files (<5, 283).
+
+### Batch 13 — Tiptap Plugin Deep Coverage (HIGH, 30+ uncov)
+
+| File | Stmts | Cov% | Uncov |
+|------|-------|------|-------|
+| `plugins/codePreview/tiptap.ts` | 181 | 39% | 110 |
+| `plugins/editorPlugins.tiptap.ts` | 168 | 42% | 97 |
+| `plugins/textDragDrop/tiptap.ts` | 126 | 37% | 79 |
+| `plugins/footnotePopup/tiptap.ts` | 148 | 57% | 63 |
+| `plugins/toolbarActions/tiptapSelectionActions.ts` | 100 | 48% | 52 |
+| `plugins/search/tiptap.ts` | 117 | 56% | 51 |
+| `plugins/smartSelectAll/tiptap.ts` | 56 | 20% | 45 |
+| `plugins/markdownCopy/tiptap.ts` | 55 | 22% | 43 |
+| `plugins/imageHandler/tiptap.ts` | 120 | 70% | 36 |
+
+**Total uncovered:** ~576
+
+### Batch 14 — Source/CodeMirror & Components (HIGH, 30+ uncov)
+
+| File | Stmts | Cov% | Uncov |
+|------|-------|------|-------|
+| `plugins/codemirror/sourceTableContextMenu.ts` | 111 | 2% | 109 |
+| `plugins/codemirror/smartPasteImage.ts` | 168 | 36% | 108 |
+| `components/Editor/TiptapEditor.tsx` | 201 | 65% | 70 |
+| `plugins/toolbarActions/sourceAdapter.ts` | 180 | 66% | 62 |
+| `plugins/imagePreview/ImagePreviewView.ts` | 181 | 73% | 49 |
+| `plugins/codemirror/tabEscape.ts` | 62 | 32% | 42 |
+| `components/Editor/SourceEditor.tsx` | 105 | 67% | 35 |
+| `plugins/codemirror/smartPaste.ts` | 25 | 4% | 24 |
+| `plugins/sourcePeekInline/tiptap.ts` | 48 | 31% | 33 |
+
+**Total uncovered:** ~532
+
+### Batch 15 — Remaining HIGH + MID Plugins (20-35 uncov)
+
+| File | Stmts | Cov% | Uncov |
+|------|-------|------|-------|
+| `plugins/latex/MathInlineNodeView.ts` | 292 | 88% | 35 |
+| `plugins/aiSuggestion/tiptap.ts` | 195 | 83% | 34 |
+| `plugins/footnotePopup/FootnotePopupView.ts` | 198 | 83% | 33 |
+| `plugins/blockImage/tiptap.ts` | 40 | 20% | 32 |
+| `plugins/editorPlugins/lineOperationCommands.ts` | 106 | 70% | 32 |
+| `plugins/mediaPopup/MediaPopupView.ts` | 225 | 86% | 32 |
+| `plugins/codeBlockLineNumbers/tiptap.ts` | 232 | 90% | 24 |
+| `plugins/typewriterMode/tiptap.ts` | 34 | 35% | 22 |
+| `plugins/editorPlugins/linkCommands.ts` | 110 | 80% | 22 |
+| `plugins/markInputRules/tiptap.ts` | 45 | 53% | 21 |
+| `plugins/tableUI/tableActions.tiptap.ts` | 182 | 89% | 21 |
+
+**Total uncovered:** ~308
+
+### Batch 16 — Hooks, Utils & Remaining MID (15-30 uncov)
+
+| File | Stmts | Cov% | Uncov |
+|------|-------|------|-------|
+| `components/Editor/UniversalToolbar/UniversalToolbar.tsx` | 223 | 81% | 42 |
+| `components/Terminal/createTerminalInstance.ts` | 87 | 64% | 31 |
+| `hooks/useExternalFileChanges.ts` | 161 | 81% | 31 |
+| `components/Terminal/useTerminalPosition.ts` | 49 | 41% | 29 |
+| `contexts/WindowContext.tsx` | 170 | 81% | 32 |
+| `components/GeniePicker/GeniePicker.tsx` | 160 | 84% | 25 |
+| `hooks/useUnifiedMenuCommands.ts` | 123 | 81% | 24 |
+| `utils/hotExit/restartWithHotExit.ts` | 87 | 72% | 24 |
+| `utils/cursorSync/tiptap.ts` | 94 | 76% | 23 |
+| `hooks/useFileSave.ts` | 157 | 86% | 22 |
+| `plugins/sourceImagePopup/sourceImageActions.ts` | 66 | 67% | 22 |
+
+**Total uncovered:** ~305
+
+### Batch 17 — LOW Files Part 1 (5-14 uncov, plugins)
+
+All plugin files with 5-14 uncovered statements (~44 files, ~420 uncov).
+
+### Batch 18 — LOW Files Part 2 (5-14 uncov, hooks/utils/components)
+
+All hook, util, component, and store files with 5-14 uncovered statements (~44 files, ~353 uncov).
+
+### Batch 19 — TINY Files (<5 uncov)
+
+132 files with 1-4 uncovered statements each (~283 uncov total).
+
+## Execution Order
+
+1. Run **Batch 13 + 14 + 15 + 16** in parallel (4 agents) — HIGH + MID files
+2. Run **Batch 17 + 18 + 19** in parallel (3 agents) — LOW + TINY files
+3. Run `pnpm test` to verify
+4. Ratchet thresholds to 100
+5. Commit
+
 ### Strategy
 
 Phase 2 agents made progress on many files but didn't fully cover them. Phase 3 focuses

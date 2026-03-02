@@ -22,6 +22,11 @@ const {
   mockAddFile,
   mockRehydrate,
   mockCloseWorkspace,
+  mockDetachTab,
+  mockRemoveDocument,
+  mockCreateTransferredTab,
+  mockUpdateTabTitle,
+  mockWorkspaceState,
 } = vi.hoisted(() => ({
   mockEmit: vi.fn(),
   mockListen: vi.fn(() => Promise.resolve(vi.fn())),
@@ -32,6 +37,14 @@ const {
   mockAddFile: vi.fn(),
   mockRehydrate: vi.fn(),
   mockCloseWorkspace: vi.fn(),
+  mockDetachTab: vi.fn(),
+  mockRemoveDocument: vi.fn(),
+  mockCreateTransferredTab: vi.fn(() => "tab-t"),
+  mockUpdateTabTitle: vi.fn(),
+  mockWorkspaceState: {
+    rootPath: null as string | null,
+    isWorkspaceMode: false,
+  },
 }));
 
 let mockWindowLabel = "main";
@@ -62,7 +75,7 @@ vi.mock("../stores/documentStore", () => ({
     getState: () => ({
       initDocument: mockInitDocument,
       setLineMetadata: mockSetLineMetadata,
-      removeDocument: vi.fn(),
+      removeDocument: mockRemoveDocument,
     }),
   },
 }));
@@ -72,9 +85,9 @@ vi.mock("../stores/tabStore", () => ({
     getState: () => ({
       createTab: mockCreateTab,
       getTabsByWindow: mockGetTabsByWindow,
-      createTransferredTab: vi.fn(() => "tab-t"),
-      updateTabTitle: vi.fn(),
-      detachTab: vi.fn(),
+      createTransferredTab: mockCreateTransferredTab,
+      updateTabTitle: mockUpdateTabTitle,
+      detachTab: mockDetachTab,
     }),
   },
 }));
@@ -88,8 +101,8 @@ vi.mock("../stores/recentFilesStore", () => ({
 vi.mock("../stores/workspaceStore", () => ({
   useWorkspaceStore: {
     getState: () => ({
-      rootPath: null,
-      isWorkspaceMode: false,
+      rootPath: mockWorkspaceState.rootPath,
+      isWorkspaceMode: mockWorkspaceState.isWorkspaceMode,
       closeWorkspace: mockCloseWorkspace,
     }),
     persist: { rehydrate: mockRehydrate },
@@ -140,6 +153,11 @@ describe("WindowContext", () => {
     vi.clearAllMocks();
     mockWindowLabel = "main";
     mockGetTabsByWindow.mockReturnValue([]);
+    mockCreateTab.mockReturnValue("tab-1");
+    mockCreateTransferredTab.mockReturnValue("tab-t");
+    mockListen.mockImplementation(() => Promise.resolve(vi.fn()));
+    mockWorkspaceState.rootPath = null;
+    mockWorkspaceState.isWorkspaceMode = false;
     // Reset location.search
     Object.defineProperty(globalThis, "location", {
       value: { search: "" },
@@ -676,6 +694,337 @@ describe("WindowContext", () => {
       expect(invoke).toHaveBeenCalledWith("claim_tab_transfer", { windowLabel: "doc-new" });
 
       vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — runtime tab transfer/remove listeners", () => {
+    it("applies runtime tab:transfer event payload", async () => {
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      // Find the tab:transfer listener callback
+      await waitFor(() => {
+        const transferCall = mockListen.mock.calls.find(
+          (call: unknown[]) => call[0] === "tab:transfer",
+        );
+        expect(transferCall).toBeDefined();
+      });
+
+      const transferCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab:transfer",
+      );
+      const transferHandler = transferCall![1];
+      // Invoke the runtime transfer handler
+      await transferHandler({
+        payload: {
+          tabId: "runtime-tab",
+          title: "Runtime Tab",
+          content: "# Runtime",
+          filePath: "/docs/runtime.md",
+          savedContent: "# Runtime",
+          workspaceRoot: null,
+        },
+      });
+
+      expect(mockCreateTransferredTab).toHaveBeenCalled();
+    });
+
+    it("handles runtime tab:transfer error gracefully", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      mockCreateTransferredTab.mockImplementationOnce(() => {
+        throw new Error("transfer fail");
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        const transferCall = mockListen.mock.calls.find(
+          (call: unknown[]) => call[0] === "tab:transfer",
+        );
+        expect(transferCall).toBeDefined();
+      });
+
+      const transferCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab:transfer",
+      );
+      const transferHandler = transferCall![1];
+
+      await transferHandler({
+        payload: {
+          tabId: "fail-tab",
+          title: "Fail",
+          content: "",
+          filePath: null,
+          savedContent: "",
+          workspaceRoot: null,
+        },
+      });
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to apply runtime tab transfer"),
+        expect.any(Error),
+      );
+
+      errorSpy.mockRestore();
+    });
+
+    it("invokes tab:remove-by-id handler to detach tab", async () => {
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        const removeCall = mockListen.mock.calls.find(
+          (call: unknown[]) => call[0] === "tab:remove-by-id",
+        );
+        expect(removeCall).toBeDefined();
+      });
+
+      const removeCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab:remove-by-id",
+      );
+      const removeHandler = removeCall![1];
+
+      // Make getTabsByWindow return remaining tabs so window doesn't close
+      mockGetTabsByWindow.mockReturnValue([{ id: "other-tab" }]);
+
+      removeHandler({ payload: { tabId: "tab-to-remove" } });
+
+      await waitFor(() => {
+        expect(mockDetachTab).toHaveBeenCalledWith("main", "tab-to-remove");
+      });
+    });
+
+    it("closes doc window when last tab is removed", async () => {
+      mockWindowLabel = "doc-close";
+      const { invoke } = await import("@tauri-apps/api/core");
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        const removeCall = mockListen.mock.calls.find(
+          (call: unknown[]) => call[0] === "tab:remove-by-id",
+        );
+        expect(removeCall).toBeDefined();
+      });
+
+      const removeCall = mockListen.mock.calls.find(
+        (call: unknown[]) => call[0] === "tab:remove-by-id",
+      );
+      const removeHandler = removeCall![1];
+
+      // No remaining tabs after removal
+      mockGetTabsByWindow.mockReturnValue([]);
+
+      removeHandler({ payload: { tabId: "last-tab" } });
+
+      await waitFor(() => {
+        expect(invoke).toHaveBeenCalledWith("close_window", { label: "doc-close" });
+      });
+    });
+
+    it("cleans up listeners on unmount", async () => {
+      const unlistenFn = vi.fn();
+      mockListen.mockResolvedValue(unlistenFn);
+
+      const { unmount } = render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("child")).toBeInTheDocument();
+      });
+
+      unmount();
+
+      // unlisten should be called for both tab:transfer and tab:remove-by-id
+      expect(unlistenFn).toHaveBeenCalled();
+    });
+  });
+
+  describe("WindowProvider — transfer with workspace root fallback", () => {
+    it("uses file path parent as workspace root fallback in applyTabTransferData", async () => {
+      vi.useFakeTimers();
+      mockWindowLabel = "doc-fb";
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { resolveWorkspaceRootForExternalFile } = await import("../utils/openPolicy");
+      vi.mocked(resolveWorkspaceRootForExternalFile).mockReturnValue("/docs");
+      const { openWorkspaceWithConfig } = await import("../hooks/openWorkspaceWithConfig");
+
+      vi.mocked(invoke).mockResolvedValue({
+        tabId: "t1",
+        title: "T1",
+        content: "# Content",
+        filePath: "/docs/file.md",
+        savedContent: "# Content",
+        workspaceRoot: null, // no explicit workspace root
+      });
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?transfer=true" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      // Should derive workspace from file path
+      expect(resolveWorkspaceRootForExternalFile).toHaveBeenCalledWith("/docs/file.md");
+      expect(openWorkspaceWithConfig).toHaveBeenCalledWith("/docs");
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — tab transfer error in init", () => {
+    it("catches tab transfer error and continues normal init", async () => {
+      vi.useFakeTimers();
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { invoke } = await import("@tauri-apps/api/core");
+      vi.mocked(invoke).mockRejectedValueOnce(new Error("transfer claim failed"));
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?transfer=true" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to claim tab transfer"),
+        expect.any(Error),
+      );
+      // Should still create a default tab
+      expect(mockCreateTab).toHaveBeenCalled();
+
+      errorSpy.mockRestore();
+      vi.useRealTimers();
+    });
+  });
+
+  describe("WindowProvider — file within active workspace", () => {
+    it("skips workspace resolution when file is within active workspace root", async () => {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# Inside workspace");
+      const { isWithinRoot } = await import("../utils/paths");
+      vi.mocked(isWithinRoot).mockReturnValue(true);
+
+      // Set workspace store to have an active root
+      mockWorkspaceState.rootPath = "/projects";
+      mockWorkspaceState.isWorkspaceMode = true;
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/projects/src/test.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      const { openWorkspaceWithConfig } = await import("../hooks/openWorkspaceWithConfig");
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(isWithinRoot).toHaveBeenCalledWith("/projects", "/projects/src/test.md");
+        // Should NOT call openWorkspaceWithConfig since file is within active workspace
+        expect(openWorkspaceWithConfig).not.toHaveBeenCalled();
+        expect(mockCloseWorkspace).not.toHaveBeenCalled();
+      });
+
+      // Restore
+      mockWorkspaceState.rootPath = null;
+      mockWorkspaceState.isWorkspaceMode = false;
+    });
+
+    it("does not close workspace for doc-* windows when no derived root", async () => {
+      mockWindowLabel = "doc-ext";
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      vi.mocked(readTextFile).mockResolvedValue("# External");
+      const { resolveWorkspaceRootForExternalFile } = await import("../utils/openPolicy");
+      vi.mocked(resolveWorkspaceRootForExternalFile).mockReturnValue(null);
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?file=/tmp/external.md" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        // For doc-* windows (not main), closeWorkspace should NOT be called
+        // when resolveWorkspaceRootForExternalFile returns null
+        expect(mockCloseWorkspace).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("WindowProvider — openWorkspaceWithConfig failure", () => {
+    it("continues when workspace config open fails for URL param", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { openWorkspaceWithConfig } = await import("../hooks/openWorkspaceWithConfig");
+      vi.mocked(openWorkspaceWithConfig).mockRejectedValueOnce(new Error("config failed"));
+
+      Object.defineProperty(globalThis, "location", {
+        value: { search: "?workspaceRoot=/bad/workspace" },
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <WindowProvider>
+          <div data-testid="child">content</div>
+        </WindowProvider>,
+      );
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Failed to open workspace from URL param"),
+          expect.any(Error),
+        );
+      });
+
+      errorSpy.mockRestore();
     });
   });
 

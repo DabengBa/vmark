@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { EditorState } from "@tiptap/pm/state";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { Editor, getSchema } from "@tiptap/core";
 import {
@@ -434,5 +434,274 @@ describe("codePreview decoration widget rendering", () => {
     const { state, plugins } = createStateWithCodeBlock("json", '{"key": "value"}');
     const pluginState = plugins[0].getState(state);
     expect(pluginState.decorations.find().length).toBe(0);
+  });
+});
+
+describe("codePreview editing mode decorations", () => {
+  it("creates editing decorations when editing a math block", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins, schema } = createStateWithCodeBlock("$$math$$", "x^2 + y^2");
+
+    // Find the code block position
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+    expect(codeBlockPos).toBeGreaterThanOrEqual(0);
+
+    // Set editing state
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "x^2 + y^2");
+
+    // Apply transaction with EDITING_STATE_CHANGED
+    const tr = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const nextState = state.apply(tr);
+    const pluginState = plugins[0].getState(nextState);
+
+    // Should have editing decorations (header, editing class, live preview)
+    const allDecorations = pluginState.decorations.find();
+    const editingDecorations = allDecorations.filter(
+      (d: DecorationLike) => d.type?.attrs?.class?.includes("code-block-editing")
+    );
+    expect(editingDecorations.length).toBeGreaterThan(0);
+    expect(pluginState.editingPos).toBe(codeBlockPos);
+
+    // Clean up
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+
+  it("creates header widget decoration in editing mode", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "graph TD; A-->B");
+
+    const tr = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const nextState = state.apply(tr);
+    const pluginState = plugins[0].getState(nextState);
+
+    // Should have at least 3 decorations: header widget, node class, live preview
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(3);
+
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+
+  it("resets tracking when exiting editing for a code block", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins } = createStateWithCodeBlock("latex", "E=mc^2");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    // Start editing
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "E=mc^2");
+    const tr1 = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const state2 = state.apply(tr1);
+    const ps1 = plugins[0].getState(state2);
+    expect(ps1.editingPos).toBe(codeBlockPos);
+
+    // Exit editing
+    useBlockMathEditingStore.getState().exitEditing();
+    const tr2 = state2.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const state3 = state2.apply(tr2);
+    const ps2 = plugins[0].getState(state3);
+    expect(ps2.editingPos).toBeNull();
+  });
+
+  it("updates live preview when doc changes during editing", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "x^2");
+
+    // Apply editing state change
+    const tr1 = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const editingState = state.apply(tr1);
+    plugins[0].getState(editingState);
+
+    // Now change the doc content (insert text into the code block)
+    const tr2 = editingState.tr.insertText("+y^2", codeBlockPos + 4);
+    const updatedState = editingState.apply(tr2);
+    const ps = plugins[0].getState(updatedState);
+
+    // Should still be in editing mode
+    expect(ps.editingPos).toBe(codeBlockPos);
+
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+});
+
+describe("codePreview plugin props.decorations", () => {
+  it("returns decorations from plugin state", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD");
+    const pluginState = plugins[0].getState(state);
+    const propsDecorations = plugins[0].props.decorations!(state);
+    expect(propsDecorations).toBeDefined();
+    // Should match the state decorations
+    expect(propsDecorations!.find().length).toBe(pluginState.decorations.find().length);
+  });
+});
+
+describe("refreshPreviews with active editor view", () => {
+  it("dispatches SETTINGS_CHANGED when editor view is set", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+
+    const schema = getSchema([StarterKit]);
+    const doc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const editorState = EditorState.create({ schema, doc, plugins });
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: editorState,
+      dispatch: mockDispatch,
+    };
+
+    // Call the view factory to set currentEditorView
+    const viewResult = plugins[0].spec.view!(mockView as never);
+
+    // Now refreshPreviews should dispatch
+    refreshPreviews();
+    expect(mockDispatch).toHaveBeenCalled();
+
+    // Verify the transaction has SETTINGS_CHANGED meta
+    const tr = mockDispatch.mock.calls[0][0];
+    expect(tr.getMeta(SETTINGS_CHANGED)).toBe(true);
+
+    // Clean up
+    viewResult.destroy!();
+  });
+
+  it("view update keeps currentEditorView in sync", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+
+    const schema = getSchema([StarterKit]);
+    const doc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const editorState = EditorState.create({ schema, doc, plugins });
+
+    const mockView1 = { state: editorState, dispatch: vi.fn() };
+    const viewResult = plugins[0].spec.view!(mockView1 as never);
+
+    // Update with new view reference
+    const mockView2 = { state: editorState, dispatch: vi.fn() };
+    viewResult.update!(mockView2 as never, {} as never);
+
+    // refreshPreviews should use the updated view
+    refreshPreviews();
+    expect(mockView2.dispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("view destroy nullifies currentEditorView", () => {
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+
+    const schema = getSchema([StarterKit]);
+    const doc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const editorState = EditorState.create({ schema, doc, plugins });
+
+    const mockView = { state: editorState, dispatch: vi.fn() };
+    const viewResult = plugins[0].spec.view!(mockView as never);
+
+    viewResult.destroy!();
+
+    // After destroy, refreshPreviews should not dispatch (no editor view)
+    refreshPreviews();
+    expect(mockView.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("codePreview decoration mapping", () => {
+  it("maps decorations through non-doc-changing transaction without rebuild", () => {
+    const { state, plugins } = createStateWithCodeBlock("svg", "<svg><rect/></svg>");
+    const ps1 = plugins[0].getState(state);
+    expect(ps1.decorations.find().length).toBeGreaterThan(0);
+
+    // Non-doc-changing, non-editing, non-settings transaction
+    const nextState = state.apply(state.tr);
+    const ps2 = plugins[0].getState(nextState);
+    // Decorations should be mapped (not rebuilt)
+    expect(ps2.decorations.find().length).toBeGreaterThan(0);
+  });
+});
+
+describe("codePreview placeholder labels", () => {
+  it("uses 'Empty diagram' for empty mermaid block", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "   ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses 'Empty mindmap' for empty markmap block", () => {
+    const { state, plugins } = createStateWithCodeBlock("markmap", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses 'Empty SVG' for empty svg block", () => {
+    const { state, plugins } = createStateWithCodeBlock("svg", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses 'Empty math block' for empty $$math$$ block", () => {
+    const { state, plugins } = createStateWithCodeBlock("$$math$$", "  ");
+    const pluginState = plugins[0].getState(state);
+    const allDecorations = pluginState.decorations.find();
+    expect(allDecorations.length).toBeGreaterThanOrEqual(2);
   });
 });

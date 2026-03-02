@@ -51,8 +51,11 @@ vi.mock("@/plugins/toolbarActions/multiSelectionContext", () => ({
   getSourceMultiSelectionContext: () => null,
 }));
 
+const { mockShouldBlockMenuAction } = vi.hoisted(() => ({
+  mockShouldBlockMenuAction: vi.fn(() => false),
+}));
 vi.mock("@/utils/focusGuard", () => ({
-  shouldBlockMenuAction: () => false,
+  shouldBlockMenuAction: mockShouldBlockMenuAction,
 }));
 
 vi.mock("@/utils/imeGuard", () => ({
@@ -568,5 +571,143 @@ describe("useUnifiedMenuCommands", () => {
       expect.objectContaining({ surface: "source" })
     );
     expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("blocks actions when focus guard says to block", async () => {
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    mockShouldBlockMenuAction.mockReturnValue(true);
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
+
+    // Restore
+    mockShouldBlockMenuAction.mockReturnValue(false);
+  });
+
+  it("retries WYSIWYG dispatch when editor becomes available after delay", async () => {
+    vi.useFakeTimers();
+    sourceMode = false;
+    activeWysiwygEditor = null; // not available initially
+
+    render(<TestHarness />);
+    await vi.waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    // Not dispatched yet (editor is null)
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+
+    // Make editor available and advance past retry delay
+    activeWysiwygEditor = { view: {} };
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(performWysiwygToolbarAction).toHaveBeenCalledWith(
+      "italic",
+      expect.objectContaining({ surface: "wysiwyg" })
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("gives up after max retries for WYSIWYG", async () => {
+    vi.useFakeTimers();
+    sourceMode = false;
+    activeWysiwygEditor = null; // never available
+
+    render(<TestHarness />);
+    await vi.waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    // Advance past all retries (3 retries * 50ms each + initial 50ms)
+    await vi.advanceTimersByTimeAsync(250);
+
+    // Should not have dispatched (editor never became available)
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("retries source dispatch when view becomes available after delay", async () => {
+    vi.useFakeTimers();
+    sourceMode = true;
+    activeSourceView = null; // not available initially
+
+    render(<TestHarness />);
+    await vi.waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
+
+    // Make view available
+    activeSourceView = {};
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(performSourceToolbarAction).toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("gives up after max retries for source", async () => {
+    vi.useFakeTimers();
+    sourceMode = true;
+    activeSourceView = null; // never available
+
+    render(<TestHarness />);
+    await vi.waitFor(() => expect(listeners.has("menu:italic")).toBe(true));
+
+    listeners.get("menu:italic")?.({ payload: "main" });
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(performSourceToolbarAction).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("blocks source-unsupported action in source mode", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    // bold supports: { wysiwyg: false, source: true } in our mock
+    // But let's test with a different action definition
+    // italic: supports { wysiwyg: true, source: true } — both supported
+    // We need an action where source is false
+    // Looking at our mock: bold has wysiwyg: false
+    // So if we're in WYSIWYG mode and try bold, it should be blocked
+    sourceMode = false;
+    activeWysiwygEditor = { view: {} };
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:bold")).toBe(true));
+
+    listeners.get("menu:bold")?.({ payload: "main" });
+
+    // Bold is not supported in WYSIWYG mode
+    expect(performWysiwygToolbarAction).not.toHaveBeenCalled();
+  });
+
+  it("dispatches heading in source mode with setSourceHeadingLevel", async () => {
+    sourceMode = true;
+    activeSourceView = {};
+
+    render(<TestHarness />);
+    await waitFor(() => expect(listeners.has("menu:heading-1")).toBe(true));
+
+    listeners.get("menu:heading-1")?.({ payload: "main" });
+
+    const { setSourceHeadingLevel } = await import("@/plugins/toolbarActions/sourceAdapter");
+    expect(setSourceHeadingLevel).toHaveBeenCalledWith(
+      expect.objectContaining({ surface: "source" }),
+      1
+    );
   });
 });

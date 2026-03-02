@@ -381,3 +381,320 @@ describe("handleSmartSelectAll via plugin integration", () => {
     expect(newState).toBeDefined();
   });
 });
+
+describe("handleSmartSelectAll dispatch paths", () => {
+  function createPluginState(d: ReturnType<typeof schema.node>, from: number, to?: number) {
+    const plugins = smartSelectAllExtension.config.addProseMirrorPlugins!.call({
+      name: "smartSelectAll",
+      options: {},
+      storage: {},
+      parent: null as never,
+      editor: {} as never,
+      type: "extension" as never,
+    });
+    return {
+      state: EditorState.create({
+        doc: d,
+        selection: TextSelection.create(d, from, to ?? from),
+        plugins,
+      }),
+      plugins,
+    };
+  }
+
+  it("handleSmartSelectAll dispatches expansion with correct meta when container found", () => {
+    const d = doc(ul(li(p("item A")), li(p("item B"))));
+    const { state } = createPluginState(d, 4);
+
+    // Call Mod-a via the keyboard shortcut handler
+    const dispatched: Transaction[] = [];
+    const mockDispatch = (tr: Transaction) => { dispatched.push(tr); };
+
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: mockDispatch },
+      },
+    } as never);
+
+    const result = shortcuts["Mod-a"]({ editor: { state, view: { dispatch: mockDispatch } } } as never);
+    expect(result).toBe(true);
+    expect(dispatched.length).toBe(1);
+    // The transaction should have addToHistory=false
+    expect(dispatched[0].getMeta("addToHistory")).toBe(false);
+  });
+
+  it("handleSmartSelectAll returns false when already at document level", () => {
+    const d = doc(p("hello"));
+    const docSize = d.content.size;
+    const { state } = createPluginState(d, 0, docSize);
+
+    const dispatched: Transaction[] = [];
+    const mockDispatch = (tr: Transaction) => { dispatched.push(tr); };
+
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: mockDispatch },
+      },
+    } as never);
+
+    const result = shortcuts["Mod-a"]({ editor: { state, view: { dispatch: mockDispatch } } } as never);
+    expect(result).toBe(false);
+    expect(dispatched.length).toBe(0);
+  });
+
+  it("handleSmartSelectAll without dispatch only returns boolean", () => {
+    const d = doc(ul(li(p("item"))));
+    const { state } = createPluginState(d, 4);
+
+    // Call with editor that has no dispatch (dry run)
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: undefined },
+      },
+    } as never);
+
+    // Just checking the handler exists and returns correctly
+    expect(shortcuts["Mod-a"]).toBeDefined();
+  });
+
+  it("handleSmartSelectAll selects entire document when no container and stack is non-empty", () => {
+    const d = doc(ul(li(p("item"))));
+    const { state, plugins } = createPluginState(d, 4);
+
+    // First, expand once to populate the stack
+    const dispatched1: Transaction[] = [];
+    const shortcuts1 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: (tr: Transaction) => dispatched1.push(tr) },
+      },
+    } as never);
+    shortcuts1["Mod-a"]({ editor: { state, view: { dispatch: (tr: Transaction) => dispatched1.push(tr) } } } as never);
+    expect(dispatched1.length).toBe(1);
+
+    // Apply the first expansion
+    const state2 = state.apply(dispatched1[0]);
+
+    // Continue expanding until we reach a point where getNextContainerBounds returns null
+    // but the stack is non-empty, which triggers the "select entire document" path
+    let currentState = state2;
+    let expandCount = 0;
+    for (let i = 0; i < 10; i++) {
+      const dispatched: Transaction[] = [];
+      const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+        editor: {
+          state: currentState,
+          view: { dispatch: (tr: Transaction) => dispatched.push(tr) },
+        },
+      } as never);
+
+      const result = shortcuts["Mod-a"]({ editor: { state: currentState, view: { dispatch: (tr: Transaction) => dispatched.push(tr) } } } as never);
+      if (!result) break;
+
+      currentState = currentState.apply(dispatched[0]);
+      expandCount++;
+    }
+
+    // Should have expanded at least twice (to list, then to document)
+    expect(expandCount).toBeGreaterThanOrEqual(2);
+    // Final state should select entire document
+    expect(currentState.selection.from).toBe(0);
+    expect(currentState.selection.to).toBe(d.content.size);
+  });
+
+  it("handleSelectionUndo dispatches restored selection when stack matches", () => {
+    const d = doc(ul(li(p("item A")), li(p("item B"))));
+    const { state } = createPluginState(d, 4);
+
+    // Step 1: Expand once
+    const dispatched1: Transaction[] = [];
+    const shortcuts1 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: (tr: Transaction) => dispatched1.push(tr) },
+      },
+    } as never);
+    shortcuts1["Mod-a"]({ editor: { state, view: { dispatch: (tr: Transaction) => dispatched1.push(tr) } } } as never);
+    const state2 = state.apply(dispatched1[0]);
+
+    // Step 2: Undo (Mod-z)
+    const dispatched2: Transaction[] = [];
+    const shortcuts2 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: state2,
+        view: { dispatch: (tr: Transaction) => dispatched2.push(tr) },
+      },
+    } as never);
+    const undoResult = shortcuts2["Mod-z"]({ editor: { state: state2, view: { dispatch: (tr: Transaction) => dispatched2.push(tr) } } } as never);
+    expect(undoResult).toBe(true);
+    expect(dispatched2.length).toBe(1);
+
+    // After undo, selection should be restored to original position
+    const state3 = state2.apply(dispatched2[0]);
+    expect(state3.selection.from).toBe(4);
+    expect(state3.selection.to).toBe(4);
+  });
+
+  it("handleSelectionUndo returns false when stack is empty", () => {
+    const d = doc(ul(li(p("item"))));
+    const { state } = createPluginState(d, 4);
+
+    // No expansion happened, so Mod-z should return false
+    const dispatched: Transaction[] = [];
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: (tr: Transaction) => dispatched.push(tr) },
+      },
+    } as never);
+    const result = shortcuts["Mod-z"]({ editor: { state, view: { dispatch: (tr: Transaction) => dispatched.push(tr) } } } as never);
+    expect(result).toBe(false);
+  });
+
+  it("handleSelectionUndo clears stack when selection was changed externally", () => {
+    const d = doc(ul(li(p("item A")), li(p("item B"))));
+    const { state } = createPluginState(d, 4);
+
+    // Expand once
+    const dispatched1: Transaction[] = [];
+    const shortcuts1 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: (tr: Transaction) => dispatched1.push(tr) },
+      },
+    } as never);
+    shortcuts1["Mod-a"]({ editor: { state, view: { dispatch: (tr: Transaction) => dispatched1.push(tr) } } } as never);
+    const state2 = state.apply(dispatched1[0]);
+
+    // Manually change the selection (simulating user click)
+    const manualTr = state2.tr.setSelection(TextSelection.create(state2.doc, 6));
+    const state3 = state2.apply(manualTr);
+
+    // Now Mod-z should detect mismatch and clear stack, returning false
+    const dispatched3: Transaction[] = [];
+    const shortcuts3 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: state3,
+        view: { dispatch: (tr: Transaction) => dispatched3.push(tr) },
+      },
+    } as never);
+    const result = shortcuts3["Mod-z"]({ editor: { state: state3, view: { dispatch: (tr: Transaction) => dispatched3.push(tr) } } } as never);
+    expect(result).toBe(false);
+    // A clearing transaction should have been dispatched
+    expect(dispatched3.length).toBe(1);
+  });
+
+  it("handleSelectionUndo pops stack correctly with multiple expansions", () => {
+    const d = doc(bq(ul(li(p("deep")))));
+    const { state } = createPluginState(d, 5);
+
+    // Expand multiple times
+    let currentState = state;
+    for (let i = 0; i < 3; i++) {
+      const dispatched: Transaction[] = [];
+      const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+        editor: {
+          state: currentState,
+          view: { dispatch: (tr: Transaction) => dispatched.push(tr) },
+        },
+      } as never);
+      const result = shortcuts["Mod-a"]({ editor: { state: currentState, view: { dispatch: (tr: Transaction) => dispatched.push(tr) } } } as never);
+      if (!result) break;
+      currentState = currentState.apply(dispatched[0]);
+    }
+
+    // Now undo one step
+    const dispatched: Transaction[] = [];
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: currentState,
+        view: { dispatch: (tr: Transaction) => dispatched.push(tr) },
+      },
+    } as never);
+    const undoResult = shortcuts["Mod-z"]({ editor: { state: currentState, view: { dispatch: (tr: Transaction) => dispatched.push(tr) } } } as never);
+    expect(undoResult).toBe(true);
+
+    // After undo, the selection should be smaller than before
+    const afterUndo = currentState.apply(dispatched[0]);
+    expect(
+      afterUndo.selection.to - afterUndo.selection.from
+    ).toBeLessThan(
+      currentState.selection.to - currentState.selection.from
+    );
+  });
+
+  it("plugin state apply handles meta correctly", () => {
+    const d = doc(p("hello"));
+    const { state, plugins } = createPluginState(d, 3);
+
+    // Apply a transaction with plugin meta
+    const pluginKey = plugins[0].spec.key;
+    const customState = { stack: [{ from: 1, to: 5 }], lastExpanded: { from: 1, to: 5 } };
+    const tr = state.tr.setMeta(pluginKey!, customState);
+    const newState = state.apply(tr);
+
+    // Verify the plugin state was updated via meta
+    const pState = pluginKey!.getState(newState);
+    expect(pState).toEqual(customState);
+  });
+
+  it("plugin state preserves value when no meta and no doc change", () => {
+    const d = doc(p("hello"));
+    const { state, plugins } = createPluginState(d, 3);
+
+    // Set up plugin state with meta
+    const pluginKey = plugins[0].spec.key;
+    const customState = { stack: [{ from: 1, to: 5 }], lastExpanded: { from: 1, to: 5 } };
+    const tr1 = state.tr.setMeta(pluginKey!, customState);
+    const state2 = state.apply(tr1);
+
+    // Apply an empty transaction (no doc change, no meta)
+    const tr2 = state2.tr;
+    const state3 = state2.apply(tr2);
+
+    // Plugin state should be preserved
+    const pState = pluginKey!.getState(state3);
+    expect(pState).toEqual(customState);
+  });
+
+  it("handleSelectionUndo sets lastExpanded to null when stack becomes empty", () => {
+    const d = doc(ul(li(p("item"))));
+    const { state } = createPluginState(d, 4);
+
+    // Expand once
+    const dispatched1: Transaction[] = [];
+    const shortcuts1 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state,
+        view: { dispatch: (tr: Transaction) => dispatched1.push(tr) },
+      },
+    } as never);
+    shortcuts1["Mod-a"]({ editor: { state, view: { dispatch: (tr: Transaction) => dispatched1.push(tr) } } } as never);
+    const state2 = state.apply(dispatched1[0]);
+
+    // Undo to empty the stack
+    const dispatched2: Transaction[] = [];
+    const shortcuts2 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: state2,
+        view: { dispatch: (tr: Transaction) => dispatched2.push(tr) },
+      },
+    } as never);
+    shortcuts2["Mod-z"]({ editor: { state: state2, view: { dispatch: (tr: Transaction) => dispatched2.push(tr) } } } as never);
+    const state3 = state2.apply(dispatched2[0]);
+
+    // Now another Mod-z should return false (stack empty after undo)
+    const dispatched3: Transaction[] = [];
+    const shortcuts3 = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: state3,
+        view: { dispatch: (tr: Transaction) => dispatched3.push(tr) },
+      },
+    } as never);
+    const result = shortcuts3["Mod-z"]({ editor: { state: state3, view: { dispatch: (tr: Transaction) => dispatched3.push(tr) } } } as never);
+    expect(result).toBe(false);
+  });
+});

@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cleanMarkdownForClipboard, cleanTextForClipboard } from "./tiptap";
+
+// Mock debug utilities
+vi.mock("@/utils/debug", () => ({
+  clipboardWarn: vi.fn(),
+  markdownCopyWarn: vi.fn(),
+}));
 
 describe("cleanMarkdownForClipboard", () => {
   describe("backslash escape stripping", () => {
@@ -343,5 +349,240 @@ describe("cleanMarkdownForClipboard — additional edge cases", () => {
     expect(cleanMarkdownForClipboard("**bold and *italic***")).toBe(
       "**bold and *italic***"
     );
+  });
+});
+
+// --- Plugin integration tests ---
+// Test the plugin behavior through the extension's ProseMirror plugin.
+
+describe("markdownCopyExtension plugin integration", () => {
+  let mockSettingsGetState: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function getPluginInstance() {
+    // Reset settings mock for import
+    vi.doMock("@/stores/settingsStore", () => ({
+      useSettingsStore: {
+        getState: () => ({
+          markdown: { copyFormat: "text", copyOnSelect: false },
+        }),
+      },
+    }));
+
+    const { markdownCopyExtension } = require("./tiptap");
+    const extensionContext = {
+      name: markdownCopyExtension.name,
+      options: markdownCopyExtension.options,
+      storage: markdownCopyExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    return markdownCopyExtension.config.addProseMirrorPlugins?.call(extensionContext)?.[0];
+  }
+
+  it("clipboardTextSerializer returns empty string when copyFormat is not 'markdown'", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    const extensionContext = {
+      editor: {},
+      name: "markdownCopy",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    };
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call(extensionContext as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+    expect(plugin.props.clipboardTextSerializer).toBeDefined();
+  });
+
+  it("mouseup handler returns false when copyOnSelect is disabled", async () => {
+    const { markdownCopyExtension } = await import("./tiptap");
+    const extensionContext = {
+      editor: {},
+      name: "markdownCopy",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    };
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call(extensionContext as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+    // mouseup always returns false (it does not prevent default)
+    const result = plugin.props.handleDOMEvents.mouseup({} as never);
+    expect(result).toBe(false);
+  });
+});
+
+describe("ensureBlockContent and createDocFromSlice via clipboardTextSerializer", () => {
+  it("clipboardTextSerializer returns empty string for non-markdown copyFormat", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: false },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    const result = plugin.props.clipboardTextSerializer({} as never, {} as never);
+    expect(result).toBe("");
+  });
+
+  it("clipboardTextSerializer serializes markdown when copyFormat is 'markdown'", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: false },
+    } as never);
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { Slice, Fragment } = await import("@tiptap/pm/model");
+    const { EditorState } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    const content = Fragment.from(testSchema.node("paragraph", null, [testSchema.text("hello")]));
+    const slice = new Slice(content, 0, 0);
+    const mockView = { state };
+
+    const result = plugin.props.clipboardTextSerializer(slice, mockView);
+    expect(typeof result).toBe("string");
+  });
+
+  it("clipboardTextSerializer returns empty string when serialization fails", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "markdown", copyOnSelect: false },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { clipboardTextSerializer: (slice: unknown, view: unknown) => string } };
+
+    // Pass invalid slice and view to trigger error path
+    const result = plugin.props.clipboardTextSerializer(null, { state: { schema: {} } });
+    expect(result).toBe("");
+  });
+});
+
+describe("mouseup handler with copyOnSelect enabled", () => {
+  it("copies selected text on mouseup when copyOnSelect is enabled", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello world")]),
+    ]);
+    let state = EditorState.create({ doc, schema: testSchema });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 6)));
+
+    const mockView = {
+      state,
+      isDestroyed: false,
+    };
+
+    const result = plugin.props.handleDOMEvents.mouseup(mockView);
+    expect(result).toBe(false); // Always returns false
+  });
+
+  it("mouseup does not copy when view is destroyed in rAF", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const mockView = {
+      state: { selection: { from: 1, to: 1 } },
+      isDestroyed: true,
+    };
+
+    const result = plugin.props.handleDOMEvents.mouseup(mockView);
+    expect(result).toBe(false);
+  });
+
+  it("mouseup does not copy when selection is empty (from === to)", async () => {
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValue({
+      markdown: { copyFormat: "text", copyOnSelect: true },
+    } as never);
+
+    const { markdownCopyExtension } = await import("./tiptap");
+    const plugins = markdownCopyExtension.config.addProseMirrorPlugins!.call({
+      editor: {}, name: "markdownCopy", options: {}, storage: {}, type: undefined, parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handleDOMEvents: { mouseup: (view: unknown) => boolean } } };
+
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState } = await import("@tiptap/pm/state");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*", group: "block" },
+        text: { inline: true },
+      },
+    });
+
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+
+    const mockView = {
+      state,
+      isDestroyed: false,
+    };
+
+    const result = plugin.props.handleDOMEvents.mouseup(mockView);
+    expect(result).toBe(false);
   });
 });

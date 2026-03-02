@@ -101,6 +101,10 @@ describe("detectNodeType", () => {
     it("does not detect table from text with single pipe", () => {
       expect(detectNodeType("a | b")).toBe("paragraph");
     });
+
+    it("detects table row starting with pipe but not ending with pipe (line 60-61)", () => {
+      expect(detectNodeType("| a | b")).toBe("table_cell");
+    });
   });
 
   describe("wiki links", () => {
@@ -333,5 +337,11 @@ describe("isInsideCodeBlock", () => {
   it("returns true for opening fence line", () => {
     const lines = ["```js", "code"];
     expect(isInsideCodeBlock(lines, 0)).toBe(true);
+  });
+
+  it("closes tilde fence and marks line after as outside (lines 183-185)", () => {
+    const lines = ["~~~", "inside", "~~~", "outside"];
+    expect(isInsideCodeBlock(lines, 1)).toBe(true);
+    expect(isInsideCodeBlock(lines, 3)).toBe(false);
   });
 });

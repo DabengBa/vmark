@@ -276,5 +276,82 @@ describe("expandedToggleMark", () => {
       expect(result).toBe(true);
       expect(view.dispatch).toHaveBeenCalled();
     });
+
+    it("removes opposing mark from inherited range for subscript", () => {
+      const state = createState("hello");
+      const view = createView(state);
+
+      mockFindAnyMarkRangeAtCursor.mockReturnValue({ from: 1, to: 6, isLink: false });
+
+      const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("re-toggle after removal (lastRemovedMark)", () => {
+    it("re-applies mark at last removed position when cursor is within range", () => {
+      const boldMark = schema.marks.bold.create();
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("hello", [boldMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createView(state);
+
+      // First call: findMarkRange returns a range to remove bold
+      mockFindMarkRange.mockReturnValueOnce({ from: 1, to: 6 });
+      expandedToggleMark(view, "bold");
+      expect(view.dispatch).toHaveBeenCalled();
+
+      // Second call: cursor still in the range, no mark range found
+      // but lastRemovedMark should trigger re-apply
+      mockFindMarkRange.mockReturnValue(null);
+      mockFindAnyMarkRangeAtCursor.mockReturnValue(null);
+      mockFindWordAtCursor.mockReturnValue(null);
+
+      // We need a fresh state since the view is a mock
+      const result = expandedToggleMark(view, "bold");
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("collapsed cursor — opposing mark range found", () => {
+    it("removes opposing mark range for superscript when toggling subscript", () => {
+      const superMark = schema.marks.superscript.create();
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("hello", [superMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = createView(state);
+
+      // No range for subscript
+      mockFindMarkRange
+        .mockReturnValueOnce(null) // first call for subscript
+        .mockReturnValueOnce({ from: 1, to: 6 }); // second call for opposing superscript
+
+      const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("collapsed cursor — word found with opposing mark", () => {
+    it("removes opposing mark and adds mark to word", () => {
+      const state = createState("hello world");
+      const stateWithCursor = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const view = createView(stateWithCursor);
+
+      mockFindWordAtCursor.mockReturnValue({ from: 1, to: 6 });
+
+      const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
   });
 });

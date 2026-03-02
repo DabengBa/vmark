@@ -40,20 +40,17 @@ function createMultiCursorView(
   const parent = document.createElement("div");
   document.body.appendChild(parent);
 
-  // Create with single cursor first, then dispatch multi-selection
+  // Create state with multi-cursor support and initial multi-selection
   const state = EditorState.create({
     doc: content,
+    selection: EditorSelection.create(
+      ranges.map((r) => EditorSelection.range(r.anchor, r.head ?? r.anchor)),
+      0
+    ),
+    extensions: [EditorState.allowMultipleSelections.of(true)],
   });
   const view = new EditorView({ state, parent });
   views.push(view);
-
-  // Dispatch multi-cursor selection after view creation
-  view.dispatch({
-    selection: EditorSelection.create(
-      ranges.map((r) => EditorSelection.range(r.anchor, r.head ?? r.anchor)),
-      ranges.length - 1
-    ),
-  });
 
   return view;
 }
@@ -187,43 +184,141 @@ describe("tabEscapeKeymap", () => {
       expect(handled).toBe(false);
     });
 
-    it("handles multi-cursor where all cursors can escape", () => {
-      const view = createMultiCursorView("a)b)c)", [
+    it("handles multi-cursor where all cursors can escape closing chars", () => {
+      // Use well-separated positions so CM doesn't merge them
+      // "a)___b)___c)" — cursors at 1, 6, 11
+      const content = "a)   b)   c)";
+      const view = createMultiCursorView(content, [
         { anchor: 1 },
-        { anchor: 3 },
-        { anchor: 5 },
+        { anchor: 6 },
+        { anchor: 11 },
       ]);
+      expect(view.state.selection.ranges.length).toBe(3);
 
-      if (view.state.selection.ranges.length > 1) {
-        const handled = tabEscapeKeymap.run!(view);
-        expect(handled).toBe(true);
-      }
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      // Each cursor should have jumped past its closing paren
+      const ranges = view.state.selection.ranges;
+      expect(ranges[0].from).toBe(2);
+      expect(ranges[1].from).toBe(7);
+      expect(ranges[2].from).toBe(12);
     });
 
     it("handles multi-cursor where no cursors can escape", () => {
-      const view = createMultiCursorView("abcdef", [
+      const content = "ab   cd   ef";
+      const view = createMultiCursorView(content, [
         { anchor: 1 },
-        { anchor: 3 },
-        { anchor: 5 },
+        { anchor: 6 },
+        { anchor: 11 },
       ]);
+      expect(view.state.selection.ranges.length).toBe(3);
 
-      if (view.state.selection.ranges.length > 1) {
-        const handled = tabEscapeKeymap.run!(view);
-        expect(handled).toBe(false);
-      }
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(false);
+    });
+
+    it("handles multi-cursor with mixed escapable and non-escapable", () => {
+      // Position 1 before ), position 6 before 'd' (no escape)
+      const content = "a)   cd   e)";
+      const view = createMultiCursorView(content, [
+        { anchor: 1 },
+        { anchor: 6 },
+        { anchor: 11 },
+      ]);
+      expect(view.state.selection.ranges.length).toBe(3);
+
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      // Cursors that can escape move; others stay in place
+      const ranges = view.state.selection.ranges;
+      expect(ranges[0].from).toBe(2);  // escaped past )
+      expect(ranges[1].from).toBe(6);  // stayed (no escape)
+      expect(ranges[2].from).toBe(12); // escaped past )
     });
 
     it("handles multi-cursor with selections (not just cursors)", () => {
-      const view = createMultiCursorView("abc)def)", [
-        { anchor: 0, head: 2 },
-        { anchor: 4, head: 6 },
+      // Selections (from !== to) are kept as-is
+      const content = "abc)    def)";
+      const view = createMultiCursorView(content, [
+        { anchor: 0, head: 2 },  // selection
+        { anchor: 11 },          // cursor before )
       ]);
+      expect(view.state.selection.ranges.length).toBe(2);
 
-      if (view.state.selection.ranges.length > 1) {
-        const handled = tabEscapeKeymap.run!(view);
-        // Selections are kept as-is (not processed as escape candidates)
-        expect(typeof handled).toBe("boolean");
-      }
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      const ranges = view.state.selection.ranges;
+      // Selection preserved (anchor stays at 0, head at 2)
+      expect(ranges[0].from).toBe(0);
+      expect(ranges[0].to).toBe(2);
+      // Cursor escaped past )
+      expect(ranges[1].from).toBe(12);
+    });
+
+    it("multi-cursor escapes ~~ sequences", () => {
+      const content = "a~~  b~~";
+      const view = createMultiCursorView(content, [
+        { anchor: 1 },
+        { anchor: 6 },
+      ]);
+      expect(view.state.selection.ranges.length).toBe(2);
+
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      const ranges = view.state.selection.ranges;
+      expect(ranges[0].from).toBe(3);  // jumped over ~~
+      expect(ranges[1].from).toBe(8);  // jumped over ~~
+    });
+
+    it("multi-cursor escapes == sequences", () => {
+      const content = "a==  b==";
+      const view = createMultiCursorView(content, [
+        { anchor: 1 },
+        { anchor: 6 },
+      ]);
+      expect(view.state.selection.ranges.length).toBe(2);
+
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      const ranges = view.state.selection.ranges;
+      expect(ranges[0].from).toBe(3);
+      expect(ranges[1].from).toBe(8);
+    });
+
+    it("multi-cursor with link text navigation", () => {
+      // Cursor inside link text portion → should jump to URL start
+      const content = "[text](url)     [text](url)";
+      const view = createMultiCursorView(content, [
+        { anchor: 3 },  // inside first link text
+        { anchor: 19 }, // inside second link text
+      ]);
+      expect(view.state.selection.ranges.length).toBe(2);
+
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+    });
+
+    it("multi-cursor with link URL navigation", () => {
+      // Cursor inside link URL portion → should jump after link
+      const content = "[text](url)     [text](url)";
+      const view = createMultiCursorView(content, [
+        { anchor: 8 },  // inside first link URL
+        { anchor: 24 }, // inside second link URL
+      ]);
+      expect(view.state.selection.ranges.length).toBe(2);
+
+      const handled = tabEscapeKeymap.run!(view);
+      expect(handled).toBe(true);
+
+      // Should jump to after link end (positions 11 and 27)
+      const ranges = view.state.selection.ranges;
+      expect(ranges[0].from).toBe(11); // after first link
+      expect(ranges[1].from).toBe(27); // after second link
     });
   });
 

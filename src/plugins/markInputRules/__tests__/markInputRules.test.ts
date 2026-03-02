@@ -374,3 +374,229 @@ describe("paste regex with mixed content", () => {
     expect(pasteMatches(italicUnderscorePasteRegex, text)).toEqual(["italic1", "italic2"]);
   });
 });
+
+// --- parseHTML callback tests ---
+
+describe("CJKBold parseHTML callbacks", () => {
+  function getBoldParseRules() {
+    return CJKBold.config.parseHTML!.call({ name: "bold" } as never);
+  }
+
+  it("<b> getAttrs returns null when fontWeight is not 'normal'", () => {
+    const rules = getBoldParseRules();
+    const bRule = rules[1]; // { tag: "b", getAttrs: ... }
+    expect(bRule.tag).toBe("b");
+
+    // fontWeight = "bold" => should match (returns null = match)
+    const boldElement = { style: { fontWeight: "bold" } } as HTMLElement;
+    expect(bRule.getAttrs!(boldElement as never)).toBeNull();
+  });
+
+  it("<b> getAttrs returns false when fontWeight is 'normal'", () => {
+    const rules = getBoldParseRules();
+    const bRule = rules[1];
+    const normalElement = { style: { fontWeight: "normal" } } as HTMLElement;
+    expect(bRule.getAttrs!(normalElement as never)).toBe(false);
+  });
+
+  it("<b> getAttrs returns null for empty fontWeight", () => {
+    const rules = getBoldParseRules();
+    const bRule = rules[1];
+    const emptyElement = { style: { fontWeight: "" } } as HTMLElement;
+    // "" !== "normal" => true, true && null => null
+    expect(bRule.getAttrs!(emptyElement as never)).toBeNull();
+  });
+
+  it("font-weight=400 clearMark identifies bold marks", () => {
+    const rules = getBoldParseRules();
+    const clearRule = rules[2]; // { style: "font-weight=400", clearMark: ... }
+    expect(clearRule.style).toBe("font-weight=400");
+    expect(clearRule.clearMark).toBeDefined();
+
+    // Mark with name "bold" should return true
+    expect(clearRule.clearMark!({ type: { name: "bold" } } as never)).toBe(true);
+    // Mark with name "italic" should return false
+    expect(clearRule.clearMark!({ type: { name: "italic" } } as never)).toBe(false);
+  });
+
+  it("font-weight style getAttrs matches bold values", () => {
+    const rules = getBoldParseRules();
+    const weightRule = rules[3]; // { style: "font-weight", getAttrs: ... }
+    expect(weightRule.style).toBe("font-weight");
+
+    // "bold" should match => null
+    expect(weightRule.getAttrs!("bold" as never)).toBeNull();
+    // "bolder" should match => null
+    expect(weightRule.getAttrs!("bolder" as never)).toBeNull();
+    // "500" should match => null
+    expect(weightRule.getAttrs!("500" as never)).toBeNull();
+    // "900" should match => null
+    expect(weightRule.getAttrs!("900" as never)).toBeNull();
+    // "400" should NOT match => false
+    expect(weightRule.getAttrs!("400" as never)).toBe(false);
+    // "normal" should NOT match => false
+    expect(weightRule.getAttrs!("normal" as never)).toBe(false);
+    // "300" should NOT match
+    expect(weightRule.getAttrs!("300" as never)).toBe(false);
+  });
+});
+
+describe("CJKItalic parseHTML callbacks", () => {
+  function getItalicParseRules() {
+    return CJKItalic.config.parseHTML!.call({ name: "italic" } as never);
+  }
+
+  it("<i> getAttrs returns null when fontStyle is not 'normal'", () => {
+    const rules = getItalicParseRules();
+    const iRule = rules[1]; // { tag: "i", getAttrs: ... }
+    expect(iRule.tag).toBe("i");
+
+    const italicElement = { style: { fontStyle: "italic" } } as HTMLElement;
+    expect(iRule.getAttrs!(italicElement as never)).toBeNull();
+  });
+
+  it("<i> getAttrs returns false when fontStyle is 'normal'", () => {
+    const rules = getItalicParseRules();
+    const iRule = rules[1];
+    const normalElement = { style: { fontStyle: "normal" } } as HTMLElement;
+    expect(iRule.getAttrs!(normalElement as never)).toBe(false);
+  });
+
+  it("font-style=normal clearMark identifies italic marks", () => {
+    const rules = getItalicParseRules();
+    const clearRule = rules[2]; // { style: "font-style=normal", clearMark: ... }
+    expect(clearRule.style).toBe("font-style=normal");
+    expect(clearRule.clearMark).toBeDefined();
+
+    expect(clearRule.clearMark!({ type: { name: "italic" } } as never)).toBe(true);
+    expect(clearRule.clearMark!({ type: { name: "bold" } } as never)).toBe(false);
+  });
+
+  it("has font-style=italic rule", () => {
+    const rules = getItalicParseRules();
+    const italicRule = rules[3];
+    expect(italicRule.style).toBe("font-style=italic");
+  });
+});
+
+// --- Command execution tests ---
+
+describe("CJKBold command execution", () => {
+  it("setBold calls commands.setMark", () => {
+    const commands = CJKBold.config.addCommands!.call({ name: "bold" } as never);
+    const mockSetMark = vi.fn(() => true);
+    const result = commands.setBold()({ commands: { setMark: mockSetMark } } as never);
+    expect(mockSetMark).toHaveBeenCalledWith("bold");
+    expect(result).toBe(true);
+  });
+
+  it("toggleBold calls commands.toggleMark", () => {
+    const commands = CJKBold.config.addCommands!.call({ name: "bold" } as never);
+    const mockToggleMark = vi.fn(() => true);
+    const result = commands.toggleBold()({ commands: { toggleMark: mockToggleMark } } as never);
+    expect(mockToggleMark).toHaveBeenCalledWith("bold");
+    expect(result).toBe(true);
+  });
+
+  it("unsetBold calls commands.unsetMark", () => {
+    const commands = CJKBold.config.addCommands!.call({ name: "bold" } as never);
+    const mockUnsetMark = vi.fn(() => true);
+    const result = commands.unsetBold()({ commands: { unsetMark: mockUnsetMark } } as never);
+    expect(mockUnsetMark).toHaveBeenCalledWith("bold");
+    expect(result).toBe(true);
+  });
+});
+
+describe("CJKItalic command execution", () => {
+  it("setItalic calls commands.setMark", () => {
+    const commands = CJKItalic.config.addCommands!.call({ name: "italic" } as never);
+    const mockSetMark = vi.fn(() => true);
+    const result = commands.setItalic()({ commands: { setMark: mockSetMark } } as never);
+    expect(mockSetMark).toHaveBeenCalledWith("italic");
+    expect(result).toBe(true);
+  });
+
+  it("toggleItalic calls commands.toggleMark", () => {
+    const commands = CJKItalic.config.addCommands!.call({ name: "italic" } as never);
+    const mockToggleMark = vi.fn(() => true);
+    const result = commands.toggleItalic()({ commands: { toggleMark: mockToggleMark } } as never);
+    expect(mockToggleMark).toHaveBeenCalledWith("italic");
+    expect(result).toBe(true);
+  });
+
+  it("unsetItalic calls commands.unsetMark", () => {
+    const commands = CJKItalic.config.addCommands!.call({ name: "italic" } as never);
+    const mockUnsetMark = vi.fn(() => true);
+    const result = commands.unsetItalic()({ commands: { unsetMark: mockUnsetMark } } as never);
+    expect(mockUnsetMark).toHaveBeenCalledWith("italic");
+    expect(result).toBe(true);
+  });
+});
+
+// --- Keyboard shortcut execution tests ---
+
+describe("CJKBold keyboard shortcut execution", () => {
+  it("Mod-b toggles bold", () => {
+    const mockToggleBold = vi.fn(() => true);
+    const shortcuts = CJKBold.config.addKeyboardShortcuts!.call({
+      editor: { commands: { toggleBold: mockToggleBold } },
+    } as never);
+    shortcuts["Mod-b"]();
+    expect(mockToggleBold).toHaveBeenCalled();
+  });
+
+  it("Mod-B toggles bold", () => {
+    const mockToggleBold = vi.fn(() => true);
+    const shortcuts = CJKBold.config.addKeyboardShortcuts!.call({
+      editor: { commands: { toggleBold: mockToggleBold } },
+    } as never);
+    shortcuts["Mod-B"]();
+    expect(mockToggleBold).toHaveBeenCalled();
+  });
+});
+
+describe("CJKItalic keyboard shortcut execution", () => {
+  it("Mod-i toggles italic", () => {
+    const mockToggleItalic = vi.fn(() => true);
+    const shortcuts = CJKItalic.config.addKeyboardShortcuts!.call({
+      editor: { commands: { toggleItalic: mockToggleItalic } },
+    } as never);
+    shortcuts["Mod-i"]();
+    expect(mockToggleItalic).toHaveBeenCalled();
+  });
+
+  it("Mod-I toggles italic", () => {
+    const mockToggleItalic = vi.fn(() => true);
+    const shortcuts = CJKItalic.config.addKeyboardShortcuts!.call({
+      editor: { commands: { toggleItalic: mockToggleItalic } },
+    } as never);
+    shortcuts["Mod-I"]();
+    expect(mockToggleItalic).toHaveBeenCalled();
+  });
+});
+
+// --- renderHTML with merged attributes ---
+
+describe("CJKBold renderHTML with custom HTMLAttributes", () => {
+  it("merges custom HTMLAttributes into strong tag", () => {
+    const result = CJKBold.config.renderHTML!.call(
+      { options: { HTMLAttributes: { class: "custom-bold" } } } as never,
+      { HTMLAttributes: { id: "test" } } as never
+    );
+    expect(result[0]).toBe("strong");
+    expect(result[1]).toEqual(expect.objectContaining({ class: "custom-bold", id: "test" }));
+    expect(result[2]).toBe(0);
+  });
+});
+
+describe("CJKItalic renderHTML with custom HTMLAttributes", () => {
+  it("merges custom HTMLAttributes into em tag", () => {
+    const result = CJKItalic.config.renderHTML!.call(
+      { options: { HTMLAttributes: { class: "custom-italic" } } } as never,
+      { HTMLAttributes: { id: "test" } } as never
+    );
+    expect(result[0]).toBe("em");
+    expect(result[1]).toEqual(expect.objectContaining({ class: "custom-italic", id: "test" }));
+    expect(result[2]).toBe(0);
+  });
+});

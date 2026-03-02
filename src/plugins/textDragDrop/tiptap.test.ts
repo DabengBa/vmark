@@ -538,6 +538,261 @@ describe("textDragDrop plugin handler integration", () => {
   });
 });
 
+describe("textDragDrop full drag lifecycle", () => {
+  let mousedownHandler: (view: unknown, event: MouseEvent) => boolean;
+  let capturedListeners: Record<string, Function>;
+  let capturedWindowListeners: Record<string, Function>;
+  let plugin: ReturnType<typeof textDragDropExtension.config.addProseMirrorPlugins>[0];
+
+  beforeEach(() => {
+    capturedListeners = {};
+    capturedWindowListeners = {};
+
+    vi.spyOn(document, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
+      capturedListeners[type] = handler as Function;
+    });
+    vi.spyOn(document, "removeEventListener").mockImplementation(() => {});
+    vi.spyOn(window, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
+      capturedWindowListeners[type] = handler as Function;
+    });
+    vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
+
+    // Sync rAF
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+
+    const extensionContext = {
+      name: textDragDropExtension.name,
+      options: textDragDropExtension.options,
+      storage: textDragDropExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = textDragDropExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    plugin = plugins[0];
+    mousedownHandler = plugin.props.handleDOMEvents!.mousedown as (view: unknown, event: MouseEvent) => boolean;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function activateDrag(view: EditorView) {
+    const state = createState("hello world test", 2, 8);
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+    mousedownHandler(view, event);
+    return { state };
+  }
+
+  it("mousemove below threshold does not activate drag", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Move 2px - below 5px threshold
+    const moveEvent = createMouseEvent("mousemove", { clientX: 102, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mousemove?.(moveEvent);
+
+    // drag not active, so no class added
+    expect((view.dom as unknown as { classList: { add: ReturnType<typeof vi.fn> } }).classList.add).not.toHaveBeenCalled();
+  });
+
+  it("mousemove above threshold activates drag and shows drop cursor", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Move 10px - above 5px threshold
+    const moveEvent = createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mousemove?.(moveEvent);
+
+    expect((view.dom as unknown as { classList: { add: ReturnType<typeof vi.fn> } }).classList.add).toHaveBeenCalledWith("text-drag-active");
+  });
+
+  it("mousemove hides drop cursor when posAtCoords returns null", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // First move to activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Then posAtCoords returns null (mouse outside)
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 200, clientY: 200 } as Partial<MouseEvent>));
+
+    // Should not throw
+  });
+
+  it("mouseup without drag sets cursor at mouseup position", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // mouseup without moving past threshold
+    const upEvent = createMouseEvent("mouseup", { clientX: 101, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    // Should have dispatched to set cursor at click position
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("mouseup without drag when posAtCoords returns null does not dispatch", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const upEvent = createMouseEvent("mouseup", { clientX: 101, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    // No dispatch since posAtCoords returned null
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("mouseup after drag with drop inside selection does not move text", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // mouseup with drop position inside the selection (pos 5 is inside [2,8])
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue({ pos: 5 });
+    const upEvent = createMouseEvent("mouseup", { clientX: 110, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    // Should NOT dispatch since drop is inside selection
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("mouseup after drag with null drop position does not move text", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // posAtCoords returns null during drag so currentDropPos is null
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 120, clientY: 100 } as Partial<MouseEvent>));
+
+    const upEvent = createMouseEvent("mouseup", { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    // Should not dispatch move since drop pos is null
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("Escape key during drag triggers cleanup", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Press Escape
+    capturedListeners.keydown?.(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    // Should have removed drag class
+    expect((view.dom as unknown as { classList: { remove: ReturnType<typeof vi.fn> } }).classList.remove).toHaveBeenCalledWith("text-drag-active");
+  });
+
+  it("non-Escape key during drag does not cleanup", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Press Enter (not Escape)
+    capturedListeners.keydown?.(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    // Should NOT have removed drag class
+    expect((view.dom as unknown as { classList: { remove: ReturnType<typeof vi.fn> } }).classList.remove).not.toHaveBeenCalled();
+  });
+
+  it("window blur during drag triggers cleanup", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Blur
+    capturedWindowListeners.blur?.();
+
+    expect((view.dom as unknown as { classList: { remove: ReturnType<typeof vi.fn> } }).classList.remove).toHaveBeenCalledWith("text-drag-active");
+  });
+
+  it("plugin view destroy calls active cleanup", () => {
+    const mockEditorView = { state: {} } as unknown as EditorView;
+    const viewResult = plugin.spec.view!(mockEditorView);
+    // Calling destroy should not throw even when no active cleanup
+    expect(() => viewResult.destroy!()).not.toThrow();
+  });
+
+  it("cancels previous drag session on re-activation", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Re-activate a new drag (previous should be cleaned up)
+    const state2 = createState("hello world test", 2, 8);
+    (view as unknown as Record<string, unknown>).state = state2;
+    const event2 = createMouseEvent("mousedown", { clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+    mousedownHandler(view, event2);
+
+    // Should not throw - previous cleanup ran
+  });
+
+  it("ctrl-click does not activate drag", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    const state = createState("hello world test", 2, 8);
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { ctrlKey: true } as Partial<MouseEvent>);
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("alt-click does not activate drag", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    const state = createState("hello world test", 2, 8);
+    (view as unknown as Record<string, unknown>).state = state;
+    const event = createMouseEvent("mousedown", { altKey: true } as Partial<MouseEvent>);
+    const result = mousedownHandler(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("mouseup flushes pending rAF before using drop position", () => {
+    const view = createMockView({ text: "hello world test", from: 2, to: 8, posAtCoordsResult: { pos: 5 } });
+    activateDrag(view);
+
+    // Activate drag
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
+
+    // Make rAF NOT immediately execute (simulate pending rAF)
+    let pendingCallback: FrameRequestCallback | null = null;
+    (globalThis.requestAnimationFrame as ReturnType<typeof vi.fn>).mockImplementation((cb: FrameRequestCallback) => {
+      pendingCallback = cb;
+      return 42;
+    });
+
+    // Move again (this will have a pending rAF)
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue({ pos: 12 });
+    capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 120, clientY: 100 } as Partial<MouseEvent>));
+
+    // mouseup should cancel the pending rAF and use the final coords
+    (view.posAtCoords as ReturnType<typeof vi.fn>).mockReturnValue({ pos: 14 });
+    const upEvent = createMouseEvent("mouseup", { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+    capturedListeners.mouseup?.(upEvent);
+
+    expect(globalThis.cancelAnimationFrame).toHaveBeenCalledWith(42);
+  });
+});
+
 describe("edge cases", () => {
   it("handles posAtCoords returning null (mouse outside editor)", () => {
     const view = createMockView({ posAtCoordsResult: null });

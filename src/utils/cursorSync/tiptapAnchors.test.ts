@@ -452,4 +452,86 @@ describe("restoreCursorInTable", () => {
 
     expect(result).toBe(true);
   });
+
+  it("returns false when target row exceeds table rows", () => {
+    const doc = schema.node("doc", null, [
+      table(1, tableRow(tableCell("only row"))),
+    ]);
+    const state = createState(doc);
+    const view = createMockView(state);
+
+    const result = restoreCursorInTable(view as never, 1, {
+      row: 5, // row 5 doesn't exist
+      col: 0,
+      offsetInCell: 0,
+    });
+
+    // Should return false — row not found, falls through to return false (line 140)
+    expect(result).toBe(false);
+  });
+
+  it("returns false when target col exceeds row columns (break path)", () => {
+    const doc = schema.node("doc", null, [
+      table(1, tableRow(tableCell("A1"))),
+    ]);
+    const state = createState(doc);
+    const view = createMockView(state);
+
+    const result = restoreCursorInTable(view as never, 1, {
+      row: 0,
+      col: 5, // col 5 doesn't exist, only 1 cell
+      offsetInCell: 0,
+    });
+
+    // Row found but col not found — breaks out of row loop, then returns false
+    expect(result).toBe(false);
+  });
+
+  it("returns false when TextSelection.near throws in table restore", () => {
+    const doc = schema.node("doc", null, [
+      table(1, tableRow(tableCell("A1"))),
+    ]);
+    const state = createState(doc);
+    const view = createMockView(state);
+
+    // Mock TextSelection.near to throw
+    const origNear = TextSelection.near;
+    vi.spyOn(TextSelection, "near").mockImplementation(() => {
+      throw new Error("Simulated near failure");
+    });
+
+    const result = restoreCursorInTable(view as never, 1, {
+      row: 0,
+      col: 0,
+      offsetInCell: 0,
+    });
+
+    expect(result).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+
+    vi.mocked(TextSelection.near).mockRestore();
+  });
+});
+
+describe("restoreCursorInCodeBlock — catch block", () => {
+  it("returns false when TextSelection.near throws in code block restore", () => {
+    const doc = schema.node("doc", null, [codeBlock("code text", 1)]);
+    const state = createState(doc);
+    const view = createMockView(state);
+
+    // Mock TextSelection.near to throw
+    vi.spyOn(TextSelection, "near").mockImplementation(() => {
+      throw new Error("Simulated near failure");
+    });
+
+    const result = restoreCursorInCodeBlock(view as never, 1, {
+      lineInBlock: 0,
+      columnInLine: 0,
+    });
+
+    expect(result).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+
+    vi.mocked(TextSelection.near).mockRestore();
+  });
 });

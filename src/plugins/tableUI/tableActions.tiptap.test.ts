@@ -600,3 +600,224 @@ describe("edge cases", () => {
     expect(info!.numCols).toBe(4);
   });
 });
+
+// ---------- collectCellInlineContent: whitespace trimming ----------
+
+describe("formatTable - collectCellInlineContent whitespace trimming", () => {
+  it("trims leading whitespace-only text nodes from cells", () => {
+    // Create a cell with leading whitespace text and content
+    const cellWithLeadingSpace = schema.nodes.tableCell.create(null, [
+      schema.nodes.paragraph.create(null, [
+        schema.text("   "), // whitespace-only
+      ]),
+      schema.nodes.paragraph.create(null, [
+        schema.text("content"),
+      ]),
+    ]);
+    const hdr = row([headerCell("h0")]);
+    const dataRow = row([cellWithLeadingSpace]);
+    const t = table([hdr, dataRow]);
+    const doc = schema.nodes.doc.create(null, [t]);
+    const state = EditorState.create({ doc, schema });
+
+    const pos = 1 + hdr.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+    const view = mockView(stateWithSel);
+
+    expect(formatTable(view)).toBe(true);
+  });
+
+  it("trims trailing whitespace-only text nodes from cells", () => {
+    const cellWithTrailingSpace = schema.nodes.tableCell.create(null, [
+      schema.nodes.paragraph.create(null, [
+        schema.text("content"),
+      ]),
+      schema.nodes.paragraph.create(null, [
+        schema.text("   "),
+      ]),
+    ]);
+    const hdr = row([headerCell("h0")]);
+    const dataRow = row([cellWithTrailingSpace]);
+    const t = table([hdr, dataRow]);
+    const doc = schema.nodes.doc.create(null, [t]);
+    const state = EditorState.create({ doc, schema });
+
+    const pos = 1 + hdr.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+    const view = mockView(stateWithSel);
+
+    expect(formatTable(view)).toBe(true);
+  });
+
+  it("trims leading text with whitespace prefix", () => {
+    const cellWithSpacePrefix = schema.nodes.tableCell.create(null, [
+      schema.nodes.paragraph.create(null, [
+        schema.text("  hello"),
+      ]),
+    ]);
+    const hdr = row([headerCell("h0")]);
+    const dataRow = row([cellWithSpacePrefix]);
+    const t = table([hdr, dataRow]);
+    const doc = schema.nodes.doc.create(null, [t]);
+    const state = EditorState.create({ doc, schema });
+
+    const pos = 1 + hdr.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+    const view = mockView(stateWithSel);
+
+    expect(formatTable(view)).toBe(true);
+
+    const tr = (view.dispatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    // Check the formatted cell content does not have leading space
+    let cellText = "";
+    tr.doc.descendants((node: Node) => {
+      if (node.type.name === "tableCell") {
+        cellText = node.textContent;
+      }
+    });
+    expect(cellText).toBe("hello");
+  });
+
+  it("trims trailing text with whitespace suffix", () => {
+    const cellWithSpaceSuffix = schema.nodes.tableCell.create(null, [
+      schema.nodes.paragraph.create(null, [
+        schema.text("hello  "),
+      ]),
+    ]);
+    const hdr = row([headerCell("h0")]);
+    const dataRow = row([cellWithSpaceSuffix]);
+    const t = table([hdr, dataRow]);
+    const doc = schema.nodes.doc.create(null, [t]);
+    const state = EditorState.create({ doc, schema });
+
+    const pos = 1 + hdr.nodeSize + 1 + 2;
+    const $pos = state.doc.resolve(pos);
+    const stateWithSel = state.apply(state.tr.setSelection(TextSelection.near($pos)));
+    const view = mockView(stateWithSel);
+
+    expect(formatTable(view)).toBe(true);
+
+    const tr = (view.dispatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    let cellText = "";
+    tr.doc.descendants((node: Node) => {
+      if (node.type.name === "tableCell") {
+        cellText = node.textContent;
+      }
+    });
+    expect(cellText).toBe("hello");
+  });
+});
+
+// ---------- alignColumn error handling ----------
+
+describe("alignColumn - error handling", () => {
+  it("catches errors and returns false", () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const state = createTableState(2, 2);
+    const view = mockView(state);
+
+    // Make dispatch throw to trigger the catch path
+    (view.dispatch as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("dispatch failed");
+    });
+
+    const result = alignColumn(view, "center", false);
+    expect(result).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[tableActions.tiptap] Align failed:",
+      expect.any(Error)
+    );
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+// ---------- formatTable error handling ----------
+
+describe("formatTable - error handling", () => {
+  it("catches errors and returns false", () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const state = createTableState(2, 2);
+    const view = mockView(state);
+
+    (view.dispatch as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("format dispatch failed");
+    });
+
+    const result = formatTable(view);
+    expect(result).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[tableActions.tiptap] Format table failed:",
+      expect.any(Error)
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("returns false when schema has no paragraph node type", () => {
+    // Create a schema without paragraph
+    const noParagraphSchema = new Schema({
+      nodes: {
+        doc: { content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const doc = noParagraphSchema.nodes.doc.create(null, [noParagraphSchema.text("hello")]);
+    const state = EditorState.create({ doc, schema: noParagraphSchema });
+    const view = mockView(state);
+
+    // getTableInfo will return null, but we need to also check paragraphType guard
+    // Since there's no table, it returns false early
+    expect(formatTable(view)).toBe(false);
+  });
+});
+
+// ---------- addRowAbove uses addRowAfter for first row ----------
+
+describe("addRowAbove - first row behavior", () => {
+  it("uses addRowAfter when cursor is on first row (header)", () => {
+    const state = createTableState(3, 2, { cursorRow: 0, cursorCol: 0 });
+    const view = mockView(state);
+    // This tests the branch where rowIndex === 0 chooses addRowAfter
+    try {
+      addRowAbove(view);
+    } catch {
+      // PM table commands may fail without CellSelection
+    }
+    expect(view.focus).toHaveBeenCalled();
+  });
+});
+
+// ---------- deleteCurrentRow with > 2 rows ----------
+
+describe("deleteCurrentRow - more than 2 rows", () => {
+  it("calls deleteRow for table with 3+ rows", () => {
+    const state = createTableState(4, 2, { cursorRow: 2, cursorCol: 0 });
+    const view = mockView(state);
+    try {
+      deleteCurrentRow(view);
+    } catch {
+      // PM deleteRow may fail without CellSelection
+    }
+    expect(view.focus).toHaveBeenCalled();
+  });
+});
+
+// ---------- getTableScrollWrapper - nodeDOM returns non-HTMLElement ----------
+
+describe("getTableScrollWrapper - non-HTMLElement nodeDOM", () => {
+  it("returns null when nodeDOM returns a text node", () => {
+    const state = createTableState(2, 2);
+    const view = mockView(state);
+    (view.nodeDOM as ReturnType<typeof vi.fn>).mockReturnValue(document.createTextNode("text"));
+    expect(getTableScrollWrapper(view)).toBeNull();
+  });
+
+  it("returns null when nodeDOM returns null", () => {
+    const state = createTableState(2, 2);
+    const view = mockView(state);
+    (view.nodeDOM as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    expect(getTableScrollWrapper(view)).toBeNull();
+  });
+});

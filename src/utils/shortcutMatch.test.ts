@@ -136,6 +136,34 @@ describe("matchesShortcutEvent", () => {
     expect(matchesShortcutEvent(event, "Return", "other")).toBe(true);
   });
 
+  it("rejects metaKey on mac when Mod not in shortcut (line 94-95)", () => {
+    // metaKey pressed but shortcut has no Mod — should reject on mac
+    const event = makeEvent({ key: "a", metaKey: true });
+    expect(matchesShortcutEvent(event, "a", "mac")).toBe(false);
+  });
+
+  it("matches Ctrl-Mod on non-mac (both require ctrlKey, line 101-102)", () => {
+    // On non-mac, both Ctrl and Mod map to ctrlKey
+    const event = makeEvent({ key: "a", ctrlKey: true });
+    expect(matchesShortcutEvent(event, "Ctrl-Mod-a", "other")).toBe(true);
+  });
+
+  it("rejects when shiftKey does not match (line 105)", () => {
+    const event = makeEvent({ key: "a", ctrlKey: true, shiftKey: true });
+    // Shortcut requires no shift
+    expect(matchesShortcutEvent(event, "Mod-a", "other")).toBe(false);
+  });
+
+  it("matches shifted . to > via matchesShiftedSymbol (line 68)", () => {
+    const event = makeEvent({ key: ">", shiftKey: true, ctrlKey: true });
+    expect(matchesShortcutEvent(event, "Mod-Shift-.", "other")).toBe(true);
+  });
+
+  it("matches Ctrl+digit via code fallback (line 121-122)", () => {
+    const event = makeEvent({ key: "\x00", code: "Digit5", ctrlKey: true });
+    expect(matchesShortcutEvent(event, "Ctrl-5", "mac")).toBe(true);
+  });
+
   it("uses default platform detection when platform not specified", () => {
     const event = makeEvent({ key: "a", ctrlKey: true });
     // Should not throw — uses isMacPlatform() internally

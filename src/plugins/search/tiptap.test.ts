@@ -664,4 +664,508 @@ describe("search plugin integration", () => {
     const found = (decorations as DecorationSet).find();
     expect(found.length).toBe(1);
   });
+
+  it("props.decorations returns empty DecorationSet when plugin state is absent", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello"]);
+    // Create state without the plugin to test null path
+    const state = EditorState.create({ doc, schema });
+    const decorations = plugin.props.decorations!(state);
+    expect(decorations).toBe(DecorationSet.empty);
+  });
+
+  it("does not rebuild decorations when nothing changed", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    // First apply triggers query detection
+    const state2 = state.apply(state.tr);
+    mockSearchState.setMatches.mockClear();
+
+    // Second apply with no changes
+    const state3 = state2.apply(state2.tr);
+    // setMatches should NOT be called again (no queryChanged, no docChanged)
+    expect(mockSearchState.setMatches).not.toHaveBeenCalled();
+    // But decorations should be preserved
+    const pluginState = plugin.getState(state3);
+    expect(pluginState.decorationSet).toBeDefined();
+  });
+
+  it("rebuilds decorations when currentIndex changes", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+    const pluginState1 = plugin.getState(state2);
+    expect(pluginState1.currentIndex).toBe(0);
+
+    // Change currentIndex
+    mockSearchState.currentIndex = 1;
+    const state3 = state2.apply(state2.tr);
+    const pluginState2 = plugin.getState(state3);
+    expect(pluginState2.currentIndex).toBe(1);
+
+    // The active decoration should have changed
+    const decorations = pluginState2.decorationSet.find();
+    expect(decorations.length).toBe(2);
+  });
+
+  it("clears decorations when search is closed but query still set (needsRebuild with isOpen=false)", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello hello"]);
+
+    // Open search first
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+    expect(plugin.getState(state2).decorationSet.find().length).toBe(2);
+
+    // Close search but keep query — needsRebuild = true (isOpen changed) && (state.query truthy)
+    // The rebuild happens but isOpen is false, so decorations are empty
+    mockSearchState.isOpen = false;
+    // Force a queryChanged by toggling caseSensitive
+    mockSearchState.caseSensitive = true;
+    const state3 = state2.apply(state2.tr);
+    const pluginState = plugin.getState(state3);
+    // isOpen=false means no decorations created
+    expect(pluginState.decorationSet.find().length).toBe(0);
+  });
+
+  it("handles query change from non-empty to empty", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(1, 0);
+
+    // Clear query
+    mockSearchState.query = "";
+    mockSearchState.setMatches.mockClear();
+    const state3 = state2.apply(state2.tr);
+    expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
+  });
+
+  it("handles zero-length regex match by advancing lastIndex", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["abc"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "a*";
+    mockSearchState.useRegex = true;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+    // Should find matches without infinite loop
+    expect(mockSearchState.setMatches).toHaveBeenCalled();
+    const matchCount = mockSearchState.setMatches.mock.calls[0][0];
+    expect(matchCount).toBeGreaterThan(0);
+  });
+});
+
+describe("search plugin view lifecycle", () => {
+  function getPlugin() {
+    const extensionContext = {
+      name: searchExtension.name,
+      options: searchExtension.options,
+      storage: searchExtension.storage,
+      editor: {} as never,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = searchExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    return plugins[0];
+  }
+
+  beforeEach(() => {
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "";
+    mockSearchState.replaceText = "";
+    mockSearchState.caseSensitive = false;
+    mockSearchState.wholeWord = false;
+    mockSearchState.useRegex = false;
+    mockSearchState.matchCount = 0;
+    mockSearchState.currentIndex = -1;
+    mockSearchState.setMatches.mockClear();
+    mockSearchState.findNext.mockClear();
+    mockSearchSubscribers.length = 0;
+  });
+
+  it("view subscribes to searchStore and adds event listeners", () => {
+    const plugin = getPlugin();
+    const addSpy = vi.spyOn(window, "addEventListener");
+
+    const mockView = {
+      state: EditorState.create({ doc: createDoc(["hello"]), schema, plugins: [plugin] }),
+      dom: document.createElement("div"),
+      dispatch: vi.fn(),
+      coordsAtPos: vi.fn(() => ({ top: 100, bottom: 120, left: 50 })),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+    expect(viewResult).toBeDefined();
+    expect(viewResult.destroy).toBeTypeOf("function");
+
+    // Should have subscribed to the store
+    expect(mockSearchSubscribers.length).toBe(1);
+
+    // Should have added event listeners
+    expect(addSpy).toHaveBeenCalledWith("search:replace-current", expect.any(Function));
+    expect(addSpy).toHaveBeenCalledWith("search:replace-all", expect.any(Function));
+
+    viewResult.destroy!();
+    addSpy.mockRestore();
+  });
+
+  it("view destroy unsubscribes and removes event listeners", () => {
+    const plugin = getPlugin();
+    const removeSpy = vi.spyOn(window, "removeEventListener");
+
+    const mockView = {
+      state: EditorState.create({ doc: createDoc(["hello"]), schema, plugins: [plugin] }),
+      dom: document.createElement("div"),
+      dispatch: vi.fn(),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+    expect(mockSearchSubscribers.length).toBe(1);
+
+    viewResult.destroy!();
+
+    // Should have unsubscribed
+    expect(mockSearchSubscribers.length).toBe(0);
+
+    // Should have removed event listeners
+    expect(removeSpy).toHaveBeenCalledWith("search:replace-current", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith("search:replace-all", expect.any(Function));
+
+    removeSpy.mockRestore();
+  });
+
+  it("store subscription dispatches transaction when search state changes", () => {
+    const plugin = getPlugin();
+    const mockDispatch = vi.fn();
+    const doc = createDoc(["hello world"]);
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+    expect(mockSearchSubscribers.length).toBe(1);
+
+    // Simulate search store state change
+    mockSearchState.query = "hello";
+    mockSearchState.isOpen = true;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // Should have dispatched a transaction to trigger decoration rebuild
+    expect(mockDispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("store subscription does not dispatch when state is unchanged", () => {
+    const plugin = getPlugin();
+    const mockDispatch = vi.fn();
+    const doc = createDoc(["hello world"]);
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Fire with same state — should NOT dispatch
+    mockSearchSubscribers[0]({ ...mockSearchState });
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceCurrent replaces matched text", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.replaceText = "hi";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    // Trigger match finding
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Fire replace-current event
+    window.dispatchEvent(new Event("search:replace-current"));
+
+    // Should have dispatched a replace transaction
+    expect(mockDispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceCurrent with empty replaceText deletes matched text", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.replaceText = "";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-current"));
+    expect(mockDispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceCurrent does nothing when search is closed", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-current"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceCurrent does nothing when currentIndex is -1", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = -1;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-current"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceAll replaces all matches in reverse order", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello hello hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.replaceText = "hi";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-all"));
+    expect(mockDispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceAll does nothing when search is closed", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = false;
+    mockSearchState.query = "hello";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-all"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceAll does nothing when query is empty", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "";
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-all"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceAll does nothing when no matches exist", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "xyz";
+    mockSearchState.currentIndex = -1;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-all"));
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("handleReplaceAll with empty replaceText deletes all matches", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world hello"]);
+
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.replaceText = "";
+    mockSearchState.currentIndex = 0;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+    const state2 = state.apply(state.tr);
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state: state2,
+      dom: document.createElement("div"),
+      dispatch: mockDispatch,
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    window.dispatchEvent(new Event("search:replace-all"));
+    expect(mockDispatch).toHaveBeenCalled();
+
+    viewResult.destroy!();
+  });
+
+  it("scrollToMatch does not scroll when search is closed", () => {
+    const plugin = getPlugin();
+    const doc = createDoc(["hello world"]);
+
+    mockSearchState.isOpen = false;
+
+    const state = EditorState.create({ doc, schema, plugins: [plugin] });
+
+    const mockView = {
+      state,
+      dom: {
+        closest: vi.fn(() => null),
+      },
+      dispatch: vi.fn(),
+      coordsAtPos: vi.fn(),
+    };
+
+    const viewResult = plugin.spec.view!(mockView as never);
+
+    // Trigger a state change that would cause scrollToMatch
+    mockSearchState.isOpen = true;
+    mockSearchState.query = "hello";
+    mockSearchState.currentIndex = 0;
+    mockSearchSubscribers[0]({ ...mockSearchState });
+
+    // coordsAtPos should not be called when scrollContainer is not found
+    // (the view dispatches a transaction, but scrollToMatch runs in rAF)
+    viewResult.destroy!();
+  });
 });

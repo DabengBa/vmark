@@ -158,6 +158,110 @@ describe("findClosestSourceLine", () => {
   });
 });
 
+describe("findClosestSourceLine — container types", () => {
+  // Schema with alertBlock container that has sourceLine + nested paragraphs
+  const containerSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      paragraph: {
+        content: "text*",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "p" }],
+        toDOM() { return ["p", 0]; },
+      },
+      alertBlock: {
+        content: "paragraph+",
+        group: "block",
+        attrs: { sourceLine: { default: null }, type: { default: "note" } },
+        parseDOM: [{ tag: "div.alert" }],
+        toDOM() { return ["div", { class: "alert" }, 0]; },
+      },
+      detailsBlock: {
+        content: "paragraph+",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "details" }],
+        toDOM() { return ["details", 0]; },
+      },
+      text: { inline: true },
+    },
+  });
+
+  function containerPara(text: string, sourceLine: number | null = null) {
+    const content = text ? [containerSchema.text(text)] : [];
+    return containerSchema.node("paragraph", { sourceLine }, content);
+  }
+
+  it("handles alertBlock container — finds first textblock child (before target)", () => {
+    const alertNode = containerSchema.node("alertBlock", { sourceLine: 5, type: "note" }, [
+      containerPara("alert content"),
+    ]);
+    const doc = containerSchema.node("doc", null, [
+      containerPara("intro", 1),
+      alertNode,
+      containerPara("outro", 20),
+    ]);
+
+    // Target line 7: alertBlock at line 5 is before, outro at line 20 is after
+    const result = findClosestSourceLine(doc, 7);
+    expect(result.pos).not.toBeNull();
+    expect(result.node).not.toBeNull();
+    expect(result.node!.textContent).toBe("alert content");
+  });
+
+  it("handles alertBlock container — uses after node when before is far away", () => {
+    const alertNode = containerSchema.node("alertBlock", { sourceLine: 50, type: "tip" }, [
+      containerPara("later alert"),
+    ]);
+    const doc = containerSchema.node("doc", null, [
+      containerPara("early", 1),
+      alertNode,
+    ]);
+
+    // Target line 48: early is line 1 (47 away), alertBlock is line 50 (2 away)
+    // beforeDiff=47 > 10, afterDiff=2 < 47, so should prefer after
+    const result = findClosestSourceLine(doc, 48);
+    expect(result.node).not.toBeNull();
+    expect(result.node!.textContent).toBe("later alert");
+  });
+
+  it("handles detailsBlock container", () => {
+    const detailsNode = containerSchema.node("detailsBlock", { sourceLine: 10 }, [
+      containerPara("details content"),
+    ]);
+    const doc = containerSchema.node("doc", null, [detailsNode]);
+
+    const result = findClosestSourceLine(doc, 10);
+    expect(result.pos).not.toBeNull();
+    expect(result.node!.textContent).toBe("details content");
+  });
+
+  it("skips container without textblock children", () => {
+    // Create alertBlock with no real textblock content (empty paragraph)
+    const alertNode = containerSchema.node("alertBlock", { sourceLine: 5, type: "note" }, [
+      containerPara(""),
+    ]);
+    const doc = containerSchema.node("doc", null, [alertNode]);
+
+    // Empty paragraph IS a textblock, so it should still be found
+    const result = findClosestSourceLine(doc, 5);
+    expect(result.pos).not.toBeNull();
+  });
+
+  it("handles container after target line", () => {
+    const alertNode = containerSchema.node("alertBlock", { sourceLine: 15, type: "warning" }, [
+      containerPara("warning text"),
+    ]);
+    const doc = containerSchema.node("doc", null, [alertNode]);
+
+    // Target line 5: alertBlock at line 15 is after target
+    const result = findClosestSourceLine(doc, 5);
+    expect(result.node).not.toBeNull();
+    expect(result.node!.textContent).toBe("warning text");
+  });
+});
+
 describe("findColumnInLine", () => {
   function makeCursorInfo(overrides: Partial<CursorInfo>): CursorInfo {
     return {

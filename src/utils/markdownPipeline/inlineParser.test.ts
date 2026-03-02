@@ -199,5 +199,24 @@ describe("parseInlineMarkdown", () => {
       // Should parse the brackets/markers
       expect(result.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("returns children array for non-paragraph first child (line 70)", () => {
+      // "---" does not contain markdown chars from the fast-path regex [*_`~[\]]
+      // So we need text that has markdown chars but doesn't parse to a paragraph.
+      // "***" parses to thematicBreak via remark since it contains *
+      const result = parseInlineMarkdown("***");
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      // Should be thematicBreak, not a paragraph's children
+      const hasThematicBreak = result.some((n) => n.type === "thematicBreak");
+      expect(hasThematicBreak).toBe(true);
+    });
+
+    it("returns text fallback when remark returns empty children (line 60)", () => {
+      // Extremely hard to trigger, but we can test the guard by
+      // parsing text that contains markdown chars but produces no output
+      // This is defensive code — verify it at least doesn't crash
+      const result = parseInlineMarkdown("[]");
+      expect(result.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });

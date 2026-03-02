@@ -1011,4 +1011,369 @@ describe("MediaPopupView", () => {
       outside.remove();
     });
   });
+
+  describe("Save edge cases", () => {
+    beforeEach(async () => {
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaTitle: "Title",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+    });
+
+    it("save does nothing when node type does not match", () => {
+      // Make nodeAt return wrong type
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "paragraph" },
+        attrs: {},
+        nodeSize: 5,
+      }));
+
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.value = "/new-path.mp4";
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+      srcInput.dispatchEvent(event);
+
+      // dispatch should NOT have been called because node type doesn't match
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("save does nothing when nodeAt returns null", () => {
+      view.state.doc.nodeAt = vi.fn(() => null);
+
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.value = "/new-path.mp4";
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+      srcInput.dispatchEvent(event);
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("save catches error and closes popup", () => {
+      view.state.tr.setNodeMarkup = vi.fn(() => { throw new Error("save error"); });
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.value = "/new-path.mp4";
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+      srcInput.dispatchEvent(event);
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("Toggle edge cases", () => {
+    it("toggle does nothing when node is null", async () => {
+      const imgView = createMockView(dom.editorDom, "image");
+      imgView.state.doc.nodeAt = vi.fn(() => null);
+      popup.destroy();
+      resetState();
+      popup = new MediaPopupView(imgView as unknown as ConstructorParameters<typeof MediaPopupView>[0]);
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/image.png",
+        mediaNodeType: "image",
+        mediaNodePos: 5,
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const toggleBtn = dom.container.querySelector(".media-popup-btn-toggle") as HTMLElement;
+      toggleBtn.click();
+
+      expect(imgView.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("toggle catches error on dispatch failure", async () => {
+      const imgView = createMockView(dom.editorDom, "image");
+      imgView.state.tr.replaceWith = vi.fn(() => { throw new Error("toggle error"); });
+      popup.destroy();
+      resetState();
+      popup = new MediaPopupView(imgView as unknown as ConstructorParameters<typeof MediaPopupView>[0]);
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/image.png",
+        mediaNodeType: "image",
+        mediaNodePos: 5,
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const toggleBtn = dom.container.querySelector(".media-popup-btn-toggle") as HTMLElement;
+      toggleBtn.click();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("Browse handler", () => {
+    it("closes popup when browse returns true", async () => {
+      const { browseAndReplaceMedia } = await import("../mediaPopupActions");
+      vi.mocked(browseAndReplaceMedia).mockResolvedValueOnce(true);
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const browseBtn = dom.container.querySelector('button[title="Browse local file"]') as HTMLElement;
+      browseBtn.click();
+
+      // Wait for async browse to resolve
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockClosePopup).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+  });
+
+  describe("Copy handler edge cases", () => {
+    it("handles clipboard writeText failure", async () => {
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: vi.fn(() => Promise.reject(new Error("clipboard error"))),
+        },
+      });
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const copyBtn = dom.container.querySelector('button[title="Copy path"]') as HTMLElement;
+      copyBtn.click();
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it("skips clipboard write when mediaSrc is empty", async () => {
+      const mockWriteText = vi.fn(() => Promise.resolve());
+      Object.assign(navigator, { clipboard: { writeText: mockWriteText } });
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "",
+        mediaNodePos: 10,
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const copyBtn = dom.container.querySelector('button[title="Copy path"]') as HTMLElement;
+      copyBtn.click();
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockWriteText).not.toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Remove edge cases", () => {
+    it("remove does nothing when node is null", async () => {
+      view.state.doc.nodeAt = vi.fn(() => null);
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = dom.container.querySelector('button[title="Remove media"]') as HTMLElement;
+      deleteBtn.click();
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("remove does nothing when node type mismatches", async () => {
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "paragraph" },
+        attrs: {},
+        nodeSize: 5,
+      }));
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = dom.container.querySelector('button[title="Remove media"]') as HTMLElement;
+      deleteBtn.click();
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("remove catches error and closes popup", async () => {
+      view.state.tr.delete = vi.fn(() => { throw new Error("remove error"); });
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const deleteBtn = dom.container.querySelector('button[title="Remove media"]') as HTMLElement;
+      deleteBtn.click();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("updateNodeAttr edge cases", () => {
+    it("does nothing when mediaNodePos is negative", async () => {
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: -1,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.value = "/changed.mp4";
+      srcInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      // setSrc is called (store update) but dispatch should not be called (node update skipped)
+      expect(mockSetSrc).toHaveBeenCalled();
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when node type mismatches during live update", async () => {
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "paragraph" },
+        attrs: {},
+        nodeSize: 5,
+      }));
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const titleInput = dom.container.querySelector(".media-popup-title") as HTMLInputElement;
+      titleInput.value = "New Title";
+      titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(mockSetTitle).toHaveBeenCalled();
+      // dispatch not called because node type doesn't match
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("silently handles error in updateNodeAttr", async () => {
+      view.state.tr.setNodeMarkup = vi.fn(() => { throw new Error("attr update error"); });
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "/test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const posterInput = dom.container.querySelector(".media-popup-poster") as HTMLInputElement;
+      posterInput.value = "/poster.jpg";
+      // Should not throw
+      posterInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(mockSetPoster).toHaveBeenCalled();
+    });
+  });
+
+  describe("Scroll when not open", () => {
+    it("does not close when popup is not open", () => {
+      dom.container.dispatchEvent(new Event("scroll", { bubbles: false }));
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Click outside when not open", () => {
+    it("does not close when popup is not open", async () => {
+      const outside = document.createElement("div");
+      document.body.appendChild(outside);
+      const mousedownEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mousedownEvent, "target", { value: outside });
+      document.dispatchEvent(mousedownEvent);
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(mockClosePopup).not.toHaveBeenCalled();
+      outside.remove();
+    });
+  });
+
+  describe("Deferred close checks active element", () => {
+    it("does not close when active element is inside popup", async () => {
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "test.mp4",
+        mediaNodePos: 10,
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Focus an input inside the popup
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.focus();
+
+      // Trigger outside click
+      const outside = document.createElement("div");
+      document.body.appendChild(outside);
+      const mousedownEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mousedownEvent, "target", { value: outside });
+      document.dispatchEvent(mousedownEvent);
+
+      // Wait for rAF close check
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Should NOT close because activeElement is inside popup
+      expect(mockClosePopup).not.toHaveBeenCalled();
+      outside.remove();
+    });
+  });
 });

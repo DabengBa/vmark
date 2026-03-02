@@ -204,6 +204,68 @@ describe("handleInlineMathShortcut", () => {
     });
   });
 
+  describe("focusMathInput callback", () => {
+    it("focuses math input inside rAF when element exists", () => {
+      vi.useFakeTimers();
+      const view = createView([schema.text("hello world")], 1, 6);
+
+      // Add a mock math-inline editing element to the view DOM
+      const mathSpan = document.createElement("span");
+      mathSpan.className = "math-inline editing";
+      const input = document.createElement("input");
+      input.className = "math-inline-input";
+      input.focus = vi.fn();
+      input.setSelectionRange = vi.fn();
+      mathSpan.appendChild(input);
+      view.dom.appendChild(mathSpan);
+
+      handleInlineMathShortcut(view);
+
+      // Flush rAF
+      vi.runAllTimers();
+
+      expect(input.focus).toHaveBeenCalled();
+      expect(input.setSelectionRange).toHaveBeenCalledWith(5, 5); // "hello".length
+      view.destroy();
+      vi.useRealTimers();
+    });
+
+    it("handles missing math input element in rAF gracefully", () => {
+      vi.useFakeTimers();
+      const view = createView([schema.text("test")], 1, 5);
+
+      handleInlineMathShortcut(view);
+
+      // No math-inline element in DOM — rAF callback should be a no-op
+      expect(() => vi.runAllTimers()).not.toThrow();
+      view.destroy();
+      vi.useRealTimers();
+    });
+
+    it("calls focusMathInput without cursorOffset for empty math insertion", () => {
+      vi.useFakeTimers();
+      mockFindWordAtCursor.mockReturnValue(null);
+      const view = createView([schema.text("a b")], 2);
+
+      const mathSpan = document.createElement("span");
+      mathSpan.className = "math-inline editing";
+      const input = document.createElement("input");
+      input.className = "math-inline-input";
+      input.focus = vi.fn();
+      input.setSelectionRange = vi.fn();
+      mathSpan.appendChild(input);
+      view.dom.appendChild(mathSpan);
+
+      handleInlineMathShortcut(view);
+      vi.runAllTimers();
+
+      expect(input.focus).toHaveBeenCalled();
+      expect(input.setSelectionRange).toHaveBeenCalledWith(0, 0);
+      view.destroy();
+      vi.useRealTimers();
+    });
+  });
+
   describe("edge cases", () => {
     it("handles empty paragraph", () => {
       const doc = schema.node("doc", null, [
