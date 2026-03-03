@@ -10,9 +10,6 @@ import {
   popupIcons,
   buildPopupIconButton,
   buildPopupInput,
-  buildPopupPreview,
-  buildPopupButtonRow,
-  buildPopupInputRow,
   getFocusableElements,
   handlePopupTabNavigation,
 } from "./popupComponents";
@@ -235,46 +232,6 @@ describe("buildPopupInput", () => {
   it("handles empty className gracefully", () => {
     const input = buildPopupInput({ className: "" });
     expect(input.className).toBe("popup-input");
-  });
-});
-
-// ---- buildPopupPreview ----
-
-describe("buildPopupPreview", () => {
-  it("creates a div with popup-preview class", () => {
-    const preview = buildPopupPreview();
-    expect(preview.tagName).toBe("DIV");
-    expect(preview.className).toBe("popup-preview");
-  });
-
-  it("appends custom className", () => {
-    const preview = buildPopupPreview("custom-preview");
-    expect(preview.className).toBe("popup-preview custom-preview");
-  });
-
-  it("handles undefined className", () => {
-    const preview = buildPopupPreview(undefined);
-    expect(preview.className).toBe("popup-preview");
-  });
-});
-
-// ---- buildPopupButtonRow ----
-
-describe("buildPopupButtonRow", () => {
-  it("creates a div with popup-btn-row class", () => {
-    const row = buildPopupButtonRow();
-    expect(row.tagName).toBe("DIV");
-    expect(row.className).toBe("popup-btn-row");
-  });
-});
-
-// ---- buildPopupInputRow ----
-
-describe("buildPopupInputRow", () => {
-  it("creates a div with popup-input-row class", () => {
-    const row = buildPopupInputRow();
-    expect(row.tagName).toBe("DIV");
-    expect(row.className).toBe("popup-input-row");
   });
 });
 

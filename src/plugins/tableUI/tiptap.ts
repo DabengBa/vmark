@@ -46,7 +46,7 @@ class TiptapTableUIPluginView {
   constructor(view: EditorView) {
     this.view = view;
     this.contextMenu = new TiptapTableContextMenu(view);
-    this.columnResize = new ColumnResizeManager(view as unknown as never);
+    this.columnResize = new ColumnResizeManager(view as unknown as EditorView);
 
     const tr = view.state.tr.setMeta(tiptapTableUIPluginKey, { contextMenu: this.contextMenu });
     view.dispatch(tr);

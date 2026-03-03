@@ -20,7 +20,6 @@
  * @module hooks/useUnifiedHistory
  */
 
-import { useCallback } from "react";
 import { undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { useUnifiedHistoryStore, type HistoryCheckpoint } from "@/stores/unifiedHistoryStore";
 import { useEditorStore } from "@/stores/editorStore";
@@ -28,8 +27,6 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
 import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
 import { useActiveEditorStore } from "@/stores/activeEditorStore";
-import { useWindowLabel } from "@/contexts/WindowContext";
-
 /**
  * Toggle source mode with checkpoint creation.
  * Use this instead of direct toggleSourceMode() to maintain history.
@@ -67,16 +64,6 @@ export function toggleSourceModeWithCheckpoint(windowLabel: string): void {
 
   // Now toggle the mode
   editorStore.toggleSourceMode();
-}
-
-/**
- * Hook version of toggleSourceModeWithCheckpoint for React components.
- */
-export function useModeSwitchWithCheckpoint() {
-  const windowLabel = useWindowLabel();
-  return useCallback(() => {
-    toggleSourceModeWithCheckpoint(windowLabel);
-  }, [windowLabel]);
 }
 
 /**
@@ -180,13 +167,6 @@ function restoreFromCheckpoint(
  */
 export function clearDocumentHistory(tabId: string): void {
   useUnifiedHistoryStore.getState().clearDocument(tabId);
-}
-
-/**
- * Clear all unified history (call on app reset).
- */
-export function clearAllHistory(): void {
-  useUnifiedHistoryStore.getState().clearAll();
 }
 
 /**

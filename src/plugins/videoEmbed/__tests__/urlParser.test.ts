@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseYoutubeUrl, isYoutubeUrl } from "../urlParser";
+import { parseYoutubeUrl, isYoutubeUrl } from "@/utils/youtubeUrlParser";
 
 describe("parseYoutubeUrl", () => {
   describe("standard watch URLs", () => {

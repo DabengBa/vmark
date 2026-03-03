@@ -26,7 +26,6 @@ const PERF_ENABLED = () => {
 };
 
 const startTimes = new Map<string, number>();
-const marks = new Map<string, number>();
 
 // Session start time for absolute timestamps
 let sessionStart = 0;
@@ -34,7 +33,6 @@ let sessionStart = 0;
 export function perfReset(): void {
   sessionStart = performance.now();
   startTimes.clear();
-  marks.clear();
   if (PERF_ENABLED()) {
     console.log("\n%c═══ PERF SESSION START ═══", "color: #0066cc; font-weight: bold");
   }
@@ -71,37 +69,8 @@ export function perfMark(label: string, details?: Record<string, unknown>): void
   const now = performance.now();
   /* v8 ignore next -- @preserve sessionStart is always set by auto-running perfReset() on module load; 0 fallback is unreachable */
   const absolute = sessionStart ? now - sessionStart : 0;
-  marks.set(label, now);
-
   const detailStr = details ? ` | ${JSON.stringify(details)}` : "";
   console.log(`%c[PERF] ▸ ${label} (T+${absolute.toFixed(0)}ms)${detailStr}`, "color: #666");
-}
-
-export function perfSince(label: string, sinceLabel: string): void {
-  if (!PERF_ENABLED()) return;
-  const since = marks.get(sinceLabel);
-  const now = performance.now();
-  if (since === undefined) {
-    console.warn(`[PERF] No mark for: ${sinceLabel}`);
-    return;
-  }
-  const elapsed = now - since;
-  /* v8 ignore next -- @preserve sessionStart is always set by auto-running perfReset() on module load; 0 fallback is unreachable */
-  const absolute = sessionStart ? now - sessionStart : 0;
-  const color = elapsed > 100 ? "color: #cf222e" : elapsed > 50 ? "color: #9a6700" : "color: #1a7f37";
-
-  console.log(
-    `%c[PERF] ${label} (since ${sinceLabel}): ${elapsed.toFixed(1)}ms (T+${absolute.toFixed(0)}ms)`,
-    color
-  );
-}
-
-export function perfLog(message: string, details?: Record<string, unknown>): void {
-  if (!PERF_ENABLED()) return;
-  /* v8 ignore next -- @preserve sessionStart is always set by auto-running perfReset() on module load; 0 fallback is unreachable */
-  const absolute = sessionStart ? performance.now() - sessionStart : 0;
-  const detailStr = details ? ` | ${JSON.stringify(details)}` : "";
-  console.log(`%c[PERF] ${message} (T+${absolute.toFixed(0)}ms)${detailStr}`, "color: #666");
 }
 
 // Auto-reset on module load

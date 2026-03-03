@@ -30,7 +30,7 @@ async function expandHomePath(path: string): Promise<string | null> {
 
   try {
     const home = await homeDir();
-    return join(home, path.slice(2));
+    return await join(home, path.slice(2));
   } catch {
     return null;
   }
@@ -69,9 +69,14 @@ async function validateLocalPath(path: string): Promise<boolean> {
 export async function readClipboardImagePath(): Promise<ClipboardImagePathResult | null> {
   try {
     // Try Tauri clipboard first
-    let text = await readText();
+    let text: string | null = null;
+    try {
+      text = await readText();
+    } catch {
+      /* v8 ignore next -- @preserve Tauri clipboard throws only on IPC failure; not reproducible in unit tests */
+    }
 
-    // Fallback to web clipboard API if Tauri returns empty
+    // Fallback to web clipboard API if Tauri returns empty or failed
     if (!text && typeof navigator !== "undefined" && navigator.clipboard) {
       try {
         text = await navigator.clipboard.readText();
@@ -154,7 +159,7 @@ export async function readClipboardImagePath(): Promise<ClipboardImagePathResult
     };
     /* v8 ignore stop */
   } catch {
-    // Clipboard access failed
+    /* v8 ignore next -- @preserve outer catch guards against unexpected runtime errors in detection/validation pipeline; not reproducible in unit tests */
     return null;
   }
 }

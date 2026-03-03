@@ -61,6 +61,17 @@ const COMMON_TLDS = new Set([
  * Check if text starts with a known protocol scheme.
  * Handles both standard and custom protocols.
  */
+/**
+ * Schemes that must never be treated as URLs (XSS vectors).
+ */
+const BLOCKED_SCHEMES = new Set(["javascript", "vbscript", "data"]);
+
+/**
+ * Schemes that require `://` authority syntax.
+ * Others (mailto, tel) use `scheme:` without `//`.
+ */
+const AUTHORITY_SCHEMES = new Set(["http", "https", "ftp", "sftp", "file"]);
+
 function hasProtocolScheme(
   text: string,
   customProtocols: string[] = []
@@ -69,10 +80,18 @@ function hasProtocolScheme(
   const lowerText = text.toLowerCase();
 
   for (const protocol of allProtocols) {
-    if (lowerText.startsWith(`${protocol}://`) || lowerText.startsWith(`${protocol}:`)) {
-      return text; // Return original text with scheme intact
+    if (BLOCKED_SCHEMES.has(protocol.toLowerCase())) continue;
+    if (AUTHORITY_SCHEMES.has(protocol)) {
+      // Authority-based schemes require ://
+      if (lowerText.startsWith(`${protocol}://`)) return text;
+    } else {
+      // Non-authority schemes (mailto, tel, custom) use scheme:
+      if (lowerText.startsWith(`${protocol}://`) || lowerText.startsWith(`${protocol}:`)) {
+        return text;
+      }
     }
   }
+
   return null;
 }
 
@@ -117,7 +136,7 @@ function checkBareDomain(text: string): string | null {
  */
 function checkLocalhost(text: string): string | null {
   const localhostPattern = /^localhost(:\d+)?(\/.*)?$/i;
-  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}(:\d+)?(\/.*)?$/;
+  const ipPattern = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)(:\d+)?(\/.*)?$/;
 
   if (localhostPattern.test(text)) {
     return `http://${text}`;
@@ -186,27 +205,6 @@ export function detectAndNormalizeUrl(
 
   // Not a recognized URL pattern
   return { isUrl: false, normalizedUrl: null, originalText: text };
-}
-
-/**
- * Truncate a URL for display, keeping it readable.
- * Preserves domain and end of path for context.
- *
- * @param url - The URL to truncate
- * @param maxLength - Maximum length before truncating (default: 60)
- * @returns Truncated URL with ellipsis if needed
- *
- * @example
- * truncateUrl("https://example.com/very/long/path/to/resource")
- * // "https://example.com/very/lo...th/to/resource"
- */
-export function truncateUrl(url: string, maxLength = 60): string {
-  if (url.length <= maxLength) return url;
-
-  // Keep the domain and end of path visible
-  const start = url.slice(0, 30);
-  const end = url.slice(-25);
-  return `${start}...${end}`;
 }
 
 /**

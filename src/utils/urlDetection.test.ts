@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { detectAndNormalizeUrl, looksLikeUrl, truncateUrl } from "./urlDetection";
+import { detectAndNormalizeUrl, looksLikeUrl } from "./urlDetection";
 
 describe("detectAndNormalizeUrl", () => {
   describe("standard protocols", () => {
@@ -82,6 +82,21 @@ describe("detectAndNormalizeUrl", () => {
       const result = detectAndNormalizeUrl("obsidian://open?vault=test");
       expect(result.isUrl).toBe(false);
       expect(result.normalizedUrl).toBeNull();
+    });
+
+    it("rejects javascript: even if passed as custom protocol (XSS prevention)", () => {
+      const result = detectAndNormalizeUrl("javascript:alert(1)", ["javascript"]);
+      expect(result.isUrl).toBe(false);
+    });
+
+    it("rejects vbscript: even if passed as custom protocol", () => {
+      const result = detectAndNormalizeUrl("vbscript:MsgBox", ["vbscript"]);
+      expect(result.isUrl).toBe(false);
+    });
+
+    it("rejects data: even if passed as custom protocol", () => {
+      const result = detectAndNormalizeUrl("data:text/html,<h1>hi</h1>", ["data"]);
+      expect(result.isUrl).toBe(false);
     });
   });
 
@@ -228,32 +243,6 @@ describe("detectAndNormalizeUrl", () => {
       const result = detectAndNormalizeUrl(original);
       expect(result.originalText).toBe(original);
     });
-  });
-});
-
-describe("truncateUrl", () => {
-  it("returns short URL unchanged", () => {
-    expect(truncateUrl("https://example.com")).toBe("https://example.com");
-  });
-
-  it("truncates long URL with ellipsis", () => {
-    const longUrl = "https://example.com/very/long/path/to/some/deeply/nested/resource/page.html?query=value&other=param";
-    const result = truncateUrl(longUrl);
-    expect(result.length).toBeLessThan(longUrl.length);
-    expect(result).toContain("...");
-    // Keeps first 30 and last 25 chars
-    expect(result).toBe(longUrl.slice(0, 30) + "..." + longUrl.slice(-25));
-  });
-
-  it("respects custom maxLength", () => {
-    const url = "https://example.com/path/to/resource";
-    expect(truncateUrl(url, 100)).toBe(url); // Under limit
-    expect(truncateUrl(url, 20)).toContain("..."); // Over limit
-  });
-
-  it("handles exactly maxLength URL", () => {
-    const url = "a".repeat(60);
-    expect(truncateUrl(url, 60)).toBe(url);
   });
 });
 
