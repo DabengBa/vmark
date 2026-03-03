@@ -44,20 +44,6 @@ describe("perfLog — disabled (default)", () => {
     expect(console.log).not.toHaveBeenCalled();
   });
 
-  it("perfSince does nothing when disabled", async () => {
-    vi.resetModules();
-    const { perfSince } = await import("./perfLog");
-    perfSince("label", "since-label");
-    expect(console.log).not.toHaveBeenCalled();
-  });
-
-  it("perfLog does nothing when disabled", async () => {
-    vi.resetModules();
-    const { perfLog } = await import("./perfLog");
-    perfLog("message");
-    expect(console.log).not.toHaveBeenCalled();
-  });
-
   it("perfReset does not log when disabled", async () => {
     vi.resetModules();
     const { perfReset } = await import("./perfLog");
@@ -159,59 +145,6 @@ describe("perfLog — enabled", () => {
     expect(logArgs[0]).toContain('"phase":"init"');
   });
 
-  it("perfSince logs elapsed since a mark", async () => {
-    vi.resetModules();
-    const { perfReset, perfMark, perfSince } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    perfMark("start-mark");
-    perfSince("elapsed", "start-mark");
-
-    // Two calls: perfMark + perfSince
-    expect(console.log).toHaveBeenCalledTimes(2);
-    const sinceArgs = vi.mocked(console.log).mock.calls[1];
-    expect(sinceArgs[0]).toContain("elapsed");
-    expect(sinceArgs[0]).toContain("since start-mark");
-  });
-
-  it("perfSince warns when mark does not exist", async () => {
-    vi.resetModules();
-    const { perfReset, perfSince } = await import("./perfLog");
-    perfReset();
-
-    perfSince("elapsed", "missing-mark");
-
-    expect(console.warn).toHaveBeenCalledWith(
-      "[PERF] No mark for: missing-mark",
-    );
-  });
-
-  it("perfLog outputs message with timestamp", async () => {
-    vi.resetModules();
-    const { perfReset, perfLog } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    perfLog("custom message");
-
-    expect(console.log).toHaveBeenCalledTimes(1);
-    const logArgs = vi.mocked(console.log).mock.calls[0];
-    expect(logArgs[0]).toContain("[PERF] custom message");
-  });
-
-  it("perfLog with details includes JSON", async () => {
-    vi.resetModules();
-    const { perfReset, perfLog } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    perfLog("info", { count: 5 });
-
-    const logArgs = vi.mocked(console.log).mock.calls[0];
-    expect(logArgs[0]).toContain('"count":5');
-  });
-
   it("perfEnd removes label from startTimes (no double-end)", async () => {
     vi.resetModules();
     const { perfReset, perfStart, perfEnd } = await import("./perfLog");
@@ -240,15 +173,13 @@ describe("perfLog — localStorage error handling", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const { perfStart, perfEnd, perfMark, perfSince, perfLog, perfReset } = await import("./perfLog");
+    const { perfStart, perfEnd, perfMark, perfReset } = await import("./perfLog");
 
     // All functions should silently no-op when localStorage throws
     perfStart("test");
     perfEnd("test");
     perfMark("test-mark");
-    perfSince("since-label", "test-mark");
-    perfLog("msg");
-    // perfReset was already called on module load (auto-reset line 103)
+    // perfReset was already called on module load (auto-reset)
     // Call it again explicitly to re-exercise the catch path
     perfReset();
 
@@ -291,19 +222,6 @@ describe("perfLog — sessionStart zero path", () => {
     expect(logArgs[0]).not.toContain("|");
   });
 
-  it("perfLog without details omits detail string", async () => {
-    vi.resetModules();
-    const { perfReset, perfLog } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    perfLog("bare message");
-
-    const logArgs = vi.mocked(console.log).mock.calls[0];
-    expect(logArgs[0]).toContain("bare message");
-    expect(logArgs[0]).not.toContain("|");
-  });
-
   it("perfEnd without details omits detail string", async () => {
     vi.resetModules();
     const { perfReset, perfStart, perfEnd } = await import("./perfLog");
@@ -319,7 +237,7 @@ describe("perfLog — sessionStart zero path", () => {
   });
 });
 
-describe("perfLog — perfSince color coding", () => {
+describe("perfLog — perfEnd color coding", () => {
   beforeEach(() => {
     localStorage.setItem("PERF_LOG", "true");
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -329,20 +247,6 @@ describe("perfLog — perfSince color coding", () => {
   afterEach(() => {
     localStorage.removeItem("PERF_LOG");
     vi.restoreAllMocks();
-  });
-
-  it("uses green color for fast perfSince (<50ms)", async () => {
-    vi.resetModules();
-    const { perfReset, perfMark, perfSince } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    perfMark("fast-mark");
-    perfSince("fast-since", "fast-mark");
-
-    // perfSince is the second log call (after perfMark)
-    const colorArg = vi.mocked(console.log).mock.calls[1][1];
-    expect(colorArg).toBe("color: #1a7f37"); // green
   });
 
   it("uses yellow color for medium perfEnd (>50ms)", async () => {
@@ -390,47 +294,6 @@ describe("perfLog — perfSince color coding", () => {
     vi.mocked(performance.now).mockRestore();
   });
 
-  it("uses yellow color for medium perfSince (>50ms)", async () => {
-    vi.resetModules();
-    const { perfReset, perfMark, perfSince } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    const realNow = performance.now.bind(performance);
-    const baseTime = realNow();
-    vi.spyOn(performance, "now")
-      .mockReturnValueOnce(baseTime)          // perfMark: now (stored + absolute)
-      .mockReturnValueOnce(baseTime + 75);    // perfSince: now (elapsed + absolute)
-
-    perfMark("medium-mark");
-    perfSince("medium-since", "medium-mark");
-
-    const colorArg = vi.mocked(console.log).mock.calls[1][1];
-    expect(colorArg).toBe("color: #9a6700"); // yellow
-
-    vi.mocked(performance.now).mockRestore();
-  });
-
-  it("uses red color for slow perfSince (>100ms)", async () => {
-    vi.resetModules();
-    const { perfReset, perfMark, perfSince } = await import("./perfLog");
-    perfReset();
-    vi.mocked(console.log).mockClear();
-
-    const realNow = performance.now.bind(performance);
-    const baseTime = realNow();
-    vi.spyOn(performance, "now")
-      .mockReturnValueOnce(baseTime)          // perfMark: now
-      .mockReturnValueOnce(baseTime + 150);   // perfSince: now
-
-    perfMark("slow-mark");
-    perfSince("slow-since", "slow-mark");
-
-    const colorArg = vi.mocked(console.log).mock.calls[1][1];
-    expect(colorArg).toBe("color: #cf222e"); // red
-
-    vi.mocked(performance.now).mockRestore();
-  });
 });
 
 describe("perfLog — color coding", () => {

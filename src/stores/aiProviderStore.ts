@@ -254,18 +254,18 @@ export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
         };
       },
       migrate: (persisted, version) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = persisted as any;
+        const data = persisted as Record<string, unknown>;
         if (version < 2) {
           // v1 → v2: strip dead `enabled` field from REST providers
-          if (Array.isArray(data.restProviders)) {
-            data.restProviders = data.restProviders.map(
+          const providers = data.restProviders;
+          if (Array.isArray(providers)) {
+            data.restProviders = providers.map(
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
               ({ enabled, ...rest }: RestProviderConfig & { enabled?: boolean }) => rest
             );
           }
         }
-        return data as AiProviderState;
+        return data as unknown as AiProviderState;
       },
     }
   )

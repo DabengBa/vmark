@@ -127,9 +127,9 @@ describe("isValidUrl", () => {
     expect(isValidUrl("example.com")).toBe(false);
   });
 
-  it("returns true for URLs with spaces (matches prefix before space)", () => {
-    // The regex matches "https://exam" which is valid \S+
-    expect(isValidUrl("https://exam ple.com")).toBe(true);
+  it("returns false for URLs with spaces", () => {
+    // Strings with spaces are not valid URLs
+    expect(isValidUrl("https://exam ple.com")).toBe(false);
   });
 
   it("returns false for protocol-only with no path", () => {

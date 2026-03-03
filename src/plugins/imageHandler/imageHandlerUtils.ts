@@ -28,8 +28,12 @@ import { imageHandlerWarn } from "@/utils/debug";
 export function fileUrlToPath(url: string): string {
   // Remove file:// prefix
   let path = url.replace(/^file:\/\//, "");
-  // URL decode
-  path = decodeURIComponent(path);
+  // URL decode (guard against malformed percent-encoding)
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Fall through with undecoded path
+  }
   // On Windows, file URLs have format file:///C:/path, resulting in /C:/path
   // Remove the leading slash if followed by a drive letter
   if (/^\/[A-Za-z]:/.test(path)) {
@@ -93,7 +97,7 @@ export async function expandHomePath(path: string): Promise<string | null> {
   try {
     const { homeDir, join } = await import("@tauri-apps/api/path");
     const home = await homeDir();
-    return join(home, path.slice(2));
+    return await join(home, path.slice(2));
   } catch {
     return null;
   }

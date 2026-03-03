@@ -20,11 +20,6 @@ vi.mock("@codemirror/commands", () => ({
   redoDepth: (...args: unknown[]) => mockRedoDepth(...args),
 }));
 
-// Mock WindowContext
-vi.mock("@/contexts/WindowContext", () => ({
-  useWindowLabel: vi.fn(() => "main"),
-}));
-
 import { useUnifiedHistoryStore } from "@/stores/unifiedHistoryStore";
 import { useEditorStore } from "@/stores/editorStore";
 import { useDocumentStore } from "@/stores/documentStore";
@@ -38,7 +33,6 @@ import {
   doNativeUndo,
   doNativeRedo,
   clearDocumentHistory,
-  clearAllHistory,
   performUnifiedUndo,
   performUnifiedRedo,
 } from "./useUnifiedHistory";
@@ -317,25 +311,6 @@ describe("useUnifiedHistory", () => {
       clearDocumentHistory("tab-1");
 
       expect(useUnifiedHistoryStore.getState().documents["tab-1"]).toBeUndefined();
-    });
-  });
-
-  describe("clearAllHistory", () => {
-    it("clears all document histories", () => {
-      useUnifiedHistoryStore.getState().createCheckpoint("tab-1", {
-        markdown: "content1",
-        mode: "wysiwyg",
-        cursorInfo: null,
-      });
-      useUnifiedHistoryStore.getState().createCheckpoint("tab-2", {
-        markdown: "content2",
-        mode: "source",
-        cursorInfo: null,
-      });
-
-      clearAllHistory();
-
-      expect(useUnifiedHistoryStore.getState().documents).toEqual({});
     });
   });
 
@@ -677,26 +652,4 @@ describe("useUnifiedHistory", () => {
     });
   });
 
-  describe("useModeSwitchWithCheckpoint (lines 76-78)", () => {
-    it("returns a callback that calls toggleSourceModeWithCheckpoint", async () => {
-      const { renderHook, act } = await import("@testing-library/react");
-      const { useModeSwitchWithCheckpoint } = await import("./useUnifiedHistory");
-
-      const initialMode = useEditorStore.getState().sourceMode;
-
-      const { result } = renderHook(() => useModeSwitchWithCheckpoint());
-
-      act(() => {
-        result.current();
-      });
-
-      // Should have toggled the source mode
-      expect(useEditorStore.getState().sourceMode).toBe(!initialMode);
-
-      // Should have created a checkpoint
-      const history = useUnifiedHistoryStore.getState().documents["tab-1"];
-      expect(history).toBeDefined();
-      expect(history.undoStack).toHaveLength(1);
-    });
-  });
 });

@@ -216,7 +216,7 @@ export function copySelectionAsHtml(view: EditorView): boolean {
     : view.state.doc.sliceString(from, to);
 
   // Dynamic import to avoid loading exportStyles.css at startup
-  void import("@/export").then(({ copyAsHtml }) => copyAsHtml(markdown)).catch(() => {});
+  void import("@/export").then(({ copyAsHtml }) => copyAsHtml(markdown)).catch((error) => console.error("[CopyAsHtml]", error));
   return true;
 }
 

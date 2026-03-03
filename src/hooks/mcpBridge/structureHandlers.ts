@@ -10,6 +10,3 @@
 
 export { handleGetAst, handleGetDigest } from "./astHandlers";
 export { handleListBlocks, handleResolveTargets, handleGetSection } from "./blockHandlers";
-
-// Re-export resetNodeIdCounters for any external consumers
-export { resetNodeIdCounters } from "./astHandlers";

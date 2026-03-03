@@ -151,33 +151,6 @@ export function buildPopupInput(options: PopupInputOptions): HTMLInputElement {
 }
 
 /**
- * Build a preview text element for popup use.
- */
-export function buildPopupPreview(className?: string): HTMLElement {
-  const preview = document.createElement("div");
-  preview.className = className ? `popup-preview ${className}` : "popup-preview";
-  return preview;
-}
-
-/**
- * Build a button row container for popup actions.
- */
-export function buildPopupButtonRow(): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "popup-btn-row";
-  return row;
-}
-
-/**
- * Build an input row container (input + buttons).
- */
-export function buildPopupInputRow(): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "popup-input-row";
-  return row;
-}
-
-/**
  * Get all focusable elements within a container.
  * Used for Tab cycling in popups.
  * Filters out hidden elements (display: none) to handle cases where

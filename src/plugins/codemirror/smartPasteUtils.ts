@@ -32,8 +32,8 @@ export function isViewConnected(view: EditorView | null | undefined): boolean {
  */
 export function isValidUrl(str: string): boolean {
   const trimmed = str.trim();
-  // Must start with http:// or https://
-  return /^https?:\/\/\S+/.test(trimmed);
+  // Must start with http:// or https:// and contain no spaces
+  return /^https?:\/\/\S+$/.test(trimmed);
 }
 
 /**
@@ -58,7 +58,7 @@ export async function expandHomePath(path: string): Promise<string | null> {
 
   try {
     const home = await homeDir();
-    return join(home, path.slice(2));
+    return await join(home, path.slice(2));
   } catch {
     return null;
   }
