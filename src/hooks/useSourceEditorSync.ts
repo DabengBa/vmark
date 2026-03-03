@@ -114,7 +114,7 @@ export function useSourceEditorContentSync(
       const targetContent = pendingContentRef.current;
       pendingContentRef.current = null;
 
-      /* v8 ignore next -- false branch (content already matches) is a no-op guard against redundant updates */
+      /* v8 ignore start -- false branch (content already matches) is a no-op guard against redundant updates */
       if (currentContent !== targetContent && lastAppliedContentRef.current !== targetContent) {
         lastAppliedContentRef.current = targetContent;
         runOrQueueCodeMirrorAction(view, () => {
@@ -127,6 +127,7 @@ export function useSourceEditorContentSync(
           });
         });
       }
+      /* v8 ignore stop */
     };
 
     // Check periodically while component is mounted

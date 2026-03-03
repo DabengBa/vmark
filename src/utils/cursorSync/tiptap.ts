@@ -155,13 +155,14 @@ export function restoreCursorInTiptap(view: EditorView, cursorInfo: CursorInfo):
           }
           return true;
         });
-        /* v8 ignore next -- containers always have textblock descendants in valid ProseMirror docs; null guard is defensive */
+        /* v8 ignore start -- containers always have textblock descendants in valid ProseMirror docs; null guard is defensive */
         if (firstTextblockPos !== null && firstTextblockNode !== null) {
           targetPos = firstTextblockPos;
           targetNode = firstTextblockNode;
           found = true;
           return false;
         }
+        /* v8 ignore stop */
         // Container nodes always have textblock descendants in valid ProseMirror docs
       }
     }

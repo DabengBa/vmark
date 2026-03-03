@@ -25,8 +25,9 @@ import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./util
  * Empty means: no text content (ignoring whitespace).
  */
 function isDocumentEmpty(editor: ReturnType<typeof getEditor>): boolean {
-  /* v8 ignore next -- null editor path not exercised in tests */
+  /* v8 ignore start -- null editor path not exercised in tests */
   if (!editor) return false;
+  /* v8 ignore stop */
   const text = editor.state.doc.textContent.trim();
   return text.length === 0;
 }
@@ -370,13 +371,15 @@ export async function handleDocumentReplaceInSourceWithSuggestion(
       const regex = new RegExp(flexPattern, replaceAll ? "g" : "");
       // Count actual regex matches to report accurate replacement count
       const regexMatches = markdown.match(new RegExp(flexPattern, "g"));
-      /* v8 ignore next -- null regex match (no match found) not exercised in tests */
+      /* v8 ignore start -- null regex match (no match found) not exercised in tests */
       const regexMatchCount = regexMatches?.length ?? 0;
+      /* v8 ignore stop */
       actualCount = replaceAll ? regexMatchCount : Math.min(1, regexMatchCount);
       newMarkdown = markdown.replace(regex, replace);
       // Override count with actual regex match count (may differ from normalized split count)
-      /* v8 ignore next -- actualCount always defined here; undefined guard is defensive */
+      /* v8 ignore start -- actualCount always defined here; undefined guard is defensive */
       if (actualCount !== undefined) count = actualCount;
+      /* v8 ignore stop */
     } else if (replaceAll) {
       newMarkdown = parts.join(replace);
     } else {

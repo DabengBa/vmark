@@ -251,14 +251,16 @@ export class MediaPopupView {
 
   private handleInputKeydown = (e: KeyboardEvent) => {
     if (isImeKeyEvent(e)) return;
+    /* v8 ignore start -- @preserve non-Enter/Escape keys pass through */
     if (e.key === "Enter") {
       e.preventDefault();
       this.handleSave();
-    } else /* v8 ignore next -- @preserve non-Enter/Escape keys pass through */ if (e.key === "Escape") {
+    } else if (e.key === "Escape") {
       e.preventDefault();
       useMediaPopupStore.getState().closePopup();
       this.editorView.focus();
     }
+    /* v8 ignore stop */
   };
 
   private handleSave = () => {

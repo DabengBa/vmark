@@ -108,8 +108,9 @@ export function usePromptHistory(isComposing?: () => boolean): PromptHistoryResu
           setFilteredCache([]);
           setDraft(savedDraftRef.current);
         } else {
-          /* v8 ignore next -- prev is always non-null here (cycleIndex > 0 was checked) */
+          /* v8 ignore start -- prev is always non-null here (cycleIndex > 0 was checked) */
           setCycleIndex((prev) => (prev !== null ? prev - 1 : null));
+          /* v8 ignore stop */
         }
       }
       return true;
@@ -118,8 +119,9 @@ export function usePromptHistory(isComposing?: () => boolean): PromptHistoryResu
   );
 
   const acceptGhostText = useCallback(() => {
-    /* v8 ignore next -- ghostText being null/empty is guarded in the rendering layer; false branch is a safety net */
+    /* v8 ignore start -- ghostText being null/empty is guarded in the rendering layer; false branch is a safety net */
     if (!ghostText) return false;
+    /* v8 ignore stop */
     setDraft(draft + ghostText);
     return true;
   }, [draft, ghostText]);

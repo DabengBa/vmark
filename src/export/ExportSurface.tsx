@@ -48,8 +48,9 @@ export interface ExportSurfaceRef {
  */
 export const ExportSurface = forwardRef<ExportSurfaceRef, ExportSurfaceProps>(
   function ExportSurface(
-    /* v8 ignore next -- @preserve reason: default arg (lightTheme=true) only exercised when omitted; tested via explicit true */
+    /* v8 ignore start -- @preserve reason: default arg (lightTheme=true) only exercised when omitted; tested via explicit true */
     { markdown, onReady, onError, lightTheme = true, className },
+    /* v8 ignore stop */
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);

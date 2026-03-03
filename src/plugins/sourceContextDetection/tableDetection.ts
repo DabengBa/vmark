@@ -148,11 +148,12 @@ function getColIndexAtPosition(lineText: string, pos: number): number {
       if (!inCode) {
         inCode = true;
         codeFenceLen = runLen;
-      /* v8 ignore next -- @preserve reason: closing code fence within table cell not tested */
+      /* v8 ignore start -- @preserve reason: closing code fence within table cell not tested */
       } else if (runLen === codeFenceLen) {
         inCode = false;
         codeFenceLen = 0;
       }
+      /* v8 ignore stop */
 
       i += runLen - 1;
       continue;

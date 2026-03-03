@@ -29,11 +29,9 @@ export function PromptHistoryDropdown({
     const item = listRef.current.querySelector(
       `[data-dropdown-index="${selectedIndex}"]`
     );
+    /* v8 ignore next -- @preserve item not found: selectedIndex always matches a rendered entry in tests */
     if (item) {
       item.scrollIntoView({ block: "nearest" });
-    /* v8 ignore next -- @preserve item not found: selectedIndex always matches a rendered entry in tests */
-    } else {
-      // item not found in dropdown list
     }
   }, [selectedIndex]);
 

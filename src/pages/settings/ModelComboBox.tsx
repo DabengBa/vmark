@@ -137,8 +137,9 @@ export function ModelComboBox({
         break;
       case "ArrowUp":
         e.preventDefault();
-        /* v8 ignore next -- @preserve reason: wrap-to-last branch (i === 0) not exercised; tests only navigate forward */
+        /* v8 ignore start -- @preserve reason: wrap-to-last branch (i === 0) not exercised; tests only navigate forward */
         setHighlightIdx((i) => (i > 0 ? i - 1 : filtered.length - 1));
+        /* v8 ignore stop */
         break;
       case "Enter":
         e.preventDefault();

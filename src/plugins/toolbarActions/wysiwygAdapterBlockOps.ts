@@ -194,6 +194,7 @@ export function handleWysiwygRemoveBlankLines(context: WysiwygToolbarContext): b
       return true;
     }
 
+    /* v8 ignore next -- @preserve reason: non-textblock non-container nodes (e.g., images) in delete-empty not tested */
     if (node.isTextblock) {
       // Check if the block is empty or contains only whitespace
       const text = node.textContent;

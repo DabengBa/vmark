@@ -20,6 +20,10 @@ export function DropZoneIndicator() {
     return null;
   }
 
+  /* v8 ignore start -- @preserve render guard: requires active drag with images */
+  const dropText = imageCount === 1 ? "Drop to insert image" : `Drop to insert ${imageCount} images`;
+  /* v8 ignore stop */
+
   return (
     <div className="drop-zone-indicator">
       <div className="drop-zone-content">
@@ -38,10 +42,7 @@ export function DropZoneIndicator() {
           <polyline points="21 15 16 10 5 21" />
         </svg>
         <span className="drop-zone-text">
-          {/* v8 ignore next 3 -- @preserve render guard: requires active drag with images */}
-          {imageCount === 1
-            ? "Drop to insert image"
-            : `Drop to insert ${imageCount} images`}
+          {dropText}
         </span>
       </div>
     </div>

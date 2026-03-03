@@ -162,10 +162,11 @@ export function sanitizeFileName(
  * @returns Truncated text
  */
 function truncateAtWordBoundary(text: string, maxLength: number): string {
-  /* v8 ignore next -- caller (sanitizeFileName) only calls this when text.length > maxLength */
+  /* v8 ignore start -- caller (sanitizeFileName) only calls this when text.length > maxLength */
   if (text.length <= maxLength) {
     return text;
   }
+  /* v8 ignore stop */
 
   // Try to find a space within the lookback window of the limit
   const truncated = text.slice(0, maxLength);
@@ -234,8 +235,9 @@ export function getExportFolderName(
  * @returns File name without extension
  */
 function getFileNameWithoutExtension(filePath: string): string {
-  /* v8 ignore next -- caller always guards with `if (filePath)` before calling */
+  /* v8 ignore start -- caller always guards with `if (filePath)` before calling */
   if (!filePath) return "";
+  /* v8 ignore stop */
 
   // Get the last path component
   const parts = filePath.split(/[/\\]/);

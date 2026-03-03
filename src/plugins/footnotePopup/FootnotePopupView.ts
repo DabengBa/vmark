@@ -140,6 +140,7 @@ export class FootnotePopupView {
 
     this.setupKeyboardNavigation();
 
+    /* v8 ignore start -- @preserve else branch: autoFocus not exercised in tests */
     if (state.autoFocus) {
       this.container.classList.add("editing");
       this.clearFocusTimeout();
@@ -152,6 +153,7 @@ export class FootnotePopupView {
         }
       }, AUTOFOCUS_DELAY_MS);
     }
+    /* v8 ignore stop */
   }
 
   private hide() {

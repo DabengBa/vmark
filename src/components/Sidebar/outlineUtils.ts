@@ -40,11 +40,9 @@ export function parseFenceDelimiter(line: string, currentFence: string | null): 
   if (fenceChar === currentFence[0] && fenceLen >= currentFence.length) {
     // Check that closing fence has no content after it (only whitespace allowed)
     const afterFence = line.slice(fenceLen);
+    /* v8 ignore next -- @preserve closing fence with trailing content: not exercised in outline tests */
     if (/^\s*$/.test(afterFence)) {
       return fence; // Closes the block
-    /* v8 ignore next -- @preserve closing fence with trailing content: not exercised in outline tests */
-    } else {
-      // closing fence has trailing content — not a valid closer
     }
   }
 

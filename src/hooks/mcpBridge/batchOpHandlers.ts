@@ -81,10 +81,11 @@ function findTable(
 
       if (target.tableIndex !== undefined) {
         isMatch = tableIndex === target.tableIndex;
-      /* v8 ignore next -- afterHeading table targeting not exercised in tests */
+      /* v8 ignore start -- afterHeading table targeting not exercised in tests */
       } else if (target.afterHeading) {
         isMatch = lastHeadingText?.toLowerCase() === target.afterHeading.toLowerCase();
       }
+      /* v8 ignore stop */
 
       if (isMatch && tablePos === null) {
         tablePos = pos;
@@ -308,8 +309,9 @@ export async function handleTableBatchModify(
       try {
         return { op: normalizeTableOp(rawOp), rawOp, error: null };
       } catch (e) {
-        /* v8 ignore next -- error path when normalization fails not exercised in tests */
+        /* v8 ignore start -- error path when normalization fails not exercised in tests */
         return { op: null, rawOp, error: e instanceof Error ? e.message : String(e) };
+        /* v8 ignore stop */
       }
     });
 
@@ -370,8 +372,9 @@ export async function handleTableBatchModify(
             warnings.push(`Unknown table operation: ${(op as { action: string }).action}`);
         }
       } catch (opError) {
-        /* v8 ignore next -- .type/.op fallback keys not exercised in tests */
+        /* v8 ignore start -- .type/.op fallback keys not exercised in tests */
         const action = (rawOp as Record<string, unknown>).action ?? (rawOp as Record<string, unknown>).type ?? (rawOp as Record<string, unknown>).op ?? "unknown";
+        /* v8 ignore stop */
         warnings.push(`Failed: ${action} - ${opError instanceof Error ? opError.message : String(opError)}`);
       }
     }

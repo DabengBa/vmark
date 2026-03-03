@@ -100,10 +100,11 @@ export function FindBar() {
     } else if (e.key === "Tab" && !e.shiftKey) {
       e.preventDefault();
       replaceInputRef.current?.focus();
-    /* v8 ignore next -- @preserve other-key fall-through: only Enter/Escape/Tab tested in FindBar tests */
+    /* v8 ignore start -- @preserve other-key fall-through: only Enter/Escape/Tab tested in FindBar tests */
     } else {
       // Other keys fall through
     }
+    /* v8 ignore stop */
   }, [ime]);
 
   const handleReplaceKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -116,10 +117,11 @@ export function FindBar() {
     } else if (e.key === "Tab" && e.shiftKey) {
       e.preventDefault();
       findInputRef.current?.focus();
-    /* v8 ignore next -- @preserve other-key fall-through: only Enter/Escape/Tab tested in ReplaceKeyDown tests */
+    /* v8 ignore start -- @preserve other-key fall-through: only Enter/Escape/Tab tested in ReplaceKeyDown tests */
     } else {
       // Other keys fall through
     }
+    /* v8 ignore stop */
   }, [ime]);
 
   const handleClose = useCallback(() => {

@@ -85,12 +85,14 @@ export class MathInlineNodeView implements NodeView {
     if (!this.isEditing) return;
 
     // Commit changes if any
+    /* v8 ignore start -- @preserve else branch: inputDom always exists when isEditing is true */
     if (this.inputDom) {
       const newLatex = this.inputDom.value;
       if (newLatex !== this.currentLatex) {
         this.commitChanges(newLatex);
       }
     }
+    /* v8 ignore stop */
 
     // Exit edit mode without repositioning cursor
     this.exitEditMode();

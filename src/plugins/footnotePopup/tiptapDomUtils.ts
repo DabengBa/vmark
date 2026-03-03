@@ -30,9 +30,12 @@ export function findFootnoteDefinition(view: EditorView, label: string): { conte
 
   doc.descendants((node: PMNode, pos: number) => {
     if (result) return false;
+    /* v8 ignore start -- @preserve label ?? "" null branch: attrs.label is always a string in valid footnote nodes */
     if (node.type.name === "footnote_definition" && String(node.attrs.label ?? "") === label) {
-      /* v8 ignore next -- @preserve short-circuit: textContent is always non-empty in tests */
+    /* v8 ignore stop */
+      /* v8 ignore start -- @preserve short-circuit: textContent is always non-empty in tests */
       result = { content: node.textContent.trim() || "Empty footnote", pos };
+      /* v8 ignore stop */
       return false;
     }
     return true;

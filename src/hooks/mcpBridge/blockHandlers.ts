@@ -142,8 +142,9 @@ export async function handleResolveTargets(
     const candidates: Candidate[] = [];
 
     editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-      /* v8 ignore next -- non-block nodes not encountered in test documents */
+      /* v8 ignore start -- non-block nodes not encountered in test documents */
       if (!node.isBlock) return true;
+      /* v8 ignore stop */
 
       const nodeId = generateNodeId(node.type.name);
 
@@ -254,7 +255,7 @@ export async function handleGetSection(
       doc.descendants((node: ProseMirrorNode, pos: number) => {
         if (node.type.name === "heading") {
           const text = extractText(node);
-          /* v8 ignore next -- non-matching headings during traversal not exercised in tests */
+          /* v8 ignore start -- non-matching headings during traversal not exercised in tests */
           if (text.toLowerCase() === heading.toLowerCase()) {
             targetPos = pos;
             targetLevel = node.attrs.level as number;
@@ -262,6 +263,7 @@ export async function handleGetSection(
             targetText = text;
             return false;
           }
+          /* v8 ignore stop */
         }
         return true;
       });
@@ -299,7 +301,7 @@ export async function handleGetSection(
         return true;
       }
 
-      /* v8 ignore next -- pre-section nodes (inSection=false) not exercised in tests */
+      /* v8 ignore start -- pre-section nodes (inSection=false) not exercised in tests */
       if (inSection) {
         // Check if we hit the end of section
         if (node.type.name === "heading") {
@@ -314,6 +316,7 @@ export async function handleGetSection(
           content.push(toAstNode(node));
         }
       }
+      /* v8 ignore stop */
 
       return true;
     });

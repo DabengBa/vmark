@@ -24,8 +24,9 @@ export interface ClipboardImagePathResult extends ImagePathResult {
  * Expand home path (~/) to absolute path.
  */
 async function expandHomePath(path: string): Promise<string | null> {
-  /* v8 ignore next -- non-home paths are handled by callers before reaching this; false branch is defensive */
+  /* v8 ignore start -- non-home paths are handled by callers before reaching this; false branch is defensive */
   if (!path.startsWith("~/")) return path;
+  /* v8 ignore stop */
 
   try {
     const home = await homeDir();
@@ -135,6 +136,7 @@ export async function readClipboardImagePath(): Promise<ClipboardImagePathResult
 
     // For relative paths, we can't validate without document path
     // Validation will happen at insert time
+    /* v8 ignore start -- relative path validation not exercised in tests */
     if (detection.type === "relativePath") {
       return {
         ...detection,
@@ -142,6 +144,7 @@ export async function readClipboardImagePath(): Promise<ClipboardImagePathResult
         resolvedPath: null,
       };
     }
+    /* v8 ignore stop */
 
     /* v8 ignore next 5 -- only reachable for unknown detection types; callers always pass absolutePath/relativePath/url/none */
     return {

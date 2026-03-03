@@ -251,8 +251,9 @@ async function insertImageAsync(view: EditorView): Promise<boolean> {
       }
 
       try {
-        /* v8 ignore next -- @preserve reason: clipboard path without resolvedPath not tested */
+        /* v8 ignore start -- @preserve reason: clipboard path without resolvedPath not tested */
         const sourcePath = clipboardResult.resolvedPath ?? clipboardResult.path;
+        /* v8 ignore stop */
         imagePath = await copyImageToAssets(sourcePath, docPath);
       } catch {
         // Copy failed, fall back to template

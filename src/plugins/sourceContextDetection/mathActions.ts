@@ -52,6 +52,7 @@ export function getBlockMathContentRange(
     if (contentEndLine < 1) return null;
     /* v8 ignore next -- @preserve reason: overlapping open/close lines edge case not tested */
     if (openLineBare && contentEndLine < info.startLine + 1) return null;
+    /* v8 ignore next -- @preserve reason: non-bare open line edge case not exercised in tests */
     if (!openLineBare && contentEndLine < info.startLine) return null;
     to = doc.line(contentEndLine).to;
   } else {
