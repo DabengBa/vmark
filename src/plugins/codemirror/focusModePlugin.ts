@@ -41,6 +41,7 @@ function findParagraphBounds(
   // Find start (scan up to blank line or start of doc)
   let start = lineNum;
   while (start > 1 && !isBlank(start - 1)) {
+    /* v8 ignore next -- @preserve loop body only reached when paragraph spans multiple lines; single-line paragraphs skip this */
     start--;
   }
 

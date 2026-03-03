@@ -52,6 +52,7 @@ export async function saveDialogWithFallback(
 ): Promise<string | null> {
   const DIALOG_TIMEOUT_MS = 15_000;
 
+  /* v8 ignore start -- @preserve reason: withTimeout and its inner callbacks only fire during real Tauri save dialogs; not exercisable in jsdom */
   const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(
@@ -64,6 +65,7 @@ export async function saveDialogWithFallback(
       );
     });
   };
+  /* v8 ignore stop */
 
   // Attempt 1: with filters (normal)
   try {

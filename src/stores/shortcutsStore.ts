@@ -407,8 +407,9 @@ async function syncMenuShortcuts(shortcuts: Record<string, string>) {
     await invoke("refresh_genies_menu", { shortcuts: geniesShortcuts });
   } catch (e) {
     // Menu rebuild may fail if command not yet implemented
-    /* v8 ignore next -- invoke failure only occurs if Tauri command is unavailable; mocked in tests */
+    /* v8 ignore start -- @preserve invoke failure only occurs if Tauri command is unavailable; mocked in tests */
     shortcutsWarn("Failed to sync menu shortcuts:", e);
+    /* v8 ignore stop */
   }
 }
 

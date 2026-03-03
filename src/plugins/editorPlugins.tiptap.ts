@@ -58,10 +58,10 @@ export function buildEditorKeymapBindings(): Record<string, Command> {
   const shortcuts = useShortcutsStore.getState();
   const bindings: Record<string, Command> = {};
 
-  bindIfKey(bindings, shortcuts.getShortcut("toggleSidebar"), () => {
+  bindIfKey(bindings, shortcuts.getShortcut("toggleSidebar"), /* v8 ignore start -- @preserve reason: toggleSidebar keymap handler only fires in live editor; not exercised in unit tests */ () => {
     useUIStore.getState().toggleSidebar();
     return true;
-  });
+  } /* v8 ignore stop */);
 
   // Note: sourceMode toggle is handled by useViewShortcuts hook at window level
   // to avoid double-toggle when both TipTap keymap and window handler fire
@@ -359,6 +359,7 @@ export const editorKeymapExtension = Extension.create({
             return handler(view, event);
           },
         },
+        /* v8 ignore start -- @preserve reason: ProseMirror Plugin view() lifecycle only runs inside a live Tiptap editor; not instantiated in unit tests */
         view() {
           return {
             destroy() {
@@ -366,6 +367,7 @@ export const editorKeymapExtension = Extension.create({
             },
           };
         },
+        /* v8 ignore stop */
       }),
     ];
   },

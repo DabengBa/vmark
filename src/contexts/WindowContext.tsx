@@ -317,12 +317,14 @@ export function WindowProvider({ children }: WindowProviderProps) {
       }
     };
 
+    /* v8 ignore start -- @preserve reason: .catch() callback on init() only fires on unhandled init errors; not triggered in controlled tests */
     init().catch((e) => {
       console.error("[WindowContext] Unhandled init error:", e);
       setIsReady(true);
       const errorWindow = getCurrentWebviewWindow();
       setTimeout(() => errorWindow.emit("ready", errorWindow.label), READY_EVENT_DELAY_MS);
     });
+    /* v8 ignore stop */
   }, []);
 
   useEffect(() => {

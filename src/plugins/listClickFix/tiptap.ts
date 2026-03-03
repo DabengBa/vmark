@@ -127,9 +127,10 @@ export function handleClick(
 
     return setSelectionInEmptyListItem(view, $targetPos, listItemType);
   } catch (error) {
-    /* v8 ignore next -- @preserve posAtDOM throws only for detached DOM nodes; not reproducible in unit tests */
+    /* v8 ignore start -- @preserve posAtDOM throws only for detached DOM nodes; not reproducible in unit tests */
     listClickFixLog("posAtDOM failed for list click fix:", error);
     return false;
+    /* v8 ignore stop */
   }
 }
 

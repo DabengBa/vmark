@@ -20,6 +20,7 @@ function stripFootnoteIndent(lineText: string): string {
   if (lineText.startsWith("\t")) return lineText.slice(1);
   /* v8 ignore next -- @preserve continuation lines always start with tab or 2+ spaces; other whitespace is structurally unreachable */
   if (lineText.startsWith("  ")) return lineText.slice(2);
+  /* v8 ignore next -- @preserve fallback branch: after tab and double-space checks, remaining whitespace patterns are structurally unreachable */
   return lineText.replace(/^\s+/, "");
 }
 

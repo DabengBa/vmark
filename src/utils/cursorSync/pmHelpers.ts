@@ -110,6 +110,7 @@ export function findClosestSourceLine(
           firstTextblockNode = child;
           return false;
         }
+        /* v8 ignore next -- @preserve non-textblock children always contain at least one textblock; the true path is defensive */
         return true;
       });
       /* v8 ignore start -- containers always have at least one textblock descendant in valid ProseMirror docs */

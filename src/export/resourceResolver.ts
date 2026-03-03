@@ -112,8 +112,10 @@ export async function resolveRelativePath(
       // pathname is /path/to/file.png (includes leading slash)
       return decodeURIComponent(url.pathname);
     } catch (error) {
+      /* v8 ignore start -- @preserve reason: asset:// and https://asset.localhost/ URLs always parse successfully via new URL(); catch is defensive only */
       exportWarn("Failed to parse asset URL:", src, error);
       return src;
+      /* v8 ignore stop */
     }
   }
 
