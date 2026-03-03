@@ -14,7 +14,7 @@ import { getWindowLabel } from "@/hooks/useWindowFocus";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTabStore } from "@/stores/tabStore";
-import { collapseNewlines, formatMarkdown, formatSelection, removeTrailingSpaces } from "@/lib/cjkFormatter";
+import { collapseNewlines, formatMarkdown, removeTrailingSpaces } from "@/lib/cjkFormatter";
 import { normalizeLineEndings } from "@/utils/linebreaks";
 import { parseMarkdown, serializeMarkdown } from "@/utils/markdownPipeline";
 import {
@@ -26,33 +26,21 @@ import type { WysiwygToolbarContext } from "./types";
 
 /**
  * Format CJK text in selection or current block.
- * If selection exists, formats only selected text inline.
- * Otherwise, serializes and reformats the current top-level block.
+ * Uses markdown roundtrip to preserve marks (bold, italic, links, etc.).
+ * Selection → full-doc roundtrip (safe for select-all).
+ * No selection → single-block roundtrip.
  */
 export function handleFormatCJK(context: WysiwygToolbarContext): boolean {
   const { view, editor } = context;
   if (!view || !editor) return false;
 
-  const config = useSettingsStore.getState().cjkFormatting;
-  const preserveTwoSpaceHardBreaks = shouldPreserveTwoSpaceBreaks();
-
-  // Check if there's a selection
+  // Selection exists → use full-document markdown roundtrip to preserve marks.
+  // The old schema.text() path destroyed all inline marks (bold, italic, links).
   if (!editor.state.selection.empty) {
-    const { state, dispatch } = view;
-    const { from, to } = state.selection;
-    const selectedText = state.doc.textBetween(from, to, "\n");
-    const formatted = formatSelection(selectedText, config, { preserveTwoSpaceHardBreaks });
-    if (formatted !== selectedText) {
-      const tr = state.tr
-        .replaceWith(from, to, state.schema.text(formatted))
-        .setMeta("addToHistory", true);
-      dispatch(tr);
-      view.focus();
-    }
-    return true;
+    return handleFormatCJKFile(context);
   }
 
-  // No selection - format current block (paragraph, list, or table)
+  // No selection — format current block (paragraph, list, or table)
   return handleFormatCJKBlock(context);
 }
 
