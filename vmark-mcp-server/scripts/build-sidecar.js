@@ -47,6 +47,10 @@ const TARGET_MAP = {
     triple: 'x86_64-unknown-linux-gnu',
     pkg: 'node18-linux-x64',
   },
+  'linux-arm64': {
+    triple: 'aarch64-unknown-linux-gnu',
+    pkg: 'node18-linux-arm64',
+  },
 };
 
 /**

@@ -111,20 +111,19 @@ pub fn atomic_write_file(path: &Path, contents: &[u8]) -> Result<(), String> {
 
     #[cfg(windows)]
     {
-        // Windows rename fails if target exists, use replace
-        if path.exists() {
-            fs::remove_file(path).map_err(|e| {
+        // Try rename first; if it fails because target exists, remove then retry.
+        // This avoids the TOCTOU race of check-then-remove-then-rename.
+        if let Err(_first_err) = fs::rename(&temp_path, path) {
+            // Remove target and retry (target may or may not exist)
+            let _ = fs::remove_file(path);
+            fs::rename(&temp_path, path).map_err(|e| {
                 let _ = fs::remove_file(&temp_path);
-                format!("Failed to remove existing {:?}: {}", path, e)
+                format!(
+                    "Failed to rename {:?} to {:?}: {}",
+                    temp_path, path, e
+                )
             })?;
         }
-        fs::rename(&temp_path, path).map_err(|e| {
-            let _ = fs::remove_file(&temp_path);
-            format!(
-                "Failed to rename {:?} to {:?}: {}",
-                temp_path, path, e
-            )
-        })?;
     }
 
     Ok(())

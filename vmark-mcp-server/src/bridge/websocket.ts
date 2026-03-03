@@ -103,7 +103,7 @@ interface QueuedRequest {
  */
 interface WsMessage {
   id: string;
-  type: 'request' | 'response';
+  type: 'request' | 'response' | 'status' | 'identify';
   payload: BridgeRequest | BridgeResponse;
 }
 
