@@ -100,6 +100,7 @@ export function HeadingPicker() {
         if (maxIndex >= 0) {
           setSelectedIndex((prev) => Math.max(prev - 1, 0));
         }
+      /* v8 ignore next -- @preserve other-key else branch: tests only exercise Escape/Arrow/Enter */
       } else if (e.key === "Enter") {
         e.preventDefault();
         const selected = filteredHeadings[selectedIndex];

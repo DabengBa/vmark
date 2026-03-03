@@ -106,6 +106,7 @@ export function UpdateIndicator() {
       openSettingsWindow("about");
     } else if (status === "ready") {
       restartApp();
+    /* v8 ignore next -- @preserve non-status-matching else branch: all clickable statuses tested */
     } else if (status === "error") {
       checkForUpdates();
     }

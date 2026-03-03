@@ -568,6 +568,28 @@ describe("SourceWikiLinkPopupView", () => {
       expect(mockUpdateTarget).toHaveBeenCalledWith("/other/location/page");
     });
 
+    it("handles workspaceRoot ending with slash — relative does not start with / (line 31 false branch)", async () => {
+      const { useWorkspaceStore } = await import("@/stores/workspaceStore");
+      vi.spyOn(useWorkspaceStore, "getState").mockReturnValue({ rootPath: "/workspace/" } as ReturnType<typeof useWorkspaceStore.getState>);
+
+      const { open: dialogOpen } = await import("@tauri-apps/plugin-dialog");
+      // After slicing "/workspace/" from "/workspace/page.md" → "page.md" (no leading /)
+      vi.mocked(dialogOpen).mockResolvedValueOnce("/workspace/page.md");
+
+      emitStateChange({ isOpen: true, target: "", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const browseBtn = document.querySelector('button[title="Browse for file"]') as HTMLElement;
+      browseBtn.click();
+
+      await new Promise((r) => setTimeout(r, 20));
+
+      // relative = "page.md", doesn't start with "/" → false branch → .md stripped → "page"
+      expect(mockUpdateTarget).toHaveBeenCalledWith("page");
+
+      vi.mocked(useWorkspaceStore.getState).mockRestore?.();
+    });
+
     it("does not strip .md when path does not end with .md (line 37 else branch)", async () => {
       const { open: dialogOpen } = await import("@tauri-apps/plugin-dialog");
       // File without .md extension

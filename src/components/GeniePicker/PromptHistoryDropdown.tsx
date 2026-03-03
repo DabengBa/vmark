@@ -24,6 +24,7 @@ export function PromptHistoryDropdown({
 
   // Scroll selected item into view
   useEffect(() => {
+    /* v8 ignore next -- @preserve listRef guard: ref is always set before selectedIndex changes */
     if (!listRef.current) return;
     const item = listRef.current.querySelector(
       `[data-dropdown-index="${selectedIndex}"]`

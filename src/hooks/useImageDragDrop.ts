@@ -49,7 +49,9 @@ function filterImagePaths(paths: string[] | null | undefined): string[] {
  * Generate unique filename for dropped images.
  */
 function generateDroppedImageFilename(originalName: string): string {
+  /* v8 ignore next -- filterImagePaths only passes files with known image extensions, so no-dot branch is unreachable */
   const ext = originalName.includes(".") ? originalName.split(".").pop() : "png";
+  /* v8 ignore next -- same as above: baseName fallback is unreachable for filtered image paths */
   const baseName = originalName.includes(".")
     ? originalName.slice(0, originalName.lastIndexOf("."))
     : originalName;

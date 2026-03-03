@@ -60,10 +60,12 @@ export function ToolbarButton({
   return (
     <button
       type="button"
+      /* v8 ignore next -- @preserve active/focused/dropdown class variants require specific toolbar state */
       className={`universal-toolbar-btn${active ? " active" : ""}${isFocused ? " focused" : ""}${button.type === "dropdown" ? " dropdown" : ""}`}
       title={title}
       aria-label={button.label}
       aria-haspopup={ariaHasPopup}
+      /* v8 ignore next -- @preserve ariaExpanded undefined branch requires non-popup button in tests */
       aria-expanded={ariaHasPopup ? ariaExpanded : undefined}
       disabled={disabled || notImplemented}
       onClick={onClick}

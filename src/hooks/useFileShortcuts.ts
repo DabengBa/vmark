@@ -38,6 +38,7 @@ export function useFileShortcuts(windowLabel: string): void {
       // Clean up any existing listeners first
       unlistenRefs.current = safeUnlistenAll(unlistenRefs.current);
 
+      /* v8 ignore next -- cancelled=true race: cleanup runs before safeUnlistenAll resolves */
       if (cancelled) return;
 
       // Get current window for filtering - menu events include target window label

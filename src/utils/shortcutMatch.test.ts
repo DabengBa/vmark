@@ -182,6 +182,13 @@ describe("matchesShortcutEvent", () => {
     expect(typeof result).toBe("boolean");
   });
 
+  it("Ctrl+letter code fallback returns false when event.code does not match expected code", () => {
+    // branch 34[1]: ctrlKey pressed, targetKey is alpha, but event.code is wrong
+    const event = makeEvent({ key: "\x02", code: "KeyC", ctrlKey: true });
+    // Shortcut is Ctrl-b, expects KeyB, but event.code is KeyC
+    expect(matchesShortcutEvent(event, "Ctrl-b", "mac")).toBe(false);
+  });
+
   it("uses mac as default platform when navigator.platform is Mac (line 75 mac branch)", () => {
     vi.stubGlobal("navigator", { platform: "MacIntel" });
     // isMacPlatform() returns true, so default platform = "mac"

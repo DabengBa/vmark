@@ -127,6 +127,7 @@ export async function resolveRelativePath(
 export async function fileToDataUri(filePath: string): Promise<string | null> {
   try {
     const data = await readFile(filePath);
+    /* v8 ignore next -- split(".") always has ≥1 element, pop() is never undefined */
     const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
     const mimeType = getMimeType(ext);
     const base64 = uint8ArrayToBase64(data);
