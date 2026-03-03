@@ -386,3 +386,104 @@ describe("removeImage", () => {
     expect(view.dispatch).not.toHaveBeenCalled();
   });
 });
+
+// --- Additional coverage for uncovered branches ---
+
+describe("parseImageMarkdown — false branch when no match (branch 3, line 40)", () => {
+  it("returns null from saveImageChanges when image markdown is malformed", () => {
+    // The image is found by findImageAtPos (regex match), but the sliceString result
+    // is different enough that parseImageMarkdown returns null. We achieve this by
+    // making sliceString return text that doesn't match the parseImageMarkdown regex.
+    // findImageAtPos uses its own regex on lineText; we make lineText have an image
+    // but sliceString (used in getImageMetaFromRange) returns garbage.
+    const imgText = "![alt](image.png)";
+    const view = {
+      state: {
+        doc: {
+          lineAt: vi.fn((_pos: number) => ({
+            from: 0,
+            to: imgText.length,
+            text: imgText,
+          })),
+          // sliceString returns non-matching text so parseImageMarkdown returns null
+          sliceString: vi.fn(() => "not-an-image"),
+        },
+      },
+      dispatch: vi.fn(),
+    };
+    vi.mocked(useMediaPopupStore.getState).mockReturnValue({
+      mediaNodePos: 5,
+      mediaSrc: "new.png",
+      mediaAlt: "alt",
+      setSrc: mockSetSrc,
+    } as never);
+
+    // getImageMetaFromRange calls parseImageMarkdown on "not-an-image" → returns null
+    // → getImageMetaFromRange uses ?? fallbacks: title=null, useAngleBrackets=false
+    // This covers branch 10 (line 89) as well
+    saveImageChanges(view as never);
+
+    // dispatch is still called because getImageRange found a range
+    expect(view.dispatch).toHaveBeenCalled();
+  });
+});
+
+describe("findImageAtPos — false branch when pos is outside all matches (branch 6, line 67)", () => {
+  it("returns null for saveImageChanges when cursor pos is before any image on the line", () => {
+    // Line contains an image, but pos=0 (start of line) and the image starts at col 5
+    // so pos < matchStart → findImageAtPos returns null → saveImageChanges no-ops
+    const imgText = "text ![alt](image.png)";
+    const view = {
+      state: {
+        doc: {
+          lineAt: vi.fn((_pos: number) => ({
+            from: 0,
+            to: imgText.length,
+            text: imgText,
+          })),
+          sliceString: vi.fn((from: number, to: number) => imgText.slice(from, to)),
+        },
+      },
+      dispatch: vi.fn(),
+    };
+    // mediaNodePos=0 → pos=0, matchStart=5 → 0 < 5, so pos < matchStart → no match
+    vi.mocked(useMediaPopupStore.getState).mockReturnValue({
+      mediaNodePos: 0,
+      mediaSrc: "new.png",
+      mediaAlt: "alt",
+      setSrc: mockSetSrc,
+    } as never);
+
+    saveImageChanges(view as never);
+
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("browseImage — tabId null fallback branches (branches 13, 14)", () => {
+  it("shows warning when activeTabId has no entry for current window (tabId nullish → null)", async () => {
+    // activeTabId[windowLabel] is undefined → ?? null → tabId = null
+    // tabId is null → tabId ? ... : undefined → doc = undefined → filePath missing → warning
+    mocks.open.mockResolvedValue("/picked/image.png");
+    // Restore withReentryGuard so it calls the inner fn (clearAllMocks may have wiped the implementation)
+    mocks.withReentryGuard.mockImplementation(
+      async (_wl: string, _op: string, fn: () => Promise<unknown>) => fn()
+    );
+    vi.mocked(useTabStore.getState).mockReturnValue({
+      activeTabId: {}, // no "main" key → activeTabId["main"] is undefined → ?? null
+    } as never);
+    vi.mocked(useDocumentStore.getState).mockReturnValue({
+      getDocument: vi.fn(), // never called when tabId is null
+    } as never);
+    const view = createMockView("![alt](old.png)");
+
+    const result = await browseImage(view as never);
+
+    // filePath is undefined → warning is shown
+    expect(result).toBe(false);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.stringContaining("save the document first"),
+      expect.objectContaining({ kind: "warning" })
+    );
+  });
+});

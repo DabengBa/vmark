@@ -172,6 +172,44 @@ describe("findMarkRange", () => {
     expect(result!.to).toBe(7);
   });
 
+  it("finds range when mark spans multiple consecutive text nodes (currentFrom already set)", () => {
+    // Create a paragraph with two adjacent bold text nodes (no gap between them).
+    // This exercises the false branch of `if (currentFrom === -1)` at line 146:
+    // the first bold node sets currentFrom, the second bold node hits the else arm
+    // (currentFrom !== -1), only updating currentTo.
+    const boldMark = testSchema.marks.strong.create();
+    const textA = testSchema.text("foo").mark([boldMark]);
+    const textB = testSchema.text("bar").mark([boldMark]);
+    // Build the paragraph manually so the two bold nodes are adjacent
+    const para = testSchema.node("paragraph", null, [textA, textB]);
+    const parentStart = 1; // paragraph content starts at pos 1
+
+    // Cursor inside "bar" (positions 4-6 relative to parentStart=1)
+    // "foo" → pos 1..4, "bar" → pos 4..7
+    const result = findMarkRange(5, boldMark, parentStart, para);
+    expect(result).not.toBeNull();
+    // The combined range should span both nodes: from=1 to=7
+    expect(result!.from).toBe(1);
+    expect(result!.to).toBe(7);
+  });
+
+  it("returns null when final accumulated mark range does not contain pos", () => {
+    // Mark is at the end of paragraph but pos is before it.
+    // "plain" (pos 1-6) then "bold" (pos 6-11), cursor at pos=3 (inside "plain").
+    // findMarkRange is called directly with pos=3 and the bold mark.
+    // The forEach accumulates bold range [6..11] but never hits a gap (mark at end),
+    // so the final check fires: pos=3 >= 6? No → foundRange stays null → returns null.
+    const boldMark = testSchema.marks.strong.create();
+    const plainText = testSchema.text("plain");
+    const boldText = testSchema.text("bold!").mark([boldMark]);
+    const para = testSchema.node("paragraph", null, [plainText, boldText]);
+    const parentStart = 1;
+
+    // pos=3 is inside "plain" (pos 1..6), not in "bold!" (pos 6..11)
+    const result = findMarkRange(3, boldMark, parentStart, para);
+    expect(result).toBeNull();
+  });
+
   it("handles multiple non-contiguous ranges of same mark", () => {
     const doc = createDocWithMarks([
       { text: "first", marks: ["strong"] },
@@ -493,5 +531,33 @@ describe("addMarkSyntaxDecorations", () => {
     addMarkSyntaxDecorations(decorations, 9, $from);
 
     expect(decorations.length).toBe(2);
+  });
+
+  it("adds no decorations for an unknown mark type (not in MARK_SYNTAX and not a link)", () => {
+    // We need a mark that is in neither MARK_SYNTAX nor LINK_MARK.
+    // Build a schema with a custom "custom" mark and manually create a state.
+    const customSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+      marks: {
+        custom: {},
+      },
+    });
+    const customMark = customSchema.marks.custom.create();
+    const textNode = customSchema.text("hello").mark([customMark]);
+    const para = customSchema.node("paragraph", null, [textNode]);
+    const doc = customSchema.node("doc", null, [para]);
+    const state = EditorState.create({ doc, schema: customSchema });
+    const $from = state.doc.resolve(3); // inside "hello" with custom mark
+    const decorations: Decoration[] = [];
+
+    // addMarkSyntaxDecorations: mark "custom" not in MARK_SYNTAX and not "link" →
+    // neither syntax nor link branch fires → no decorations added
+    addMarkSyntaxDecorations(decorations, 3, $from);
+
+    expect(decorations.length).toBe(0);
   });
 });

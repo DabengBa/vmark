@@ -373,4 +373,50 @@ describe("VideoEmbedNodeView", () => {
       expect(mockEditor._dispatch).not.toHaveBeenCalled();
     });
   });
+
+  describe("nullish coalescing fallback branches", () => {
+    it("uses empty string when videoId is null in constructor (line 36 ?? branch)", () => {
+      const node = {
+        type: { name: "video_embed" },
+        attrs: { provider: "youtube", videoId: null, width: undefined, height: undefined },
+      } as unknown as import("@tiptap/pm/model").Node;
+      nodeView = new VideoEmbedNodeView(
+        node,
+        getPos,
+        mockEditor as unknown as import("@tiptap/core").Editor,
+      );
+      document.body.appendChild(nodeView.dom);
+      // null videoId → "" → falsy → about:blank
+      const iframe = nodeView.dom.querySelector("iframe") as HTMLIFrameElement;
+      expect(iframe.src).toBe("about:blank");
+    });
+
+    it("uses 'youtube' fallback and empty videoId when provider/videoId are null in update() (lines 85-86 ?? branches)", () => {
+      createNodeView();
+      const updatedNode = {
+        type: { name: "video_embed" },
+        attrs: { provider: null, videoId: null, width: undefined, height: undefined },
+      } as unknown as import("@tiptap/pm/model").Node;
+      mockBuildEmbedUrl.mockReturnValue("https://www.youtube-nocookie.com/embed/");
+      const result = nodeView.update(updatedNode);
+      expect(result).toBe(true);
+      // provider null → "youtube" fallback; videoId null → "" → falsy → about:blank
+      const iframe = nodeView.dom.querySelector("iframe") as HTMLIFrameElement;
+      expect(iframe.src).toBe("about:blank");
+    });
+
+    it("uses 560/315 defaults when config is null and width/height are undefined (lines 93-94 ?? branches)", () => {
+      // Return null config so config?.defaultWidth and config?.defaultHeight are undefined
+      mockGetProviderConfig.mockReturnValue(null);
+      createNodeView();
+      const updatedNode = {
+        type: { name: "video_embed" },
+        attrs: { provider: "youtube", videoId: "xyz", width: undefined, height: undefined },
+      } as unknown as import("@tiptap/pm/model").Node;
+      nodeView.update(updatedNode);
+      const iframe = nodeView.dom.querySelector("iframe") as HTMLIFrameElement;
+      expect(iframe.width).toBe("560");
+      expect(iframe.height).toBe("315");
+    });
+  });
 });

@@ -1323,5 +1323,141 @@ describe("imageHandler plugin handler integration", () => {
         expect((view as Record<string, unknown>).dispatch).toHaveBeenCalled();
       }, { timeout: 200 });
     });
+
+    it("uses 'image.png' fallback when clipboard file.name is empty string (line 69)", async () => {
+      // Branch 2: file.name || "image.png" — the RHS fires when file.name is ""
+      const file = new File(["img-data"], "", { type: "image/png" });
+      (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+        Promise.resolve(new ArrayBuffer(8))
+      );
+
+      const event = createMockClipboardEvent([{ type: "image/png", file }]);
+      const view = createMockView();
+
+      handlePaste(view, event);
+
+      await vi.waitFor(() => {
+        expect(mockGenerateClipboardImageFilename).toHaveBeenCalledWith("image.png");
+      }, { timeout: 200 });
+    });
+
+    it("uses 'image.png' fallback when dropped file.name is empty string (line 106)", async () => {
+      // Branch 6: file.name || "image.png" in processDroppedFiles — RHS fires when file.name is ""
+      const file = new File(["img-data"], "", { type: "image/png" });
+      (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+        Promise.resolve(new ArrayBuffer(8))
+      );
+      mockIsImageFile.mockImplementation((f: File) => f.type.startsWith("image/"));
+
+      const event = createMockDragEvent({
+        dataTransfer: {
+          files: [file],
+          getData: () => "",
+        },
+      });
+      const view = createMockView();
+
+      handleDrop(view, event, null, false);
+
+      await vi.waitFor(() => {
+        expect(mockGenerateDroppedImageFilename).toHaveBeenCalledWith("image.png");
+      }, { timeout: 200 });
+    });
+  });
+});
+
+describe("handleDrop — uncovered branch coverage", () => {
+  let handleDrop: (view: unknown, event: DragEvent, slice: unknown, moved: boolean) => boolean;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsGetState.mockReturnValue({ image: { copyToAssets: false } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+    mockSaveImageToAssets.mockResolvedValue(".assets/saved.png");
+    mockIsImageFile.mockImplementation((f: File) => f.type.startsWith("image/"));
+
+    const extensionContext = {
+      name: imageHandlerExtension.name,
+      options: imageHandlerExtension.options,
+      storage: imageHandlerExtension.storage,
+      editor: {} as import("@tiptap/core").Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = imageHandlerExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    handleDrop = plugins[0].props.handleDrop!;
+  });
+
+  it("falls through when uriList has no file:// lines (filePaths.length === 0 branch, line 177)", () => {
+    // Branch 15: filePaths.length > 0 false branch — uriList exists but has no file:// entries
+    const file = new File(["img"], "photo.png", { type: "image/png" });
+    const event = createMockDragEvent({
+      dataTransfer: {
+        files: [file],
+        getData: (type: string) =>
+          type === "text/uri-list" ? "https://example.com/photo.png" : "",
+      },
+    });
+    const view = createMockView();
+
+    // The uriList "https://example.com/photo.png" has no file:// lines after filter,
+    // so filePaths is empty → falls through to default processDroppedFiles path
+    const result = handleDrop(view, event, null, false);
+    expect(result).toBe(true); // Still processes via default path
+  });
+
+  it("uses selection.from fallback when posAtCoords returns null in file:// URI path (line 183)", () => {
+    // Branch 17: dropPos ? dropPos.pos : view.state.selection.from — false branch (null dropPos)
+    const file = new File(["img"], "photo.png", { type: "image/png" });
+    const event = createMockDragEvent({
+      dataTransfer: {
+        files: [file],
+        getData: (type: string) =>
+          type === "text/uri-list" ? "file:///Users/test/photo.png" : "",
+      },
+    });
+    const realSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const realState = EditorState.create({
+      doc: realSchema.node("doc", null, [
+        realSchema.node("paragraph", null, [realSchema.text("hello")]),
+      ]),
+      schema: realSchema,
+    });
+    const view = {
+      ...createMockView(),
+      state: realState,
+      dispatch: vi.fn(),
+      posAtCoords: vi.fn(() => null), // null → triggers the false branch, uses selection.from
+    };
+
+    const result = handleDrop(view, event, null, false);
+    expect(result).toBe(true);
+    expect(view.posAtCoords).toHaveBeenCalled();
+  });
+
+  it("falls through when text drop paths are non-images — detection.allImages false (line 221)", () => {
+    // Branch 20: detection.allImages false branch in text-path drop handler.
+    // The mock at top of file returns allImages based on file extension matching.
+    // A path like "mixed.pdf" does not match image extensions → allImages=false.
+    const event = createMockDragEvent({
+      dataTransfer: {
+        files: [] as File[],
+        getData: (type: string) =>
+          type === "text/plain" ? "/Users/test/mixed-content.pdf" : "",
+      },
+    });
+    const view = createMockView();
+
+    // parseMultiplePaths splits on newline → paths=["/Users/test/mixed-content.pdf"]
+    // detectMultipleImagePaths → allImages=false (not an image extension)
+    const result = handleDrop(view, event, null, false);
+    expect(result).toBe(false); // Returns false since allImages is false and no files
   });
 });

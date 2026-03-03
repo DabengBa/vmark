@@ -530,4 +530,76 @@ describe("WysiwygPopupView", () => {
       expect(() => document.dispatchEvent(mousedownEvent)).not.toThrow();
     });
   });
+
+  describe("Focus on show — no focusable element (branch 7 false)", () => {
+    it("does not throw when container has no focusable elements", () => {
+      // Create a subclass whose container has no inputs, buttons, or tabindex elements
+      class NoFocusablePopup extends WysiwygPopupView<TestState> {
+        showCalled = false;
+        hideCalled = false;
+
+        protected buildContainer(): HTMLElement {
+          const container = document.createElement("div");
+          container.className = "no-focusable-popup";
+          // Intentionally no focusable children
+          return container;
+        }
+
+        protected onShow(): void { this.showCalled = true; }
+        protected onHide(): void { this.hideCalled = true; }
+      }
+
+      const rAFCallbacks: FrameRequestCallback[] = [];
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+        rAFCallbacks.push(cb);
+        return rAFCallbacks.length;
+      });
+
+      popup.destroy();
+      storeApi = createMockStore();
+      const noFocusPopup = new NoFocusablePopup(view, storeApi.store);
+
+      // Show popup — triggers requestAnimationFrame with getFirstFocusable()
+      storeApi.emit({ isOpen: true, anchorRect });
+
+      // Run all rAF callbacks — getFirstFocusable returns null, so the `if` branch is false
+      expect(() => rAFCallbacks.forEach((cb) => cb(0))).not.toThrow();
+
+      noFocusPopup.destroy();
+    });
+  });
+
+  describe("updatePosition — gap and preferAbove nullish coalescing defaults (branches 17, 18)", () => {
+    it("falls back to gap=6 and preferAbove=true when dimensions omit those fields", () => {
+      // Create a subclass that overrides getPopupDimensions to omit gap and preferAbove
+      class NoDimensionDefaults extends WysiwygPopupView<TestState> {
+        showCalled = false;
+        hideCalled = false;
+
+        protected buildContainer(): HTMLElement {
+          const container = document.createElement("div");
+          container.className = "no-dim-popup";
+          return container;
+        }
+
+        protected getPopupDimensions() {
+          // Return object without gap or preferAbove to exercise the ?? fallbacks
+          return { width: 300, height: 50 } as never;
+        }
+
+        protected onShow(): void { this.showCalled = true; }
+        protected onHide(): void { this.hideCalled = true; }
+      }
+
+      popup.destroy();
+      storeApi = createMockStore();
+      const dimPopup = new NoDimensionDefaults(view, storeApi.store);
+
+      // Showing the popup triggers updatePosition which calls calculatePopupPosition
+      // with gap ?? 6 and preferAbove ?? true — branches 17 and 18 are now covered
+      expect(() => storeApi.emit({ isOpen: true, anchorRect })).not.toThrow();
+
+      dimPopup.destroy();
+    });
+  });
 });

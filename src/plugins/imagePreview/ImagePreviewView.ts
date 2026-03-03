@@ -233,6 +233,7 @@ export class ImagePreviewView {
     });
 
     // Convert to host-relative coordinates if mounted inside editor container
+    /* v8 ignore next -- @preserve defensive null guard: host is null only if updatePosition is called before show() */
     const host = this.host ?? document.body;
     if (host !== document.body) {
       const hostPos = toHostCoordsForDom(host, { top, left });

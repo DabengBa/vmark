@@ -231,6 +231,20 @@ describe("applyInlineFormatToSelections", () => {
     view.destroy();
   });
 
+  it("unwraps when selection includes the format markers (isWrapped branch, line 126)", () => {
+    // Selections span the full bold-wrapped text including markers: "**aa**" and "**bb**"
+    // selectedText = "**aa**", isWrapped("**aa**","**","**") → true → branch 12 arm 0
+    // expandedToWord=false → branch 13 arm 1 (newCursorPos=from), branch 14 arm 1 (range form)
+    const view = createView("**aa** **bb**", [
+      { from: 0, to: 6 },  // selects "**aa**"
+      { from: 7, to: 13 }, // selects "**bb**"
+    ]);
+    applyInlineFormatToSelections(view, "bold");
+    // isWrapped("**aa**","**","**") → true → unwraps → "aa" and "bb"
+    expect(view.state.doc.toString()).toBe("aa bb");
+    view.destroy();
+  });
+
   it("unwrapOppositeInRange: removes superscript wrapping when text is selected with ^ markers (isWrapped branch)", () => {
     // unwrapOppositeInRange is called when applying subscript to a superscript-wrapped selection.
     // The isWrapped check (line 39-44): selectedText is "^one^", which is wrapped with ^ prefix/suffix.

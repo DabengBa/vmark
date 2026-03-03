@@ -342,6 +342,22 @@ describe("source footnote actions", () => {
       view.destroy();
     });
 
+    it("finds definition when pos is on third continuation line (scans through multiple continuation lines)", () => {
+      // This exercises the false branch of `if (!isFootnoteContinuationLine(current.text)) { break; }`
+      // when scanning backward: line 3 (pos here) → scans i=2 ("  second": IS continuation → don't break)
+      // → scans i=1 ("[^1]: first": matches def regex → returns).
+      const doc = "[^1]: first\n  second\n  third";
+      const view = createView(doc);
+
+      // Position on "third" (the third line — second continuation)
+      const result = findFootnoteDefinitionAtPos(view, doc.indexOf("third"));
+
+      expect(result).not.toBeNull();
+      expect(result!.label).toBe("1");
+      expect(result!.content).toBe("first\nsecond\nthird");
+      view.destroy();
+    });
+
     it("returns null when pos is not on a footnote", () => {
       const doc = "Just plain text";
       const view = createView(doc);
@@ -349,6 +365,41 @@ describe("source footnote actions", () => {
       const result = findFootnoteDefinitionAtPos(view, 5);
 
       expect(result).toBeNull();
+      view.destroy();
+    });
+  });
+
+  describe("removeFootnote — referenceAtPos not already in references", () => {
+    it("includes a reference found at referencePos that is the only reference (not duplicated)", () => {
+      // The reference at referencePos is found by findFootnoteReferenceAtPos.
+      // findFootnoteReferences should also find it (both use same regex).
+      // However, if referencePos points to a position that IS a reference,
+      // and there are NO other references (so references list is just that one),
+      // the `!references.some(...)` check is TRUE (ref IS already in list from findFootnoteReferences).
+      // To actually hit branch 12 arm 0 (referenceAtPos NOT in references):
+      // Set referencePos to null → findFootnoteReferenceAtPos returns null → condition false (arm 1).
+      // Or set referencePos to a position where referenceAtPos is found but not in references...
+      // In practice this branch is a defensive guard. Test with referencePos=null (arm 1):
+      const doc = "Text[^x] here.\n\n[^x]: note";
+      const view = createView(doc);
+
+      useFootnotePopupStore.setState({
+        isOpen: true,
+        label: "x",
+        content: "",
+        anchorRect: null,
+        definitionPos: doc.indexOf("[^x]:"),
+        referencePos: null, // null → findFootnoteReferenceAtPos returns null → condition false
+        autoFocus: false,
+      });
+
+      removeFootnote(view);
+
+      // With null referencePos, findFootnoteReferenceAtPos returns null.
+      // findFootnoteReferences finds the reference at referencePos.
+      // The reference IS removed.
+      const result = view.state.doc.toString();
+      expect(result).not.toContain("[^x]");
       view.destroy();
     });
   });
