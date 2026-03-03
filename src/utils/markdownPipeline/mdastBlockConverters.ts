@@ -494,6 +494,7 @@ function stripAlertMarker(
   if (!match) return null;
 
   const alertType = match[1].toUpperCase();
+  // v8 ignore next 3 -- @preserve reason: regex already restricts match[1] to the five ALERT_TYPES values; this guard can never be false in practice
   if (!ALERT_TYPES.includes(alertType as (typeof ALERT_TYPES)[number])) {
     return null;
   }

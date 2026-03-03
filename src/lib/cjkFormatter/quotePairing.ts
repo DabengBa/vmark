@@ -318,10 +318,10 @@ export function tokenizeQuotes(text: string): QuoteToken[] {
     const role = classifyQuote(text, i, type, doubleStack, singleStack);
 
     // Update stacks for classification of subsequent quotes
+    // (classifyQuote only returns "open" or "close" — no other role reaches here)
     if (role === "open") {
       (type === "double" ? doubleStack : singleStack).push(i);
-    /* v8 ignore next -- @preserve unreachable false branch: classifyQuote only returns "open" or "close"; the "ambiguous" role in QuoteRole type is never produced */
-    } else if (role === "close") {
+    } else {
       const stack = type === "double" ? doubleStack : singleStack;
       if (stack.length > 0) {
         stack.pop();
@@ -351,10 +351,10 @@ export function pairQuotes(text: string, tokens: QuoteToken[]): PairingResult {
 
     const stack = token.type === "double" ? doubleStack : singleStack;
 
+    // (tokens here only have "open" or "close" roles after apostrophe/prime filtering)
     if (token.role === "open") {
       stack.push(token);
-    /* v8 ignore next -- @preserve unreachable false branch: after filtering apostrophe/prime, tokens only have "open" or "close" roles; "ambiguous" is a type placeholder never produced by classifyQuote */
-    } else if (token.role === "close") {
+    } else {
       if (stack.length > 0) {
         const opener = stack.pop()!;
 

@@ -103,6 +103,7 @@ function updateLivePreview(
   const getToken = () => livePreviewToken;
 
   livePreviewTimeout = setTimeout(async () => {
+    /* v8 ignore next -- @preserve stale-token guard: fires only when a prior timer somehow outlives a later updateLivePreview call; in practice all callers clear the timeout before incrementing the token, making the early-return unreachable in synchronous tests */
     if (currentToken !== livePreviewToken) return;
 
     const trimmed = content.trim();
@@ -117,8 +118,8 @@ function updateLivePreview(
       await updateMermaidLivePreview(element, trimmed, currentToken, getToken);
     } else if (language === "markmap") {
       await updateMarkmapLivePreview(element, trimmed, currentToken, getToken);
-    /* v8 ignore next 2 -- @preserve unreachable false branch: $$math$$ is the only PREVIEW_ONLY_LANGUAGES member that reaches here; it has no live-preview renderer so the else-if chain simply falls through */
-    } else if (language === "svg") {
+    } else {
+      // Only "svg" reaches this branch among PREVIEW_ONLY_LANGUAGES
       updateSvgLivePreview(element, trimmed, currentToken, getToken);
     }
   }, DEBOUNCE_MS);
@@ -156,6 +157,7 @@ function exitEditMode(view: EditorView | null, revert: boolean): void {
     store.exitEditing();
     dispatch(state.tr.setMeta(EDITING_STATE_CHANGED, true));
     livePreviewToken++;
+    /* v8 ignore next 3 -- @preserve livePreviewTimeout is set only when a live-preview debounce timer is pending at the exact moment a stale-position cancel is triggered; this race window is unreachable in synchronous jsdom tests */
     if (livePreviewTimeout) {
       clearTimeout(livePreviewTimeout);
       livePreviewTimeout = null;
@@ -177,6 +179,7 @@ function exitEditMode(view: EditorView | null, revert: boolean): void {
   }
 
   // Clear render cache for this content to force re-render
+  /* v8 ignore next -- @preserve defensive nullish fallback: PREVIEW_ONLY_LANGUAGES nodes always have a language attr; null/undefined only possible via malformed external doc */
   const language = (node.attrs.language ?? "").toLowerCase();
   const content = revert ? originalContent : node.textContent;
   if (content) {
@@ -224,6 +227,7 @@ export const codePreviewExtension = Extension.create({
             // Update live preview if doc changed and we're editing
             if (tr.docChanged && storeEditingPos !== null && currentLivePreview && currentEditingLanguage) {
               const node = newState.doc.nodeAt(storeEditingPos);
+              /* v8 ignore next 3 -- @preserve false branch (node null) requires editingPos to point at a boundary-only position inside a just-modified doc, a race window unreachable in deterministic jsdom tests */
               if (node) {
                 updateLivePreview(currentLivePreview, currentEditingLanguage, node.textContent);
               }

@@ -169,6 +169,29 @@ describe("detectMarksAtCursor", () => {
     expect(ctx.inLink?.href).toBe("https://already-set.com");
   });
 
+  it("uses empty string fallback when link href is falsy (line 29 false branch)", () => {
+    // Create a link mark with an empty href so mark.attrs.href is falsy → falls back to ""
+    const linkMark = schema.marks.link.create({ href: "" });
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("link text", [linkMark]),
+      ]),
+    ]);
+    const state = createState(doc);
+    const $from = state.doc.resolve(3); // Inside the link text
+
+    const ctx: CursorContext = {
+      surface: "wysiwyg",
+      contextMode: "insert",
+      hasSelection: false,
+    };
+    detectMarksAtCursor($from, ctx);
+
+    // inLink should be set with empty href (fallback to "")
+    expect(ctx.inLink).toBeDefined();
+    expect(ctx.inLink?.href).toBe("");
+  });
+
   it("detects formatted range when cursor is in a non-link mark (lines 42-44)", () => {
     const boldMark = schema.marks.bold.create();
     const doc = schema.node("doc", null, [

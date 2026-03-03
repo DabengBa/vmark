@@ -555,6 +555,79 @@ describe("BlockVideoNodeView", () => {
     });
   });
 
+  describe("handleClick branches", () => {
+    it("opens popup when dblclick target is video but clientY is above controls area (else branch at line 80)", () => {
+      createNodeView({ src: "clip.mp4" });
+      const video = nodeView.dom.querySelector("video")!;
+      video.getBoundingClientRect = vi.fn(() => ({
+        top: 0, left: 0, bottom: 400, right: 600,
+        width: 600, height: 400, x: 0, y: 0, toJSON: () => ({}),
+      }));
+      // clientY=100 is NOT > rect.bottom - 40 (=360), so we fall through to open popup
+      const event = new MouseEvent("dblclick", { bubbles: true, clientY: 100 });
+      Object.defineProperty(event, "target", { value: video, writable: false });
+      video.dispatchEvent(event);
+
+      expect(mockOpenPopup).toHaveBeenCalled();
+    });
+
+    it("uses empty string for mediaTitle when title is null (line 91: title ?? '')", () => {
+      createNodeView({ src: "clip.mp4", title: null });
+      const video = nodeView.dom.querySelector("video")!;
+      video.getBoundingClientRect = vi.fn(() => ({
+        top: 0, left: 0, bottom: 400, right: 600,
+        width: 600, height: 400, x: 0, y: 0, toJSON: () => ({}),
+      }));
+      const event = new MouseEvent("dblclick", { bubbles: true, clientY: 100 });
+      Object.defineProperty(event, "target", { value: nodeView.dom });
+      nodeView.dom.dispatchEvent(event);
+
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaTitle: "" }),
+      );
+    });
+
+    it("uses empty string for mediaPoster when poster is null (line 94: poster ?? '')", () => {
+      createNodeView({ src: "clip.mp4", poster: null });
+      const video = nodeView.dom.querySelector("video")!;
+      video.getBoundingClientRect = vi.fn(() => ({
+        top: 0, left: 0, bottom: 400, right: 600,
+        width: 600, height: 400, x: 0, y: 0, toJSON: () => ({}),
+      }));
+      const event = new MouseEvent("dblclick", { bubbles: true, clientY: 100 });
+      Object.defineProperty(event, "target", { value: nodeView.dom });
+      nodeView.dom.dispatchEvent(event);
+
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaPoster: "" }),
+      );
+    });
+
+    it("ignores stale catch when destroyed before rejection fires (line 141: destroyed branch)", async () => {
+      mockIsExternalUrl.mockReturnValue(false);
+      let reject1: (e: Error) => void;
+      mockResolveMediaSrc.mockReturnValueOnce(new Promise((_, r) => { reject1 = r; }));
+
+      createNodeView({ src: "clip.mp4" });
+      // Destroy before the promise rejects
+      nodeView.destroy();
+      reject1!(new Error("stale error"));
+      await Promise.resolve();
+
+      // Should be ignored — showMediaError not called
+      expect(mockShowMediaError).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update() preload ?? fallback", () => {
+    it("defaults preload to metadata when update provides null (line 162: ?? 'metadata')", () => {
+      createNodeView({ preload: "auto" });
+      const video = nodeView.dom.querySelector("video")!;
+      nodeView.update(createMockNode({ preload: null }));
+      expect(video.preload).toBe("metadata");
+    });
+  });
+
   describe("stopEvent click on video element (line 186)", () => {
     it("returns true for click on video outside controls area", () => {
       createNodeView();
