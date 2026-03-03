@@ -1341,3 +1341,98 @@ describe("fixNormalizationSpread — list.spread preserved when child is genuine
     expect(list.spread).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// isEmptyListItem — false branch of li.children.length === 0 (line 494)
+// Requires: hasNestedEmptyListItem called with a spread listItem whose nested
+// list starts with a non-empty item (children.length > 0).
+// Input: loose outer item (spread=true via blank line) + nested list where
+// real item appears BEFORE the bare marker.
+// ---------------------------------------------------------------------------
+
+describe("isEmptyListItem — false branch when children.length > 0 (line 494 B56[1])", () => {
+  it("covers the false branch of li.children.length===0 when nested list has non-empty item first", () => {
+    // "- text a\n\n  - real content\n  -\n":
+    //   - Outer listItem gets spread=true (blank line between outer para and nested list)
+    //   - Nested list: [real content item (children.length=1), empty item (children.length=0)]
+    //   - fixNormalizationSpread calls hasNestedEmptyListItem on the spread outer item
+    //   - hasNestedEmptyListItem iterates: first item has children.length=1, NOT 0
+    //   - isEmptyListItem(first item): children.length===0? NO → B56[1] taken
+    //   - continues to check paragraph structure, returns false (item has real content)
+    //   - iterates to second item (children.length=0): isEmptyListItem returns true
+    //   - hasNestedEmptyListItem returns true → li.spread reset to false
+    const input = "- text a\n\n  - real content\n  -\n";
+    const result = parseMarkdownToMdast(input);
+    const list = result.children[0] as any;
+    expect(list.type).toBe("list");
+    const outerItem = list.children[0];
+    // After fixNormalizationSpread: spread reset to false because nested list has an empty item
+    expect(outerItem.spread).toBe(false);
+    // Nested list should have 2 items: real + empty
+    const nestedList = outerItem.children.find((c: any) => c.type === "list");
+    expect(nestedList).toBeDefined();
+    expect(nestedList.children.length).toBe(2);
+    // First nested item has real content (non-empty)
+    expect(nestedList.children[0].children.length).toBe(1);
+    expect(nestedList.children[0].children[0].type).toBe("paragraph");
+    // Second nested item is empty
+    expect(nestedList.children[1].children.length).toBe(0);
+  });
+
+  it("isEmptyListItem reaches paragraph check when item has single paragraph child", () => {
+    // Same structure: outer spread=true, nested [non-empty, empty]
+    // The non-empty item has children.length=1 and children[0].type=paragraph
+    // isEmptyListItem falls through to check para.children — they are non-empty, returns false
+    const input = "- outer\n\n  - sub with content\n\n  -\n";
+    const result = parseMarkdownToMdast(input);
+    const list = result.children[0] as any;
+    expect(list.type).toBe("list");
+    const outerItem = list.children[0];
+    expect(outerItem.spread).toBe(false);
+    const nestedList = outerItem.children.find((c: any) => c.type === "list");
+    expect(nestedList).toBeDefined();
+    // First item has paragraph with real text (non-empty)
+    const firstNested = nestedList.children[0];
+    expect(firstNested.children[0]?.type).toBe("paragraph");
+    const paraChildren = firstNested.children[0]?.children;
+    expect(paraChildren?.length).toBeGreaterThan(0);
+  });
+
+  it("isEmptyListItem returns false for item with 2 children (covers B57[1] false branch)", () => {
+    // Nested item has 2 paragraphs (spread item from blank line inside nested list).
+    // isEmptyListItem: length===0? No. length===1 && type==="paragraph"? No (length=2).
+    // Falls through to return false — covers B57[1] false branch.
+    // Input: outer loose item (spread=true), nested list has [2-para item, bare item]
+    const input = "- outer\n\n  - para1\n\n    para2\n  -\n";
+    const result = parseMarkdownToMdast(input);
+    const list = result.children[0] as any;
+    expect(list.type).toBe("list");
+    const outerItem = list.children[0];
+    // fixNormalizationSpread should reset spread to false (nested list has empty item)
+    expect(outerItem.spread).toBe(false);
+    const nestedList = outerItem.children.find((c: any) => c.type === "list");
+    expect(nestedList).toBeDefined();
+    // First nested item has 2 paragraph children
+    expect(nestedList.children[0].children.length).toBe(2);
+    // Second nested item is empty
+    expect(nestedList.children[1].children.length).toBe(0);
+  });
+
+  it("isEmptyListItem returns false for item with non-paragraph single child (covers B57[1] false branch)", () => {
+    // Nested item has 1 child but it is a blockquote (not paragraph).
+    // isEmptyListItem: length===0? No. length===1 && type==="paragraph"? No (type=blockquote).
+    // Falls through to return false — covers B57[1] false branch.
+    const input = "- outer\n\n  - > quote\n  -\n";
+    const result = parseMarkdownToMdast(input);
+    const list = result.children[0] as any;
+    expect(list.type).toBe("list");
+    const outerItem = list.children[0];
+    expect(outerItem.spread).toBe(false);
+    const nestedList = outerItem.children.find((c: any) => c.type === "list");
+    expect(nestedList).toBeDefined();
+    // First nested item has 1 blockquote child (not a paragraph)
+    expect(nestedList.children[0].children[0]?.type).toBe("blockquote");
+    // Second nested item is empty
+    expect(nestedList.children[1].children.length).toBe(0);
+  });
+});

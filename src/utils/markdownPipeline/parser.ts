@@ -482,7 +482,6 @@ function hasNestedEmptyListItem(li: ListItem): boolean {
     if (child.type === "list") {
       const list = child as List;
       for (const item of list.children) {
-        /* v8 ignore next -- @preserve normalization always places bare markers first in nested lists, so the first item is always empty and isEmptyListItem returns true immediately; a false return (non-empty item first) is structurally unreachable via normalizeBareListMarkers */
         if (isEmptyListItem(item)) return true;
       }
     }
@@ -492,19 +491,16 @@ function hasNestedEmptyListItem(li: ListItem): boolean {
 
 function isEmptyListItem(li: ListItem): boolean {
   if (li.children.length === 0) return true;
-  // Remaining branches below are only reachable via future callers — normalization always
-  // produces bare-marker list items with 0 children, so the paragraph-child path and
-  // the final false return are structurally unreachable through the current pipeline.
-  /* v8 ignore next -- @preserve unreachable: normalization never produces a 1-child-paragraph empty item */
-  if (li.children.length !== 1 || li.children[0].type !== "paragraph") return false;
-  const para = li.children[0] as Paragraph;
-  /* v8 ignore next 4 -- @preserve unreachable paragraph-child branches; kept for defensive correctness */
-  return (
-    para.children.length === 0 ||
-    (para.children.length === 1 &&
-      para.children[0].type === "text" &&
-      !(para.children[0] as Text).value.trim())
-  );
+  if (li.children.length === 1 && li.children[0].type === "paragraph") {
+    const para = li.children[0] as Paragraph;
+    return (
+      para.children.length === 0 ||
+      (para.children.length === 1 &&
+        para.children[0].type === "text" &&
+        !(para.children[0] as Text).value.trim())
+    );
+  }
+  return false;
 }
 
 export function parseMarkdownToMdast(

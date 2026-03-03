@@ -2689,6 +2689,17 @@ describe("codePreview — additional branch coverage", () => {
 });
 
 describe("codePreview — remaining branch coverage", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    useBlockMathEditingStore.getState().exitEditing();
+    clearPreviewCache();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // Helper — creates a fresh plugin instance with a dispatch-capturing mock view
   function makeFreshPluginsWithView(state: EditorState) {
     const extensionContext = {
@@ -2810,6 +2821,89 @@ describe("codePreview — remaining branch coverage", () => {
     const state2 = editingState.apply(editingState.tr.insertText("X", 1));
     expect(() => freshPlugins[0].getState(state2)).not.toThrow();
 
+    viewResult.destroy!();
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+
+  // Branch at line 159 truthy: livePreviewTimeout IS set when null-node path in exitEditMode runs
+  it("exitEditMode null-node path: clears livePreviewTimeout when it is pending (line 159 truthy)", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const schema = getSchema([StarterKit]);
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const freshPlugins =
+      codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+
+    const emptyDoc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const baseState = EditorState.create({ schema, doc: emptyDoc, plugins: freshPlugins });
+    // Build doc with codeBlock + paragraph so there is a null-returning gap position
+    const codeBlockNode = schema.nodes.codeBlock.create({ language: "latex" }, schema.text("x^2"));
+    const paraNode = schema.nodes.paragraph.create();
+    const state = baseState.apply(
+      baseState.tr.replaceWith(0, baseState.doc.content.size, [codeBlockNode, paraNode])
+    );
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+    expect(codeBlockPos).toBeGreaterThanOrEqual(0);
+
+    // The closing boundary of codeBlock: nodeAt returns null (no child starts there)
+    const nullPos = codeBlockPos + codeBlockNode.nodeSize - 1;
+    expect(state.doc.nodeAt(nullPos)).toBeNull();
+
+    // Start editing at valid codeBlockPos so decorations include header + live-preview
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "x^2");
+
+    const mockDispatch = vi.fn();
+    const mockView = {
+      state,
+      dispatch: mockDispatch,
+      focus: vi.fn(),
+      composing: false,
+      dom: document.createElement("div"),
+    };
+    const viewResult = freshPlugins[0].spec.view!(mockView as never);
+
+    const tr1 = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const editingState = state.apply(tr1);
+    viewResult.update!(Object.assign({}, mockView, { state: editingState }) as never, {} as never);
+    mockView.state = editingState;
+
+    // Get decorations and render live-preview widget → sets livePreviewTimeout
+    const pluginState = freshPlugins[0].getState(editingState);
+    const decs = pluginState.decorations.find();
+    const widgetDecs = decs.filter((d: DecorationLike) => !d.type?.attrs?.class);
+    // Render the live-preview widget (last widget: header is first, live-preview is last)
+    if (widgetDecs.length >= 2) {
+      (widgetDecs[widgetDecs.length - 1] as any).type.toDOM(mockView);
+    }
+    // livePreviewTimeout is now set (fake timers haven't fired yet)
+
+    // Switch store to nullPos so exitEditMode's nodeAt(nullPos) returns null
+    useBlockMathEditingStore.setState({ editingPos: nullPos });
+
+    // Render the header widget and click cancel
+    // exitEditMode reads editingPos=nullPos, nodeAt(nullPos)=null → null-node path
+    // livePreviewTimeout is set → if (livePreviewTimeout) truthy branch fires
+    const headerEl = (widgetDecs[0] as any).type.toDOM(mockView);
+    const cancelBtn = headerEl.querySelector(".code-block-edit-cancel") as HTMLButtonElement;
+    expect(cancelBtn).toBeTruthy();
+    cancelBtn.click();
+
+    // dispatch was called (null-node path reached dispatch at line 156)
+    expect(mockDispatch).toHaveBeenCalled();
     viewResult.destroy!();
     useBlockMathEditingStore.getState().exitEditing();
   });

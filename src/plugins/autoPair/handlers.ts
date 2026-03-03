@@ -99,6 +99,9 @@ function handleBacktickCodeToggle(
       dispatch(tr);
       return true;
     }
+    // findCodeMarkEnd returns null only if no code-marked child contains `from`,
+    // which is structurally impossible when inCode is true (marks come from text nodes).
+    /* v8 ignore next -- @preserve reason: defensive null-check; structurally unreachable when inCode is true, since $from.marks() and findCodeMarkEnd are consistent for text nodes */
     return false;
   }
 

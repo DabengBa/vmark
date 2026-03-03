@@ -593,6 +593,31 @@ describe("ImagePasteToastView keyboard edge cases", () => {
     expect(document.activeElement).toBe(dismissBtn);
   });
 
+  it("Shift+Tab from non-first button moves to previous (currentIndex - 1 branch)", async () => {
+    const editorDom = container.querySelector(".ProseMirror") as HTMLElement;
+    initImagePasteToast();
+
+    (useImagePasteToastStore as unknown as { _setState: (s: object) => void })._setState({
+      isOpen: true,
+      anchorRect,
+      imagePath: "test.png",
+      imageType: "url" as const,
+      editorDom,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const insertBtn = container.querySelector(".image-paste-toast-btn-insert") as HTMLElement;
+    const dismissBtn = container.querySelector(".image-paste-toast-btn-dismiss") as HTMLElement;
+
+    // Focus the dismiss button (index 1, non-first)
+    dismissBtn.focus();
+
+    // Shift+Tab from non-first button should go to previous (insert, index 0)
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }));
+    expect(document.activeElement).toBe(insertBtn);
+  });
+
   it("auto-dismiss timer hides toast after timeout", async () => {
     vi.useFakeTimers();
 

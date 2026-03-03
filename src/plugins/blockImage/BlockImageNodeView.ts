@@ -178,6 +178,7 @@ export class BlockImageNodeView implements NodeView {
 
   private handleError(message: string): void {
     // Store original title before showMediaError overwrites it
+    /* v8 ignore next -- @preserve defensive guard: data-original-title is only set by this method */
     if (!this.img.hasAttribute("data-original-title")) {
       this.img.setAttribute("data-original-title", this.img.title || "");
     }

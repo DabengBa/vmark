@@ -346,6 +346,18 @@ describe("quotePairing", () => {
       const primes = tokens.filter((t) => t.role === "prime");
       expect(primes.length).toBeGreaterThanOrEqual(1);
     });
+
+    test("curly single close quote (\u2019) is not a decade opener (line 122 false branch)", () => {
+      // \u2019 is CURLY_SINGLE_CLOSE — isDecadeAbbreviation returns false immediately
+      // because char is neither "'" nor CURLY_SINGLE_OPEN (\u2018).
+      // Without a letter before it, isApostrophe also returns false, so it is
+      // classified as open/close (not apostrophe) — verifying line 122 is reached.
+      const tokens = tokenizeQuotes("\u201990s");
+      // \u2019 before "90s": not prime (no digit before), not apostrophe (no letter before),
+      // not decade (char is \u2019, not \u2018 or '). Classified as open or close.
+      const quoteToken = tokens.find((t) => t.role === "open" || t.role === "close");
+      expect(quoteToken).toBeDefined();
+    });
   });
 
   describe("edge cases - prime with non-digit break", () => {

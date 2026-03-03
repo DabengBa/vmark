@@ -529,6 +529,42 @@ describe("BlockImageNodeView", () => {
     });
   });
 
+  describe("null attrs nullish-coalescing branches", () => {
+    it("uses empty string when src attr is null (line 58: src ?? '')", () => {
+      // Pass null explicitly to trigger the ?? fallback
+      const node = {
+        type: { name: "block_image" },
+        attrs: { src: null, alt: null, title: null },
+      } as unknown as import("@tiptap/pm/model").Node;
+      nodeView = new BlockImageNodeView(node, getPos, mockEditor);
+      document.body.appendChild(nodeView.dom);
+      // Constructor should not throw; img.alt and title coerced to ""
+      const img = nodeView.dom.querySelector("img")!;
+      expect(img.alt).toBe("");
+      expect(img.title).toBe("");
+    });
+
+    it("uses empty string for mediaAlt when img.alt is empty on dblclick (line 102: alt ?? '')", () => {
+      const node = {
+        type: { name: "block_image" },
+        attrs: { src: "photo.png", alt: null, title: null },
+      } as unknown as import("@tiptap/pm/model").Node;
+      nodeView = new BlockImageNodeView(node, getPos, mockEditor);
+      document.body.appendChild(nodeView.dom);
+
+      const img = nodeView.dom.querySelector("img")!;
+      img.getBoundingClientRect = vi.fn(() => ({
+        top: 0, left: 0, bottom: 0, right: 0,
+        width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}),
+      }));
+
+      nodeView.dom.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaAlt: "" }),
+      );
+    });
+  });
+
   describe("context menu", () => {
     it("opens image context menu on right-click", () => {
       createNodeView({ src: "photo.png" });

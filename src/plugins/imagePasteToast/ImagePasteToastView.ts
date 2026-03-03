@@ -108,6 +108,7 @@ export class ImagePasteToastView {
   ) {
     // Update message based on type and count
     const messageEl = this.container.querySelector(".image-paste-toast-message");
+    /* v8 ignore next -- @preserve defensive guard: messageEl is always present (created in buildContainer) */
     if (messageEl) {
       if (isMultiple && imageCount > 1) {
         messageEl.textContent = `${imageCount} images`;
@@ -118,6 +119,7 @@ export class ImagePasteToastView {
 
     // Update button titles for multiple images
     const insertBtn = this.container.querySelector(".image-paste-toast-btn-insert") as HTMLButtonElement;
+    /* v8 ignore next -- @preserve defensive guard: insertBtn is always present (created in buildContainer) */
     if (insertBtn) {
       insertBtn.title = isMultiple && imageCount > 1 ? "Insert All" : "Insert as Image";
     }
@@ -172,6 +174,7 @@ export class ImagePasteToastView {
     // Focus the insert button
     requestAnimationFrame(() => {
       const insertBtn = this.container.querySelector(".image-paste-toast-btn-insert") as HTMLButtonElement;
+      /* v8 ignore next -- @preserve defensive guard: insertBtn is always present (created in buildContainer) */
       if (insertBtn) {
         insertBtn.focus();
       }
@@ -190,6 +193,7 @@ export class ImagePasteToastView {
       if (isImeKeyEvent(e)) return;
 
       const { isOpen } = useImagePasteToastStore.getState();
+      /* v8 ignore next -- @preserve defensive guard: handler is removed in hide() before isOpen becomes false */
       if (!isOpen) return;
 
       if (e.key === "Enter") {

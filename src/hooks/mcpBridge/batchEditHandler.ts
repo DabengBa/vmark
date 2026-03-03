@@ -262,6 +262,7 @@ export async function handleBatchEdit(
     // Sort operations by position (descending) to preserve positions during edits
     const sortedOps = [...resolvedOps].sort((a, b) => {
       const posA = a.resolved?.from ?? 0;
+      /* v8 ignore next -- @preserve defensive fallback: resolved is null only for unrecognized op types with no nodeId */
       const posB = b.resolved?.from ?? 0;
       return posB - posA;
     });
@@ -285,11 +286,13 @@ export async function handleBatchEdit(
             const updateTr = editor.state.tr.replaceRange(textRange.from, textRange.to, updateSlice);
             editor.view.dispatch(updateTr);
             // Validation ensures nodeId is present for update ops
-            changedNodeIds.push(op.nodeId /* v8 ignore next */ || `updated-${changedNodeIds.length}`);
+            /* v8 ignore next -- @preserve defensive fallback: validation ensures nodeId is truthy for update ops */
+            changedNodeIds.push(op.nodeId || `updated-${changedNodeIds.length}`);
           }
           break;
 
         case "delete":
+          /* v8 ignore next -- @preserve defensive guard: validation ensures delete ops always have a resolved position */
           if (resolved) {
             editor.chain()
               .focus()
@@ -297,7 +300,8 @@ export async function handleBatchEdit(
               .deleteSelection()
               .run();
             // Validation ensures nodeId is present for delete ops
-            deletedNodeIds.push(op.nodeId /* v8 ignore next */ || `deleted-${deletedNodeIds.length}`);
+            /* v8 ignore next -- @preserve defensive fallback: validation ensures nodeId is truthy for delete ops */
+            deletedNodeIds.push(op.nodeId || `deleted-${deletedNodeIds.length}`);
           }
           break;
 
@@ -312,7 +316,8 @@ export async function handleBatchEdit(
               editor.commands.toggleMark(mark.type, mark.attrs);
             }
             // Validation ensures nodeId is present for format ops
-            changedNodeIds.push(op.nodeId /* v8 ignore next */ || `formatted-${changedNodeIds.length}`);
+            /* v8 ignore next -- @preserve defensive fallback: validation ensures nodeId is truthy for format ops */
+            changedNodeIds.push(op.nodeId || `formatted-${changedNodeIds.length}`);
           }
           break;
 

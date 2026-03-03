@@ -549,4 +549,19 @@ Content.
       expect(output).toContain("</details>");
     });
   });
+
+  describe("parseDetailsHtmlBlock — single-block path without summary (line 199)", () => {
+    it("defaults summary to 'Details' when single-block <details> has no <summary> tag", () => {
+      // Without blank lines remark keeps the whole block as a single html node,
+      // so parseDetailsHtmlBlock is called. When there is no <summary> tag,
+      // summaryMatch is null and summaryMatch?.[1] ?? "Details" uses the fallback.
+      const md = `<details>
+No summary tag here.
+</details>`;
+      const result = parseWithDetails(md);
+      const details = result.children[0] as Details;
+      expect(details.type).toBe("details");
+      expect(details.summary).toBe("Details");
+    });
+  });
 });
