@@ -2,7 +2,7 @@
  * Tests for parseInlineMarkdown — inline markdown text to MDAST nodes.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { parseInlineMarkdown } from "./inlineParser";
 import type { Content, Text, Strong, Emphasis, Delete, InlineCode, Link } from "mdast";
 
@@ -217,6 +217,67 @@ describe("parseInlineMarkdown", () => {
       // This is defensive code — verify it at least doesn't crash
       const result = parseInlineMarkdown("[]");
       expect(result.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe("error handling (catch block, lines 73-74)", () => {
+    it("returns plain text fallback when unified processor throws", async () => {
+      // Mock unified to throw during parse
+      vi.doMock("unified", () => ({
+        unified: () => ({
+          use: function () { return this; },
+          parse: () => { throw new Error("Mock parse failure"); },
+        }),
+      }));
+      try {
+        const { parseInlineMarkdown: parseFresh } = await import("./inlineParser?err=1");
+        const result = parseFresh("**bold**");
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("text");
+        expect((result[0] as Text).value).toBe("**bold**");
+      } finally {
+        vi.doUnmock("unified");
+      }
+    });
+
+    it("returns plain text fallback when runSync throws", async () => {
+      vi.doMock("unified", () => ({
+        unified: () => ({
+          use: function () { return this; },
+          parse: () => ({ type: "root", children: [] }),
+          runSync: () => { throw new Error("Mock runSync failure"); },
+        }),
+      }));
+      try {
+        const { parseInlineMarkdown: parseFresh } = await import("./inlineParser?err=2");
+        const result = parseFresh("*italic*");
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("text");
+        expect((result[0] as Text).value).toBe("*italic*");
+      } finally {
+        vi.doUnmock("unified");
+      }
+    });
+  });
+
+  describe("empty children from processor (line 60)", () => {
+    it("returns text fallback when processor yields empty children", async () => {
+      vi.doMock("unified", () => ({
+        unified: () => ({
+          use: function () { return this; },
+          parse: () => ({ type: "root", children: [] }),
+          runSync: () => ({ type: "root", children: [] }),
+        }),
+      }));
+      try {
+        const { parseInlineMarkdown: parseFresh } = await import("./inlineParser?empty=1");
+        const result = parseFresh("*text*");
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("text");
+        expect((result[0] as Text).value).toBe("*text*");
+      } finally {
+        vi.doUnmock("unified");
+      }
     });
   });
 });

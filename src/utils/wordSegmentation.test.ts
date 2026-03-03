@@ -350,5 +350,31 @@ describe("wordSegmentation", () => {
       const result = findWordEdge(text, 12, -1);
       expect(result).toBe(6);
     });
+
+    it("moves left finding word start when pos > seg.end (line 122)", () => {
+      // Create a scenario where we iterate backwards through segments
+      // and pos > seg.end for the current segment
+      const text = "abc   xyz";
+      // pos=5 is in the whitespace gap, past end of "abc" (end=3)
+      // dir=-1: iterating backwards, segments = [{0,3}, {6,9}]
+      // seg={6,9}: pos=5 <= start=6, so continue
+      // seg={0,3}: pos=5 > end=3, so return start=0
+      const result = findWordEdge(text, 5, -1);
+      expect(result).toBe(0);
+    });
+
+    it("moves right from before first word to first word end", () => {
+      const text = "  hello";
+      const result = findWordEdge(text, 0, 1);
+      // pos=0 < seg.start=2, so return seg.end=7
+      expect(result).toBe(7);
+    });
+
+    it("moves left returning first segment start as fallback (line 126)", () => {
+      const text = "hello world";
+      // pos=0, dir=-1: no segment has pos > seg.start, so falls through to return segments[0].start
+      const result = findWordEdge(text, 0, -1);
+      expect(result).toBe(0);
+    });
   });
 });
