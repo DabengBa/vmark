@@ -71,6 +71,15 @@ describe("linebreaks helpers", () => {
     );
   });
 
+  it("ignores mismatched fence type inside a fenced block when normalizing", () => {
+    // Opening ``` but encountering ~~~ inside — fenceChar mismatch → else-if false branch
+    // The ~~~ does NOT close the ``` block; trailing spaces inside block are NOT converted
+    const input = ["```", "~~~", "inside  ", "```", "outside  "].join("\n");
+    expect(normalizeHardBreaks(input, "backslash")).toBe(
+      ["```", "~~~", "inside  ", "```", "outside\\"].join("\n")
+    );
+  });
+
   it("does not convert whitespace-only lines with trailing spaces to backslash", () => {
     // "    \n" line: trailing spaces but before.trim() === "" → false branch of trim check
     const input = "    \nnext";

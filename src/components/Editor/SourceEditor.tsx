@@ -102,7 +102,7 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
 
   // Create CodeMirror instance
   useEffect(() => {
-    /* v8 ignore next */
+    /* v8 ignore next -- @preserve guard: true branch fires only when container unmounts mid-init */
     if (!containerRef.current || viewRef.current) return; // Guard: effect deps=[] ensures single run
 
     const updateListener = EditorView.updateListener.of((update) => {
@@ -192,7 +192,7 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
     let focusTimeoutId: ReturnType<typeof setTimeout> | null = null;
     if (!hiddenRef.current) {
       focusTimeoutId = setTimeout(() => {
-        /* v8 ignore next */
+        /* v8 ignore next -- @preserve defensive guard: view is cleared by cleanup before timeout fires */
         if (!viewRef.current) return; // Defensive — cleanup clears this timeout
         view.focus();
         if (initialCursorInfo) {
@@ -220,6 +220,7 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
   useEffect(() => {
     if (hidden) return;
     const view = viewRef.current;
+    /* v8 ignore next -- @preserve defensive guard: view is always set when this effect runs */
     if (!view) return;
 
     // Sync content from document store to CodeMirror

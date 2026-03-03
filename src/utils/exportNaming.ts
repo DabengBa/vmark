@@ -162,6 +162,7 @@ export function sanitizeFileName(
  * @returns Truncated text
  */
 function truncateAtWordBoundary(text: string, maxLength: number): string {
+  /* v8 ignore next -- caller (sanitizeFileName) only calls this when text.length > maxLength */
   if (text.length <= maxLength) {
     return text;
   }
@@ -233,6 +234,7 @@ export function getExportFolderName(
  * @returns File name without extension
  */
 function getFileNameWithoutExtension(filePath: string): string {
+  /* v8 ignore next -- caller always guards with `if (filePath)` before calling */
   if (!filePath) return "";
 
   // Get the last path component

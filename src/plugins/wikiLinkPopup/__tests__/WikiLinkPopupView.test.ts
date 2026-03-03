@@ -1275,6 +1275,87 @@ describe("WikiLinkPopupView", () => {
     });
   });
 
+  describe("handleDelete — attrs.value is undefined (line 377 ?? branch)", () => {
+    it("uses empty string when textContent is empty and attrs.value is undefined", async () => {
+      view.state.doc.nodeAt = vi.fn(() => ({
+        type: { name: "wikiLink" },
+        attrs: { value: undefined }, // attrs.value undefined → ?? "" fires
+        textContent: "",
+        nodeSize: 3,
+      }));
+      storeState.nodePos = 10;
+      emitStateChange({ isOpen: true, target: "", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = Array.from(dom.container.querySelectorAll("button")).find((b) => b.title === "Remove wiki link");
+      deleteBtn!.click();
+
+      // displayText = "" → takes delete path (not replaceWith)
+      expect(view.state.tr.delete).toHaveBeenCalled();
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+  });
+
+  describe("show() — container already in host (line 191 false branch)", () => {
+    it("does not re-append container when already mounted in same host", async () => {
+      // First show mounts the container
+      emitStateChange({ isOpen: true, target: "First", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = dom.container.querySelector(".wiki-link-popup") as HTMLElement;
+      expect(popupEl.parentElement).toBe(dom.container);
+
+      // Close then re-open — second show() should see container already in host
+      emitStateChange({ isOpen: false, anchorRect: null });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      emitStateChange({ isOpen: true, target: "Second", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Still only one copy of the popup
+      const allPopups = dom.container.querySelectorAll(".wiki-link-popup");
+      expect(allPopups.length).toBe(1);
+    });
+  });
+
+  describe("Browse — pathToWikiTarget when workspaceRoot ends with slash (line 58 false branch)", () => {
+    it("does not double-strip leading slash when root ends with /", async () => {
+      // workspaceRoot ends with "/" → after slicing, relative won't start with "/"
+      mockWorkspaceRootPath = "/workspace/";
+      const { open: mockDialogOpen } = await import("@tauri-apps/plugin-dialog");
+      vi.mocked(mockDialogOpen).mockResolvedValue("/workspace/page.md");
+
+      emitStateChange({ isOpen: true, target: "", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const browseBtn = Array.from(dom.container.querySelectorAll("button")).find((b) => b.title === "Browse for file");
+      browseBtn!.click();
+
+      await new Promise((r) => setTimeout(r, 10));
+      // After slicing "/workspace/" from "/workspace/page.md": relative = "page.md"
+      // "page.md" does NOT start with "/" → false branch of `if (relative.startsWith("/"))`
+      // Then .md is stripped → "page"
+      expect(mockUpdateTarget).toHaveBeenCalledWith("page");
+    });
+  });
+
+  describe("handleMousedown — click inside popup (line 406 false branch)", () => {
+    it("does not close when clicking inside the popup", async () => {
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Click inside the popup container
+      const popupEl = dom.container.querySelector(".wiki-link-popup") as HTMLElement;
+      const mousedownEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(mousedownEvent, "target", { value: popupEl });
+      document.dispatchEvent(mousedownEvent);
+
+      // Should NOT close — target is inside container
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
+
   describe("handleScroll — popup not open (line 406 else branch)", () => {
     it("does nothing on scroll when popup is closed", async () => {
       emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });

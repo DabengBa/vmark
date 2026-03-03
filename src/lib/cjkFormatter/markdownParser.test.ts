@@ -296,3 +296,23 @@ describe("reconstructText", () => {
     expect(result).toBe("TEXT `code` MORE");
   });
 });
+
+describe("findProtectedRegions — inline math inside another region", () => {
+  it("skips inline math that appears inside a code span", () => {
+    // The $x$ inside backticks should be treated as code, not math_inline
+    const text = "`$x$`";
+    const regions = findProtectedRegions(text);
+    // Should have an inline_code region but no math_inline region
+    const mathRegions = regions.filter((r) => r.type === "math_inline");
+    expect(mathRegions).toHaveLength(0);
+    const codeRegions = regions.filter((r) => r.type === "inline_code");
+    expect(codeRegions.length).toBeGreaterThan(0);
+  });
+
+  it("skips inline math that appears inside a fenced code block", () => {
+    const text = "```\n$x$\n```";
+    const regions = findProtectedRegions(text);
+    const mathRegions = regions.filter((r) => r.type === "math_inline");
+    expect(mathRegions).toHaveLength(0);
+  });
+});

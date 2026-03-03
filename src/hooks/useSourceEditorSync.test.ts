@@ -381,6 +381,22 @@ describe("useSourceEditorContentSync — pending content and rerender", () => {
     vi.useRealTimers();
   });
 
+  it("polling fires but does nothing when no pending content (line 110 guard — all conditions false)", () => {
+    // viewRef valid, isInternalChange=false, but pendingContentRef=null (content already matches)
+    const mockView = createMockView("same content");
+    viewRef.current = mockView;
+
+    renderHook(() =>
+      useSourceEditorContentSync(viewRef as never, isInternalChange, "same content")
+    );
+
+    // Advance timer — checkPendingContent fires but pendingContentRef is null → returns early
+    vi.advanceTimersByTime(150);
+
+    // No dispatch because pendingContentRef was null when interval fired
+    expect((mockView as { dispatch: ReturnType<typeof vi.fn> }).dispatch).not.toHaveBeenCalled();
+  });
+
   it("applies pending content after internal change completes via polling", () => {
     const mockView = createMockView("old");
     viewRef.current = mockView;

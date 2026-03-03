@@ -209,6 +209,7 @@ export function getUserFontFile(settingsKey: string): FontFile | null {
   if (!family) return null;
 
   const url = GOOGLE_FONTS[family];
+  /* v8 ignore next -- all entries in SETTINGS_TO_FONT_FAMILY map to a known GOOGLE_FONTS key */
   if (!url) return null;
 
   const filename = `${family.replace(/\s+/g, "-")}.woff2`;

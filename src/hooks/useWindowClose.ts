@@ -41,6 +41,7 @@ import { windowCloseWarn } from "@/utils/debug";
 
 // Dev-only logging for debugging window close issues
 // Logs to console and Rust debug_log
+/* v8 ignore next 11 -- import.meta.env.DEV=true in vitest; production no-op branch never reached in tests */
 const closeLog = import.meta.env.DEV
   ? (label: string, ...args: unknown[]) => {
       const msg = `[WindowClose:${label}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
@@ -50,7 +51,6 @@ const closeLog = import.meta.env.DEV
         console.warn("[closeLog] debug_log invoke failed:", e);
       });
     }
-  /* v8 ignore next */
   : () => {};
 
 /**
@@ -68,6 +68,7 @@ export function useWindowClose() {
   const handleCloseRequest = useCallback(async (): Promise<boolean> => {
     closeLog(windowLabel, "handleCloseRequest called");
     // Debug: capture stack trace to find what's triggering the close
+    /* v8 ignore next -- import.meta.env.DEV=true in vitest; production false-branch never taken */
     if (import.meta.env.DEV) {
       console.trace(`[WindowClose:${windowLabel}] call stack`);
     }
@@ -208,6 +209,7 @@ export function useWindowClose() {
           const closed = await handleCloseRequest();
           if (!closed) {
             invoke("cancel_quit").catch((e) => {
+              /* v8 ignore next -- import.meta.env.DEV=true in vitest; production false-branch never taken */
               if (import.meta.env.DEV) {
                 windowCloseWarn("cancel_quit failed:", e);
               }

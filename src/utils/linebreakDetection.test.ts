@@ -70,6 +70,15 @@ describe("linebreakDetection", () => {
     expect(normalizeResult(detectLinebreaks(input)).hardBreakStyle).toBe("backslash");
   });
 
+  it("ignores mismatched fence type inside a fenced block", () => {
+    // Opening ``` but encountering ~~~ inside — the else-if condition is false (fenceChar mismatch)
+    // so it does NOT exit the fence
+    const input = ["```", "~~~", "code  ", "```", "outside\\"].join("\n");
+    // The ~~~ line does NOT close the ``` block; code  is inside the block; ``` closes it
+    // Only "outside\\" is outside — detected as backslash
+    expect(normalizeResult(detectLinebreaks(input)).hardBreakStyle).toBe("backslash");
+  });
+
   it("does not count whitespace-only lines with trailing spaces as two-space breaks", () => {
     // Line "    " has trailing spaces but before.trim() === "" → false branch of before.trim().length > 0
     const input = "    \nnext";
