@@ -1233,6 +1233,31 @@ describe("normalizeFullwidthPunctuation edge cases", () => {
     // But when there's only spaces to the left and no CJK to the right
     expect(normalizeFullwidthPunctuation("   , text")).toBe("   , text");
   });
+
+  it("preserves ordered list marker period before CJK text", () => {
+    // Bug: "2. 被自媒体内容忽悠" was becoming "2。 被自媒体内容忽悠"
+    expect(normalizeFullwidthPunctuation("1. 列表项目")).toBe("1. 列表项目");
+    expect(normalizeFullwidthPunctuation("2. 被自媒体内容忽悠")).toBe("2. 被自媒体内容忽悠");
+    expect(normalizeFullwidthPunctuation("10. CJK内容")).toBe("10. CJK内容");
+    expect(normalizeFullwidthPunctuation("99. 多位数列表")).toBe("99. 多位数列表");
+  });
+
+  it("preserves nested/indented ordered list markers", () => {
+    expect(normalizeFullwidthPunctuation("   3. 缩进项目")).toBe("   3. 缩进项目");
+    expect(normalizeFullwidthPunctuation("\t1. 制表符缩进")).toBe("\t1. 制表符缩进");
+  });
+
+  it("preserves list markers in multiline text", () => {
+    const input = "1. 第一项\n2. 第二项\n3. 第三项";
+    const expected = "1. 第一项\n2. 第二项\n3. 第三项";
+    expect(normalizeFullwidthPunctuation(input)).toBe(expected);
+  });
+
+  it("still converts non-list-marker periods in CJK context", () => {
+    // Period after CJK character (not a list marker) should still convert
+    expect(normalizeFullwidthPunctuation("结束.开始")).toBe("结束。开始");
+    expect(normalizeFullwidthPunctuation("结束.")).toBe("结束。");
+  });
 });
 
 describe("removeTrailingSpaces edge cases", () => {

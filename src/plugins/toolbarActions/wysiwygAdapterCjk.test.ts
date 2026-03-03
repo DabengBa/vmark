@@ -58,7 +58,7 @@ import {
   handleCollapseBlankLines,
   handleLineEndings,
 } from "./wysiwygAdapterCjk";
-import { formatSelection, formatMarkdown } from "@/lib/cjkFormatter";
+import { formatMarkdown } from "@/lib/cjkFormatter";
 import { serializeMarkdown, parseMarkdown } from "@/utils/markdownPipeline";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -155,22 +155,28 @@ describe("handleFormatCJK", () => {
     expect(handleFormatCJK(ctx)).toBe(false);
   });
 
-  it("formats selected text when selection is not empty", () => {
+  it("uses mark-safe path (not schema.text) for selection formatting", () => {
+    // Bug: old code used schema.text(formatted) which destroys all marks (bold, italic, links)
+    // Fix: selection formatting should go through markdown roundtrip (handleFormatCJKBlock or handleFormatCJKFile)
     const ctx = createMockContext({ selectionEmpty: false, selectedText: "hello世界" });
 
-    vi.mocked(formatSelection).mockReturnValue("hello 世界");
+    // The fix routes through markdown roundtrip — so formatMarkdown should be called, not formatSelection+schema.text
+    vi.mocked(serializeMarkdown).mockReturnValue("**bold**世界");
+    vi.mocked(formatMarkdown).mockReturnValue("**bold** 世界");
+    vi.mocked(parseMarkdown).mockReturnValue({ content: "parsed" } as never);
 
     const result = handleFormatCJK(ctx);
     expect(result).toBe(true);
-    expect(formatSelection).toHaveBeenCalled();
-    expect(ctx.view!.dispatch).toHaveBeenCalled();
-    expect(ctx.view!.focus).toHaveBeenCalled();
+    // schema.text should NOT be called — that's the mark-destroying path
+    expect(ctx.editor!.schema.text).not.toHaveBeenCalled();
   });
 
   it("does not dispatch when formatted text is unchanged", () => {
     const ctx = createMockContext({ selectionEmpty: false, selectedText: "already formatted" });
 
-    vi.mocked(formatSelection).mockReturnValue("already formatted");
+    // After fix, selection path uses markdown roundtrip
+    vi.mocked(serializeMarkdown).mockReturnValue("already formatted");
+    vi.mocked(formatMarkdown).mockReturnValue("already formatted");
 
     const result = handleFormatCJK(ctx);
     expect(result).toBe(true);

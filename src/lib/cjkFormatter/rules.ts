@@ -195,6 +195,23 @@ export function normalizeFullwidthAlphanumeric(text: string): string {
 }
 
 /**
+ * Check if a period at `dotPos` is an ordered list marker (e.g. "1.", "10.").
+ * Walks back from the period through digits; if it reaches line-start or a
+ * newline (possibly preceded by indentation), it's a list marker.
+ */
+function isOrderedListMarker(text: string, dotPos: number): boolean {
+  let i = dotPos - 1;
+  // Must have at least one digit before the dot
+  if (i < 0 || text[i] < "0" || text[i] > "9") return false;
+  // Walk back through digits
+  while (i >= 0 && text[i] >= "0" && text[i] <= "9") i--;
+  // Skip optional indentation (spaces/tabs)
+  while (i >= 0 && (text[i] === " " || text[i] === "\t")) i--;
+  // Must be at start of string or after a newline
+  return i < 0 || text[i] === "\n";
+}
+
+/**
  * Check if a character is part of an ellipsis pattern
  */
 function isPartOfEllipsis(text: string, pos: number): boolean {
@@ -241,6 +258,12 @@ export function normalizeFullwidthPunctuation(text: string): string {
 
     // Special case: ellipsis - never convert periods that are part of ...
     if (char === "." && isPartOfEllipsis(text, i)) {
+      result.push(char);
+      continue;
+    }
+
+    // Special case: ordered list marker - never convert "1." "2." etc. at line start
+    if (char === "." && isOrderedListMarker(text, i)) {
       result.push(char);
       continue;
     }
