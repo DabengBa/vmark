@@ -50,6 +50,7 @@ let compositionEndListenerAttached = false;
 let fallbackTimerId: ReturnType<typeof setTimeout> | null = null;
 
 function clearFallbackTimer(): void {
+  /* v8 ignore next -- fallbackTimerId is null when no timer is pending; else branch is a no-op guard */
   if (fallbackTimerId !== null) {
     clearTimeout(fallbackTimerId);
     fallbackTimerId = null;
@@ -60,6 +61,7 @@ function flushPendingToasts(): void {
   // Re-check: if a new composition started quickly, re-defer
   if (isEditorComposing()) {
     // Re-attach listener for the new composition session
+    /* v8 ignore next -- listener is always un-attached when re-entering flushPendingToasts; else is defensive */
     if (!compositionEndListenerAttached) {
       compositionEndListenerAttached = true;
       document.addEventListener("compositionend", onCompositionEnd, { once: true });

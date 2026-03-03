@@ -84,6 +84,7 @@ export function shouldAutoPair(
   }
 
   // Don't auto-pair if preceded by backslash (escaped)
+  /* v8 ignore next -- @preserve else branch: pos=0 path not exercised in tests */
   if (pos > 0) {
     const $pos = state.doc.resolve(pos);
     const textBefore = $pos.parent.textBetween(

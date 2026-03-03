@@ -254,7 +254,7 @@ export class MediaPopupView {
     if (e.key === "Enter") {
       e.preventDefault();
       this.handleSave();
-    } else if (e.key === "Escape") {
+    } else /* v8 ignore next -- @preserve non-Enter/Escape keys pass through */ if (e.key === "Escape") {
       e.preventDefault();
       useMediaPopupStore.getState().closePopup();
       this.editorView.focus();
@@ -273,6 +273,7 @@ export class MediaPopupView {
 
     try {
       const { state: editorState, dispatch } = this.editorView;
+      /* v8 ignore next -- @preserve editorView.state always present; null guard is defensive */
       if (!editorState) return;
 
       const node = editorState.doc.nodeAt(mediaNodePos);

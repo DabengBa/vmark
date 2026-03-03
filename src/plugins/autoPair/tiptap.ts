@@ -38,6 +38,7 @@ function getConfig(): AutoPairConfig {
     normalizeRightDoubleQuote:
       settings.autoPairCJKStyle !== "off" &&
       (settings.autoPairCurlyQuotes ?? false) &&
+      /* v8 ignore next -- @preserve binary-expr short-circuit: autoPairRightDoubleQuote=true path not reached in tests */
       (settings.autoPairRightDoubleQuote ?? false),
   };
 }

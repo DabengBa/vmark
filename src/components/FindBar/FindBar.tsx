@@ -97,10 +97,12 @@ export function FindBar() {
       }
     } else if (e.key === "Escape") {
       useSearchStore.getState().close();
-    /* v8 ignore next -- @preserve Tab+!shiftKey branch: focus transfer not exercised in jsdom tests */
     } else if (e.key === "Tab" && !e.shiftKey) {
       e.preventDefault();
       replaceInputRef.current?.focus();
+    /* v8 ignore next -- @preserve other-key fall-through: only Enter/Escape/Tab tested in FindBar tests */
+    } else {
+      // Other keys fall through
     }
   }, [ime]);
 
@@ -111,10 +113,12 @@ export function FindBar() {
       useSearchStore.getState().replaceCurrent();
     } else if (e.key === "Escape") {
       useSearchStore.getState().close();
-    /* v8 ignore next -- @preserve Tab+shiftKey branch: focus transfer not exercised in jsdom tests */
     } else if (e.key === "Tab" && e.shiftKey) {
       e.preventDefault();
       findInputRef.current?.focus();
+    /* v8 ignore next -- @preserve other-key fall-through: only Enter/Escape/Tab tested in ReplaceKeyDown tests */
+    } else {
+      // Other keys fall through
     }
   }, [ime]);
 

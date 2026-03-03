@@ -331,7 +331,7 @@ class CodeBlockNodeView implements NodeView {
         const highlighted = list.querySelector(".code-lang-item.highlighted") as HTMLElement;
         if (highlighted) {
           highlighted.focus();
-        /* v8 ignore next -- @preserve items[0] is always truthy here: the `if (items.length === 0) return` guard above ensures items is non-empty when we reach this branch */
+        /* v8 ignore next 4 -- @preserve items[0] is always truthy here: the `if (items.length === 0) return` guard above ensures items is non-empty when we reach this branch */
         } else if (items[0]) {
           items[0].classList.add("highlighted");
           items[0].focus();

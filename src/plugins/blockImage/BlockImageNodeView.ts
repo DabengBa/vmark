@@ -99,6 +99,7 @@ export class BlockImageNodeView implements NodeView {
     const rect = this.img.getBoundingClientRect();
     useMediaPopupStore.getState().openPopup({
       mediaSrc: this.originalSrc,
+      /* v8 ignore next -- @preserve null-coalesce: img.alt is always a string, nullish branch not reached */
       mediaAlt: this.img.alt ?? "",
       mediaNodePos: pos,
       mediaNodeType: "block_image",

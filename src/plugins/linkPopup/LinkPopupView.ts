@@ -134,7 +134,7 @@ export class LinkPopupView extends WysiwygPopupView<LinkPopupState> {
     if (e.key === "Enter") {
       e.preventDefault();
       this.handleSave();
-    } else if (e.key === "Escape") {
+    } else /* v8 ignore next -- @preserve non-Enter/Escape keys are not handled */ if (e.key === "Escape") {
       e.preventDefault();
       this.closePopup();
       this.focusEditor();
@@ -195,6 +195,7 @@ export class LinkPopupView extends WysiwygPopupView<LinkPopupState> {
 
     // External link - open in browser
     import("@tauri-apps/plugin-opener").then(({ openUrl }) => {
+      /* v8 ignore next -- @preserve openUrl failure is a Tauri runtime error; not testable in jsdom */
       openUrl(href).catch((error: unknown) => {
         console.error("Failed to open link:", error);
       });

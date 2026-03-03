@@ -233,10 +233,10 @@ export function convertTable(context: PmToMdastContext, node: PMNode): Table {
 
       if (rowIndex === 0) {
         const alignment = normalizeAlignment(cell.attrs.alignment);
+        /* v8 ignore else -- align grows monotonically with cellIndex; else branch structurally unreachable */
         if (align.length <= cellIndex) {
           align = [...align, alignment];
         } else {
-          /* v8 ignore next -- @preserve align grows monotonically with cellIndex; else branch structurally unreachable */
           align[cellIndex] = alignment;
         }
       }

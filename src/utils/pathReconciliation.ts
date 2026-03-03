@@ -81,12 +81,14 @@ export function reconcilePathChange(input: PathChangeInput): ReconcileResult[] {
     }
 
     // Check if file is inside the changed folder
+    /* v8 ignore next -- folder paths from FS events always lack trailing slash; the oldPath + "/" branch handles that */
     const folderPrefix = oldPath.endsWith("/") ? oldPath : oldPath + "/";
     if (normalizedFilePath.startsWith(folderPrefix)) {
       if (changeType === "delete") {
         results.push({ action: "mark_missing", oldPath: normalizedFilePath });
       } else if (newPath) {
         // Replace old folder prefix with new folder prefix
+        /* v8 ignore next -- newPath from FS rename events always lacks trailing slash */
         const newFolderPrefix = newPath.endsWith("/") ? newPath : newPath + "/";
         const relativePath = normalizedFilePath.slice(folderPrefix.length);
         const newFilePath = newFolderPrefix + relativePath;

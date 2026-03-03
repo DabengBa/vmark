@@ -213,7 +213,7 @@ const shortcutMap = new Map(DEFAULT_SHORTCUTS.map(s => [s.id, s]));
 
 function resolveDefaultKey(def: ShortcutDefinition): string {
   const isMac = isMacPlatform();
-  /* v8 ignore next -- no DEFAULT_SHORTCUTS currently define defaultKeyMac; branch reserved for future use */
+  /* v8 ignore next 2 -- no DEFAULT_SHORTCUTS currently define defaultKeyMac; branch reserved for future use */
   if (isMac && def.defaultKeyMac) return def.defaultKeyMac;
   if (!isMac && def.defaultKeyOther) return def.defaultKeyOther;
   return def.defaultKey;
@@ -396,13 +396,14 @@ async function syncMenuShortcuts(shortcuts: Record<string, string>) {
 
     // rebuild_menu resets the Genies submenu to a placeholder — re-populate it
     // Pass only the search-genies accelerator to avoid unnecessary IPC overhead
-    /* v8 ignore next -- "search-genies" is always in menuShortcuts since searchGenies has that menuId; null branch is defensive */
+    /* v8 ignore next 3 -- "search-genies" is always in menuShortcuts since searchGenies has that menuId; null branch is defensive */
     const geniesShortcuts = menuShortcuts["search-genies"]
       ? { "search-genies": menuShortcuts["search-genies"] }
       : null;
     await invoke("refresh_genies_menu", { shortcuts: geniesShortcuts });
   } catch (e) {
     // Menu rebuild may fail if command not yet implemented
+    /* v8 ignore next -- invoke failure only occurs if Tauri command is unavailable; mocked in tests */
     shortcutsWarn("Failed to sync menu shortcuts:", e);
   }
 }

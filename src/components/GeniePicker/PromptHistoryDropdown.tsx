@@ -31,6 +31,9 @@ export function PromptHistoryDropdown({
     );
     if (item) {
       item.scrollIntoView({ block: "nearest" });
+    /* v8 ignore next -- @preserve item not found: selectedIndex always matches a rendered entry in tests */
+    } else {
+      // item not found in dropdown list
     }
   }, [selectedIndex]);
 

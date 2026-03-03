@@ -148,6 +148,7 @@ export const tabIndentExtension = Extension.create({
               if (isInListItem(state)) {
                 event.preventDefault();
                 const listItemType = state.schema.nodes.listItem;
+                /* v8 ignore next -- @preserve reason: schema always defines listItem in test environment */
                 if (listItemType) {
                   if (event.shiftKey) {
                     liftListItem(listItemType)(state, dispatch);
@@ -167,6 +168,7 @@ export const tabIndentExtension = Extension.create({
                 const textBefore = state.doc.textBetween(lineStart, from, "\n");
 
                 // Count leading spaces
+                /* v8 ignore next -- leading-space regex always matches (never null); optional chain is defensive */
                 const leadingSpaces = textBefore.match(/^[ ]*/)?.[0].length ?? 0;
                 if (leadingSpaces === 0) return true;
 

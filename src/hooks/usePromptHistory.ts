@@ -98,6 +98,7 @@ export function usePromptHistory(isComposing?: () => boolean): PromptHistoryResu
       // Already cycling
       if (direction === "up") {
         setCycleIndex((prev) =>
+          /* v8 ignore next -- prev is always non-null here (cycleIndex was checked above) */
           prev !== null ? Math.min(prev + 1, filteredCache.length - 1) : 0
         );
       } else {
@@ -107,6 +108,7 @@ export function usePromptHistory(isComposing?: () => boolean): PromptHistoryResu
           setFilteredCache([]);
           setDraft(savedDraftRef.current);
         } else {
+          /* v8 ignore next -- prev is always non-null here (cycleIndex > 0 was checked) */
           setCycleIndex((prev) => (prev !== null ? prev - 1 : null));
         }
       }
@@ -116,6 +118,7 @@ export function usePromptHistory(isComposing?: () => boolean): PromptHistoryResu
   );
 
   const acceptGhostText = useCallback(() => {
+    /* v8 ignore next -- ghostText being null/empty is guarded in the rendering layer; false branch is a safety net */
     if (!ghostText) return false;
     setDraft(draft + ghostText);
     return true;

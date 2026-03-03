@@ -86,6 +86,7 @@ export function createRenumberTransaction(state: EditorState, refType: NodeType,
   const defContentByLabel = new Map<string, PMNode>();
   for (const def of defs) {
     const node = doc.nodeAt(def.pos);
+    /* v8 ignore next -- @preserve else branch: node is always present at valid position */
     if (node) {
       defContentByLabel.set(def.label, node);
     }
@@ -154,6 +155,7 @@ export function createCleanupAndRenumberTransaction(
   for (const def of allDefs) {
     if (remainingRefLabels.has(def.label)) {
       const node = doc.nodeAt(def.pos);
+      /* v8 ignore next -- @preserve else branch: node is always present at valid position */
       if (node) {
         defContentByLabel.set(def.label, node);
       }

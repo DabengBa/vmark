@@ -79,6 +79,7 @@ export function getMappedMenuEvents(): MenuEventId[] {
 
 // === Dev-time validation ===
 
+/* v8 ignore next 22 -- DEV-only validation: false-branch unreachable (DEV=true in vitest); warning paths unreachable when registries are in sync */
 if (import.meta.env.DEV) {
   const mappedMenuIds = new Set(
     Object.keys(MENU_TO_ACTION).map((k) => k.replace("menu:", ""))
@@ -88,12 +89,14 @@ if (import.meta.env.DEV) {
     (id) => !menuIds.menuIds.includes(id)
   );
 
+  /* v8 ignore next 4 -- @preserve DEV-only path: missingInRegistry is empty when registries are in sync */
   if (missingInRegistry.length > 0) {
     actionRegistryWarn(
       "Menu IDs from Rust missing from MENU_TO_ACTION:",
       missingInRegistry
     );
   }
+  /* v8 ignore next 5 -- @preserve DEV-only path: extraInRegistry is empty when registries are in sync */
   if (extraInRegistry.length > 0) {
     console.info(
       "[ActionRegistry] Extra menu IDs in MENU_TO_ACTION (not extracted from Rust):",

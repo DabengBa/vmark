@@ -211,6 +211,7 @@ export function handlePopupTabNavigation(
   const currentIndex = focusable.indexOf(activeEl);
 
   // Only handle if focus is inside the popup
+  /* v8 ignore next -- focus is always inside the popup when the keydown handler is active */
   if (currentIndex === -1) return false;
 
   e.preventDefault();
