@@ -164,8 +164,9 @@ export class BlockVideoNodeView implements NodeView {
     this.video.preload = (node.attrs.preload ?? "metadata") as "" | "none" | "auto" | "metadata";
     this.video.poster = String(node.attrs.poster ?? "");
 
-    /* v8 ignore next -- node.attrs.src is always set by schema; "" fallback unreachable */
+    /* v8 ignore start -- node.attrs.src is always set by schema; "" fallback unreachable */
     const newSrc = String(node.attrs.src ?? "");
+    /* v8 ignore stop */
     if (this.originalSrc !== newSrc) {
       this.originalSrc = newSrc;
       this.updateSrc(newSrc);

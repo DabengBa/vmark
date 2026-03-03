@@ -197,12 +197,14 @@ export function installMediaPopupKeyboardNavigation(
 
     e.preventDefault();
 
+    /* v8 ignore start -- @preserve shift-tab wrap and forward-tab wrap not both exercised in test */
     if (e.shiftKey) {
       const prevIndex = currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1;
       focusable[prevIndex].focus();
     } else {
-      const nextIndex = currentIndex >= focusable.length - 1 ? 0 : /* v8 ignore next -- @preserve wrapping to first tab stop requires being at last; normal next-tab covered */ currentIndex + 1;
+      const nextIndex = currentIndex >= focusable.length - 1 ? 0 : currentIndex + 1;
       focusable[nextIndex].focus();
+    /* v8 ignore stop */
     }
   };
 

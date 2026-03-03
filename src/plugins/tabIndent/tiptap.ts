@@ -168,8 +168,9 @@ export const tabIndentExtension = Extension.create({
                 const textBefore = state.doc.textBetween(lineStart, from, "\n");
 
                 // Count leading spaces
-                /* v8 ignore next -- leading-space regex always matches (never null); optional chain is defensive */
+                /* v8 ignore start -- leading-space regex always matches (never null); optional chain is defensive */
                 const leadingSpaces = textBefore.match(/^[ ]*/)?.[0].length ?? 0;
+                /* v8 ignore stop */
                 if (leadingSpaces === 0) return true;
 
                 // Remove up to tabSize spaces

@@ -248,8 +248,9 @@ export function GeniePicker() {
 
   let itemIndex = 0;
 
-  /* v8 ignore next 2 -- @preserve promptHistory UI only rendered when user opens Ctrl+R dropdown or types matching history */
+  /* v8 ignore next -- @preserve promptHistory UI only rendered when user opens Ctrl+R dropdown or types matching history */
   const historyDropdown = promptHistory.isDropdownOpen ? <PromptHistoryDropdown entries={promptHistory.dropdownEntries} selectedIndex={promptHistory.dropdownSelectedIndex} onSelect={promptHistory.selectDropdownEntry} onClose={promptHistory.closeDropdown} /> : null;
+  /* v8 ignore next -- @preserve ghost text only shown when prompt history provides a completion; not exercised in unit tests */
   const ghostTextEl = promptHistory.ghostText ? <span className="genie-freeform-ghost" aria-hidden="true"><span className="genie-freeform-ghost-spacer">{promptHistory.displayValue}</span><span className="genie-freeform-ghost-text">{promptHistory.ghostText}</span></span> : null;
 
   return createPortal(

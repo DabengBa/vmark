@@ -109,7 +109,9 @@ export const inlineNodeEditingExtension = Extension.create({
         },
         props: {
           decorations(state) {
-            return this.getState(state)?.decorations ?? /* v8 ignore next -- @preserve plugin state always initialised; null fallback is defensive */ DecorationSet.empty;
+            /* v8 ignore start -- @preserve plugin state always initialised; null fallback is defensive */
+            return this.getState(state)?.decorations ?? DecorationSet.empty;
+            /* v8 ignore stop */
           },
         },
       }),

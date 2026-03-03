@@ -292,7 +292,7 @@ export async function handleBatchEdit(
           break;
 
         case "delete":
-          /* v8 ignore next -- @preserve defensive guard: validation ensures delete ops always have a resolved position */
+          /* v8 ignore start -- @preserve defensive guard: validation ensures delete ops always have a resolved position */
           if (resolved) {
             editor.chain()
               .focus()
@@ -300,9 +300,9 @@ export async function handleBatchEdit(
               .deleteSelection()
               .run();
             // Validation ensures nodeId is present for delete ops
-            /* v8 ignore next -- @preserve defensive fallback: validation ensures nodeId is truthy for delete ops */
             deletedNodeIds.push(op.nodeId || `deleted-${deletedNodeIds.length}`);
           }
+          /* v8 ignore stop */
           break;
 
         case "format":

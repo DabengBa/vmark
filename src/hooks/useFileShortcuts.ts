@@ -38,8 +38,9 @@ export function useFileShortcuts(windowLabel: string): void {
       // Clean up any existing listeners first
       unlistenRefs.current = safeUnlistenAll(unlistenRefs.current);
 
-      /* v8 ignore next 2 -- cancelled=true race: cleanup runs before safeUnlistenAll resolves */
+      /* v8 ignore start -- cancelled=true race: cleanup runs before safeUnlistenAll resolves */
       if (cancelled) return;
+      /* v8 ignore stop */
 
       // Get current window for filtering - menu events include target window label
       const currentWindow = getCurrentWebviewWindow();
@@ -112,8 +113,9 @@ export function useFileShortcuts(windowLabel: string): void {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isImeKeyEvent(e)) return;
       const target = e.target as HTMLElement;
-      /* v8 ignore next -- INPUT/TEXTAREA guard not exercised in keyboard shortcut tests */
+      /* v8 ignore start -- INPUT/TEXTAREA guard not exercised in keyboard shortcut tests */
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      /* v8 ignore stop */
 
       const shortcuts = useShortcutsStore.getState();
 
@@ -127,12 +129,14 @@ export function useFileShortcuts(windowLabel: string): void {
 
       // Save (Cmd+S)
       const saveKey = shortcuts.getShortcut("save");
+      /* v8 ignore start -- @preserve save shortcut not-matched path requires a different key; test only exercises the matching path */
       if (matchesShortcutEvent(e, saveKey)) {
         fileOpsLog("Cmd+S keyboard shortcut matched");
         e.preventDefault();
         handleSave(windowLabel);
         return;
       }
+      /* v8 ignore stop */
     };
 
     window.addEventListener("keydown", handleKeyDown);

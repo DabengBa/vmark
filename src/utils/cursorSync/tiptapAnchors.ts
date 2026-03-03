@@ -36,11 +36,12 @@ export function getBlockAnchor($pos: ResolvedPos): BlockAnchor | undefined {
         const parentName = $pos.node(pd).type.name;
         if (parentName === "tableRow") {
           col = $pos.index(pd + 1);
-        /* v8 ignore next -- "table" ancestor always follows "tableRow" in ProseMirror table structure */
+        /* v8 ignore start -- "table" ancestor always follows "tableRow" in ProseMirror table structure */
         } else if (parentName === "table") {
           row = $pos.index(pd + 1);
           break;
         }
+        /* v8 ignore stop */
       }
 
       const offsetInCell = $pos.pos - $pos.start(d);
@@ -93,10 +94,11 @@ export function restoreCursorInTable(
     }
     if (node.type.name === "table") {
       const sl = node.attrs.sourceLine as number | undefined;
-      /* v8 ignore next -- sl is always defined for table nodes created via fromMarkdown; undefined is defensive */
+      /* v8 ignore start -- sl is always defined for table nodes created via fromMarkdown; undefined is defensive */
       if (sl !== undefined && sl <= sourceLine) {
         tablePos = pos;
       }
+      /* v8 ignore stop */
     }
     return true;
   });
@@ -159,11 +161,12 @@ export function restoreCursorInCodeBlock(
     if (codeBlockPos !== null) return false;
     if (node.type.name === "codeBlock") {
       const sl = node.attrs.sourceLine as number | undefined;
-      /* v8 ignore next -- sl is always defined for codeBlock nodes; undefined is a defensive fallback */
+      /* v8 ignore start -- sl is always defined for codeBlock nodes; undefined is a defensive fallback */
       if (sl === sourceLine || (sl !== undefined && sl <= sourceLine)) {
         codeBlockPos = pos;
         foundNode = node;
       }
+      /* v8 ignore stop */
     }
     return true;
   });

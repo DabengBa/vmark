@@ -204,9 +204,11 @@ export class ImagePasteToastView {
           this.handleInsert();
         } else if (activeEl?.classList.contains("image-paste-toast-btn-dismiss")) {
           this.handleDismiss();
-        } else /* v8 ignore next -- @preserve no-button-focused fallback; neither toast button is focused */ {
+        /* v8 ignore start -- @preserve no-button-focused fallback; neither toast button is focused */
+        } else {
           this.handleInsert();
         }
+        /* v8 ignore stop */
       } else if (e.key === "Escape") {
         e.preventDefault();
         // Escape closes without any action (no paste)

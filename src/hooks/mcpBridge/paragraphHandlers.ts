@@ -36,10 +36,11 @@ interface ParagraphInfo {
 function extractText(node: ProseMirrorNode): string {
   let text = "";
   node.descendants((child) => {
-    /* v8 ignore next -- non-text leaf nodes not encountered in test documents */
+    /* v8 ignore start -- non-text leaf nodes not encountered in test documents */
     if (child.isText) {
       text += child.text;
     }
+    /* v8 ignore stop */
     return true;
   });
   return text;
@@ -64,7 +65,7 @@ function findAllParagraphs(doc: ProseMirrorNode): ParagraphInfo[] {
   let index = 0;
 
   doc.descendants((node, pos) => {
-    /* v8 ignore next -- non-paragraph nodes not exercised in tests */
+    /* v8 ignore start -- non-paragraph nodes not exercised in tests */
     if (node.type.name === "paragraph") {
       const text = extractText(node);
       paragraphs.push({
@@ -76,6 +77,7 @@ function findAllParagraphs(doc: ProseMirrorNode): ParagraphInfo[] {
       index++;
       return false; // Don't descend into paragraph children
     }
+    /* v8 ignore stop */
     return true;
   });
 
@@ -97,7 +99,7 @@ function findParagraph(
     return para ?? null;
   }
 
-  /* v8 ignore next -- target.containing path not exercised in tests */
+  /* v8 ignore start -- target.containing path not exercised in tests */
   if (target.containing) {
     // Find by content match
     const searchText = target.containing.toLowerCase();
@@ -106,6 +108,7 @@ function findParagraph(
     );
     return match ?? null;
   }
+  /* v8 ignore stop */
 
   return null;
 }

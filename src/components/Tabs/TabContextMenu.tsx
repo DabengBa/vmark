@@ -221,10 +221,11 @@ export function TabContextMenu({ tab, position, windowLabel, onClose }: TabConte
         if (!item || item.separator || item.disabled) return;
         event.preventDefault();
         void item.action();
-      /* v8 ignore next -- @preserve other-key fall-through: Enter/Space with valid focusedIndex always satisfied in keyboard tests */
+      /* v8 ignore start -- @preserve other-key fall-through: Enter/Space with valid focusedIndex always satisfied in keyboard tests */
       } else {
         // other keys or no focused item — fall through
       }
+      /* v8 ignore stop */
     },
     [focusableIndices, focusedIndex, menuItems, onClose]
   );

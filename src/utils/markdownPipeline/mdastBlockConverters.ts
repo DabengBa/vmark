@@ -418,9 +418,10 @@ function tryPromoteMediaHtml(
     return videoEmbedType.create({
       provider,
       videoId,
-      /* v8 ignore next 2 -- @preserve reason: config is always defined when provider is recognized; the ?? 560/315 fallbacks are unreachable in practice */
+      /* v8 ignore start -- @preserve reason: config is always defined when provider is recognized; the ?? 560/315 fallbacks are unreachable in practice */
       width: parseInt(attrs.width ?? String(config?.defaultWidth ?? 560), 10) || 560,
       height: parseInt(attrs.height ?? String(config?.defaultHeight ?? 315), 10) || 315,
+      /* v8 ignore stop */
       sourceLine,
     });
   }

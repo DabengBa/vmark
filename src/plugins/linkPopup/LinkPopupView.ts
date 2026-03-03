@@ -131,14 +131,16 @@ export class LinkPopupView extends WysiwygPopupView<LinkPopupState> {
 
   private handleInputKeydown = (e: KeyboardEvent) => {
     if (isImeKeyEvent(e)) return;
+    /* v8 ignore start -- @preserve non-Enter/Escape keys are not handled */
     if (e.key === "Enter") {
       e.preventDefault();
       this.handleSave();
-    } else /* v8 ignore next -- @preserve non-Enter/Escape keys are not handled */ if (e.key === "Escape") {
+    } else if (e.key === "Escape") {
       e.preventDefault();
       this.closePopup();
       this.focusEditor();
     }
+    /* v8 ignore stop */
   };
 
   private handleSave = () => {

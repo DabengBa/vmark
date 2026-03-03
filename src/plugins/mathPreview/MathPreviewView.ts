@@ -94,7 +94,9 @@ export class MathPreviewView {
     });
 
     // Convert to host-relative coordinates if mounted inside editor container
-    const host = this.host ?? /* v8 ignore next -- @preserve host always set inside show(); null fallback is defensive */ document.body;
+    /* v8 ignore start -- @preserve host always set inside show(); null fallback is defensive */
+    const host = this.host ?? document.body;
+    /* v8 ignore stop */
     if (host !== document.body) {
       const hostPos = toHostCoordsForDom(host, { top, left });
       this.container.style.top = `${hostPos.top}px`;

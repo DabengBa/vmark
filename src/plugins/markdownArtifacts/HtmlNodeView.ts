@@ -40,7 +40,9 @@ class BaseHtmlNodeView implements NodeView {
   constructor(node: PMNode, options: HtmlNodeViewOptions) {
     this.node = node;
     this.options = options;
-    this.value = String(node.attrs.value ?? /* v8 ignore next -- @preserve value attr is always set on HTML nodes */ "");
+    /* v8 ignore start -- @preserve value attr is always set on HTML nodes */
+    this.value = String(node.attrs.value ?? "");
+    /* v8 ignore stop */
     this.renderMode = useSettingsStore.getState().markdown.htmlRenderingMode;
 
     this.dom = document.createElement(options.inline ? "span" : "div");

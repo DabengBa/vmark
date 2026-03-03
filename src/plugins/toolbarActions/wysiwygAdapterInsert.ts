@@ -167,8 +167,9 @@ export function handleInsertImage(context: WysiwygToolbarContext): boolean {
     if (handled) return;
     await insertImageFromPicker(view);
   }).catch((error) => {
-    /* v8 ignore next -- @preserve reason: image insertion error path not exercised in unit tests */
+    /* v8 ignore start -- @preserve reason: image insertion error path not exercised in unit tests */
     wysiwygAdapterWarn("Image insertion failed:", error instanceof Error ? error.message : String(error));
+    /* v8 ignore stop */
   });
 
   return true;

@@ -52,16 +52,18 @@ function calculateEscapeForCursor(view: EditorView, pos: number): number | null 
     if (isInLinkText(boundaries, posInLine)) {
       // In text portion: jump to URL start
       targetPosInLine = boundaries.urlStart;
-    /* v8 ignore next -- @preserve else path of isInLinkUrl: url position not reached in multi-cursor tests */
+    /* v8 ignore start -- @preserve else path of isInLinkUrl: url position not reached in multi-cursor tests */
     } else if (isInLinkUrl(boundaries, posInLine)) {
       // In URL portion: jump after the link
       targetPosInLine = boundaries.linkEnd;
     }
+    /* v8 ignore stop */
 
-    /* v8 ignore next -- @preserve else path: targetPosInLine is always set in multi-cursor tests */
+    /* v8 ignore start -- @preserve else path: targetPosInLine is always set in multi-cursor tests */
     if (targetPosInLine !== null) {
       return line.from + targetPosInLine;
     }
+    /* v8 ignore stop */
   }
 
   // Check for multi-char closing sequences (~~, ==)

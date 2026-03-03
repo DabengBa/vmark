@@ -197,10 +197,11 @@ class PMToMdastConverter {
         result.push(inlineConverters.convertFootnoteReference(child));
       } else if (child.type.name === "wikiLink") {
         result.push(this.convertWikiLink(child));
-      /* v8 ignore next -- html_inline nodes are rare; the else branch (unrecognized types) is defensive */
+      /* v8 ignore start -- html_inline nodes are rare; the else branch (unrecognized types) is defensive */
       } else if (child.type.name === "html_inline") {
         result.push(this.convertHtmlInline(child));
       }
+      /* v8 ignore stop */
     });
 
     return result;

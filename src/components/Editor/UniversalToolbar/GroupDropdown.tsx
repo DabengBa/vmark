@@ -172,27 +172,30 @@ const GroupDropdown = forwardRef<HTMLDivElement, GroupDropdownProps>(
 
         case "ArrowUp":
           event.preventDefault();
+          /* v8 ignore start -- @preserve empty-indices guard; dropdown always has enabled items in tests */
           if (enabledButtonIndices.length > 0) {
             const prevIndex = findNextEnabledButtonIndex(activeButtonIndex, -1);
             buttons[prevIndex]?.focus();
-          /* v8 ignore next -- @preserve empty-indices guard; dropdown always has enabled items in tests */
-          } else { /* no enabled buttons */ }
+          }
+          /* v8 ignore stop */
           break;
 
         case "Home":
           event.preventDefault();
+          /* v8 ignore start -- @preserve empty-indices guard; dropdown always has enabled items in tests */
           if (enabledButtonIndices.length > 0) {
             buttons[enabledButtonIndices[0]]?.focus();
-          /* v8 ignore next -- @preserve empty-indices guard; dropdown always has enabled items in tests */
-          } else { /* no enabled buttons */ }
+          }
+          /* v8 ignore stop */
           break;
 
         case "End":
           event.preventDefault();
+          /* v8 ignore start -- @preserve empty-indices guard; dropdown always has enabled items in tests */
           if (enabledButtonIndices.length > 0) {
             buttons[enabledButtonIndices[enabledButtonIndices.length - 1]]?.focus();
-          /* v8 ignore next -- @preserve empty-indices guard; dropdown always has enabled items in tests */
-          } else { /* no enabled buttons */ }
+          }
+          /* v8 ignore stop */
           break;
 
         case "Enter":

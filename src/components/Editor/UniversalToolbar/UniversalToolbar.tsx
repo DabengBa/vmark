@@ -439,10 +439,11 @@ export function UniversalToolbar() {
 
             const currentIndex = flatIndex++;
             const state = buttonStates[currentIndex];
-            /* v8 ignore next 3 -- @preserve reason: ?? fallbacks only when buttonStates[currentIndex] is undefined; always defined after toolbar renders */
+            /* v8 ignore start -- @preserve reason: ?? fallbacks only when buttonStates[currentIndex] is undefined; always defined after toolbar renders */
             const disabled = state?.disabled ?? true;
             const notImplemented = state?.notImplemented ?? false;
             const active = state?.active ?? false;
+            /* v8 ignore stop */
             /* v8 ignore next -- @preserve reason: ariaHasPopup undefined branch requires non-dropdown button; all tested buttons are dropdowns */
             const ariaHasPopup_ = button.type === "dropdown" ? "menu" as const : undefined;
 
