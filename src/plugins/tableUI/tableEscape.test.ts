@@ -258,3 +258,79 @@ describe("escapeTableDown", () => {
     expect(result).toBe(true);
   });
 });
+
+describe("escapeTableUp — schema without paragraph (line 48)", () => {
+  const noParagraphSchema = new Schema({
+    nodes: {
+      doc: { content: "table+" },
+      table: {
+        content: "tableRow+",
+        tableRole: "table",
+      },
+      tableRow: {
+        content: "tableCell+",
+        tableRole: "row",
+      },
+      tableCell: {
+        content: "text*",
+        attrs: { alignment: { default: null } },
+        tableRole: "cell",
+      },
+      text: { inline: true },
+    },
+  });
+
+  it("returns false when schema lacks paragraph type", () => {
+    const cellNode = noParagraphSchema.nodes.tableCell.create(null, [noParagraphSchema.text("hi")]);
+    const rowNode = noParagraphSchema.nodes.tableRow.create(null, [cellNode]);
+    const tableNode = noParagraphSchema.nodes.table.create(null, [rowNode]);
+    const doc = noParagraphSchema.nodes.doc.create(null, [tableNode]);
+    // Cursor inside cell text: doc(0) > table(+1) > row(+1) > cell(+1) = pos 3
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+    const view = mockView(state);
+    // getTableInfo should find the table; cursor is in first row of first block
+    // But paragraphType is undefined → returns false (line 48)
+    expect(escapeTableUp(view)).toBe(false);
+  });
+});
+
+describe("escapeTableDown — schema without paragraph (line 77)", () => {
+  const noParagraphSchema = new Schema({
+    nodes: {
+      doc: { content: "table+" },
+      table: {
+        content: "tableRow+",
+        tableRole: "table",
+      },
+      tableRow: {
+        content: "tableCell+",
+        tableRole: "row",
+      },
+      tableCell: {
+        content: "text*",
+        attrs: { alignment: { default: null } },
+        tableRole: "cell",
+      },
+      text: { inline: true },
+    },
+  });
+
+  it("returns false when schema lacks paragraph type", () => {
+    const cellNode = noParagraphSchema.nodes.tableCell.create(null, [noParagraphSchema.text("hi")]);
+    const rowNode = noParagraphSchema.nodes.tableRow.create(null, [cellNode]);
+    const tableNode = noParagraphSchema.nodes.table.create(null, [rowNode]);
+    const doc = noParagraphSchema.nodes.doc.create(null, [tableNode]);
+    // Cursor inside cell: pos 3
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+    const view = mockView(state);
+    // getTableInfo finds table; cursor in last row of last block
+    // But paragraphType is undefined → returns false (line 77)
+    expect(escapeTableDown(view)).toBe(false);
+  });
+});

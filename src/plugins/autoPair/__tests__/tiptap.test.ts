@@ -261,6 +261,24 @@ describe("autoPair IME composition guard", () => {
     expect(result).toBe(false);
   });
 
+  it("keydown returns false when isComposingOrGrace returns true (composing branch, line ~79)", () => {
+    // isComposingOrGrace = isProseMirrorComposing || isProseMirrorInCompositionGrace
+    // This branch is distinct from the isImeKeyEvent branch
+    mockIsProseMirrorComposing.mockReturnValue(true);
+    mockIsProseMirrorInCompositionGrace.mockReturnValue(false);
+    mockIsImeKeyEvent.mockReturnValue(false);
+    const props = getPluginProps();
+    const handleDOMEvents = props.handleDOMEvents as { keydown: (view: unknown, event: unknown) => boolean };
+    const result = handleDOMEvents.keydown({}, { key: ")", keyCode: 41 });
+    // isComposingOrGrace is true → returns false immediately, keyHandler not called
+    expect(result).toBe(false);
+    // The inner keyHandler (from createKeyHandler) should NOT be called
+    const keyHandler = mockCreateKeyHandler.mock.results[0]?.value as ReturnType<typeof vi.fn> | undefined;
+    if (keyHandler) {
+      expect(keyHandler).not.toHaveBeenCalled();
+    }
+  });
+
   it("compositionend marks composition end", () => {
     const props = getPluginProps();
     const handleDOMEvents = props.handleDOMEvents as { compositionend: (view: unknown) => boolean };

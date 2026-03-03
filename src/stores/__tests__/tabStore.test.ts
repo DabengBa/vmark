@@ -106,7 +106,7 @@ describe("tabStore", () => {
 
   describe("closeTab", () => {
     it("closes tab and activates next tab to the right", () => {
-      const id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
+      const _id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
       const id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
       const id3 = useTabStore.getState().createTab(WINDOW, "/file3.md");
 
@@ -166,8 +166,8 @@ describe("tabStore", () => {
   describe("closeTabsToRight", () => {
     it("closes tabs to the right of target, keeping pinned", () => {
       const id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
-      const id3 = useTabStore.getState().createTab(WINDOW, "/file3.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
+      const _id3 = useTabStore.getState().createTab(WINDOW, "/file3.md");
 
       useTabStore.getState().closeTabsToRight(WINDOW, id1);
 
@@ -178,7 +178,7 @@ describe("tabStore", () => {
 
     it("adjusts activeTabId when active tab is closed to right", () => {
       const id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
       const id3 = useTabStore.getState().createTab(WINDOW, "/file3.md");
 
       // Make id3 active, then close tabs to right of id1 (closes id2 and id3)
@@ -207,7 +207,7 @@ describe("tabStore", () => {
   describe("closeAllTabs", () => {
     it("closes all non-pinned tabs", () => {
       const id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
       useTabStore.getState().togglePin(WINDOW, id1);
       useTabStore.getState().closeAllTabs(WINDOW);
 
@@ -269,8 +269,8 @@ describe("tabStore", () => {
 
   describe("togglePin", () => {
     it("pins tab and moves it after last pinned tab", () => {
-      const id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
+      const _id1 = useTabStore.getState().createTab(WINDOW, "/file1.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/file2.md");
       const id3 = useTabStore.getState().createTab(WINDOW, "/file3.md");
 
       useTabStore.getState().togglePin(WINDOW, id3);
@@ -475,7 +475,7 @@ describe("tabStore", () => {
   describe("getTabTitle — edge cases (line 96)", () => {
     it("handles filePath that getFileName returns empty for", () => {
       // getFileName returns "" for "/" → falls back to filePath itself
-      const id = useTabStore.getState().createTab(WINDOW, "/");
+      const _id = useTabStore.getState().createTab(WINDOW, "/");
       const tabs = useTabStore.getState().getTabsByWindow(WINDOW);
       // Should use filePath "/" as the name, then stripMarkdownExtension
       expect(tabs[0].title).toBeDefined();
@@ -549,8 +549,8 @@ describe("tabStore", () => {
 
   describe("togglePin — pin moves tab after last pinned (lines 339-344)", () => {
     it("moves tab to correct position when pinning", () => {
-      const id1 = useTabStore.getState().createTab(WINDOW, "/a.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/b.md");
+      const _id1 = useTabStore.getState().createTab(WINDOW, "/a.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/b.md");
       const id3 = useTabStore.getState().createTab(WINDOW, "/c.md");
 
       // Pin the third tab — it should move after any existing pinned tabs
@@ -564,7 +564,7 @@ describe("tabStore", () => {
 
     it("moves tab after existing pinned tabs when pinning", () => {
       const id1 = useTabStore.getState().createTab(WINDOW, "/a.md");
-      const id2 = useTabStore.getState().createTab(WINDOW, "/b.md");
+      const _id2 = useTabStore.getState().createTab(WINDOW, "/b.md");
       const id3 = useTabStore.getState().createTab(WINDOW, "/c.md");
 
       // Pin first tab
@@ -596,7 +596,7 @@ describe("tabStore", () => {
   describe("getTabTitle — untitled with counter (line 93)", () => {
     it("returns Untitled-N when creating untitled tab", () => {
       // createTab with null always increments the counter
-      const id = useTabStore.getState().createTab(WINDOW, null);
+      const _id = useTabStore.getState().createTab(WINDOW, null);
       const tabs = useTabStore.getState().getTabsByWindow(WINDOW);
       expect(tabs[0].title).toMatch(/^Untitled-\d+$/);
     });

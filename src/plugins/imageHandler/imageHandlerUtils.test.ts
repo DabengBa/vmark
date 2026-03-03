@@ -44,9 +44,6 @@ import {
   fileUrlToPath,
   isViewConnected,
   getActiveFilePathForCurrentWindow,
-  showUnsavedDocWarning,
-  validateLocalPath,
-  expandHomePath,
   isImageFile,
   generateClipboardImageFilename,
   generateDroppedImageFilename,
@@ -172,6 +169,25 @@ describe("getActiveFilePathForCurrentWindow", () => {
     expect(getActiveFilePathForCurrentWindow()).toBeNull();
 
     (useTabStore as unknown as { getState: typeof origTab }).getState = origTab;
+  });
+
+  it("returns null when document exists but filePath is null (line 68 ?? branch)", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    const { useDocumentStore } = await import("@/stores/documentStore");
+    const origTab = useTabStore.getState;
+    const origDoc = useDocumentStore.getState;
+
+    (useTabStore as unknown as { getState: () => unknown }).getState = () => ({
+      activeTabId: { main: "tab-1" },
+    });
+    (useDocumentStore as unknown as { getState: () => unknown }).getState = () => ({
+      getDocument: (id: string) => id === "tab-1" ? { filePath: null } : null,
+    });
+
+    expect(getActiveFilePathForCurrentWindow()).toBeNull();
+
+    (useTabStore as unknown as { getState: typeof origTab }).getState = origTab;
+    (useDocumentStore as unknown as { getState: typeof origDoc }).getState = origDoc;
   });
 });
 

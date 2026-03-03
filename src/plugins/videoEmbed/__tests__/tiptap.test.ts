@@ -7,12 +7,25 @@ import { describe, it, expect, vi } from "vitest";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { DOMSerializer, DOMParser as PMDOMParser } from "@tiptap/pm/model";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { EditorState } from "@tiptap/pm/state";
 
 // Mock the VideoEmbedNodeView to avoid DOM complexity
 vi.mock("../VideoEmbedNodeView", () => ({
   VideoEmbedNodeView: vi.fn(),
 }));
+
+// Allow tests to override getProviderConfig behaviour
+const mockGetProviderConfig = vi.fn();
+vi.mock("@/utils/videoProviderRegistry", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/utils/videoProviderRegistry")>();
+  return {
+    ...actual,
+    getProviderConfig: (...args: unknown[]) => {
+      const override = mockGetProviderConfig(...args);
+      return override !== undefined ? override : actual.getProviderConfig(args[0] as import("@/utils/videoProviderRegistry").VideoProvider);
+    },
+  };
+});
 
 import { videoEmbedExtension } from "../tiptap";
 
@@ -762,6 +775,54 @@ describe("videoEmbed renderHTML — null/undefined attrs fallback (lines 97-98, 
 // ---------------------------------------------------------------------------
 // Branch coverage: paste handler config fallback (lines 158-159)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Branch coverage: paste handler config null fallback (lines 158-159)
+// getProviderConfig returns null/undefined → uses ?? 560 / ?? 315 defaults
+// ---------------------------------------------------------------------------
+
+describe("videoEmbed paste handler — getProviderConfig returns null (lines 158-159)", () => {
+  it("falls back to 560x315 when getProviderConfig returns null for the pasted provider", () => {
+    // Override getProviderConfig to return null for this one call
+    mockGetProviderConfig.mockReturnValueOnce(null);
+
+    const schema = createSchema();
+    const nodeType = schema.nodes.video_embed;
+    const plugins = videoEmbedExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "video_embed",
+      options: {},
+      storage: {},
+      type: nodeType,
+      parent: undefined,
+    } as never);
+    const handlePaste = (plugins[0] as { props: { handlePaste: (view: unknown, event: unknown) => boolean } }).props.handlePaste;
+
+    const doc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const state = EditorState.create({ schema, doc });
+    const mockDispatch = vi.fn();
+
+    const result = handlePaste(
+      { state, dispatch: mockDispatch },
+      {
+        clipboardData: {
+          getData: (type: string) => type === "text/plain" ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ" : "",
+        },
+      },
+    );
+
+    // Should still succeed — the node is created with fallback dimensions
+    expect(result).toBe(true);
+    expect(mockDispatch).toHaveBeenCalled();
+    // Verify the dispatched transaction inserted a video_embed node with defaults
+    const tr = mockDispatch.mock.calls[0][0] as { doc: { firstChild: { attrs: Record<string, unknown> } } };
+    const node = tr.doc?.firstChild;
+    if (node && node.attrs) {
+      expect(node.attrs.width).toBe(560);
+      expect(node.attrs.height).toBe(315);
+    }
+  });
+});
 
 describe("videoEmbed parseHTML — iframe with no src attribute (line 78)", () => {
   it("returns false for iframe with no src attribute", () => {

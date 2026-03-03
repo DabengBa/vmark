@@ -16,7 +16,7 @@ vi.mock("@/utils/debug", () => ({
 
 import { useSettingsStore } from "@/stores/settingsStore";
 import { imageResizeLog } from "@/utils/debug";
-import { getAutoResizeMax, resizeImageIfNeeded, ResizeResult } from "./imageResize";
+import { getAutoResizeMax, resizeImageIfNeeded } from "./imageResize";
 
 // --- DOM mock helpers ---
 

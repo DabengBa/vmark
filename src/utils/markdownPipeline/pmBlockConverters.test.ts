@@ -8,23 +8,16 @@
 import { describe, it, expect } from "vitest";
 import { Schema, type Node as PMNode } from "@tiptap/pm/model";
 import type {
-  Blockquote,
   Code,
-  Heading,
   Html,
   Image,
-  List,
   ListItem,
   Paragraph,
   PhrasingContent,
-  Table,
   TableCell,
-  TableRow,
 } from "mdast";
 import type { Math } from "mdast-util-math";
-import type { Details, Yaml } from "./types";
 import {
-  convertParagraph,
   convertHeading,
   convertCodeBlock,
   convertBlockquote,
@@ -338,7 +331,7 @@ describe("pmBlockConverters", () => {
 
   describe("convertCodeBlock", () => {
     it("converts math sentinel to MDAST math node", () => {
-      const node = mediaSchema.nodes.codeBlock.create({ language: "$$math$$" });
+      const _node = mediaSchema.nodes.codeBlock.create({ language: "$$math$$" });
       // Create with text content
       const withText = mediaSchema.nodes.codeBlock.create(
         { language: "$$math$$" },

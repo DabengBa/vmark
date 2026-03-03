@@ -33,6 +33,13 @@ describe("htmlBlockExtension", () => {
       el.textContent = "";
       expect(rule.getAttrs!(el)).toBe(false);
     });
+
+    it("returns false when textContent is null (line 52 null coalesce)", () => {
+      const el = document.createElement("div");
+      el.setAttribute("data-type", "html-block");
+      Object.defineProperty(el, "textContent", { value: null, writable: false });
+      expect(rule.getAttrs!(el)).toBe(false);
+    });
   });
 
   describe("renderHTML", () => {

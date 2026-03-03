@@ -642,7 +642,7 @@ describe("altClick", () => {
       });
 
       // Set cursor inside code block first (primary cursor at pos 1 = inside code_block)
-      const $pos = doc.resolve(1);
+      const _$pos = doc.resolve(1);
       const sel = TextSelection.create(doc, 1);
       const stateWithCodeCursor = state.apply(state.tr.setSelection(sel));
 

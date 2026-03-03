@@ -46,7 +46,7 @@ describe("updateLatexLivePreview", () => {
     vi.mocked(renderLatex).mockResolvedValueOnce("<span>rendered math</span>");
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateLatexLivePreview(element, "\\frac{1}{2}", token, () => token);
 
     await vi.waitFor(() => {
@@ -81,7 +81,7 @@ describe("updateLatexLivePreview", () => {
     });
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateLatexLivePreview(element, "\\invalid", token, () => token);
 
     await vi.waitFor(() => {
@@ -99,7 +99,7 @@ describe("updateLatexLivePreview", () => {
     });
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateLatexLivePreview(element, "bad", token, () => token);
 
     await vi.waitFor(() => {

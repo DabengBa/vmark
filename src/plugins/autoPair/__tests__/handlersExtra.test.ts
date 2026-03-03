@@ -269,7 +269,7 @@ describe("handleBackspacePair — extra", () => {
   });
 
   it("returns false at position 0 (start of document)", () => {
-    const state = createState("()", 0);
+    const _state = createState("()", 0);
     // Cursor at position 1 (paragraph start), from = 1, but we need from < 1
     // Actually from = 1 > 0, so let's check default selection (from = 1)
     // The function checks from < 1, position 1 is >= 1 so it proceeds.
@@ -519,11 +519,11 @@ describe("handleBacktickCodeToggle — uncovered branches", () => {
       state.tr.setSelection(TextSelection.create(state.doc, 3))
     );
 
-    let newState = stateWithCursor;
+    let _newState = stateWithCursor;
     const mockView = {
       state: stateWithCursor,
       dispatch: (tr: ReturnType<EditorState["tr"]["setSelection"]>) => {
-        newState = stateWithCursor.apply(tr);
+        _newState = stateWithCursor.apply(tr);
       },
     } as unknown as EditorView;
 

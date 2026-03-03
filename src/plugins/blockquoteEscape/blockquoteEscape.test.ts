@@ -372,15 +372,15 @@ describe("escapeBlockquoteDown", () => {
         schemaWithoutParagraph.text("hello"),
       ]),
     ]);
+    // Cursor must be at end of blockquote to pass isAtEndOfBlockquote check
+    // blockquote spans pos 0..7, text "hello" at pos 1..6, end of text = pos 6
     const state = EditorState.create({
       doc,
-      selection: TextSelection.create(doc, 1),
+      selection: TextSelection.create(doc, 6),
     });
     const view = createView(state);
-    // getBlockquoteInfo should find the blockquote
-    // isAtEndOfBlockquote should return true
-    // isBlockquoteLastBlock should return true
-    // But paragraphType is undefined → return false (line 133)
+    // getBlockquoteInfo finds blockquote, isAtEndOfBlockquote returns true,
+    // isBlockquoteLastBlock returns true, but paragraphType is undefined → false
     const handled = escapeBlockquoteDown(view);
     expect(handled).toBe(false);
   });

@@ -489,6 +489,70 @@ describe("usePromptHistory — comprehensive", () => {
     expect(result.current.displayValue).toBe("hello world");
   });
 
+  // --- ArrowUp clamping at max index (line 101) ---
+
+  it("clamps cycle index at last entry when ArrowUp pressed at max depth (line 101)", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // Enter cycling (index 0 = "hello world")
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    // Advance to index 1 = "help me"
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    // Advance to index 2 = "goodbye"
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    expect(result.current.displayValue).toBe("goodbye");
+
+    // Press ArrowUp again — should clamp at index 2 (last entry)
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    // Should still show last entry (clamped at filteredCache.length - 1)
+    expect(result.current.displayValue).toBe("goodbye");
+  });
+
+  // --- ArrowDown decrement (line 110) — already covered; verify prev !== null guard ---
+
+  it("decrements cycle index via prev callback correctly (line 110 prev !== null branch)", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // Enter cycling at index 0
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    // Advance to index 1
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowUp", keyCode: 38 }));
+    });
+    expect(result.current.displayValue).toBe("help me"); // index 1
+
+    // ArrowDown: should decrement from 1 to 0 (line 110 path, prev !== null)
+    act(() => {
+      result.current.handleKeyDown(makeKeyEvent({ key: "ArrowDown", keyCode: 40 }));
+    });
+    expect(result.current.displayValue).toBe("hello world"); // back to index 0
+  });
+
+  // --- acceptGhostText returns false when no ghost text (line 119) ---
+
+  it("acceptGhostText returns false internally when no ghost text (line 119)", () => {
+    const { result } = renderHook(() => usePromptHistory());
+
+    // No draft → no ghost text → Tab does nothing
+    const e = makeKeyEvent({ key: "Tab", value: "", selectionStart: 0 });
+    act(() => {
+      result.current.handleKeyDown(e);
+    });
+    expect(e.preventDefault).not.toHaveBeenCalled();
+    // displayValue remains empty
+    expect(result.current.displayValue).toBe("");
+  });
+
   // --- Dropdown passthrough for typing keys ---
 
   it("passes through non-navigation keys when dropdown is open", () => {

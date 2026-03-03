@@ -6,7 +6,7 @@
  * invoke failure cleanup, sanitize timeout, and setupRestoreListeners edge cases.
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock Tauri APIs
 const mockInvoke = vi.fn();

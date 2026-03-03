@@ -1598,6 +1598,95 @@ describe("footnotePopup plugin handler integration", () => {
     });
   });
 
+  describe("handleDOMEvents.mouseover — null definition fallback (lines 77-78)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("calls openPopup with 'Footnote not found' and null defPos when definition is missing", () => {
+      vi.useFakeTimers();
+
+      const refEl = document.createElement("sup");
+      refEl.setAttribute("data-type", "footnote_reference");
+      refEl.setAttribute("data-label", "99"); // label with no matching definition
+      refEl.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+      document.body.appendChild(refEl);
+
+      // Doc has a ref with label "99" but no matching definition node
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "99"),
+        // No fnDef("99") — so findFootnoteDefinition returns null
+      ]);
+      const state = createState(doc);
+
+      const event = new MouseEvent("mouseover");
+      Object.defineProperty(event, "target", { value: refEl });
+
+      const handler = plugin.props.handleDOMEvents!.mouseover!;
+      handler({ state } as never, event);
+
+      vi.advanceTimersByTime(200);
+
+      // openPopup must be called with the fallback content and null defPos
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        "99",
+        "Footnote not found", // line 77: definition?.content ?? "Footnote not found"
+        expect.any(Object),
+        null,                  // line 78: definition?.pos ?? null
+        expect.anything(),
+      );
+
+      document.body.removeChild(refEl);
+    });
+  });
+
+  describe("checkSelectionForFootnote — null definition fallback (lines 183-186)", () => {
+    it("calls openPopup with 'Footnote not found' and null defPos when definition is missing on NodeSelection", () => {
+      // Ref label "99" but no matching footnote_definition in the doc
+      const doc = schema.node("doc", null, [
+        pWithRef("Text", "99"),
+        // No fnDef("99")
+      ]);
+      const state = createState(doc);
+
+      let refPos = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote_reference") {
+          refPos = pos;
+          return false;
+        }
+        return true;
+      });
+      expect(refPos).toBeGreaterThanOrEqual(0);
+
+      const nodeSelState = state.apply(
+        state.tr.setSelection(NodeSelection.create(state.doc, refPos))
+      );
+
+      const domEl = document.createElement("sup");
+      domEl.getBoundingClientRect = () => ({ top: 100, left: 50, bottom: 120, right: 70, width: 20, height: 20, x: 50, y: 100, toJSON: () => ({}) });
+
+      const mockEditorView = {
+        state: nodeSelState,
+        dom: document.createElement("div"),
+        nodeDOM: vi.fn(() => domEl), // returns a real element so openPopup is called
+      };
+
+      const viewResult = plugin.spec.view!(mockEditorView as never);
+      vi.clearAllMocks();
+      viewResult.update!({} as never, {} as never);
+
+      // openPopup must be called with fallback values (lines 185-186)
+      expect(mockOpenPopup).toHaveBeenCalledWith(
+        "99",
+        "Footnote not found", // line 185: definition?.content ?? "Footnote not found"
+        expect.any(Object),
+        null,                  // line 186: definition?.pos ?? null
+        refPos,
+      );
+    });
+  });
+
   describe("appendTransaction — schema without footnote types (line 240)", () => {
     it("returns null when schema has no footnote_reference type", () => {
       // Create a schema without footnote nodes

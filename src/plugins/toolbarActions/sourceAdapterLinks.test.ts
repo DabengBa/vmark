@@ -51,6 +51,7 @@ import { readClipboardUrl } from "@/utils/clipboardUrl";
 import { useLinkPopupStore } from "@/stores/linkPopupStore";
 import { useLinkCreatePopupStore } from "@/stores/linkCreatePopupStore";
 import { useHeadingPickerStore } from "@/stores/headingPickerStore";
+import { getBoundaryRects } from "@/utils/popupPosition";
 
 function createView(doc: string, from: number, to?: number): EditorView {
   const parent = document.createElement("div");
@@ -402,7 +403,7 @@ describe("insertLink", () => {
     vi.mocked(useLinkPopupStore.getState).mockReturnValue({ openPopup } as never);
 
     const view = createView("[text](https://example.com)", 3);
-    const result = await insertLink(view);
+    const _result = await insertLink(view);
     // anchorRect is null → popup not opened, falls through to other cases
     expect(openPopup).not.toHaveBeenCalled();
     view.destroy();
@@ -428,6 +429,56 @@ describe("insertSourceBookmarkLink — callback", () => {
     // Verify bookmark link was inserted
     expect(view.state.doc.toString()).toContain("[My Heading](#my-heading)");
     view.destroy();
+  });
+
+  it("uses undefined anchorRect when coordsAtPos returns null (line 344 branch)", () => {
+    const view = createView("# My Heading\nsome text", 15);
+    // coordsAtPos returns null → anchorRect = undefined
+    vi.spyOn(view, "coordsAtPos").mockReturnValue(null as never);
+
+    const openPicker = vi.fn();
+    vi.mocked(useHeadingPickerStore.getState).mockReturnValue({ openPicker } as never);
+
+    const result = insertSourceBookmarkLink(view);
+    expect(result).toBe(true);
+    // openPicker is still called; anchorRect option will be undefined
+    expect(openPicker).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Function),
+      expect.objectContaining({ anchorRect: undefined }),
+    );
+    view.destroy();
+  });
+
+  it("uses getBoundaryRects when containerEl is found (line 349 branch)", () => {
+    // Create a DOM parent with .editor-container class so closest() finds it
+    const containerEl = document.createElement("div");
+    containerEl.className = "editor-container";
+    document.body.appendChild(containerEl);
+
+    const parent = document.createElement("div");
+    containerEl.appendChild(parent);
+
+    const state = EditorState.create({
+      doc: "# Title\nsome text",
+      selection: EditorSelection.single(10),
+    });
+    const view = new EditorView({ state, parent });
+
+    vi.spyOn(view, "coordsAtPos").mockReturnValue({ top: 10, bottom: 30, left: 50, right: 60 });
+
+    const getBoundaryRectsMock = vi.mocked(getBoundaryRects);
+    getBoundaryRectsMock.mockClear();
+
+    const openPicker = vi.fn();
+    vi.mocked(useHeadingPickerStore.getState).mockReturnValue({ openPicker } as never);
+
+    const result = insertSourceBookmarkLink(view);
+    expect(result).toBe(true);
+    expect(getBoundaryRectsMock).toHaveBeenCalled();
+
+    view.destroy();
+    document.body.removeChild(containerEl);
   });
 
   it("uses selected text as link text when selection exists", async () => {

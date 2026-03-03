@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, SelectionRange, TextSelection } from "@tiptap/pm/state";
+import { EditorState, SelectionRange } from "@tiptap/pm/state";
 import { DecorationSet } from "@tiptap/pm/view";
 import { multiCursorPlugin } from "../multiCursorPlugin";
 import { MultiSelection } from "../MultiSelection";

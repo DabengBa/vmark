@@ -257,6 +257,17 @@ describe("expandedToggleMark", () => {
       const result = expandedToggleMark(view, "bold");
       expect(result).toBe(true);
     });
+
+    it("superscript resolves subscript as opposing mark (line 51 true branch)", () => {
+      // markTypeName === "superscript" → line 51 evaluates to true → returns "subscript"
+      // This exercises the second ternary branch in the opposing mark resolution.
+      const state = createState("hello", 1, 6);
+      const view = createView(state);
+
+      const result = expandedToggleMark(view, "superscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
   });
 
   describe("inherited mark range", () => {
@@ -479,6 +490,49 @@ describe("expandedToggleMark", () => {
       ]);
 
       const result = expandedToggleMark(view, "bold");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("removes opposing mark from collapsed cursors in multi-selection (line 104 branch)", () => {
+      // Collapsed cursors in multi-selection with an opposing mark (subscript/superscript).
+      // This exercises the `if (opposingMarkType)` branch (line 104) for collapsed ranges.
+      const state = createMultiState("hello world");
+      const view = makeMultiSelectionState(state, [
+        { from: 3, to: 3 }, // collapsed inside "hello"
+      ]);
+
+      // Word found at cursor — triggers the collapsed branch with opposingMarkType present
+      mockFindWordAtCursor
+        .mockReturnValueOnce({ from: 1, to: 6 }) // primary word check
+        .mockReturnValueOnce({ from: 1, to: 6 }); // range word check
+
+      const result = expandedToggleMark(view, "subscript");
+      expect(result).toBe(true);
+      expect(view.dispatch).toHaveBeenCalled();
+    });
+
+    it("removes mark from collapsed cursor word when shouldAdd is false (line 109 branch)", () => {
+      // shouldAdd=false for collapsed cursors in multi-selection: primary word already has
+      // the mark, so shouldAdd=false → calls removeMark (line 109).
+      const subscriptMark = schema.marks.subscript.create();
+      const doc = schema.node("doc", null, [
+        schema.node("paragraph", null, [
+          schema.text("hello", [subscriptMark]),
+          schema.text(" world"),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema });
+      const view = makeMultiSelectionState(state, [
+        { from: 3, to: 3 }, // collapsed inside "hello" (which has subscript)
+      ]);
+
+      // Word found for primary and for the range — primary word has subscript so shouldAdd=false
+      mockFindWordAtCursor
+        .mockReturnValueOnce({ from: 1, to: 6 }) // primary: word range for shouldAdd check
+        .mockReturnValueOnce({ from: 1, to: 6 }); // first range: word range for toggle
+
+      const result = expandedToggleMark(view, "subscript");
       expect(result).toBe(true);
       expect(view.dispatch).toHaveBeenCalled();
     });

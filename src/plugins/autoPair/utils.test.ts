@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Schema, MarkType } from "@tiptap/pm/model";
+import { Schema } from "@tiptap/pm/model";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import {
   isInCodeBlock,
@@ -133,7 +133,7 @@ describe("isInInlineCode", () => {
   });
 
   it("returns false when cursor is outside code mark", () => {
-    const state = createInlineCodeState("say ", "hello", " world", -4);
+    const _state = createInlineCodeState("say ", "hello", " world", -4);
     // Cursor is at position 1 (before "say"), so offset = -4 would be invalid
     // Use a proper position: cursor before inline code
     const state2 = createInlineCodeState("say ", "hello", " world", -3);

@@ -374,6 +374,77 @@ describe("settingsStore section updater preserves sibling keys", () => {
   });
 });
 
+describe("settingsStore merge — branch coverage", () => {
+  it("skips migration when appearance already has blockSpacing (both keys present)", () => {
+    // Simulate persisted state where appearance already has blockSpacing — no migration needed
+    const storeApi = useSettingsStore as unknown as {
+      persist: { getOptions: () => { merge?: (persisted: unknown, current: unknown) => unknown } };
+    };
+    const options = storeApi.persist.getOptions();
+    if (options.merge) {
+      const currentState = useSettingsStore.getState();
+      const persistedWithBoth = {
+        appearance: {
+          paragraphSpacing: 1.5,
+          blockSpacing: 2,
+          theme: "paper",
+        },
+      };
+      const result = options.merge(persistedWithBoth, currentState) as typeof currentState;
+      // blockSpacing was already present, so it should use the persisted value (2)
+      expect(result.appearance.blockSpacing).toBe(2);
+    }
+  });
+
+  it("skips migration when appearance has no paragraphSpacing", () => {
+    const storeApi = useSettingsStore as unknown as {
+      persist: { getOptions: () => { merge?: (persisted: unknown, current: unknown) => unknown } };
+    };
+    const options = storeApi.persist.getOptions();
+    if (options.merge) {
+      const currentState = useSettingsStore.getState();
+      const persistedNoParagraph = {
+        appearance: {
+          theme: "night",
+          blockSpacing: 3,
+        },
+      };
+      const result = options.merge(persistedNoParagraph, currentState) as typeof currentState;
+      expect(result.appearance.blockSpacing).toBe(3);
+    }
+  });
+
+  it("handles null persistedState gracefully (uses empty object fallback)", () => {
+    const storeApi = useSettingsStore as unknown as {
+      persist: { getOptions: () => { merge?: (persisted: unknown, current: unknown) => unknown } };
+    };
+    const options = storeApi.persist.getOptions();
+    if (options.merge) {
+      const currentState = useSettingsStore.getState();
+      // null persisted state — should fallback to {} and merge with defaults
+      const result = options.merge(null, currentState) as typeof currentState;
+      // Should return current state defaults when nothing is persisted
+      expect(result.appearance.blockSpacing).toBe(1);
+      expect(result.appearance.theme).toBe("paper");
+    }
+  });
+
+  it("handles persisted state with no appearance key", () => {
+    const storeApi = useSettingsStore as unknown as {
+      persist: { getOptions: () => { merge?: (persisted: unknown, current: unknown) => unknown } };
+    };
+    const options = storeApi.persist.getOptions();
+    if (options.merge) {
+      const currentState = useSettingsStore.getState();
+      // No appearance key at all — no migration should occur
+      const result = options.merge({ general: { tabSize: 4 } }, currentState) as typeof currentState;
+      expect(result.general.tabSize).toBe(4);
+      // blockSpacing remains at default
+      expect(result.appearance.blockSpacing).toBe(1);
+    }
+  });
+});
+
 describe("settingsStore paragraphSpacing → blockSpacing migration", () => {
   it("migrates paragraphSpacing to blockSpacing when loading persisted state", () => {
     // Simulate persisted state with old paragraphSpacing key

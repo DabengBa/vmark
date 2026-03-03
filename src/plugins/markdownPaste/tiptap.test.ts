@@ -5,7 +5,7 @@ import { EditorState, TextSelection, SelectionRange, type Transaction } from "@t
 import type { EditorView } from "@tiptap/pm/view";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import { Slice, Fragment } from "@tiptap/pm/model";
+import { Slice } from "@tiptap/pm/model";
 import { MultiSelection } from "@/plugins/multiCursor/MultiSelection";
 import type { MarkdownPasteMode } from "@/stores/settingsStore";
 import {
@@ -392,6 +392,7 @@ describe("handlePaste via plugin", () => {
 describe("createMarkdownPasteTransaction error handling", () => {
   it("returns null when parse/replace throws (lines 78-79)", () => {
     // Create a state with an incompatible schema to trigger an error
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema } = require("@tiptap/pm/model");
     const minSchema = new Schema({
       nodes: {
@@ -411,6 +412,40 @@ describe("createMarkdownPasteTransaction error handling", () => {
       expect(consoleSpy).toHaveBeenCalled();
     }
     consoleSpy.mockRestore();
+  });
+
+  it("returns null and logs error when replaceSelection throws (lines 78-79 catch block)", () => {
+    // Use a valid state but monkey-patch tr.replaceSelection to throw
+    const state = createState(createParagraphDoc("existing"));
+    const origTr = state.tr;
+    const patchedTr = {
+      ...origTr,
+      replaceSelection: () => { throw new Error("replace failed"); },
+    };
+    const patchedState = { ...state, tr: patchedTr, schema: state.schema };
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const tr = createMarkdownPasteTransaction(patchedState as unknown as typeof state, "# Heading");
+    expect(tr).toBeNull();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[MarkdownPaste] Failed to parse markdown:",
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("ensureBlockContent — block firstChild branch (line 50 false path)", () => {
+  it("returns content unchanged when firstChild is already a block node", () => {
+    const state = createState(createParagraphDoc(""));
+    // A heading or paragraph is a block — ensureBlockContent should NOT wrap it
+    const tr = createMarkdownPasteTransaction(state, "# Block Heading");
+    expect(tr).not.toBeNull();
+    if (tr) {
+      const next = state.apply(tr);
+      // heading node is a block — should be present without extra paragraph wrapper
+      expect(containsNode(next.doc, "heading")).toBe(true);
+    }
   });
 });
 
@@ -532,5 +567,138 @@ describe("triggerPastePlainText", () => {
       writable: true,
       configurable: true,
     });
+  });
+});
+
+describe("handlePaste — uncovered branches (lines 134, 135, 145)", () => {
+  function getHandlePaste() {
+    const plugins = markdownPasteExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "markdownPaste",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const plugin = plugins[0] as { props: { handlePaste: (view: unknown, event: unknown) => boolean } };
+    return plugin.props.handlePaste;
+  }
+
+  it("uses 'auto' fallback when pasteMarkdownInWysiwyg is undefined (line 134 ?? branch)", async () => {
+    const handlePaste = getHandlePaste();
+    const doc = createParagraphDoc("");
+    const state = createState(doc);
+    const view = { state, dispatch: vi.fn() };
+
+    // Settings without pasteMarkdownInWysiwyg — undefined triggers the ?? "auto" branch
+    const { useSettingsStore } = await import("@/stores/settingsStore");
+    vi.spyOn(useSettingsStore, "getState").mockReturnValueOnce({
+      markdown: { pasteMarkdownInWysiwyg: undefined, preserveLineBreaks: false },
+    } as never);
+
+    const event = {
+      clipboardData: {
+        getData: (type: string) =>
+          type === "text/plain" ? "Just plain text." : "",
+      },
+    };
+    // shouldHandleMarkdownPaste returns false for plain text — but we exercised the ?? branch
+    const result = handlePaste(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("uses empty string fallback when getData('text/html') returns null (line 135 ?? branch)", () => {
+    const handlePaste = getHandlePaste();
+    const doc = createParagraphDoc("");
+    const state = createState(doc);
+    const view = { state, dispatch: vi.fn() };
+
+    const event = {
+      clipboardData: {
+        // getData returns null for text/html — exercises the ?? "" branch
+        getData: (type: string) =>
+          type === "text/plain" ? "Just plain text." : null,
+      },
+    };
+    const result = handlePaste(view, event);
+    expect(result).toBe(false);
+  });
+
+  it("returns false when createMarkdownPasteTransaction returns null (line 145 !tr branch)", async () => {
+    const handlePaste = getHandlePaste();
+    const doc = createParagraphDoc("");
+    const state = createState(doc);
+    const dispatchSpy = vi.fn();
+    const view = { state, dispatch: dispatchSpy };
+
+    // shouldHandleMarkdownPaste must return true, then createMarkdownPasteTransaction must return null.
+    // Monkey-patch tr.replaceSelection to throw so createMarkdownPasteTransaction returns null.
+    const origTr = state.tr;
+    const patchedState = {
+      ...state,
+      schema: state.schema,
+      tr: { ...origTr, replaceSelection: () => { throw new Error("force null"); } },
+      selection: state.selection,
+      doc: state.doc,
+    };
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const event = {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/plain") return "# Heading\n\n- item 1\n- item 2";
+          return "";
+        },
+      },
+      preventDefault: vi.fn(),
+    };
+
+    // Use patched state so replaceSelection throws → createMarkdownPasteTransaction returns null
+    const result = handlePaste({ ...view, state: patchedState }, event);
+    expect(result).toBe(false);
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("ensureBlockContent — inline firstChild wrapping (markdownPaste line 50)", () => {
+  it("wraps inline content in a paragraph when parseMarkdown returns inline fragment", async () => {
+    // We need parseMarkdown to return a doc whose .content has an inline text node as firstChild.
+    // Mock parseMarkdown to return a fake doc with inline content.
+    const { Schema, Fragment: PMFragment } = await import("@tiptap/pm/model");
+
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { content: "inline*", group: "block" },
+        text: { group: "inline" },
+      },
+    });
+
+    // Create a fragment with just an inline text node (no block wrapper)
+    const inlineFragment = PMFragment.from(testSchema.text("just inline"));
+
+    // Build a fake "parsed doc" whose .content is inline
+    const fakeDoc = { content: inlineFragment } as unknown as import("@tiptap/pm/model").Node;
+
+    // Mock parseMarkdown to return fakeDoc
+    const pipelineMod = await import("@/utils/markdownPipeline");
+    const spy = vi.spyOn(pipelineMod, "parseMarkdown").mockReturnValueOnce(fakeDoc);
+
+    const state = EditorState.create({
+      doc: testSchema.node("doc", null, [testSchema.node("paragraph")]),
+      schema: testSchema,
+    });
+
+    // createMarkdownPasteSlice calls parseMarkdown → gets fakeDoc with inline content
+    // ensureBlockContent should wrap it in a paragraph (line 50 true path)
+    const { createMarkdownPasteSlice } = await import("./tiptap");
+    const slice = createMarkdownPasteSlice(state, "ignored — mocked");
+
+    expect(slice).toBeDefined();
+    // The inline content should have been wrapped in a paragraph
+    expect(slice.content.childCount).toBeGreaterThanOrEqual(1);
+
+    spy.mockRestore();
   });
 });

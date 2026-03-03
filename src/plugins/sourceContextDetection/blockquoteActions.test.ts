@@ -15,7 +15,7 @@ function createMockView(content: string, from: number, to?: number): EditorView 
   });
   return {
     state,
-    dispatch: vi.fn((spec: unknown) => {}),
+    dispatch: vi.fn((_spec: unknown) => {}),
     focus: vi.fn(),
   } as unknown as EditorView;
 }
@@ -141,8 +141,16 @@ describe("toggleBlockquote", () => {
 
     // focus should always be called
     expect(view.focus).toHaveBeenCalled();
-    // But no changes should be dispatched since all lines are empty
-    // Actually dispatch won't be called because changes.length === 0
+    // No changes dispatched because all lines are empty (nonEmptyLines.length === 0)
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch on a single empty line", () => {
+    const view = createMockView("", 0);
+    toggleBlockquote(view);
+
+    expect(view.focus).toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
   it("does not add > to already-quoted lines in mixed selection", () => {

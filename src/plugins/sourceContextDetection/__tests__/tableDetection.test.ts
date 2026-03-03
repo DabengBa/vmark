@@ -175,6 +175,13 @@ describe("getSourceTableInfo", () => {
     expect(getSourceTableInfo(view)).toBeNull();
   });
 
+  it("returns null when second line does not start with pipe (isSeparatorLine early return)", () => {
+    // Second line is a plain text line, not starting with '|'
+    const content = "| A | B |\nsome text line";
+    const view = createMockView(content, 3);
+    expect(getSourceTableInfo(view)).toBeNull();
+  });
+
   it("handles table surrounded by non-table lines", () => {
     const content = [
       "Paragraph before",

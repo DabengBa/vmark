@@ -4,7 +4,7 @@
  * Security-critical tests for XSS prevention.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   sanitizeHtml,
   sanitizeHtmlPreview,
@@ -1075,5 +1075,120 @@ describe("sanitizeMediaHtml — iframe edge cases", () => {
     const input = '<video src="clip.mp4" controls></video>';
     const result = sanitizeMediaHtml(input);
     expect(result).toContain("<video");
+  });
+});
+
+describe("sanitize — isSafeStyleValue url() and expression() via allowed property", () => {
+  // These tests use CSS properties that ARE in HTML_PREVIEW_STYLE_PROPS so the
+  // property allowlist check passes and isSafeStyleValue is actually reached.
+  // The url( and expression( checks at line 214 are the target branches.
+
+  it("blocks url() in an allowed style property value (color with url injection)", () => {
+    // Use text-decoration which is in the allowlist, with a url() value
+    const input = '<span style="text-decoration: url(evil.css);">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).not.toContain("url(");
+  });
+
+  it("blocks expression() in an allowed style property value (color with expression)", () => {
+    // Use color which is in the allowlist, with an expression() value
+    const input = '<span style="color: expression(alert(1));">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).not.toContain("expression(");
+  });
+
+  it("blocks javascript: in an allowed style property value", () => {
+    // Use font-style which is in the allowlist, with a javascript: value
+    const input = '<span style="font-style: javascript:alert(1);">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).not.toContain("javascript:");
+  });
+
+  it("allows safe url-free value for an allowed property", () => {
+    // Confirm the positive path still works — safe value passes isSafeStyleValue
+    const input = '<span style="color: red;">Text</span>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    expect(result).toContain("color: red");
+  });
+});
+
+describe("sanitize — filterAllowedStyles no-DOM branch (line 170)", () => {
+  // Simulate a server-side / no-DOM environment by temporarily replacing document.
+  // When typeof document === "undefined", filterAllowedStyles falls back to a
+  // regex-based strip of all style attributes.
+
+  it("strips style attributes via regex when document is not available", () => {
+    const saved = global.document;
+    try {
+      // @ts-expect-error intentionally removing document to test the no-DOM path
+      delete global.document;
+      const input = '<span style="color: red;">Text</span>';
+      const result = sanitizeHtmlPreview(input, { allowStyles: true });
+      // In no-DOM mode the regex strips style attrs entirely
+      expect(result).not.toContain("style=");
+      expect(result).toContain("Text");
+    } finally {
+      global.document = saved;
+    }
+  });
+
+  it("handles multiple style attributes in no-DOM mode", () => {
+    const saved = global.document;
+    try {
+      // @ts-expect-error intentionally removing document to test the no-DOM path
+      delete global.document;
+      const input = '<span style="color: red; font-weight: bold;">A</span><em style="font-style: italic;">B</em>';
+      const result = sanitizeHtmlPreview(input, { allowStyles: true });
+      expect(result).not.toContain("style=");
+      expect(result).toContain("A");
+      expect(result).toContain("B");
+    } finally {
+      global.document = saved;
+    }
+  });
+});
+
+describe("sanitize — stripNonWhitelistedIframes no-DOM branch (line 267)", () => {
+  // Same technique: remove global.document so the no-DOM regex path is taken.
+
+  it("strips paired iframes via regex when document is not available", () => {
+    const saved = global.document;
+    try {
+      // @ts-expect-error intentionally removing document to test the no-DOM path
+      delete global.document;
+      const input = '<iframe src="https://evil.com/page">inner</iframe>';
+      const result = sanitizeMediaHtml(input);
+      expect(result).not.toContain("<iframe");
+      expect(result).not.toContain("evil.com");
+    } finally {
+      global.document = saved;
+    }
+  });
+
+  it("strips self-closing iframes via regex when document is not available", () => {
+    const saved = global.document;
+    try {
+      // @ts-expect-error intentionally removing document to test the no-DOM path
+      delete global.document;
+      const input = '<iframe src="https://evil.com/page" />';
+      const result = sanitizeMediaHtml(input);
+      expect(result).not.toContain("<iframe");
+    } finally {
+      global.document = saved;
+    }
+  });
+
+  it("strips even whitelisted iframes via regex when document is not available (safety over permissiveness)", () => {
+    const saved = global.document;
+    try {
+      // @ts-expect-error intentionally removing document to test the no-DOM path
+      delete global.document;
+      // In no-DOM mode ALL iframes are removed — can't verify src safely
+      const input = '<iframe src="https://www.youtube.com/embed/abc"></iframe>';
+      const result = sanitizeMediaHtml(input);
+      expect(result).not.toContain("<iframe");
+    } finally {
+      global.document = saved;
+    }
   });
 });

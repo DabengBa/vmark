@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { type EditorView, type ViewUpdate } from "@codemirror/view";
 import type { PopupStoreBase, StoreApi, SourcePopupView } from "./SourcePopupView";
 
 // Mock sourcePopupUtils
@@ -139,7 +139,7 @@ describe("createSourcePopupPlugin", () => {
 
   describe("click handler registration", () => {
     it("registers click handler when triggerOnClick is true", () => {
-      const mockView = createMockEditorView();
+      const _mockView = createMockEditorView();
       const createView = vi.fn(() => mockPopupView);
 
       createSourcePopupPlugin({

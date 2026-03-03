@@ -144,7 +144,7 @@ vi.mock("@/utils/debug", () => ({
 import { WindowProvider, useWindowLabel, useIsDocumentWindow } from "./WindowContext";
 
 // Helper wrapper
-function Wrapper({ children }: { children: ReactNode }) {
+function _Wrapper({ children }: { children: ReactNode }) {
   return <WindowProvider>{children}</WindowProvider>;
 }
 

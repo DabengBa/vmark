@@ -6,9 +6,8 @@
 
 import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import type { Text, Strong, Emphasis, Delete, InlineCode, Link, Image, Break } from "mdast";
-import type { InlineMath } from "mdast-util-math";
-import type { Subscript, Superscript, Highlight, Underline, FootnoteReference } from "./types";
+import type { Text, Strong, InlineCode, Link, Break } from "mdast";
+
 import {
   convertTextWithMarks,
   wrapWithMark,
@@ -303,6 +302,53 @@ describe("pmInlineConverters", () => {
       const node = schema.nodes.footnote_reference.create({});
       const result = convertFootnoteReference(node);
       expect(result.identifier).toBe("1");
+    });
+
+    it("defaults label to '1' when attrs.label is null (line 164-165 ?? branch)", () => {
+      // Create a schema that allows label to be null
+      const nullLabelSchema = new Schema({
+        nodes: {
+          doc: { content: "text*" },
+          text: {},
+          footnote_ref_null: {
+            attrs: { label: { default: null } },
+            inline: true,
+            group: "inline",
+            atom: true,
+          },
+        },
+        marks: {},
+      });
+      const node = nullLabelSchema.nodes.footnote_ref_null.create({ label: null });
+      // Call converter with a node whose label attr is null — exercises `?? "1"`
+      const result = convertFootnoteReference(node);
+      expect(result.identifier).toBe("1");
+      expect(result.label).toBe("1");
+    });
+  });
+
+  describe("convertTextWithMarks — empty text guard (lines 47-48)", () => {
+    it("returns empty array when node text is empty string (line 48 branch)", () => {
+      // Build a node whose text is the empty string so `!text` is true.
+      // We use schema.text("") which PM may normalise, so we bypass via a
+      // wrapper object that matches the PMNode interface shape.
+      const fakeNode = {
+        text: "",
+        marks: [],
+      } as unknown as import("@tiptap/pm/model").Node;
+      const result = convertTextWithMarks(fakeNode);
+      expect(result).toEqual([]);
+    });
+
+    it("uses empty string fallback when node.text is undefined (line 47 || branch)", () => {
+      // Build a node whose .text property is undefined — exercises the `|| ""`
+      // fallback on line 47, then falls through to the `!text` guard on line 48.
+      const fakeNode = {
+        text: undefined,
+        marks: [],
+      } as unknown as import("@tiptap/pm/model").Node;
+      const result = convertTextWithMarks(fakeNode);
+      expect(result).toEqual([]);
     });
   });
 });

@@ -417,6 +417,16 @@ describe("clearWorkspaceHistory", () => {
     expect(count).toBe(0);
   });
 
+  it("skips entries where parseHistoryIndex returns null (line 210)", async () => {
+    // Valid JSON but missing required fields — parseHistoryIndex returns null
+    mockExists.mockResolvedValue(true);
+    mockReadDir.mockResolvedValue([{ name: "hash1", isDirectory: true }]);
+    mockReadTextFile.mockResolvedValue(JSON.stringify({ foo: "bar" }));
+
+    const count = await clearWorkspaceHistory("/workspace");
+    expect(count).toBe(0);
+  });
+
   it("handles readDir error gracefully", async () => {
     mockExists.mockResolvedValue(true);
     mockReadDir.mockRejectedValue(new Error("fail"));

@@ -421,7 +421,7 @@ describe("setColumnAlignment", () => {
     const result = view.state.doc.toString();
     // Separator line should contain :---: pattern for col 0
     const sepLine = result.split("\n")[1];
-    expect(sepLine).toMatch(/:\-+:/);
+    expect(sepLine).toMatch(/:[-]+:/);
     view.destroy();
   });
 
@@ -454,7 +454,7 @@ describe("setColumnAlignment", () => {
     const result = view.state.doc.toString();
     const sepLine = result.split("\n")[1];
     // Should end with ---: pattern in second cell
-    expect(sepLine).toMatch(/\-+:/);
+    expect(sepLine).toMatch(/[-]+:/);
     view.destroy();
   });
 });
@@ -475,7 +475,7 @@ describe("setAllColumnsAlignment", () => {
     // Both cells should have :---: pattern
     const cells = sepLine.split("|").filter((s) => s.trim() !== "");
     for (const cell of cells) {
-      expect(cell.trim()).toMatch(/^:\-+:$/);
+      expect(cell.trim()).toMatch(/^:[-]+:$/);
     }
     view.destroy();
   });

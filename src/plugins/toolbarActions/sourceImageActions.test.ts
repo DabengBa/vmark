@@ -78,7 +78,6 @@ import { insertText } from "./sourceAdapterHelpers";
 import { findMarkdownLinkAtPosition, findWikiLinkAtPosition } from "@/utils/markdownLinkPatterns";
 import { readClipboardImagePath } from "@/utils/clipboardImagePath";
 import { copyImageToAssets } from "@/hooks/useImageOperations";
-import { useMediaPopupStore } from "@/stores/mediaPopupStore";
 import { getAnchorRectFromRange } from "@/plugins/sourcePopup/sourcePopupUtils";
 import { findWordAtCursorSource } from "./sourceAdapterLinks";
 import { hasVideoExtension, hasAudioExtension } from "@/utils/mediaPathDetection";

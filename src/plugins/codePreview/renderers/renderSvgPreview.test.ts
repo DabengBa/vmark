@@ -41,7 +41,7 @@ describe("updateSvgLivePreview", () => {
     vi.mocked(renderSvgBlock).mockReturnValueOnce("<svg><circle r='10'/></svg>");
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateSvgLivePreview(element, "<svg><circle r='10'/></svg>", token, () => token);
 
     // Browser normalizes HTML attributes — use toContain for robustness
@@ -53,7 +53,7 @@ describe("updateSvgLivePreview", () => {
     vi.mocked(renderSvgBlock).mockReturnValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateSvgLivePreview(element, "not svg", token, () => token);
 
     expect(element.innerHTML).toContain("Invalid SVG");
@@ -64,7 +64,7 @@ describe("updateSvgLivePreview", () => {
     vi.mocked(renderSvgBlock).mockReturnValueOnce("<svg></svg>");
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateSvgLivePreview(element, "<svg></svg>", token, () => {
       // Return different token to simulate staleness
       return 2;
@@ -77,7 +77,7 @@ describe("updateSvgLivePreview", () => {
     vi.mocked(renderSvgBlock).mockReturnValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     updateSvgLivePreview(element, "", token, () => token);
 
     expect(element.innerHTML).toContain("Invalid SVG");

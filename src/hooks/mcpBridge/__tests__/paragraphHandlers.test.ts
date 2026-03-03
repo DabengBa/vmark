@@ -567,7 +567,7 @@ describe("paragraphHandlers", () => {
   describe("handleParagraphRead — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw 42; // eslint-disable-line no-throw-literal
+        throw 42;
       });
 
       await handleParagraphRead("req-ne-read", { target: { index: 0 } });
@@ -583,7 +583,7 @@ describe("paragraphHandlers", () => {
   describe("handleParagraphWrite — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw "write error"; // eslint-disable-line no-throw-literal
+        throw "write error";
       });
 
       await handleParagraphWrite("req-ne-write", {

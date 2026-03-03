@@ -167,4 +167,26 @@ describe("isAtParagraphLineStart", () => {
       view.destroy();
     });
   });
+
+  describe("returns false for table lines (line 63)", () => {
+    it("cursor at start of a table cell line returns false", () => {
+      // A markdown table — getSourceTableInfo returns non-null, so returns false
+      const doc = "| Column A | Column B |\n| --- | --- |\n| cell 1 | cell 2 |";
+      // Cursor at start of first table row (position 0)
+      const view = createView(doc, 0);
+      expect(isAtParagraphLineStart(view)).toBe(false);
+      view.destroy();
+    });
+  });
+
+  describe("returns false for code fence content (line 68)", () => {
+    it("cursor inside a code fence block returns false", () => {
+      // Cursor is inside the content of a code fence
+      const doc = "```\nsome code here\n```";
+      // Position 4 is inside "some code here"
+      const view = createView(doc, 4);
+      expect(isAtParagraphLineStart(view)).toBe(false);
+      view.destroy();
+    });
+  });
 });

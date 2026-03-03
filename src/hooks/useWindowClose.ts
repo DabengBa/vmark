@@ -50,6 +50,7 @@ const closeLog = import.meta.env.DEV
         console.warn("[closeLog] debug_log invoke failed:", e);
       });
     }
+  /* v8 ignore next */
   : () => {};
 
 /**

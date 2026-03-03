@@ -24,7 +24,7 @@ const mockGetSourceTableInfo = vi.fn<() => {
 } | null>(() => null);
 
 vi.mock("@/plugins/sourceContextDetection/tableDetection", () => ({
-  getSourceTableInfo: (...args: unknown[]) => mockGetSourceTableInfo(),
+  getSourceTableInfo: (..._args: unknown[]) => mockGetSourceTableInfo(),
 }));
 
 vi.mock("@/utils/tableParser", () => ({

@@ -167,7 +167,7 @@ import {
 } from "./sourceEditorExtensions";
 import { keymap } from "@codemirror/view";
 import { selectNextOccurrence, selectSelectionMatches } from "@codemirror/search";
-import { useEditorStore } from "@/stores/editorStore";
+
 import { performUnifiedUndo, performUnifiedRedo } from "@/hooks/useUnifiedHistory";
 import { toggleTaskList } from "@/plugins/sourceContextDetection/taskListActions";
 import { isMacPlatform } from "@/utils/shortcutMatch";

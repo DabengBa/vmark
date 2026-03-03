@@ -198,6 +198,18 @@ describe("findBlockMathAtCursor", () => {
     expect(result).toBeNull();
     view.destroy();
   });
+
+  it("stops at another opening fence when searching forward inside latexFence block (line 133 break)", () => {
+    // Cursor is inside a ```latex block, but a new ```python fence appears before the closing ```
+    // The forward search should break on the new fence and return null (no close found)
+    const doc = "```latex\ncontent\n```python\nmore\n```";
+    // cursor at "content" line (position ~10)
+    const view = createView(doc, 10);
+    const result = findBlockMathAtCursor(view, 10);
+    // closeLine is never found because forward search breaks on ```python
+    expect(result).toBeNull();
+    view.destroy();
+  });
 });
 
 describe("insertInlineMath", () => {

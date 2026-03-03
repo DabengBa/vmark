@@ -307,4 +307,31 @@ describe("createTerminalKeyHandler", () => {
     // Should not throw
     expect(() => handler(makeEvent("c"))).not.toThrow();
   });
+
+  it("handles non-Error clipboard write failure on Cmd+C (String path, line 61)", async () => {
+    // Exercises the `String(error)` branch (line 61) when the rejection value is not an Error
+    vi.mocked(writeText).mockRejectedValueOnce("string rejection");
+    const term = makeTerm({
+      hasSelection: vi.fn(() => true),
+      getSelection: vi.fn(() => "text"),
+    });
+    const handler = createTerminalKeyHandler(term, ptyRef, callbacks);
+    expect(() => handler(makeEvent("c"))).not.toThrow();
+    // Allow the rejected promise to settle
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+    });
+  });
+
+  it("handles non-Error clipboard read failure on Cmd+V (String path, line 78)", async () => {
+    // Exercises the `String(error)` branch (line 78) when the rejection value is not an Error
+    vi.mocked(readText).mockRejectedValueOnce("read string rejection");
+    const term = makeTerm();
+    const handler = createTerminalKeyHandler(term, ptyRef, callbacks);
+    const result = handler(makeEvent("v"));
+    expect(result).toBe(false);
+    await vi.waitFor(() => {
+      expect(readText).toHaveBeenCalled();
+    });
+  });
 });

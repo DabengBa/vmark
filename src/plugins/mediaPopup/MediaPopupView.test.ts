@@ -615,7 +615,7 @@ describe("MediaPopupView — keyboard nav onClose callback (lines 231-232)", () 
 });
 
 describe("MediaPopupView — editorState null guard (lines 276, 304, 383)", () => {
-  let view: ReturnType<typeof createMockView>;
+  let _view: ReturnType<typeof createMockView>;
   let popup: MediaPopupView;
 
   afterEach(() => {

@@ -298,7 +298,7 @@ describe("replaceAnchoredHandler", () => {
 
   it("handles non-Error thrown value in catch branch", async () => {
     mockGetEditor.mockImplementation(() => {
-      throw "raw string error"; // eslint-disable-line no-throw-literal
+      throw "raw string error";
     });
 
     await handleReplaceAnchored("req-ne", {

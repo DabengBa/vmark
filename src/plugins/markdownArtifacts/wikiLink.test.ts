@@ -42,6 +42,13 @@ describe("wikiLinkExtension", () => {
       expect(rule.getAttrs!(el)).toBe(false);
     });
 
+    it("returns false when textContent is null (line 40 optional chaining)", () => {
+      const el = document.createElement("span");
+      el.setAttribute("data-type", "wiki-link");
+      Object.defineProperty(el, "textContent", { value: null, writable: false });
+      expect(rule.getAttrs!(el)).toBe(false);
+    });
+
     it("falls back when data-value is empty but textContent has value", () => {
       const el = document.createElement("span");
       el.setAttribute("data-type", "wiki-link");

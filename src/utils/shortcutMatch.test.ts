@@ -182,6 +182,15 @@ describe("matchesShortcutEvent", () => {
     expect(typeof result).toBe("boolean");
   });
 
+  it("uses mac as default platform when navigator.platform is Mac (line 75 mac branch)", () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel" });
+    // isMacPlatform() returns true, so default platform = "mac"
+    // Cmd+A (metaKey) should match "Mod-a" on mac via default parameter
+    const event = makeEvent({ key: "a", metaKey: true });
+    expect(matchesShortcutEvent(event, "Mod-a")).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   describe("CJK IME remapping", () => {
     it.each([
       { name: "Ctrl-` with backtick remapped to middle dot", key: "\u00B7", code: "Backquote", init: { ctrlKey: true }, shortcut: "Ctrl-`", platform: "mac" as const },

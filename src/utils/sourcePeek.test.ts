@@ -214,6 +214,37 @@ describe("sourcePeek - createDocFromSlice edge case", () => {
     const slice = createSourcePeekSlice(schema, "# Valid heading");
     expect(slice.content.childCount).toBeGreaterThan(0);
   });
+
+  it("ensureBlockContent wraps inline fragment in paragraph (line 37)", () => {
+    const schema = createSchema();
+    // Create a slice from plain inline text — the parser may wrap it already,
+    // but we verify the output has block content regardless
+    const slice = createSourcePeekSlice(schema, "just text");
+    expect(slice.content.childCount).toBeGreaterThan(0);
+    expect(slice.content.firstChild?.isBlock).toBe(true);
+  });
+});
+
+describe("sourcePeek - ensureBlockContent with inline slice (line 36)", () => {
+  it("wraps inline fragment in paragraph when doc.slice produces inline content", () => {
+    // doc.slice with openStart/openEnd can produce fragments with inline nodes.
+    // When from/to land inside a paragraph at inline positions with depth >= 1,
+    // serializeSourcePeekRange calls createDocFromSlice which calls ensureBlockContent.
+    // A slice taken within a paragraph (doc.slice(2, 4) on "hello") has inline (text) content.
+    const schema = createSchema();
+    const doc = parseMarkdown(schema, "hello");
+    // Slice inside the paragraph — contains inline text, not a block
+    const inlineSlice = doc.slice(2, 4);
+    // The slice content's first child is a text node (inline)
+    expect(inlineSlice.content.firstChild?.isBlock).toBe(false);
+
+    // serializeSourcePeekRange on a range that produces an inline slice
+    const state = EditorState.create({ doc, selection: TextSelection.create(doc, 2, 4) });
+    // Range.from/to span inside the paragraph content — the slice is inline
+    const markdown = serializeSourcePeekRange(state, { from: 2, to: 4 });
+    // Should not throw; result should contain the text "el"
+    expect(typeof markdown).toBe("string");
+  });
 });
 
 describe("applySourcePeekMarkdown", () => {

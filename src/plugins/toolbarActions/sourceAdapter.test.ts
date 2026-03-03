@@ -41,7 +41,7 @@ function createView(doc: string, ranges: Array<{ from: number; to: number }>): E
 }
 
 afterEach(() => {
-  views.forEach((v) => { try { v.destroy(); } catch {} });
+  views.forEach((v) => { try { v.destroy(); } catch { /* empty */ } });
   views.length = 0;
 });
 

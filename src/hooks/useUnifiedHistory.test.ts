@@ -620,6 +620,63 @@ describe("useUnifiedHistory", () => {
     });
   });
 
+  describe("performUnifiedUndo — popUndo returns null guard (line 228)", () => {
+    it("returns false when popUndo returns null despite canUndoCheckpoint being true", () => {
+      useEditorStore.setState({ sourceMode: false });
+      useTiptapEditorStore.setState({
+        editor: {
+          can: () => ({ undo: () => false, redo: () => false }),
+          commands: { undo: vi.fn(() => false) },
+        } as never,
+      });
+
+      // Manually inject history state with an undo entry so canUndoCheckpoint returns true
+      useUnifiedHistoryStore.getState().createCheckpoint("tab-1", {
+        markdown: "checkpoint content",
+        mode: "wysiwyg",
+        cursorInfo: null,
+      });
+
+      // Spy on popUndo to return null (simulating the race condition)
+      const historyStore = useUnifiedHistoryStore.getState();
+      const originalPopUndo = historyStore.popUndo.bind(historyStore);
+      const popUndoSpy = vi.spyOn(useUnifiedHistoryStore.getState(), "popUndo").mockReturnValueOnce(null);
+
+      const result = performUnifiedUndo("main");
+
+      expect(result).toBe(false);
+      popUndoSpy.mockRestore();
+      void originalPopUndo; // suppress unused warning
+    });
+  });
+
+  describe("performUnifiedRedo — popRedo returns null guard (line 265)", () => {
+    it("returns false when popRedo returns null despite canRedoCheckpoint being true", () => {
+      useEditorStore.setState({ sourceMode: false });
+      useTiptapEditorStore.setState({
+        editor: {
+          can: () => ({ undo: () => false, redo: () => false }),
+          commands: { redo: vi.fn(() => false) },
+        } as never,
+      });
+
+      // Push a redo entry so canRedoCheckpoint returns true
+      useUnifiedHistoryStore.getState().pushRedo("tab-1", {
+        markdown: "redo checkpoint",
+        mode: "wysiwyg",
+        cursorInfo: null,
+      });
+
+      // Spy on popRedo to return null (simulating the race condition)
+      const popRedoSpy = vi.spyOn(useUnifiedHistoryStore.getState(), "popRedo").mockReturnValueOnce(null);
+
+      const result = performUnifiedRedo("main");
+
+      expect(result).toBe(false);
+      popRedoSpy.mockRestore();
+    });
+  });
+
   describe("useModeSwitchWithCheckpoint (lines 76-78)", () => {
     it("returns a callback that calls toggleSourceModeWithCheckpoint", async () => {
       const { renderHook, act } = await import("@testing-library/react");

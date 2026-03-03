@@ -8,7 +8,7 @@ import { renderHook } from "@testing-library/react";
 
 // Hoist mocks so they're available for vi.mock factories
 const {
-  mockListen, mockUnlisten,
+  mockListen, mockUnlisten: _mockUnlisten,
   mockHandleSave, mockHandleSaveAs, mockHandleMoveTo,
   mockHandleSaveAllQuit, mockHandleOpen, mockHandleOpenFile, mockHandleNew,
   mockMatchesShortcutEvent, mockIsImeKeyEvent,
@@ -700,9 +700,9 @@ describe("useFileShortcuts", () => {
       mockMatchesShortcutEvent.mockImplementation(() => true);
 
       // Track whether matchesShortcutEvent was called
-      let matchCallCount = 0;
+      let _matchCallCount = 0;
       mockMatchesShortcutEvent.mockImplementation(() => {
-        matchCallCount++;
+        _matchCallCount++;
         return true;
       });
 

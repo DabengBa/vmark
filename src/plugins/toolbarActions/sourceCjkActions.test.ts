@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect } from "vitest";
 
 vi.mock("@/stores/documentStore", () => ({
   useDocumentStore: {

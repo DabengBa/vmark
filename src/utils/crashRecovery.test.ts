@@ -399,4 +399,58 @@ describe("crashRecovery", () => {
       expect(result).toBe(false);
     });
   });
+
+  describe("readRecoverySnapshots - non-Error rejection (line 135)", () => {
+    it("handles non-Error thrown by readDir (String path)", async () => {
+      mockExists.mockResolvedValue(true);
+      mockReadDir.mockRejectedValue("string error, not an Error instance");
+      const result = await readRecoverySnapshots();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("deleteRecoverySnapshot - non-Error rejection (line 157)", () => {
+    it("handles non-Error thrown during delete", async () => {
+      mockExists.mockResolvedValue(true);
+      mockRemove.mockRejectedValue("string error");
+      // Should not throw even when error is not an Error instance
+      await expect(deleteRecoverySnapshot("tab-123")).resolves.toBeUndefined();
+    });
+  });
+
+  describe("deleteAllRecoveryFiles - non-Error rejection (line 185)", () => {
+    it("handles non-Error thrown by readDir", async () => {
+      mockExists.mockResolvedValue(true);
+      mockReadDir.mockRejectedValue("string error");
+      await expect(deleteAllRecoveryFiles()).resolves.toBeUndefined();
+    });
+  });
+
+  describe("deleteStaleRecoveryFiles - non-Error rejection (line 238)", () => {
+    it("handles non-Error thrown by readDir", async () => {
+      mockExists.mockResolvedValue(true);
+      mockReadDir.mockRejectedValue("string error");
+      await expect(deleteStaleRecoveryFiles(7)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("isValidSnapshot - primitive input (line 247)", () => {
+    it("rejects non-object values (number, string, null)", async () => {
+      mockExists.mockResolvedValue(true);
+      mockReadDir.mockResolvedValue([
+        { name: "snapshot-tab-1.json", isDirectory: false, isFile: true, isSymlink: false },
+        { name: "snapshot-tab-2.json", isDirectory: false, isFile: true, isSymlink: false },
+        { name: "snapshot-tab-3.json", isDirectory: false, isFile: true, isSymlink: false },
+      ] as never);
+      // Primitive JSON values — isValidSnapshot receives typeof !== "object"
+      mockReadTextFile
+        .mockResolvedValueOnce("42")          // number — typeof 42 !== "object"
+        .mockResolvedValueOnce('"a string"')  // string — typeof "a" !== "object"
+        .mockResolvedValueOnce("true");        // boolean — typeof true !== "object"
+
+      const result = await readRecoverySnapshots();
+      // All primitives should be rejected by isValidSnapshot
+      expect(result).toEqual([]);
+    });
+  });
 });

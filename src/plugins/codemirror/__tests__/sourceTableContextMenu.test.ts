@@ -123,7 +123,7 @@ describe("SourceTableContextMenu", () => {
   });
 
   afterEach(() => {
-    views.forEach((v) => { try { v.destroy(); } catch {} });
+    views.forEach((v) => { try { v.destroy(); } catch { /* empty */ } });
     views.length = 0;
     document.body.innerHTML = "";
   });

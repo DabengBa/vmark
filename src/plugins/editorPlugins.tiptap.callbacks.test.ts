@@ -4,7 +4,7 @@
  * by the main test file which passes undefined view).
  */
 
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // Mock all handler modules BEFORE importing the module under test
 vi.mock("./editorPlugins/expandedToggleMark", () => ({

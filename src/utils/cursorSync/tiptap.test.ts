@@ -10,7 +10,7 @@ vi.mock("./tiptapAnchors", () => ({
 import { getCursorInfoFromTiptap, restoreCursorInTiptap } from "./tiptap";
 import { getBlockAnchor, restoreCursorInTable, restoreCursorInCodeBlock } from "./tiptapAnchors";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, TextSelection, Selection } from "@tiptap/pm/state";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import type { CursorInfo } from "@/types/cursorSync";
 
 // Schema with sourceLine support
@@ -450,7 +450,7 @@ describe("restoreCursorInTiptap", () => {
     // Create a mock view where dispatch works but we simulate exception via a broken state
     const view = {
       state,
-      dispatch: vi.fn((tr: unknown) => {
+      dispatch: vi.fn((_tr: unknown) => {
         // accept first call, nothing special
       }),
     };
@@ -749,6 +749,47 @@ describe("getNodeTypeFromAncestors — taskItem/taskList/detailsSummary/table/al
   });
 });
 
+// Test for wikiLink node type (line 48)
+describe("getNodeTypeFromAncestors — wikiLink", () => {
+  // Schema with wikiLink as a block-level node so the cursor can sit inside it
+  const wikiSchema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      paragraph: {
+        content: "inline*",
+        group: "block",
+        attrs: { sourceLine: { default: null } },
+        parseDOM: [{ tag: "p" }],
+        toDOM() { return ["p", 0]; },
+      },
+      text: { inline: true, group: "inline" },
+      wikiLink: {
+        content: "text*",
+        inline: true,
+        group: "inline",
+        attrs: { sourceLine: { default: null }, target: { default: "" } },
+        parseDOM: [{ tag: "span.wiki-link" }],
+        toDOM() { return ["span", { class: "wiki-link" }, 0]; },
+      },
+    },
+  });
+
+  it("detects wiki_link node type when cursor is inside wikiLink", () => {
+    const wl = wikiSchema.node("wikiLink", { target: "SomePage" }, [wikiSchema.text("SomePage")]);
+    const p = wikiSchema.node("paragraph", { sourceLine: 1 }, [wl]);
+    const doc = wikiSchema.node("doc", null, [p]);
+    const state = EditorState.create({ doc, schema: wikiSchema });
+    // cursor inside wikiLink text: pos 2 = inside p(1) > wikiLink(1) > text
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+    const view = createMockView(stateWithSel);
+
+    const info = getCursorInfoFromTiptap(view as never);
+    expect(info.nodeType).toBe("wiki_link");
+  });
+});
+
 // Tests for container node restoration (alertBlock, detailsBlock)
 describe("restoreCursorInTiptap — container node handling", () => {
   // Schema with alertBlock and detailsBlock container nodes
@@ -833,6 +874,35 @@ describe("restoreCursorInTiptap — container node handling", () => {
     expect(view.dispatch).toHaveBeenCalled();
   });
 
+  it("stops searching after finding first textblock in container (multiple children)", () => {
+    // alertBlock with two paragraph children — only first should be targeted
+    const alert = containerSchema.node("alertBlock", { sourceLine: 5, kind: "note" }, [
+      containerSchema.node("paragraph", { sourceLine: 6 }, [containerSchema.text("first child")]),
+      containerSchema.node("paragraph", { sourceLine: 7 }, [containerSchema.text("second child")]),
+    ]);
+    const doc = containerSchema.node("doc", null, [
+      containerSchema.node("paragraph", { sourceLine: 1 }, [containerSchema.text("before")]),
+      alert,
+    ]);
+    const state = EditorState.create({ doc, schema: containerSchema });
+    const view = createMockView(state);
+
+    const info: CursorInfo = {
+      sourceLine: 5,
+      wordAtCursor: "first",
+      offsetInWord: 0,
+      nodeType: "alert_block",
+      percentInLine: 0,
+      contextBefore: "",
+      contextAfter: "first child",
+    };
+
+    restoreCursorInTiptap(view as never, info);
+    expect(view.dispatch).toHaveBeenCalled();
+    const tr = view.dispatch.mock.calls[0][0];
+    expect(tr.getMeta("addToHistory")).toBe(false);
+  });
+
   it("falls through when container node has no textblock children", () => {
     // Create an alertBlock that only has other alert blocks (no direct textblock child)
     // In practice this is unusual, but tests the fallback path
@@ -870,8 +940,8 @@ describe("restoreCursorInTiptap — TextSelection.near failure catch block", () 
     const doc = schema.node("doc", null, [para("text", 1)]);
     const realState = createState(doc);
 
-    let callCount = 0;
-    const originalTrGetter = Object.getOwnPropertyDescriptor(
+    const _callCount = 0;
+    const _originalTrGetter = Object.getOwnPropertyDescriptor(
       Object.getPrototypeOf(realState),
       "tr"
     );
@@ -884,7 +954,7 @@ describe("restoreCursorInTiptap — TextSelection.near failure catch block", () 
     };
 
     // Mock TextSelection.near to throw
-    const origNear = TextSelection.near;
+    const _origNear = TextSelection.near;
     vi.spyOn(TextSelection, "near").mockImplementation(() => {
       throw new Error("Simulated near failure");
     });

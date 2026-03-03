@@ -4,7 +4,7 @@
  * Tests pure/small helper functions used by the smart paste plugin.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
@@ -41,6 +41,16 @@ function createView(content: string, cursorPos?: number): EditorView {
 describe("isViewConnected", () => {
   it("returns false for null", () => {
     expect(isViewConnected(null)).toBe(false);
+  });
+
+  it("returns false when dom is null (covers ?? false branch)", () => {
+    // Simulate a view whose dom property is null — hits the `?? false` branch on line 24
+    const fakeView = {
+      get dom() {
+        return null as unknown as HTMLElement;
+      },
+    } as unknown as EditorView;
+    expect(isViewConnected(fakeView)).toBe(false);
   });
 
   it("returns false for undefined", () => {

@@ -58,7 +58,7 @@ import {
   handleCollapseBlankLines,
   handleLineEndings,
 } from "./wysiwygAdapterCjk";
-import { formatSelection } from "@/lib/cjkFormatter";
+import { formatSelection, formatMarkdown } from "@/lib/cjkFormatter";
 import { serializeMarkdown, parseMarkdown } from "@/utils/markdownPipeline";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -208,6 +208,25 @@ describe("handleFormatCJK", () => {
       expect.any(Error),
     );
     consoleSpy.mockRestore();
+  });
+});
+
+describe("handleFormatCJKBlock — early return when formatted === original (line 85)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns true without dispatching when block markdown is unchanged after format", () => {
+    const ctx = createMockContext({ selectionEmpty: true });
+
+    // formatMarkdown returns the same string → early return at line 85
+    vi.mocked(serializeMarkdown).mockReturnValue("already clean content");
+    vi.mocked(formatMarkdown).mockReturnValue("already clean content");
+
+    const result = handleFormatCJK(ctx);
+    expect(result).toBe(true);
+    // dispatch should NOT be called since formatted === blockMarkdown
+    expect(ctx.view!.dispatch).not.toHaveBeenCalled();
   });
 });
 

@@ -11,7 +11,7 @@ const listeners = new Map<string, MenuEventHandler>();
 
 // Hoisted mock factory so individual tests can override listen behavior
 const { mockListenImpl } = vi.hoisted(() => {
-  const defaultFn = (eventName, handler) => {
+  const defaultFn = (_eventName: string, _handler: unknown) => {
     return Promise.resolve(() => {});
   };
   const mockListenImpl = { fn: defaultFn };

@@ -300,13 +300,13 @@ describe("cmdWhenInTable guard", () => {
 
   it("returns false when view is undefined", () => {
     // The keymap plugin is the first plugin returned by getPlugins()
-    const keymapPlugin = getPlugins()[0];
+    const _keymapPlugin = getPlugins()[0];
     // ProseMirror keymap plugin stores bindings in props.handleKeyDown
     // We can test cmdWhenInTable indirectly through the state command pattern
     // cmdWhenInTable: (_state, _dispatch, view) => if (!view) return false;
 
     // Simulate the pattern
-    const cmdFn = vi.fn(() => true);
+    const _cmdFn = vi.fn(() => true);
     const wrappedCmd = (_s: unknown, _d: unknown, view: unknown) => {
       if (!view) return false;
       return true;
@@ -347,7 +347,8 @@ describe("cmdWhenInTable via real EditorView keydown dispatch (L81-83, L98-102)"
     try { realView?.destroy(); } catch { /* ignore */ }
   });
 
-  function createRealView() {
+  function _createRealView() {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EditorView: PmEditorView } = require("@tiptap/pm/view");
     const parent = document.createElement("div");
     document.body.appendChild(parent);

@@ -300,7 +300,7 @@ describe("useCrashRecoveryStartup", () => {
     const origCreateTab = useTabStore.getState().createTab;
     useTabStore.setState({
       createTab: () => {
-        throw "string error"; // eslint-disable-line no-throw-literal
+        throw "string error";
       },
     } as never);
 

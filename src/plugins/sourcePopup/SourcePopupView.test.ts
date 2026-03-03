@@ -234,7 +234,7 @@ describe("SourcePopupView", () => {
     store.trigger({ isOpen: true, anchorRect: ANCHOR, closePopup: store.mockClosePopup });
 
     // Click inside the popup container — should not close
-    const inside = document.createElement("span");
+    const _inside = document.createElement("span");
     // Access protected container via callClosePopup's this reference won't work; just test the click path
     // The container is mounted to body, clicking body triggers mousedown but contains check fails
     // We test via store.mockClosePopup not being called when event target is inside container

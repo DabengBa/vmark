@@ -190,6 +190,23 @@ describe("setupMermaidPanZoom", () => {
     container.remove();
   });
 
+  it("pointerdown on export button does not call handleDown", () => {
+    const container = createContainer();
+    document.body.appendChild(container);
+    setupMermaidPanZoom(container);
+
+    // Add an export button (simulates diagramExport placing one)
+    const exportBtn = document.createElement("button");
+    exportBtn.className = "mermaid-export-btn";
+    container.appendChild(exportBtn);
+
+    const event = new PointerEvent("pointerdown", { button: 0, bubbles: true });
+    exportBtn.dispatchEvent(event);
+
+    expect(mockPanzoomInstance.handleDown).not.toHaveBeenCalled();
+    container.remove();
+  });
+
   it("pointermove calls panzoom handleMove", () => {
     const container = createContainer();
     setupMermaidPanZoom(container);

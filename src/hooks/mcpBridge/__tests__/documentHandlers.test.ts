@@ -264,7 +264,7 @@ describe("documentHandlers", () => {
 
     it("returns error when no active tab (lines 141-143)", async () => {
       // Set activeTabId to null to trigger the !activeTabId branch
-      const origActiveTabId = mockTabStoreState.activeTabId;
+      const _origActiveTabId = mockTabStoreState.activeTabId;
       (mockTabStoreState.activeTabId as unknown as Record<string, string | null>)["main"] = null;
 
       const editor = {
@@ -291,13 +291,13 @@ describe("documentHandlers", () => {
 
     it("extracts h1 heading as document title (lines 155-159)", async () => {
       // descendants visits a heading with level 1 → title overrides tab.title
-      let titleOverrideCallback: ((node: unknown) => boolean | void) | null = null;
+      let _titleOverrideCallback: ((node: unknown) => boolean | void) | null = null;
       const editor = {
         state: {
           doc: {
             textContent: "My Heading",
             descendants: (cb: (node: unknown) => boolean | void) => {
-              titleOverrideCallback = cb;
+              _titleOverrideCallback = cb;
               // Call cb with a level-1 heading to trigger title override
               const result = cb({
                 type: { name: "heading" },
@@ -384,8 +384,7 @@ describe("documentHandlers", () => {
 
     it("handles non-Error thrown value (String(error) branch)", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw 42; // eslint-disable-line no-throw-literal
-      });
+        throw 42;      });
 
       await handleMetadataGet("req-ne-meta");
 
@@ -402,8 +401,7 @@ describe("documentHandlers", () => {
   describe("handleGetContent — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetDocumentContent.mockImplementation(() => {
-        throw "raw string"; // eslint-disable-line no-throw-literal
-      });
+        throw "raw string";      });
 
       await handleGetContent("req-ne-gc");
 
@@ -418,8 +416,7 @@ describe("documentHandlers", () => {
   describe("handleDocumentSearch — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw null; // eslint-disable-line no-throw-literal
-      });
+        throw null;      });
 
       await handleDocumentSearch("req-ne-ds", { query: "x" });
 
@@ -434,8 +431,7 @@ describe("documentHandlers", () => {
   describe("handleOutlineGet — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw false; // eslint-disable-line no-throw-literal
-      });
+        throw false;      });
 
       await handleOutlineGet("req-ne-og");
 

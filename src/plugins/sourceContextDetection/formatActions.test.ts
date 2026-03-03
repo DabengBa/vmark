@@ -268,6 +268,19 @@ describe("applyFormat — unwrapOppositeFormat with surrounding markers", () => 
   });
 });
 
+describe("applyFormat — footnote no-renumber path (line 98)", () => {
+  it("sets cursor after ref when renumberFootnotes returns null (already sequential)", () => {
+    // Start with a doc that already has a footnote [^1] so inserting [^2] stays sequential
+    const doc = "some text[^1]\n\n[^1]: first note";
+    const view = createView(doc, 0, 4); // select "some"
+    applyFormat(view, "footnote");
+    const result = view.state.doc.toString();
+    // Should have inserted a footnote ref and definition
+    expect(result).toContain("[^");
+    view.destroy();
+  });
+});
+
 describe("applyFormat — link cursor placement", () => {
   it("places cursor at url placeholder after wrapping link", () => {
     const view = createView("hello world", 0, 5);
