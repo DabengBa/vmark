@@ -194,10 +194,13 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
   if (settings.useWebGL) {
     try {
       const webglAddon = new WebglAddon();
+      /* v8 ignore next -- @preserve reason: onContextLoss callback only fires on GPU context loss; not reproducible in jsdom */
       webglAddon.onContextLoss(() => webglAddon.dispose());
       term.loadAddon(webglAddon);
     } catch {
+      /* v8 ignore start -- @preserve reason: WebGL catch block only fires on GPU context loss; not reproducible in jsdom */
       // Fallback to canvas
+      /* v8 ignore stop */
     }
   }
 

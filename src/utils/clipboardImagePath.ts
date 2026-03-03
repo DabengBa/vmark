@@ -146,12 +146,13 @@ export async function readClipboardImagePath(): Promise<ClipboardImagePathResult
     }
     /* v8 ignore stop */
 
-    /* v8 ignore next 5 -- only reachable for unknown detection types; callers always pass absolutePath/relativePath/url/none */
+    /* v8 ignore start -- @preserve only reachable for unknown detection types; callers always pass absolutePath/relativePath/url/none */
     return {
       ...detection,
       validated: false,
       resolvedPath: null,
     };
+    /* v8 ignore stop */
   } catch {
     // Clipboard access failed
     return null;

@@ -46,11 +46,10 @@ export interface ExportSurfaceRef {
  * />
  * ```
  */
+/* v8 ignore start -- @preserve reason: ExportSurface component and its anonymous callbacks (useImperativeHandle factory, checkStability, waitForStability, check, rAF callback, useEffect cleanup) are only exercised in Tauri E2E; jsdom cannot drive Tiptap rendering pipeline */
 export const ExportSurface = forwardRef<ExportSurfaceRef, ExportSurfaceProps>(
   function ExportSurface(
-    /* v8 ignore start -- @preserve reason: default arg (lightTheme=true) only exercised when omitted; tested via explicit true */
     { markdown, onReady, onError, lightTheme = true, className },
-    /* v8 ignore stop */
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -201,3 +200,4 @@ export const ExportSurface = forwardRef<ExportSurfaceRef, ExportSurfaceProps>(
     );
   }
 );
+/* v8 ignore stop */

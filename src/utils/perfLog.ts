@@ -20,6 +20,7 @@ const PERF_ENABLED = () => {
   try {
     return localStorage.getItem("PERF_LOG") === "true";
   } catch {
+    /* v8 ignore next -- @preserve localStorage throws only in restricted environments (e.g. sandboxed iframes); not reproducible in unit tests */
     return false;
   }
 };

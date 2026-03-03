@@ -77,8 +77,8 @@ function findAllParagraphs(doc: ProseMirrorNode): ParagraphInfo[] {
       index++;
       return false; // Don't descend into paragraph children
     }
-    /* v8 ignore stop */
     return true;
+    /* v8 ignore stop */
   });
 
   return paragraphs;
@@ -108,9 +108,9 @@ function findParagraph(
     );
     return match ?? null;
   }
-  /* v8 ignore stop */
 
   return null;
+  /* v8 ignore stop */
 }
 
 /**

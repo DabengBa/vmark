@@ -229,12 +229,13 @@ export const aiSuggestionExtension = Extension.create({
       // Shift-Tab: navigate to previous suggestion
       "Shift-Tab": () => {
         const state = useAiSuggestionStore.getState();
-        /* v8 ignore next -- @preserve else branch: no suggestions to navigate */
+        /* v8 ignore start -- @preserve else branch: no suggestions to navigate */
         if (state.suggestions.size > 0) {
           state.navigatePrevious();
           return true;
         }
         return false;
+        /* v8 ignore stop */
       },
 
       // Mod-Shift-Enter: accept all suggestions

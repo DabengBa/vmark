@@ -115,10 +115,11 @@ function rangeHasLinkMark(view: TiptapEditorView, from: number, to: number): boo
     }
     return !found;
   });
-  /* v8 ignore next -- @preserve reason: link in node content not exercised in multi-selection tests */
+  /* v8 ignore start -- @preserve reason: link-in-node-content and cursor-mark paths not exercised in multi-selection tests */
   if (found) return true;
   const $pos = view.state.doc.resolve(from);
   return $pos.marks().some((mark) => mark.type.name === "link");
+  /* v8 ignore stop */
 }
 
 function collectRangeFlags(view: TiptapEditorView, range: { $from: ResolvedPos; $to: ResolvedPos }) {

@@ -168,6 +168,7 @@ export class BlockImageNodeView implements NodeView {
 
   private setupLoadHandlers(): void {
     this.cleanupHandlers?.();
+    /* v8 ignore start -- @preserve reason: load/error callbacks only fire on real image load events; jsdom does not fire img load events */
     this.cleanupHandlers = attachMediaLoadHandlers(
       this.img,
       this.dom,
@@ -175,6 +176,7 @@ export class BlockImageNodeView implements NodeView {
       () => { this.img.style.opacity = "1"; },
       () => { this.handleError("Failed to load image"); },
     );
+    /* v8 ignore stop */
   }
 
   private handleError(message: string): void {

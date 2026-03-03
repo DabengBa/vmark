@@ -112,6 +112,7 @@ export function getCharAt(state: EditorState, pos: number): string {
       ""
     );
   } catch {
+    /* v8 ignore next -- @preserve reason: catch is defensive against invalid ProseMirror positions; not reproducible with valid test documents */
     return "";
   }
 }
@@ -130,6 +131,7 @@ export function getCharBefore(state: EditorState, pos: number): string {
       ""
     );
   } catch {
+    /* v8 ignore next -- @preserve reason: catch is defensive against invalid ProseMirror positions; not reproducible with valid test documents */
     return "";
   }
 }

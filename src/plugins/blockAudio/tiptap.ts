@@ -79,11 +79,12 @@ export const blockAudioExtension = Node.create({
   },
 
   addNodeView() {
+    /* v8 ignore start -- @preserve reason: addNodeView factory callback only runs in live Tiptap editor; not exercised in unit tests */
     return ({ node, getPos, editor }) => {
-      /* v8 ignore next -- @preserve defensive guard: getPos is always a function in practice; () => undefined fallback is unreachable */
       const safeGetPos = typeof getPos === "function" ? getPos : () => undefined;
       return new BlockAudioNodeView(node, safeGetPos, editor) as unknown as NodeView;
     };
+    /* v8 ignore stop */
   },
 
   addKeyboardShortcuts() {

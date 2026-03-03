@@ -121,8 +121,9 @@ export function useHotExitRestore() {
             hotExitWarn('Restore was requested but no state available');
             void emit(HOT_EXIT_EVENTS.RESTORE_FAILED, {
               error: `No restore state found for window '${windowLabel}'`,
-            /* v8 ignore next -- emit().catch() only fires on Tauri IPC errors; mocked in tests */
+            /* v8 ignore start -- @preserve reason: emit().catch() callback only fires on Tauri IPC errors; not triggered in mocked tests */
             }).catch((e) => hotExitWarn('Failed to emit restore failed:', e));
+            /* v8 ignore stop */
           }
           return;
         }
