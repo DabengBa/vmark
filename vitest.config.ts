@@ -23,8 +23,8 @@ export default defineConfig({
         "src/assets/**",
       ],
       thresholds: {
-        statements: 99,
-        branches: 96.9,
+        statements: 99.1,
+        branches: 97.5,
         functions: 98.8,
         lines: 99.4,
       },

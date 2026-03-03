@@ -605,3 +605,128 @@ describe("handleBacktickCodeToggle — uncovered branches", () => {
     expect(newState.selection.from).toBeGreaterThan(from);
   });
 });
+
+/* ================================================================== */
+/*  handleTextInput — multi-char text (line 164 true branch)          */
+/* ================================================================== */
+
+describe("handleTextInput — multi-char text returns false (line 164)", () => {
+  it("returns false when text has more than one character", () => {
+    const state = createState("hello", 2);
+    const view = createMockView(state);
+    // Passing multi-char text like "ab" — length !== 1, returns false immediately
+    const handled = handleTextInput(view, 3, 3, "ab", ENABLED);
+    expect(handled).toBe(false);
+  });
+});
+
+/* ================================================================== */
+/*  handleTextInput — shouldAutoPair false (line 189 true branch)     */
+/* ================================================================== */
+
+describe("handleTextInput — shouldAutoPair returns false (line 189)", () => {
+  it("returns false when typing a single quote after a word character (smart quote after word)", () => {
+    // SMART_QUOTE_CHARS = { "'", "\u2018" }
+    // straightToCurlyOpening("'", pairConfig) converts "'" to "\u2018" (left single curly).
+    // shouldAutoPair checks SMART_QUOTE_CHARS.has("\u2018") → true, isAfterWordChar → true → return false.
+    // Result: handleTextInput returns false without pairing.
+    const state = createState("word", 4); // cursor after "word" — position 5 in doc
+    const view = createMockView(state);
+    const handled = handleTextInput(view, 5, 5, "'", ENABLED);
+    // shouldAutoPair returns false for single quote after word char
+    expect(handled).toBe(false);
+  });
+});
+
+/* ================================================================== */
+/*  handleClosingBracket — disabled config (line 230 true branch)     */
+/* ================================================================== */
+
+describe("handleClosingBracket — disabled config (line 230)", () => {
+  it("returns false immediately when config.enabled is false", () => {
+    const state = createState("()", 1);
+    const view = createMockView(state);
+    // DISABLED has enabled: false — hits line 230 guard
+    const handled = handleClosingBracket(view, ")", DISABLED);
+    expect(handled).toBe(false);
+    // Should not have dispatched any transaction
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+/* ================================================================== */
+/*  createKeyHandler — curlyClosing else branch (line 351)            */
+/* ================================================================== */
+
+describe("createKeyHandler — curlyClosing else branch (line 351)", () => {
+  function makeKeyEvent(key: string, opts: Partial<KeyboardEvent> = {}): KeyboardEvent {
+    return {
+      key,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      ...opts,
+    } as unknown as KeyboardEvent;
+  }
+
+  it("returns false when closing char has no curly equivalent and handleClosingBracket fails", () => {
+    // Typing ")" when cursor is NOT before a ")" — handleClosingBracket returns false for ")"
+    // straightToCurlyClosing(")") returns ")" (no conversion, curlyClosing === event.key)
+    // So the condition (curlyClosing !== event.key) is false — else branch of line 351 fires
+    const handler = createKeyHandler(() => ENABLED);
+    const state = createState("hello", 2); // no closing bracket ahead
+    const view = createMockView(state);
+    const event = makeKeyEvent(")");
+
+    // handleClosingBracket(")", ...) fails (no ")" at cursor), curlyClosing === ")", so else branch fires
+    const result = handler(view, event);
+    expect(result).toBe(false);
+  });
+});
+
+// NOTE: findCodeMarkEnd line 141 else branch (child in range without code mark) is covered
+// by a v8 ignore annotation in handlers.ts. When inCode=true the cursor is inside a
+// code-marked node; any sibling satisfying the range check but lacking the code mark
+// is only reachable at a mark boundary where $from.marks() returns [] (inCode=false),
+// making the else path structurally unreachable in tested code paths.
+
+/* ================================================================== */
+/*  handleTextInput — selection wrap path (lines 200-210)             */
+/* ================================================================== */
+
+describe("handleTextInput — wrap selection with pair (from !== to branch, lines 200-210)", () => {
+  it("wraps selected text with auto-pair brackets", () => {
+    // Cursor selects "hello" and types "(" — should wrap with ()
+    const state = createState("hello", 0);
+    // Create a selection over the full text: from=1, to=6
+    const withSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 1, 6)),
+    );
+    const view = createMockView(withSel);
+
+    // handleTextInput is called with from=1, to=6 (selection range)
+    const handled = handleTextInput(view, 1, 6, "(", ENABLED);
+
+    expect(handled).toBe(true);
+    // Text should now be "(hello)" with cursor after "hello" (before ")")
+    expect(view.state.doc.firstChild!.textContent).toBe("(hello)");
+    // Cursor should be at position 7 (after "hello", before ")")
+    expect(view.state.selection.from).toBe(7);
+  });
+
+  it("wraps selected CJK text with curly brackets", () => {
+    // Select "ab" and type "{" — should wrap with {}
+    const state = createState("ab", 0);
+    const withSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 1, 3)),
+    );
+    const view = createMockView(withSel);
+
+    const handled = handleTextInput(view, 1, 3, "{", ENABLED);
+
+    expect(handled).toBe(true);
+    expect(view.state.doc.firstChild!.textContent).toBe("{ab}");
+  });
+});

@@ -260,6 +260,11 @@ describe("focusModeExtension", () => {
       mockSubscribers[0](mockEditorStoreState);
       expect(mockRunOrQueue).toHaveBeenCalled();
 
+      // Fire subscription again with SAME value — should NOT dispatch (false branch of !== check)
+      mockRunOrQueue.mockClear();
+      mockSubscribers[0](mockEditorStoreState); // focusModeEnabled still true, no change
+      expect(mockRunOrQueue).not.toHaveBeenCalled();
+
       viewResult.destroy?.();
     });
   });

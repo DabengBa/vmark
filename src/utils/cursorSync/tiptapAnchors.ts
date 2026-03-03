@@ -39,6 +39,7 @@ export function getBlockAnchor($pos: ResolvedPos): BlockAnchor | undefined {
         } else if (parentName === "table") {
           row = $pos.index(pd + 1);
           break;
+          /* v8 ignore next -- @preserve defensive: other ancestor types are silently skipped */
         }
       }
 

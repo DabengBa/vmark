@@ -1970,4 +1970,109 @@ describe("mdastBlockConverters", () => {
       expect(result!.type.name).toBe("table");
     });
   });
+
+  describe("convertParagraph — block_image with no inline image node (line 116 else branch)", () => {
+    it("falls through to paragraph when block_image is in schema but image inline node is not (convertImage returns null)", () => {
+      // Schema has block_image but NOT the inline image node type.
+      // convertImage() returns null because schema.nodes.image is undefined.
+      // This exercises the if (imageNode) else branch at line 116.
+      const blockImageNoInlineSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: {
+            content: "inline*",
+            group: "block",
+            attrs: { sourceLine: { default: null } },
+          },
+          block_image: {
+            attrs: { src: { default: "" }, alt: { default: "" }, title: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(blockImageNoInlineSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        children: [
+          { type: "image", url: "photo.png", alt: "a photo", title: null },
+        ],
+      };
+      const result = convertParagraph(ctx, node, []);
+      // imageNode is null → falls through block_image branch → becomes paragraph
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("paragraph");
+    });
+  });
+
+  describe("convertParagraph — block_image alt null-coalescing (line 119 alt ?? '' branch)", () => {
+    it("sets alt to empty string when image has no alt text (alt ?? '' fires when alt is null)", () => {
+      // convertImage sets alt: node.alt || null — when node.alt is empty/absent, alt attr is null.
+      // block_image creation then uses imageNode.attrs.alt ?? "" to coerce null to "".
+      const mediaSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: {
+            content: "inline*",
+            group: "block",
+            attrs: { sourceLine: { default: null } },
+          },
+          block_image: {
+            attrs: { src: { default: "" }, alt: { default: "" }, title: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          image: {
+            attrs: { src: {}, alt: { default: null }, title: { default: null } },
+            inline: true,
+            group: "inline",
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(mediaSchema);
+      const node: Paragraph = {
+        type: "paragraph",
+        // alt is empty string → convertImage sets alt attr to null → ?? "" fires
+        children: [{ type: "image", url: "photo.png", alt: "", title: null }],
+      };
+      const result = convertParagraph(ctx, node, []);
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("block_image");
+      expect(result!.attrs.alt).toBe("");
+    });
+  });
+
+  describe("tryPromoteMediaHtml — iframe without src attribute (line 411 src ?? '' branch)", () => {
+    it("uses empty string when iframe has no src attribute, then exits early (no recognized provider)", () => {
+      // The iframe has no src attribute at all, so attrs.src is undefined.
+      // The ?? "" fallback fires, yielding "", which detectProviderFromIframeSrc cannot match.
+      // The function then returns null (no provider) and falls through to html_block.
+      const mediaSchema = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { content: "inline*", group: "block" },
+          video_embed: {
+            attrs: { provider: { default: "" }, videoId: { default: "" }, width: { default: 560 }, height: { default: 315 }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          html_block: {
+            attrs: { value: { default: "" }, sourceLine: { default: null } },
+            group: "block",
+            atom: true,
+          },
+          text: { group: "inline" },
+        },
+      });
+      const ctx = createContext(mediaSchema);
+      // Iframe with no src attribute — attrs.src will be undefined
+      const node: Html = { type: "html", value: '<iframe width="640" height="360"></iframe>' };
+      const result = convertHtml(ctx, node, false);
+      // No src → no recognized provider → tryPromoteMediaHtml returns null → html_block
+      expect(result).not.toBeNull();
+      expect(result!.type.name).toBe("html_block");
+    });
+  });
 });

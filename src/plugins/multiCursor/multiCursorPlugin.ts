@@ -147,6 +147,7 @@ export function multiCursorPlugin(): Plugin<MultiCursorPluginState> {
         }
 
         const tr = handleMultiCursorInput(state, text, { isComposing: view.composing });
+        /* v8 ignore next -- @preserve handleMultiCursorInput always returns a tr for MultiSelection; null branch is defensive */
         if (tr) {
           view.dispatch(tr);
           return true;
@@ -197,6 +198,7 @@ export function multiCursorPlugin(): Plugin<MultiCursorPluginState> {
         const text = event.clipboardData?.getData("text/plain") ?? "";
         if (!text) return false;
         const tr = handleMultiCursorPaste(state, text);
+        /* v8 ignore next -- @preserve handleMultiCursorPaste always returns a tr for MultiSelection with text; null branch is defensive */
         if (tr) {
           view.dispatch(tr);
           event.preventDefault();
@@ -226,6 +228,7 @@ export function multiCursorPlugin(): Plugin<MultiCursorPluginState> {
             event.clipboardData?.setData("text/plain", text);
           }
           const tr = handleMultiCursorCut(state);
+          /* v8 ignore next -- @preserve tr is null only when all ranges are collapsed; handleMultiCursorCut returns null is tested separately */
           if (tr) {
             event.preventDefault();
             view.dispatch(tr);

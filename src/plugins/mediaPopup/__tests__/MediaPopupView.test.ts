@@ -1376,4 +1376,112 @@ describe("MediaPopupView", () => {
       outside.remove();
     });
   });
+
+  describe("Store subscription — data update when already open (line 124 else branch)", () => {
+    it("does not re-show popup when store fires again with same node position (wasOpen=true, no nodeChange)", async () => {
+      // First open
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "video.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = dom.container.querySelector(".media-popup") as HTMLElement;
+      expect(popupEl.style.display).toBe("flex");
+
+      // Fire store again with same nodePos — wasOpen=true, nodeChanged=false → else branch taken (no re-show)
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "video-updated.mp4",
+        mediaNodePos: 10, // same pos, no node change
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Popup should still be visible — no crash
+      expect(popupEl.style.display).toBe("flex");
+    });
+  });
+
+  describe("handleInputKeydown — Escape key path (line 257 else branch)", () => {
+    it("closes popup and focuses editor on Escape key in input", async () => {
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const srcInput = dom.container.querySelector(".media-popup-src") as HTMLInputElement;
+      srcInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(mockClosePopup).toHaveBeenCalled();
+      expect(view.focus).toHaveBeenCalled();
+    });
+  });
+
+  describe("show() — no host found early return (line 276 if branch)", () => {
+    it("returns early from show() when getPopupHostForDom returns null", async () => {
+      const sourcePopup = await import("@/plugins/sourcePopup");
+      vi.spyOn(sourcePopup, "getPopupHostForDom" as never).mockReturnValue(null as never);
+
+      popup.destroy();
+      vi.clearAllMocks();
+      view = createMockView(dom.editorDom);
+      popup = new MediaPopupView(view as unknown as ConstructorParameters<typeof MediaPopupView>[0]);
+
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Popup should NOT be mounted anywhere since host is null
+      expect(document.querySelector(".media-popup")).toBeNull();
+
+      vi.mocked(sourcePopup.getPopupHostForDom as never).mockRestore?.();
+    });
+  });
+
+  describe("handleClickOutside — pendingCloseRaf already pending (line 415 else branch)", () => {
+    it("does not schedule a second rAF when one is already pending", async () => {
+      emitStateChange({
+        isOpen: true,
+        mediaSrc: "test.mp4",
+        mediaNodePos: 10,
+        mediaNodeType: "block_video",
+        anchorRect,
+      });
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const outside = document.createElement("div");
+      document.body.appendChild(outside);
+
+      // First outside click — schedules a rAF (pendingCloseRaf becomes non-null)
+      const firstEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(firstEvent, "target", { value: outside });
+      document.dispatchEvent(firstEvent);
+
+      // Second outside click immediately — pendingCloseRaf is already set → else branch taken
+      const secondEvent = new MouseEvent("mousedown", { bubbles: true });
+      Object.defineProperty(secondEvent, "target", { value: outside });
+      document.dispatchEvent(secondEvent);
+
+      // Wait for rAF to settle
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+
+      outside.remove();
+    });
+  });
 });

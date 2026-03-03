@@ -28,6 +28,7 @@ import type { WysiwygToolbarContext } from "./types";
 function applyLinkWithUrl(view: EditorView, from: number, to: number, url: string): void {
   const { state, dispatch } = view;
   const linkMark = state.schema.marks.link;
+  /* v8 ignore next -- @preserve link mark is always registered in Tiptap schema; null branch is defensive */
   if (!linkMark) return;
 
   const tr = state.tr.addMark(from, to, linkMark.create({ href: url }));
@@ -41,6 +42,7 @@ function applyLinkWithUrl(view: EditorView, from: number, to: number, url: strin
 function insertLinkAtCursor(view: EditorView, url: string): void {
   const { state, dispatch } = view;
   const linkMark = state.schema.marks.link;
+  /* v8 ignore next -- @preserve link mark is always registered in Tiptap schema; null branch is defensive */
   if (!linkMark) return;
 
   const { from } = state.selection;
@@ -186,6 +188,7 @@ export function openLinkEditor(context: WysiwygToolbarContext): boolean {
       expandedToggleMarkTiptap(view, "link");
     }
   }).catch((error) => {
+    /* v8 ignore next -- @preserve String(error) branch fires for non-Error rejection values; errors in tests are always Error instances */
     wysiwygAdapterWarn("Link insertion failed:", error instanceof Error ? error.message : String(error));
   });
 

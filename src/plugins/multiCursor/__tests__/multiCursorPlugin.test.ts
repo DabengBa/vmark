@@ -151,22 +151,17 @@ describe("multiCursorPlugin", () => {
 
     it("caps history at MAX_SELECTION_HISTORY (50)", () => {
       let state = createState("hello world");
+      const doc = state.doc;
+      const $pos1 = doc.resolve(1);
+      const $pos2 = doc.resolve(7);
+      const ranges = [
+        new SelectionRange($pos1, $pos1),
+        new SelectionRange($pos2, $pos2),
+      ];
+      const multiSel = new MultiSelection(ranges, 0);
 
-      // Push 55 history entries
-      for (let i = 0; i < 55; i++) {
-        const doc = state.doc;
-        const pos = Math.min(1 + (i % 10), doc.content.size);
-        const $pos1 = doc.resolve(1);
-        const $pos2 = doc.resolve(pos);
-
-        const ranges = [
-          new SelectionRange($pos1, $pos1),
-          new SelectionRange($pos2, $pos2),
-        ];
-        // Avoid duplicate positions that would be deduplicated
-        if (pos === 1) continue;
-
-        const multiSel = new MultiSelection(ranges, 0);
+      // Push 51 history entries to trigger the slice(-MAX_SELECTION_HISTORY) path
+      for (let i = 0; i < 51; i++) {
         const tr = state.tr
           .setSelection(multiSel)
           .setMeta(multiCursorPluginKey, { pushHistory: true });
@@ -174,7 +169,7 @@ describe("multiCursorPlugin", () => {
       }
 
       const pluginState = multiCursorPluginKey.getState(state);
-      expect(pluginState?.selectionHistory.length).toBeLessThanOrEqual(50);
+      expect(pluginState?.selectionHistory.length).toBe(50);
     });
   });
 

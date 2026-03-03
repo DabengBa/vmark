@@ -95,4 +95,12 @@ describe("markdownPasteDetection", () => {
     const text = "[Click here](https://example.com) with *important* note";
     expect(isMarkdownPasteCandidate(text)).toBe(true);
   });
+
+  it("rejects empty string", () => {
+    expect(isMarkdownPasteCandidate("")).toBe(false);
+  });
+
+  it("rejects whitespace-only string", () => {
+    expect(isMarkdownPasteCandidate("   \n\t  ")).toBe(false);
+  });
 });

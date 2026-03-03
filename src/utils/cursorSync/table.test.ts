@@ -61,6 +61,23 @@ describe("getTableAnchorForLine", () => {
       const anchor = getTableAnchorForLine(lines, 0, 2);
       expect(anchor).toBeUndefined();
     });
+
+    it("returns null when separator has no table row above (separator at index 0)", () => {
+      // lineIndex - 1 >= 0 && isTableSeparatorLine → true for index 1
+      // lineIndex - 2 >= 0 && isTableRowLine(lines[0]) → lines[0] is NOT a table row
+      const lines = ["|---|---|", "| d1 | d2 |"];
+      // cursor on line 1 (data row): lineIndex-1=0 is separator, lineIndex-2=-1 < 0
+      const anchor = getTableAnchorForLine(lines, 1, 3);
+      expect(anchor).toBeUndefined();
+    });
+
+    it("returns null when on separator line with non-table-row above it", () => {
+      // isTableSeparatorLine(lines[lineIndex]) && lineIndex-1 >= 0 → true
+      // isTableRowLine(lines[lineIndex-1]) → false (it's plain text)
+      const lines = ["plain text", "|---|---|"];
+      const anchor = getTableAnchorForLine(lines, 1, 3);
+      expect(anchor).toBeUndefined();
+    });
   });
 
   describe("column detection", () => {
