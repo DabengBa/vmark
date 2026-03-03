@@ -44,10 +44,10 @@ export function setRestoreInProgress(inProgress: boolean): void {
  *
  * Returns a promise that resolves when restore is complete (or wasn't in progress).
  *
- * @param timeoutMs - Maximum time to wait in milliseconds (default: 10000)
+ * @param timeoutMs - Maximum time to wait in milliseconds (default: RESTORE_WAIT_TIMEOUT_MS)
  * @returns true if restore completed, false if timed out
  */
-export function waitForRestoreComplete(timeoutMs = 10000): Promise<boolean> {
+export function waitForRestoreComplete(timeoutMs = RESTORE_WAIT_TIMEOUT_MS): Promise<boolean> {
   // If restore not in progress, resolve immediately
   if (!restoreInProgress) {
     return Promise.resolve(true);
