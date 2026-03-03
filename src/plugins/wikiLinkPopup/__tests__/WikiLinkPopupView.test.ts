@@ -1208,4 +1208,86 @@ describe("WikiLinkPopupView", () => {
       expect(view.dispatch).not.toHaveBeenCalled();
     });
   });
+
+  describe("wasOpen — store fires again while popup is already open (line 58 else branch)", () => {
+    it("does not call show() again when store fires while wasOpen is true", async () => {
+      // First open — sets wasOpen = true
+      emitStateChange({ isOpen: true, target: "FirstPage", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = dom.container.querySelector(".wiki-link-popup") as HTMLElement;
+      expect(popupEl.style.display).toBe("flex");
+
+      // Fire store again while wasOpen is true — else branch of `if (!this.wasOpen)` is taken
+      emitStateChange({ isOpen: true, target: "SecondPage", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Popup is still visible — no crash
+      expect(popupEl.style.display).toBe("flex");
+    });
+  });
+
+  describe("show() — host is document.body when no editor container (line 191 else branch)", () => {
+    it("uses fixed positioning when getPopupHostForDom returns null (host becomes document.body)", async () => {
+      mockGetPopupHostForDom.mockReturnValue(null);
+
+      popup.destroy();
+      vi.clearAllMocks();
+      view = createMockView(dom.editorDom);
+      popup = new WikiLinkPopupView(view as unknown as ConstructorParameters<typeof WikiLinkPopupView>[0]);
+
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = document.querySelector(".wiki-link-popup") as HTMLElement;
+      expect(popupEl).not.toBeNull();
+      expect(popupEl.style.position).toBe("fixed");
+      expect(popupEl.style.display).toBe("flex");
+    });
+  });
+
+  describe("handleDelete — empty textContent fallback (line 377 || branch)", () => {
+    it("uses node.attrs.value when textContent is empty", async () => {
+      // Create a view where node.textContent is empty but attrs.value is set
+      view = createMockView(dom.editorDom);
+      // Override nodeAt to return a node with empty textContent
+      vi.mocked(view.state.doc.nodeAt).mockReturnValue({
+        type: { name: "wikiLink" },
+        attrs: { value: "fallback-page" },
+        textContent: "", // empty textContent → || fallback to attrs.value
+        nodeSize: 1,
+      } as never);
+
+      popup.destroy();
+      vi.clearAllMocks();
+      popup = new WikiLinkPopupView(view as unknown as ConstructorParameters<typeof WikiLinkPopupView>[0]);
+
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 10, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const deleteBtn = dom.container.querySelector('button[title="Remove wiki link"]') as HTMLElement;
+      deleteBtn.click();
+
+      // Should use attrs.value as display text for the text node
+      expect(view.state.schema.text).toHaveBeenCalledWith("fallback-page");
+      expect(view.dispatch).toHaveBeenCalled();
+      expect(mockClosePopup).toHaveBeenCalled();
+    });
+  });
+
+  describe("handleScroll — popup not open (line 406 else branch)", () => {
+    it("does nothing on scroll when popup is closed", async () => {
+      emitStateChange({ isOpen: true, target: "Test", nodePos: 1, anchorRect });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Close the popup first
+      emitStateChange({ isOpen: false, anchorRect: null });
+      mockClosePopup.mockClear();
+
+      // Scroll while popup is not open — isOpen is false → else branch (no closePopup call)
+      dom.container.dispatchEvent(new Event("scroll", { bubbles: true }));
+
+      expect(mockClosePopup).not.toHaveBeenCalled();
+    });
+  });
 });

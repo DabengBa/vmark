@@ -111,6 +111,14 @@ describe("sourceSelection", () => {
     });
   });
 
+  it("expands from cursor at word start (word.from === cursor, evaluates word.to branch)", () => {
+    // Cursor at position 0 = start of "alpha". word.from (0) === normalized.from (0),
+    // so the || short-circuit doesn't fire; word.to (5) !== normalized.to (0) is checked.
+    const state = createState("alpha beta", 0);
+    const range = getSourceExpandedRange(state, 0, 0);
+    expect(range).toEqual({ from: 0, to: 5 });
+  });
+
   describe("getSourceDocRange", () => {
     it("returns full document range", () => {
       const doc = "Hello world";

@@ -115,6 +115,7 @@ export function convertParagraph(
       const imageNode = inlineConverters.convertImage(context.schema, imgChild);
       if (imageNode) {
         return blockImageType.create({
+          /* v8 ignore next -- @preserve reason: convertImage always returns a node with a string src (isSafeUrl returns a string); the ?? "" fallback is unreachable */
           src: imageNode.attrs.src ?? "",
           alt: imageNode.attrs.alt ?? "",
           title: imageNode.attrs.title ?? "",
@@ -417,6 +418,7 @@ function tryPromoteMediaHtml(
     return videoEmbedType.create({
       provider,
       videoId,
+      /* v8 ignore next 2 -- @preserve reason: config is always defined when provider is recognized; the ?? 560/315 fallbacks are unreachable in practice */
       width: parseInt(attrs.width ?? String(config?.defaultWidth ?? 560), 10) || 560,
       height: parseInt(attrs.height ?? String(config?.defaultHeight ?? 315), 10) || 315,
       sourceLine,

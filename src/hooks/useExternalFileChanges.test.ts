@@ -1268,6 +1268,76 @@ describe("useExternalFileChanges — re-queue after batch processing", () => {
   });
 });
 
+describe("useExternalFileChanges — fileName fallback (getFileName returns empty)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.listen.mockImplementation(() => Promise.resolve(() => {}));
+    mocks.matchesPendingSave.mockReturnValue(false);
+    mocks.hasPendingSave.mockReturnValue(false);
+  });
+
+  it("uses 'file' as fallback when getFileName returns empty string (L99 || 'file')", async () => {
+    // Mock the paths module so getFileName returns "" for the tab's path
+    const pathsModule = await import("@/utils/paths");
+    const originalGetFileName = pathsModule.getFileName;
+    vi.spyOn(pathsModule, "getFileName").mockImplementation((p: string) => {
+      if (p === "/workspace/test.md") return "";
+      return originalGetFileName(p);
+    });
+
+    // Seed a dirty tab that will trigger handleDirtyChange
+    useTabStore.setState({
+      tabs: {
+        main: [{ id: "tab-1", title: "test.md", filePath: "/workspace/test.md", isPinned: false }],
+      },
+      activeTabId: { main: "tab-1" },
+      untitledCounter: 0,
+      closedTabs: {},
+    });
+    useDocumentStore.setState({
+      documents: {
+        "tab-1": {
+          content: "# user edits",
+          savedContent: "# old content",
+          lastDiskContent: "# old content",
+          filePath: "/workspace/test.md",
+          isDirty: true,
+          documentId: 0,
+          cursorInfo: null,
+          lastAutoSave: null,
+          isMissing: false,
+          isDivergent: false,
+          lineEnding: "unknown",
+          hardBreakStyle: "unknown",
+        },
+      },
+    });
+
+    mocks.readTextFile.mockResolvedValue("# external change");
+    mocks.dialogMessage.mockResolvedValue("Cancel");
+
+    const callback = await setupHookAndCallback();
+
+    await callback({
+      payload: {
+        watchId: "main",
+        rootPath: "/workspace",
+        paths: ["/workspace/test.md"],
+        kind: "modify",
+      },
+    });
+
+    // Wait for batch processing
+    await vi.waitFor(() => expect(mocks.dialogMessage).toHaveBeenCalled(), { timeout: 1000 });
+
+    const messageArg = mocks.dialogMessage.mock.calls[0][0] as string;
+    // When getFileName returns "", the dialog should fall back to "file"
+    expect(messageArg).toContain('"file"');
+
+    vi.mocked(pathsModule.getFileName).mockRestore();
+  });
+});
+
 describe("useExternalFileChanges — multi-file batch dialog", () => {
   beforeEach(() => {
     vi.resetAllMocks();

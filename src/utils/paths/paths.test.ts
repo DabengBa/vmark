@@ -205,6 +205,10 @@ describe("paths", () => {
     it("filters empty segments", () => {
       expect(pathSegments("/Users//test/")).toEqual(["Users", "test"]);
     });
+
+    it("returns empty array for empty string", () => {
+      expect(pathSegments("")).toEqual([]);
+    });
   });
 
   describe("isPathExcluded", () => {

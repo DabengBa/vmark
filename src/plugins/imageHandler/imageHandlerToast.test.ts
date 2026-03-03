@@ -654,4 +654,73 @@ describe("tryTextImagePaste", () => {
 
     expect(mockPasteAsText).not.toHaveBeenCalled();
   });
+
+  // --- paths.length === 0 (line 37 true branch) ---
+
+  it("returns false when text has no parseable paths (paths.length === 0)", () => {
+    const view = createMockView();
+    // A string with only whitespace — parseMultiplePaths produces no paths
+    const result = tryTextImagePaste(view, "   \t\n   ");
+
+    expect(result).toBe(false);
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  // --- Single-image catch: view NOT connected (line 61 else branch) ---
+
+  it("does not paste as text on single-image catch when view is disconnected", async () => {
+    mockIsViewConnected.mockReturnValue(false);
+    mockValidateLocalPath.mockRejectedValue(new Error("FS error"));
+    const view = createMockView();
+
+    tryTextImagePaste(view, "/Users/test/photo.png");
+
+    await vi.waitFor(() => {
+      expect(mockValidateLocalPath).toHaveBeenCalled();
+    });
+
+    // View disconnected → else branch at line 61 → pasteAsText NOT called
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+  });
+
+  // --- Single-image validation fails + view disconnected (line 109 else branch) ---
+
+  it("does not paste as text when view disconnects before path-not-found paste (line 109 else)", async () => {
+    // Path validation succeeds (valid=true → expandHomePath not needed for absolutePath),
+    // but for absolutePath the validate resolves false AND view is disconnected.
+    mockIsViewConnected.mockReturnValue(false);
+    mockValidateLocalPath.mockResolvedValue(false);
+    const view = createMockView();
+
+    tryTextImagePaste(view, "/Users/test/nonexistent.png");
+
+    await vi.waitFor(() => {
+      expect(mockValidateLocalPath).toHaveBeenCalled();
+    });
+
+    // View disconnected → else branch at line 109 → pasteAsText NOT called
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+  });
+
+  // --- Multi-image: some invalid + view disconnected (line 204 else branch) ---
+
+  it("does not paste as text when view disconnects before multi-image invalid paste (line 204 else)", async () => {
+    mockIsViewConnected.mockReturnValue(false);
+    // First path valid, second invalid
+    mockValidateLocalPath
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const view = createMockView();
+    const text = "/Users/test/a.png\n/Users/test/nonexistent.jpg";
+
+    tryTextImagePaste(view, text);
+
+    await vi.waitFor(() => {
+      expect(mockValidateLocalPath).toHaveBeenCalled();
+    });
+
+    // Some invalid AND view disconnected → else branch at line 204 → pasteAsText NOT called
+    expect(mockPasteAsText).not.toHaveBeenCalled();
+    expect(mockShowMultiToast).not.toHaveBeenCalled();
+  });
 });

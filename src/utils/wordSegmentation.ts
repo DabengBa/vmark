@@ -118,6 +118,7 @@ export function findWordEdge(
       if (pos > seg.start && pos <= seg.end) {
         return seg.start;
       }
+      /* v8 ignore next 3 -- @preserve if not (pos > start && pos <= end) and not (pos <= start), then pos > end is guaranteed */
       if (pos <= seg.start) continue;
       if (pos > seg.end) {
         return seg.start;

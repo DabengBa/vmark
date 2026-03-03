@@ -207,6 +207,7 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
       openUrl(uri).catch((error: unknown) => {
         terminalLog("Failed to open URL:", error instanceof Error ? error.message : String(error));
       });
+    /* v8 ignore next 3 -- @preserve reason: dynamic import of a vi.mock'd module always resolves in tests; the import-failure catch is only reachable in production when the plugin binary is missing */
     }).catch((error: unknown) => {
       terminalLog("Failed to load opener plugin:", error instanceof Error ? error.message : String(error));
     });
@@ -222,6 +223,7 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
       }).catch((error: unknown) => {
         terminalLog("File not readable:", error instanceof Error ? error.message : String(error));
       });
+    /* v8 ignore next 3 -- @preserve reason: dynamic import of a vi.mock'd module always resolves in tests; the import-failure catch is only reachable in production when the plugin binary is missing */
     }).catch((error: unknown) => {
       terminalLog("Failed to load fs plugin:", error instanceof Error ? error.message : String(error));
     });

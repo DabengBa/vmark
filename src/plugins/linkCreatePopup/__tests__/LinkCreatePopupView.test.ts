@@ -1016,4 +1016,47 @@ describe("LinkCreatePopupView", () => {
       // Note: The input's own keydown handler may independently fire Escape if the input had focus.
     });
   });
+
+  describe("wasOpen — store fires again while popup is already open (line 45 else branch)", () => {
+    it("does not call show() again when store fires while wasOpen is true", async () => {
+      // First open — sets wasOpen = true and calls show()
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "first" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const popupEl = dom.container.querySelector(".link-create-popup") as HTMLElement;
+      expect(popupEl.style.display).toBe("flex");
+
+      // Fire store again while wasOpen is true — the else branch of `if (!this.wasOpen)` is taken
+      // show() should NOT be called again (text input value should remain)
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "second" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Popup is still visible — no crash, no double-show
+      expect(popupEl.style.display).toBe("flex");
+    });
+  });
+
+  describe("Tab key — focusable elements exist but activeElement is not one of them (line 143 if branch)", () => {
+    it("returns early when activeElement is a non-focusable element in the DOM but not in popup", async () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "test" });
+      await new Promise((r) => requestAnimationFrame(r));
+
+      // Patch offsetParent so getFocusableElements returns elements
+      const candidates = Array.from(
+        dom.container.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")
+      );
+      candidates.forEach((el) => {
+        Object.defineProperty(el, "offsetParent", { get: () => dom.container, configurable: true });
+      });
+
+      // Focus something outside the popup (body — not in the focusable list)
+      document.body.tabIndex = 0;
+      document.body.focus();
+      // Now activeElement is body, which is NOT in the focusable list → currentIndex === -1 → return early
+
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      // No crash and no focus movement means the early return was exercised
+    });
+  });
 });

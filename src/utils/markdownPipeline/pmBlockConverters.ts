@@ -236,6 +236,7 @@ export function convertTable(context: PmToMdastContext, node: PMNode): Table {
         if (align.length <= cellIndex) {
           align = [...align, alignment];
         } else {
+          /* v8 ignore next -- @preserve align grows monotonically with cellIndex; else branch structurally unreachable */
           align[cellIndex] = alignment;
         }
       }

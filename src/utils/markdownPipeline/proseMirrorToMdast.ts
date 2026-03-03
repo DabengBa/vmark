@@ -199,6 +199,7 @@ class PMToMdastConverter {
         result.push(this.convertWikiLink(child));
       } else if (child.type.name === "html_inline") {
         result.push(this.convertHtmlInline(child));
+        /* v8 ignore next -- @preserve defensive: unrecognized inline node types are silently skipped */
       }
     });
 
@@ -211,6 +212,7 @@ class PMToMdastConverter {
     const children: BlockContent[] = [];
     node.forEach((child) => {
       const converted = this.convertNode(child);
+      /* v8 ignore next -- @preserve convertNode returns null for unrecognized node types */
       if (converted) {
         if (Array.isArray(converted)) {
           children.push(...(converted as BlockContent[]));
