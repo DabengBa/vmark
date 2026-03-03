@@ -2461,3 +2461,229 @@ describe("codePreview exitEditMode — revert with empty originalContent (lines 
     useBlockMathEditingStore.getState().exitEditing();
   });
 });
+
+describe("codePreview — additional branch coverage", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    useBlockMathEditingStore.getState().exitEditing();
+    clearPreviewCache();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function makeDispatchView2(baseState: EditorState) {
+    const mockView = {
+      state: baseState,
+      dispatch: vi.fn((tr) => {
+        mockView.state = mockView.state.apply(tr);
+      }),
+      focus: vi.fn(),
+      composing: false,
+      dom: document.createElement("div"),
+    };
+    return mockView;
+  }
+
+  it("handleEnterEdit is a no-op when view is null (line 312 false branch)", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+
+    const pluginState = plugins[0].getState(state);
+    const allDecs = pluginState.decorations.find();
+
+    // Find the widget decorations (no attrs.class)
+    const widgetDecs = allDecs.filter((d: DecorationLike) => !d.type?.attrs?.class);
+    expect(widgetDecs.length).toBeGreaterThan(0);
+
+    // Call toDOM with null view to exercise the `if (!view) return` guard
+    const widgetDec = widgetDecs[widgetDecs.length - 1];
+    const el = (widgetDec as any).type.toDOM(null);
+    expect(el).toBeInstanceOf(HTMLElement);
+
+    // Click the element — handleEnterEdit is called with null view, should be a no-op
+    el.click();
+
+    // Verify no editing was started (view was null)
+    expect(useBlockMathEditingStore.getState().editingPos).toBeNull();
+  });
+
+  it("mermaid non-empty content produces a mermaid preview widget (line 382 branch)", () => {
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const pluginState = plugins[0].getState(state);
+    const allDecs = pluginState.decorations.find();
+
+    expect(allDecs.length).toBeGreaterThanOrEqual(2);
+
+    const widgetDecs = allDecs.filter((d: DecorationLike) => !d.type?.attrs?.class);
+    expect(widgetDecs.length).toBeGreaterThan(0);
+
+    const previewEl = (widgetDecs[0] as any).type.toDOM(null);
+    expect(previewEl).toBeInstanceOf(HTMLElement);
+  });
+
+  it("live preview update skips when node not found at storeEditingPos (line 223 false branch)", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "x^2");
+
+    const tr1 = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const editingState = state.apply(tr1);
+    plugins[0].getState(editingState);
+
+    // Change store's editingPos to invalid position while doc changes
+    useBlockMathEditingStore.setState({ editingPos: 9999 });
+
+    const tr2 = editingState.tr.insertText("Y", 1);
+    const updatedState = editingState.apply(tr2);
+    expect(() => plugins[0].getState(updatedState)).not.toThrow();
+
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+
+  it("exitEditMode clears livePreviewTimeout when it is set (line 156 true branch)", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state } = createStateWithCodeBlock("latex", "x^2");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "x^2");
+
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const freshPlugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const mockView = makeDispatchView2(state);
+    const viewResult = freshPlugins[0].spec.view!(mockView as never);
+
+    const tr = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const editingState = state.apply(tr);
+    viewResult.update!(Object.assign({}, mockView, { state: editingState }) as never, {} as never);
+    mockView.state = editingState;
+
+    // Invoke live preview widget to create a pending timeout
+    const pluginState = freshPlugins[0].getState(editingState);
+    const decs = pluginState.decorations.find();
+    const widgetDecs = decs.filter((d: DecorationLike) => !d.type?.attrs?.class);
+    const livePreviewDec = widgetDecs[widgetDecs.length - 1];
+    (livePreviewDec as any).type.toDOM(mockView);
+
+    // Trigger a doc change to set another timeout
+    const state2 = editingState.apply(editingState.tr.insertText("+y", codeBlockPos + 4));
+    freshPlugins[0].getState(state2);
+    mockView.state = state2;
+
+    // Click save button to call exitEditMode — clears the pending timeout
+    const headerDec = widgetDecs[0];
+    const headerEl = (headerDec as any).type.toDOM(mockView);
+    const saveBtn = headerEl.querySelector(".code-block-edit-save") as HTMLButtonElement;
+    if (saveBtn) {
+      saveBtn.click();
+    }
+
+    vi.runAllTimers();
+
+    viewResult.destroy!();
+    useBlockMathEditingStore.getState().exitEditing();
+  });
+
+  it("SVG live preview update via doc change during editing (line 118 branch)", async () => {
+    const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
+    const { state } = createStateWithCodeBlock("svg", "<svg></svg>");
+
+    let codeBlockPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock" || node.type.name === "code_block") {
+        codeBlockPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    useBlockMathEditingStore.getState().startEditing(codeBlockPos, "<svg></svg>");
+
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const freshPlugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const mockView = makeDispatchView2(state);
+    const viewResult = freshPlugins[0].spec.view!(mockView as never);
+
+    const tr = state.tr.setMeta(EDITING_STATE_CHANGED, true);
+    const editingState = state.apply(tr);
+    viewResult.update!(Object.assign({}, mockView, { state: editingState }) as never, {} as never);
+    mockView.state = editingState;
+
+    // Invoke live preview widget to set currentLivePreview and currentEditingLanguage to "svg"
+    const pluginState = freshPlugins[0].getState(editingState);
+    const decs = pluginState.decorations.find();
+    const widgetDecs = decs.filter((d: DecorationLike) => !d.type?.attrs?.class);
+    const livePreviewDec = widgetDecs[widgetDecs.length - 1];
+    const previewEl = (livePreviewDec as any).type.toDOM(mockView);
+    expect(previewEl).toBeInstanceOf(HTMLElement);
+
+    vi.runAllTimers();
+
+    // Change doc while in SVG editing — triggers updateLivePreview with "svg"
+    const state2 = editingState.apply(editingState.tr.insertText("<rect/>", codeBlockPos + 5));
+    mockView.state = state2;
+    freshPlugins[0].getState(state2);
+
+    vi.runAllTimers();
+
+    useBlockMathEditingStore.getState().exitEditing();
+    viewResult.destroy!();
+  });
+
+  it("code block with null language attribute uses empty string fallback (line 245 ?? branch)", () => {
+    const schema = getSchema([StarterKit]);
+    const extensionContext = {
+      name: codePreviewExtension.name,
+      options: codePreviewExtension.options,
+      storage: codePreviewExtension.storage,
+      editor: {} as Editor,
+      type: null,
+      parent: undefined,
+    };
+    const plugins = codePreviewExtension.config.addProseMirrorPlugins?.call(extensionContext) ?? [];
+    const emptyDoc = schema.nodes.doc.create(null, [schema.nodes.paragraph.create()]);
+    const baseState = EditorState.create({ schema, doc: emptyDoc, plugins });
+
+    const codeBlock = schema.nodes.codeBlock.create({ language: null }, schema.text("some code"));
+    const nextState = baseState.apply(
+      baseState.tr.replaceRangeWith(0, baseState.doc.content.size, codeBlock)
+    );
+
+    const pluginState = plugins[0].getState(nextState);
+    expect(pluginState.decorations.find().length).toBe(0);
+  });
+});

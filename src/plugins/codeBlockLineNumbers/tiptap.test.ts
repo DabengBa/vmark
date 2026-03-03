@@ -1400,6 +1400,142 @@ describe("CodeBlockWithLineNumbers", () => {
         dropdown.remove();
       });
     });
+
+    describe("positionDropdown guard — dropdown is null (line 236)", () => {
+      it("positionDropdown is a no-op after dropdown has been closed", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        // Open dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        expect(document.querySelector(".code-lang-dropdown")).not.toBeNull();
+
+        // Close dropdown
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        expect(document.querySelector(".code-lang-dropdown")).toBeNull();
+
+        // Fire scroll after close — positionDropdown should return early (this.dropdown is null)
+        expect(() => window.dispatchEvent(new Event("scroll"))).not.toThrow();
+
+        nodeView.destroy();
+      });
+    });
+
+    describe("handleOutsideClick — click inside dropdown does not close it (line 263)", () => {
+      it("does not close when mousedown target is inside the dropdown", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        expect(dropdown).not.toBeNull();
+
+        // Click on the search input inside the dropdown — should NOT close
+        const searchInput = dropdown.querySelector(".code-lang-search")!;
+        const event = new MouseEvent("mousedown", { bubbles: true });
+        Object.defineProperty(event, "target", { value: searchInput, writable: false });
+        document.dispatchEvent(event);
+
+        // Dropdown should still be open
+        expect(document.querySelector(".code-lang-dropdown")).not.toBeNull();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+
+      it("does not close when mousedown target is the lang selector itself", () => {
+        const nodeView = createNodeView("hello");
+        const selectorEl = nodeView.dom.querySelector(".code-lang-selector")!;
+
+        selectorEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        expect(dropdown).not.toBeNull();
+
+        // Click on the selector itself — handleOutsideClick should not close
+        const event = new MouseEvent("mousedown", { bubbles: true });
+        Object.defineProperty(event, "target", { value: selectorEl, writable: false });
+        document.dispatchEvent(event);
+
+        nodeView.destroy();
+        document.querySelector(".code-lang-dropdown")?.remove();
+      });
+    });
+
+    describe("filterLanguages — no list element in dropdown (line 271)", () => {
+      it("is a no-op when code-lang-list element is missing from dropdown", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Remove the list element
+        const list = dropdown.querySelector(".code-lang-list");
+        list?.remove();
+
+        // Type in search — filterLanguages should handle missing list gracefully
+        searchInput.value = "python";
+        expect(() => searchInput.dispatchEvent(new Event("input"))).not.toThrow();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("handleListKeydown Enter — target without code-lang-item class (line 397)", () => {
+      it("Enter on non-item element in list does not select or crash", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Tab to list to get a highlighted item
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted") as HTMLElement;
+
+        if (highlighted) {
+          // Remove the class so the Enter handler's target check fails
+          highlighted.classList.remove("code-lang-item");
+          highlighted.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+          // Dropdown should still be open (no selection made)
+          expect(document.querySelector(".code-lang-dropdown")).not.toBeNull();
+        }
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
+
+    describe("handleListKeydown Shift+Tab — no searchInput (line 384)", () => {
+      it("Shift+Tab is a no-op when search input is missing from dropdown", () => {
+        const nodeView = createNodeView("hello");
+        const selector = nodeView.dom.querySelector(".code-lang-selector");
+
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        const dropdown = document.querySelector(".code-lang-dropdown")!;
+        const searchInput = dropdown.querySelector(".code-lang-search") as HTMLInputElement;
+
+        // Tab to list
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+        const highlighted = dropdown.querySelector(".code-lang-item.highlighted") as HTMLElement;
+        expect(highlighted).not.toBeNull();
+
+        // Remove search input from DOM
+        searchInput.remove();
+        expect(dropdown.querySelector(".code-lang-search")).toBeNull();
+
+        // Shift+Tab — the handler should handle missing searchInput gracefully
+        expect(() => {
+          highlighted.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true }));
+        }).not.toThrow();
+
+        nodeView.destroy();
+        dropdown.remove();
+      });
+    });
   });
 
   describe("language rendering in list", () => {

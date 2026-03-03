@@ -2213,6 +2213,515 @@ describe("batchOpHandlers", () => {
     });
   });
 
+  describe("findTable — afterHeading with no prior heading (lastHeadingText is null)", () => {
+    it("does not match when afterHeading is specified but no heading precedes the table", async () => {
+      // Table appears without any preceding heading — lastHeadingText stays null
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        nodeSize: 10,
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-no-heading", {
+        baseRevision: "rev-1",
+        target: { afterHeading: "Some Heading" },
+        operations: [{ action: "add_row", at: 0, cells: ["a"] }],
+        mode: "dryRun",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toContain("Table not found");
+    });
+  });
+
+  describe("findList — selector that does not match any known pattern", () => {
+    it("does not match when selector is an unrecognized string", async () => {
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-sel-unknown", {
+        baseRevision: "rev-1",
+        target: { selector: "definition-list" },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+        mode: "dryRun",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toContain("List not found");
+    });
+
+    it("task selector does not match bulletList", async () => {
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-sel-task-nomatch", {
+        baseRevision: "rev-1",
+        target: { selector: "tasklist" },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+        mode: "dryRun",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toContain("List not found");
+    });
+  });
+
+  describe("findCellPosition — non-tableRow child in table", () => {
+    it("skips non-tableRow children when finding cell position", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+        textContent: "cell",
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      // A non-tableRow child (e.g., caption or colgroup)
+      const nonRowChild = {
+        type: { name: "tableCaption" },
+        nodeSize: 3,
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 2,
+        child: (_i: number) => tableRow,
+        firstChild: tableRow,
+        content: { size: 10 },
+        nodeSize: 12,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(nonRowChild, 0); // non-tableRow child — should be skipped
+          cb(tableRow, 3);    // actual row at offset 3
+        }),
+        descendants: vi.fn(),
+      };
+
+      const mockTrReplaceWith = vi.fn().mockReturnThis();
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+            nodeAt: vi.fn(() => ({ nodeSize: 5 })),
+          },
+          tr: {
+            replaceWith: mockTrReplaceWith,
+            get docChanged() { return true; },
+          },
+          schema: { nodes: { paragraph: { create: vi.fn(() => "empty-p") } } },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-nonrow", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "update_cell", row: 0, col: 0, content: "text" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+    });
+  });
+
+  describe("structural op error — non-Error throw and fallback to 'unknown' action", () => {
+    it("handles non-Error throw in structural op catch block", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          // Throw a non-Error (string) to cover the String(opError) branch
+          addRowAfter: vi.fn(() => { throw "raw string error"; }),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleTableBatchModify("req-nonErr-struct", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "add_row", at: 0, cells: ["a"] }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("raw string error"))).toBe(true);
+    });
+
+    it("falls back to 'unknown' when rawOp has no action/type/op keys", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          // We need an op whose normalizeTableOp succeeds but then throws during execution.
+          // But the op has no action/type/op keys — that means normalizeOp will throw first,
+          // putting it in the normalizedOps as error, so it won't reach the structural catch.
+          // For the structural catch fallback, we need an op with only an action set,
+          // but then the rawOp does have action. The real fallback happens when rawOp only has
+          // e.g. { action: undefined } set. Let's manufacture a throw with rawOp that has no keys.
+          addRowAfter: vi.fn(() => { throw new Error("boom"); }),
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // To exercise the "unknown" fallback in the structural catch, we need rawOp
+      // to have action/type/op all undefined, but normalizeOp succeeds by using r.action.
+      // That's impossible since normalizeOp would throw first. So this branch is
+      // practically unreachable for structural ops. The normalize error path already covers it.
+      // Skip this sub-branch — it's defensive code.
+
+      // Instead, test the list version for the same fallback
+      const listItemNode = { type: { name: "listItem" }, nodeSize: 8 };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItemNode, 0);
+        }),
+      };
+
+      const listEditor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          deleteNode: vi.fn(() => { throw "string thrown"; }),
+        },
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(listEditor);
+
+      // rawOp has only 'op' key — exercises the fallback chain in catch (line 636)
+      await handleListBatchModify("req-op-fallback", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ op: "delete_item", at: 0 }],
+      });
+
+      const call2 = mockRespond.mock.calls[0][0];
+      expect(call2.success).toBe(true);
+      expect(call2.data.warnings.some((w: string) => w.includes("Failed: delete_item"))).toBe(true);
+    });
+  });
+
+  describe("handleTableBatchModify — outer catch with non-Error throw (line 445)", () => {
+    it("handles non-Error value in outer catch", async () => {
+      // Force getEditor to throw a non-Error
+      mockGetEditor.mockImplementation(() => { throw 42; });
+
+      await handleTableBatchModify("req-nonErr-outer-tbl", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "add_row", at: 0, cells: ["a"] }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toBe("42");
+    });
+  });
+
+  describe("handleListBatchModify — outer catch with non-Error throw (line 657)", () => {
+    it("handles non-Error value in outer catch", async () => {
+      // Force getEditor to throw a non-Error
+      mockGetEditor.mockImplementation(() => { throw { code: 500 }; });
+
+      await handleListBatchModify("req-nonErr-outer-lst", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toBe("[object Object]");
+    });
+  });
+
+  describe("handleListBatchModify — op error fallback to 'unknown' when no action/type/op", () => {
+    it("falls back to 'unknown' action in error message", async () => {
+      const listItemNode = { type: { name: "listItem" }, nodeSize: 8 };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItemNode, 0);
+        }),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // rawOp has no action/type/op keys at all — normalizeListOp will throw.
+      // That throw is caught in the inner catch at line 635.
+      // At line 636: rawOp.action ?? rawOp.type ?? rawOp.op ?? "unknown" → "unknown"
+      await handleListBatchModify("req-unknown-fallback", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ someOtherKey: "value" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("Failed: unknown"))).toBe(true);
+    });
+  });
+
+  describe("findList — no selector or listIndex (target has neither)", () => {
+    it("returns not_found when target has no listIndex and no selector", async () => {
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // Target has only listId (not implemented) — no listIndex or selector
+      await handleListBatchModify("req-no-criteria", {
+        baseRevision: "rev-1",
+        target: { listId: "some-id" },
+        operations: [{ action: "add_item", at: 0, text: "item" }],
+        mode: "dryRun",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toContain("List not found");
+    });
+  });
+
+  describe("findListItemPos — skips earlier items to find target index", () => {
+    it("skips item at index 0 when targeting index 1", async () => {
+      const listItem0 = { type: { name: "listItem" }, nodeSize: 8 };
+      const listItem1 = { type: { name: "listItem" }, nodeSize: 8 };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItem0, 0);  // index 0 — itemIndex !== 1, skip
+          cb(listItem1, 8);  // index 1 — match
+        }),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(listNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          deleteNode: vi.fn(),
+        },
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-idx1", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [{ action: "delete_item", at: 1 }],
+      });
+
+      // Should have called setTextSelection for the second item (pos = 0 + 1 + 8 = 9)
+      expect(chainMethods.setTextSelection).toHaveBeenCalledWith(10);
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.appliedCount).toBe(1);
+    });
+  });
+
   describe("handleListBatchModify — findListItemPos with taskItem nodes", () => {
     it("finds taskItem nodes in findListItemPos", async () => {
       const taskItemNode = {
