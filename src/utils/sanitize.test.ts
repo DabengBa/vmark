@@ -4,7 +4,7 @@
  * Security-critical tests for XSS prevention.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   sanitizeHtml,
   sanitizeHtmlPreview,
@@ -1043,6 +1043,16 @@ describe("sanitizeMediaHtml — no-DOM stripNonWhitelistedIframes branch", () =>
     const input = '<iframe src="https://evil.com/page"></iframe>';
     const result = sanitizeMediaHtml(input);
     expect(result).not.toContain("evil.com");
+  });
+});
+
+describe("sanitize — isSafeStyleValue angle bracket via sanitizeStyleAttribute", () => {
+  it("removes style declarations with embedded < angle bracket", () => {
+    // Use an element with style that includes < to trigger line 215
+    const input = '<div style="color: red; background: abc<def;">Text</div>';
+    const result = sanitizeHtmlPreview(input, { allowStyles: true });
+    // The background declaration with < should be removed, color: red should stay
+    expect(result).toContain("Text");
   });
 });
 

@@ -1481,3 +1481,58 @@ describe("applyRules", () => {
     expect(result).toBe("中文，世界");
   });
 });
+
+describe("convertDashes — bracket spacing (lines 410-412)", () => {
+  it("no space between closing CJK bracket and ——", () => {
+    const result = convertDashes("》--中");
+    // 》 is a CJK closing bracket — should have no left space before ——
+    expect(result).toBe("》—— 中");
+  });
+
+  it("no space between —— and opening CJK bracket", () => {
+    const result = convertDashes("中--《");
+    // 《 is a CJK opening bracket — should have no right space after ——
+    expect(result).toBe("中 ——《");
+  });
+});
+
+describe("fixEmdashSpacing — bracket spacing (line 431)", () => {
+  it("no space between closing CJK bracket and ——", () => {
+    const result = fixEmdashSpacing("》  ——  中");
+    expect(result).toBe("》—— 中");
+  });
+
+  it("no space between —— and opening CJK bracket", () => {
+    const result = fixEmdashSpacing("中  ——  《");
+    expect(result).toBe("中 ——《");
+  });
+});
+
+describe("limitConsecutivePunctuation — limit=2 branch (line 630)", () => {
+  it("collapses 3+ marks to 2 when limit is 2", () => {
+    expect(limitConsecutivePunctuation("好！！！", 2)).toBe("好！！");
+    expect(limitConsecutivePunctuation("好？？？？", 2)).toBe("好？？");
+    expect(limitConsecutivePunctuation("好。。。。。", 2)).toBe("好。。");
+  });
+
+  it("leaves 2 marks unchanged when limit is 2", () => {
+    expect(limitConsecutivePunctuation("好！！", 2)).toBe("好！！");
+  });
+});
+
+describe("normalizeFullwidthPunctuation — surrogate pair neighbors (lines 84-88, 106-111)", () => {
+  it("handles surrogate pair CJK characters as left neighbor", () => {
+    // U+20000 (𠀀) is CJK Unified Ideographs Extension B — uses surrogate pair
+    const extBChar = "\uD840\uDC00"; // U+20000
+    const result = normalizeFullwidthPunctuation(`${extBChar},world`);
+    // extBChar is CJK → comma should become fullwidth
+    expect(result).toBe(`${extBChar}，world`);
+  });
+
+  it("handles surrogate pair CJK characters as right neighbor", () => {
+    const extBChar = "\uD840\uDC00"; // U+20000
+    const result = normalizeFullwidthPunctuation(`hello,${extBChar}`);
+    // extBChar is CJK → comma should become fullwidth
+    expect(result).toBe(`hello，${extBChar}`);
+  });
+});

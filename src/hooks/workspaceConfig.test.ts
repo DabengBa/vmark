@@ -203,6 +203,18 @@ describe("workspaceConfig", () => {
     });
   });
 
+  it("toggleShowAllFiles defaults to false when config is null (line 44)", async () => {
+    useWorkspaceStore.setState({
+      rootPath: "/project",
+      config: null,
+      isWorkspaceMode: true,
+    });
+
+    await toggleShowAllFiles();
+    // config is null, so updateWorkspaceConfig early-returns
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("defaults showHiddenFiles to false when config is missing the property", async () => {
     useWorkspaceStore.setState({
       rootPath: "/project",

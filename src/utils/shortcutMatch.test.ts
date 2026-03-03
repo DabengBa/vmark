@@ -115,6 +115,17 @@ describe("matchesShortcutEvent", () => {
     expect(matchesShortcutEvent(event, "Mod-Shift-=", "mac")).toBe(true);
   });
 
+  it("rejects Ctrl mismatch on non-mac when Ctrl required but not pressed (line 102)", () => {
+    // On non-mac, Ctrl shortcut requires ctrlKey but it's not pressed
+    const event = makeEvent({ key: "a" });
+    expect(matchesShortcutEvent(event, "Ctrl-a", "other")).toBe(false);
+  });
+
+  it("rejects non-mac when ctrlKey pressed but shortcut has no Ctrl or Mod (line 102)", () => {
+    const event = makeEvent({ key: "a", ctrlKey: true });
+    expect(matchesShortcutEvent(event, "a", "other")).toBe(false);
+  });
+
   it("matches Ctrl on non-mac (both Ctrl and Mod map to ctrlKey)", () => {
     const event = makeEvent({ key: "a", ctrlKey: true });
     expect(matchesShortcutEvent(event, "Ctrl-a", "other")).toBe(true);
@@ -222,5 +233,16 @@ describe("isMacPlatform", () => {
     vi.stubGlobal("navigator", { platform: "iPad" });
     expect(isMacPlatform()).toBe(true);
     vi.unstubAllGlobals();
+  });
+
+  it("returns false when navigator is undefined (line 49)", () => {
+    const origNavigator = globalThis.navigator;
+    // @ts-expect-error -- remove navigator to trigger the undefined check
+    delete (globalThis as Record<string, unknown>).navigator;
+    try {
+      expect(isMacPlatform()).toBe(false);
+    } finally {
+      globalThis.navigator = origNavigator;
+    }
   });
 });
