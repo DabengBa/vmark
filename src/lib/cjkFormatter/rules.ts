@@ -14,6 +14,8 @@
  *   - containsCJK() gates most rules — pure Latin text skips CJK-specific transforms
  *   - Punctuation conversion uses neighbor context: a comma becomes fullwidth only
  *     when adjacent to a CJK character, not in pure Latin sentences
+ *   - Ordered list marker periods (e.g. "1.", "10.") are protected from fullwidth
+ *     conversion via isOrderedListMarker() which checks for digits at line-start
  *   - Technical subspans (URLs, versions, times) are protected from punctuation
  *     conversion via the Latin span scanner
  *   - Surrogate pair handling in getLeftNeighbor/getRightNeighbor for Extension B-G Han
