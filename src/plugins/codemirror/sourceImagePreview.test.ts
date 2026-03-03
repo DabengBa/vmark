@@ -256,7 +256,7 @@ describe("createSourceImagePreviewPlugin", () => {
     const view = createView("![alt](image.png)", 5);
     // Don't flush — pendingUpdate is true
 
-    const countBefore = rafCallbacks.length;
+    const _countBefore = rafCallbacks.length;
 
     // Dispatch twice without flushing — second should be skipped
     view.dispatch({ selection: { anchor: 3 } });
@@ -343,7 +343,7 @@ describe("createSourceImagePreviewPlugin", () => {
   });
 
   it("update with neither selectionSet nor docChanged does not schedule check", () => {
-    const view = createView("![alt](image.png)", 5);
+    const _view = createView("![alt](image.png)", 5);
     flushRaf();
 
     const countBefore = rafCallbacks.length;

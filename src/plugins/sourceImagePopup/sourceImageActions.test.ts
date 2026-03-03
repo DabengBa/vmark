@@ -89,7 +89,7 @@ import { useTabStore } from "@/stores/tabStore";
 // --- Mock EditorView ---
 function createMockView(text: string) {
   const doc = {
-    lineAt: vi.fn((pos: number) => ({
+    lineAt: vi.fn((_pos: number) => ({
       from: 0,
       to: text.length,
       text,

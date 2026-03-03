@@ -47,7 +47,7 @@ describe("updateMarkmapLivePreview", () => {
     vi.mocked(renderMarkmapToElement).mockResolvedValueOnce({} as unknown);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMarkmapLivePreview(element, "# Heading", token, () => token);
 
     expect(cleanupDescendants).toHaveBeenCalledWith(element);
@@ -57,7 +57,7 @@ describe("updateMarkmapLivePreview", () => {
     vi.mocked(renderMarkmapToElement).mockResolvedValueOnce({} as unknown);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMarkmapLivePreview(element, "# Test", token, () => token);
 
     expect(renderMarkmapToElement).toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe("updateMarkmapLivePreview", () => {
     vi.mocked(renderMarkmapToElement).mockResolvedValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMarkmapLivePreview(element, "bad", token, () => token);
 
     expect(element.textContent).toContain("Invalid markmap");
@@ -80,7 +80,7 @@ describe("updateMarkmapLivePreview", () => {
     vi.mocked(renderMarkmapToElement).mockResolvedValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMarkmapLivePreview(element, "# Test", token, () => 2);
 
     // Should not show error because token was stale
@@ -92,7 +92,7 @@ describe("updateMarkmapLivePreview", () => {
 
     const element = document.createElement("div");
     element.textContent = "old content";
-    let token = 1;
+    const token = 1;
     await updateMarkmapLivePreview(element, "# Test", token, () => token);
 
     // Old content should be gone, replaced with SVG
@@ -139,7 +139,7 @@ describe("createMarkmapPreview", () => {
   });
 
   it("does not render when element is not connected", async () => {
-    const wrapper = createMarkmapPreview("# Test");
+    const _wrapper = createMarkmapPreview("# Test");
     // Do NOT attach to document
 
     await vi.advanceTimersByTimeAsync(16);

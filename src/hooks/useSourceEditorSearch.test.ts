@@ -365,6 +365,125 @@ describe("useSourceEditorSearch", () => {
     expect(useSearchStore.getState().currentIndex).toBe(-1);
   });
 
+  it("safety timeout fires with isInitialized=true (line 123 false branch — polling succeeds before timeout)", () => {
+    // Polling path: view is null initially → polling interval registered.
+    // View becomes available on first poll tick (50ms) → isInitialized=true.
+    // Safety timeout fires at 500ms — isInitialized IS true → `if (!isInitialized)` false branch.
+    const mockView = createMockView("test content");
+    mockCountMatches.mockReturnValue(1);
+    useSearchStore.setState({ isOpen: true, query: "test" });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    // Set view available BEFORE advancing timers — polling will succeed on first tick
+    viewRef.current = mockView;
+
+    // Advance 50ms: first poll tick runs initSearchState → succeeds → isInitialized=true
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+
+    expect(mockSetSearchQuery.of).toHaveBeenCalled();
+
+    mockSetSearchQuery.of.mockClear();
+
+    // Advance past 500ms: safety timeout fires with isInitialized=true → false branch at line 123
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // No further init calls — the safety timeout's false branch just skips clearInterval
+    expect(mockSetSearchQuery.of).not.toHaveBeenCalled();
+  });
+
+  it("safety timeout fires with isInitialized=false (line 123 true branch via slow polling)", () => {
+    // View never becomes available → polling runs → timeout fires → clearInterval.
+    // This specifically hits line 123 with !isInitialized === true.
+    viewRef.current = null;
+    useSearchStore.setState({ isOpen: true, query: "test" });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    // Advance past 500ms safety timeout — fires with isInitialized still false
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    // The safety timeout cleared the interval; no init happened
+    expect(mockSetSearchQuery.of).not.toHaveBeenCalled();
+  });
+
+  it("replace-current: viewRef.current null in second rAF skips recompute (line 186 false branch)", () => {
+    // The double-rAF in handleReplaceCurrent:
+    //   rAF1 → fires → rAF2 → fires → if (viewRef.current) { recompute }
+    // We null viewRef.current between rAF1 firing and rAF2 firing.
+    const mockView = createMockView("hello");
+    viewRef.current = mockView;
+
+    // Capture rAF callbacks; the second is registered INSIDE the first callback
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { rafCallbacks.push(cb); return rafCallbacks.length; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-current"));
+    });
+
+    // rafCallbacks[0] is the outer rAF registered by handleReplaceCurrent.
+    // Fire it — this registers the inner rAF (rafCallbacks[1]).
+    act(() => {
+      rafCallbacks[0]?.(0);
+    });
+
+    // Null the view BEFORE the inner rAF fires
+    viewRef.current = null;
+    mockCountMatches.mockClear();
+
+    // Fire inner rAF — viewRef.current is null → line 186 false branch → no recompute
+    act(() => {
+      rafCallbacks[1]?.(0);
+    });
+
+    expect(mockCountMatches).not.toHaveBeenCalled();
+
+    mockRaf.mockRestore();
+  });
+
+  it("replace-all: viewRef.current null in second rAF does not call recompute (line 202 false branch)", () => {
+    const mockView = createMockView("hello");
+    viewRef.current = mockView;
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { rafCallbacks.push(cb); return rafCallbacks.length; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-all"));
+    });
+
+    // Fire outer rAF — registers inner rAF
+    act(() => {
+      rafCallbacks[0]?.(0);
+    });
+
+    // Null view before inner rAF fires
+    viewRef.current = null;
+    mockCountMatches.mockClear();
+
+    // Fire inner rAF — viewRef.current is null → line 202 false branch → no recompute
+    act(() => {
+      rafCallbacks[1]?.(0);
+    });
+
+    expect(mockCountMatches).not.toHaveBeenCalled();
+
+    mockRaf.mockRestore();
+  });
+
   it("clears polling interval after max wait time", () => {
     // View never becomes available
     viewRef.current = null;
@@ -549,6 +668,38 @@ describe("useSourceEditorSearch", () => {
     const state = useSearchStore.getState();
     expect(state.matchCount).toBe(0);
     expect(state.currentIndex).toBe(-1);
+
+    mockRaf.mockRestore();
+  });
+
+  it("sets matchCount to 0 and index to -1 when recomputeMatches is called with empty query (direct path)", () => {
+    // This covers the !state.query branch (line 58) in recomputeMatches when called
+    // after replace-current with an empty query in the store.
+    const mockView = createMockView("hello world");
+    viewRef.current = mockView;
+
+    const mockRaf = vi.spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => { cb(0); return 0; });
+
+    renderHook(() => useSourceEditorSearch(viewRef as never));
+
+    // Set store to open with empty query, then fire replace-current
+    act(() => {
+      useSearchStore.setState({ isOpen: true, query: "", matchCount: 0, currentIndex: -1 });
+    });
+
+    mockCountMatches.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new Event("search:replace-current"));
+    });
+
+    // recomputeMatches is called with state.query === "" → early return sets 0/-1
+    const state = useSearchStore.getState();
+    expect(state.matchCount).toBe(0);
+    expect(state.currentIndex).toBe(-1);
+    // countMatches should NOT be called when query is empty
+    expect(mockCountMatches).not.toHaveBeenCalled();
 
     mockRaf.mockRestore();
   });

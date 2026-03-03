@@ -203,6 +203,28 @@ describe("findMarkRange", () => {
     expect(result!.from).toBe(1);
     expect(result!.to).toBe(9);
   });
+
+  it("skips remaining children once foundRange is set (line 139 early-return guard)", () => {
+    // Arrange: "A"(bold) " gap " "B"(bold) "C"(bold)
+    // Cursor at pos inside "A" (first bold range) — foundRange is set when the gap is encountered,
+    // then the forEach continues to "B" and "C" and line 139 `if (foundRange) return` fires.
+    const doc = createDocWithMarks([
+      { text: "A", marks: ["strong"] },
+      { text: " gap " },
+      { text: "B", marks: ["strong"] },
+      { text: "C", marks: ["strong"] },
+    ]);
+    const para = doc.child(0);
+    const parentStart = 1;
+    const boldMark = testSchema.marks.strong.create();
+
+    // "A" is at positions 1-2, cursor at 1 is inside the first bold span
+    const result = findMarkRange(1, boldMark, parentStart, para);
+    expect(result).not.toBeNull();
+    // Should find only the first range ("A"), not merge with the second/third
+    expect(result!.from).toBe(1);
+    expect(result!.to).toBe(2);
+  });
 });
 
 // ---------------------------------------------------------------------------

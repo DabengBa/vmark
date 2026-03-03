@@ -337,9 +337,9 @@ describe("useOutlineSync — cursor tracking", () => {
 
     const view = createMockView([0, 50], 10);
     // Return null at first, so poll triggers; after 2 polls, set mockDom
-    let callCount = 0;
+    let _callCount = 0;
     const getView = () => {
-      callCount++;
+      _callCount++;
       // After several calls mockDom will be set below
       return view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
     };
@@ -382,9 +382,9 @@ describe("useOutlineSync — cursor tracking", () => {
     mockDom = dom;
 
     const view = createMockView([0, 50], 10);
-    let callCount = 0;
+    let _callCount = 0;
     const getView = () => {
-      callCount++;
+      _callCount++;
       return view as unknown as ReturnType<() => import("@tiptap/pm/view").EditorView>;
     };
 

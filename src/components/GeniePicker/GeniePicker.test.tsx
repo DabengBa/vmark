@@ -574,7 +574,7 @@ describe("GeniePicker — scope filtering", () => {
 
     // GenieChips only renders for "selection" scope
     // No chips container should appear for "all" scope
-    const chips = document.querySelector(".genie-chips");
+    const _chips = document.querySelector(".genie-chips");
     // May or may not be null depending on initial activeScope state
     // But at least verify picker renders
     expect(document.querySelector(".genie-picker")).not.toBeNull();

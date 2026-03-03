@@ -813,6 +813,72 @@ describe("workspaceHandlers", () => {
     });
   });
 
+  describe("instanceof Error true branch — catch blocks (lines 49, 64, 116)", () => {
+    it("handleWindowsList returns error.message for Error instances (line 49)", async () => {
+      const origTabStore = await import("@/stores/tabStore");
+      const origGetState = origTabStore.useTabStore.getState;
+      (origTabStore.useTabStore as unknown as Record<string, unknown>).getState = () => {
+        throw new Error("real error message");
+      };
+
+      await handleWindowsList("req-instanceof-1");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-instanceof-1",
+        success: false,
+        error: "real error message",
+      });
+
+      (origTabStore.useTabStore as unknown as Record<string, unknown>).getState = origGetState;
+    });
+
+    it("handleWindowsGetFocused returns error.message for Error instances (line 64)", async () => {
+      // Make the first respond() call throw an Error instance to trigger the catch
+      mockRespond.mockImplementationOnce(() => { throw new Error("focused error"); });
+
+      await handleWindowsGetFocused("req-instanceof-2");
+
+      const call = mockRespond.mock.calls[1][0];
+      expect(call.success).toBe(false);
+      expect(call.error).toBe("focused error");
+    });
+
+    it("handleWorkspaceNewDocument returns error.message for Error instances (line 116)", async () => {
+      mockTabStoreState.createTab.mockImplementationOnce(() => {
+        throw new Error("new doc error");
+      });
+
+      await handleWorkspaceNewDocument("req-instanceof-3");
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-instanceof-3",
+        success: false,
+        error: "new doc error",
+      });
+    });
+  });
+
+  describe("handleWorkspaceSaveDocumentAs — getFileName empty string fallback (line 248)", () => {
+    it("uses Untitled when getFileName returns empty string", async () => {
+      mockDocStoreState.getDocument.mockReturnValue({
+        filePath: "/old/path.md",
+        isDirty: false,
+        content: "# Content",
+      });
+
+      // Pass a path whose last segment is empty so getFileName returns ""
+      // Our mock: getFileName = path.split("/").pop() ?? "" — "/" gives ""
+      await handleWorkspaceSaveDocumentAs("req-empty-getfilename", {
+        path: "/",
+      });
+
+      expect(mockTabStoreState.updateTabTitle).toHaveBeenCalledWith("tab-1", "Untitled");
+      expect(mockRespond).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true })
+      );
+    });
+  });
+
   describe("handleWindowsList — getFileName returns empty string (line 38 fallback)", () => {
     it("returns Untitled when getFileName returns empty string for filePath", async () => {
       mockDocStoreState.getDocument.mockReturnValue({

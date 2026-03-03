@@ -97,7 +97,7 @@ describe("blockMathKeymap — isCursorInCodeBlock logic", () => {
     store.originalContent = "original";
 
     const state = createEditorState("modified", "latex");
-    const view = createMockView(state);
+    const _view = createMockView(state);
 
     // Simulate what exitEditing does: check node at editingPos
     const node = state.doc.nodeAt(0);
@@ -481,6 +481,42 @@ describe("blockMathKeymap — plugin handleKeyDown", () => {
     expect(result).toBe(true);
     expect(store.exitEditing).toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalled();
+  });
+
+  it("exitEditing uses empty fragment when originalContent is empty string (line 72 [] branch)", () => {
+    // When originalContent is "" (falsy), the ternary uses [] instead of schema.text("")
+    const store = useBlockMathEditingStore.getState();
+    store.editingPos = 0;
+    store.originalContent = "";
+
+    const plugin = getPlugin();
+    const handleKeyDown = (plugin as { props: { handleKeyDown: (view: unknown, event: unknown) => boolean } }).props.handleKeyDown;
+
+    // Code block currently has "modified" content, but originalContent is ""
+    // So revert=true and currentContent !== originalContent → uses []
+    const state = createEditorState("modified", "latex", 1);
+    const mockTr = {
+      replaceWith: vi.fn().mockReturnThis(),
+      setSelection: vi.fn().mockReturnThis(),
+      setMeta: vi.fn().mockReturnThis(),
+    };
+    const mockState = {
+      ...state,
+      tr: mockTr,
+      schema: state.schema,
+      doc: state.doc,
+    };
+    const view = {
+      state: mockState,
+      dispatch: vi.fn(),
+      posAtCoords: vi.fn(),
+    } as unknown as EditorView & { dispatch: ReturnType<typeof vi.fn> };
+
+    const result = handleKeyDown(view, { key: "Escape", preventDefault: vi.fn() });
+    expect(result).toBe(true);
+    // replaceWith should be called with [] (empty array) because originalContent is ""
+    expect(mockTr.replaceWith).toHaveBeenCalledWith(1, 9, []);
+    expect(store.exitEditing).toHaveBeenCalled();
   });
 });
 

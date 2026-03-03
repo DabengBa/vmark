@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState } from "@tiptap/pm/state";
 import {
   END_OF_LINE_THRESHOLD,
   MIN_CONTEXT_PATTERN_LENGTH,
@@ -46,7 +45,7 @@ function para(text: string, sourceLine: number | null = null) {
   return schema.node("paragraph", { sourceLine }, content);
 }
 
-function heading(text: string, sourceLine: number | null = null) {
+function _heading(text: string, sourceLine: number | null = null) {
   const content = text ? [schema.text(text)] : [];
   return schema.node("heading", { sourceLine, level: 1 }, content);
 }
@@ -259,6 +258,23 @@ describe("findClosestSourceLine — container types", () => {
     const result = findClosestSourceLine(doc, 5);
     expect(result.node).not.toBeNull();
     expect(result.node!.textContent).toBe("warning text");
+  });
+
+  it("early-exit guard fires when container has multiple children (line 105: firstTextblockPos !== null)", () => {
+    // A container with TWO paragraph children: the first child sets firstTextblockPos,
+    // and when descendants visits the second child, `if (firstTextblockPos !== null) return false`
+    // fires to stop traversal early. The first textblock is still used as the result.
+    const alertNode = containerSchema.node("alertBlock", { sourceLine: 5, type: "note" }, [
+      containerPara("first child"),
+      containerPara("second child"),
+    ]);
+    const doc = containerSchema.node("doc", null, [alertNode]);
+
+    const result = findClosestSourceLine(doc, 5);
+    expect(result.pos).not.toBeNull();
+    expect(result.node).not.toBeNull();
+    // Should return the FIRST textblock child, not the second
+    expect(result.node!.textContent).toBe("first child");
   });
 });
 

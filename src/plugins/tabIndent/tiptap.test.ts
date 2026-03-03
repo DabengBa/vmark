@@ -11,7 +11,7 @@
  * - Edge cases: empty doc, deeply nested lists
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 
@@ -172,7 +172,7 @@ describe("tabIndentExtension", () => {
       const doc = simpleSchema.node("doc", null, [
         simpleSchema.node("paragraph", null, [simpleSchema.text("hello")]),
       ]);
-      const state = EditorState.create({ doc, schema: simpleSchema });
+      const _state = EditorState.create({ doc, schema: simpleSchema });
       expect(simpleSchema.nodes.listItem).toBeUndefined();
     });
   });
@@ -820,5 +820,96 @@ describe("tabIndent plugin handler integration", () => {
     const result = keydownHandler(view, event);
     expect(result).toBe(true);
     expect(addRowAfter).toHaveBeenCalled();
+  });
+
+  // --- Coverage for uncovered branches ---
+
+  it("Shift+Tab in table uses direction=-1 (line 129 shiftKey branch)", async () => {
+    // Covers line 129: direction = event.shiftKey ? -1 : 1 (the -1 path)
+    mockIsInTable.mockReturnValue(true);
+    const { goToNextCell } = await import("@tiptap/pm/tables");
+    // goToNextCell(-1) returns a function that returns true (moved)
+    (goToNextCell as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn(() => true));
+
+    const state = createState("table cell", 3);
+    const view = createMockView(state);
+    const event = makeTabEvent({ shiftKey: true }); // direction = -1
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    // goToNextCell should have been called with -1
+    expect(goToNextCell).toHaveBeenCalledWith(-1);
+  });
+
+  it("isInListItem returns false when schema has no listItem type (line 51)", () => {
+    // Covers line 51: if (!listItemType) return false
+    // Build a schema without listItem and call keydownHandler with Shift+Tab
+    // so it passes canTabEscape, table checks, then reaches isInListItem
+    const simpleSchema = new Schema({
+      nodes: {
+        doc: { content: "block+" },
+        paragraph: { group: "block", content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const doc = simpleSchema.node("doc", null, [
+      simpleSchema.node("paragraph", null, [simpleSchema.text("  hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: simpleSchema });
+    // Place cursor after the 2 leading spaces
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 3))
+    );
+
+    mockIsInTable.mockReturnValue(false);
+    mockCanTabEscape.mockReturnValue(null);
+
+    const view = createMockView(stateWithSel);
+    // Use Shift+Tab — skips canTabEscape, goes to table check (false), then isInListItem
+    // isInListItem: listItemType = state.schema.nodes.listItem → undefined → line 51 returns false
+    // Then falls to Shift+Tab outdent path (removes leading spaces)
+    const event = makeTabEvent({ shiftKey: true });
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    // dispatch should be called to remove leading spaces
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("MultiSelection canTabEscape without link mark (line 92 false branch)", async () => {
+    // Covers line 92: if (linkMarkType) — the FALSE branch (schema has no link mark)
+    const { MultiSelection } = await import("@/plugins/multiCursor/MultiSelection");
+    const ms = new MultiSelection([], 0);
+    mockCanTabEscape.mockReturnValue(ms);
+
+    // Schema with NO link mark — so linkMarkType is undefined at line 91
+    const schemaNoLink = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "inline*" },
+        text: { group: "inline", inline: true },
+      },
+      // No marks at all
+    });
+    const doc = schemaNoLink.node("doc", null, [
+      schemaNoLink.node("paragraph", null, [schemaNoLink.text("hello")]),
+    ]);
+    const baseState = EditorState.create({ doc, schema: schemaNoLink });
+
+    const mockTr = {
+      setSelection: vi.fn().mockReturnThis(),
+      removeStoredMark: vi.fn().mockReturnThis(),
+    };
+    const view = {
+      state: { ...baseState, tr: mockTr, schema: schemaNoLink },
+      dispatch: vi.fn(),
+      dom: document.createElement("div"),
+    };
+
+    const event = makeTabEvent();
+    const result = keydownHandler(view, event);
+    expect(result).toBe(true);
+    // setSelection called but removeStoredMark NOT called (no link mark)
+    expect(mockTr.setSelection).toHaveBeenCalledWith(ms);
+    expect(mockTr.removeStoredMark).not.toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
   });
 });

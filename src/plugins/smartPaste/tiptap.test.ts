@@ -8,11 +8,9 @@
  * - Edge cases: empty selection, no clipboardData, existing link marks
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { Schema } from "@tiptap/pm/model";
-import { EditorState } from "@tiptap/pm/state";
 import { Slice } from "@tiptap/pm/model";
 
 // Mock pasteUtils
@@ -267,10 +265,14 @@ describe("smartPaste", () => {
     it("does not handle paste when schema has no link mark", () => {
       // Create an editor with a schema that doesn't have link marks
       // Using a custom extension set without link support
-      const { Extension } = require("@tiptap/core");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Extension: _Extension } = require("@tiptap/core");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { Schema: PmSchema } = require("@tiptap/pm/model");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { EditorState: PmState } = require("@tiptap/pm/state");
-      const { Plugin, PluginKey } = require("@tiptap/pm/state");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Plugin: _Plugin, PluginKey: _PluginKey } = require("@tiptap/pm/state");
 
       // Build a schema without link marks
       const schema = new PmSchema({
@@ -294,6 +296,7 @@ describe("smartPaste", () => {
       const state = PmState.create({ doc, schema, plugins });
 
       // Create a selection (non-empty)
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { TextSelection } = require("@tiptap/pm/state");
       const stateWithSel = state.apply(
         state.tr.setSelection(TextSelection.create(state.doc, 1, 6))
@@ -301,7 +304,7 @@ describe("smartPaste", () => {
 
       // Get handlePaste from plugin props
       const plugin = plugins[0];
-      const handlePaste = (plugin as { props: { handlePaste: Function } }).props.handlePaste;
+      const handlePaste = (plugin as { props: { handlePaste: (...args: unknown[]) => unknown } }).props.handlePaste;
 
       const event = createClipboardEvent("https://example.com");
 

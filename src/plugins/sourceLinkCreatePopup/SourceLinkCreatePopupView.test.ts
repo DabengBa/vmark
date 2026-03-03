@@ -612,7 +612,7 @@ describe("SourceLinkCreatePopupView", () => {
       });
       document.body.appendChild(hostEl);
 
-      const origFn = sourcePopup.getPopupHostForDom;
+      const _origFn = sourcePopup.getPopupHostForDom;
       vi.spyOn(sourcePopup, "getPopupHostForDom" as never).mockReturnValue(hostEl as never);
 
       // Need a fresh popup to pick up the new mock
@@ -990,6 +990,181 @@ describe("SourceLinkCreatePopupView", () => {
       expect(mockClosePopup).not.toHaveBeenCalled();
 
       spy.mockRestore();
+    });
+  });
+
+  describe("Tab wrap-around from last element (line 148 ? 0 branch)", () => {
+    it("Tab wraps from last focusable element to first (nextIndex = 0)", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+
+      // Build a mock focusable list and invoke the keydownHandler directly
+      const btn1 = document.createElement("button");
+      const btn2 = document.createElement("button");
+      const btn3 = document.createElement("button");
+      [btn1, btn2, btn3].forEach((b) => container.appendChild(b));
+
+      // Patch getFocusableElements to return our controlled list
+      const getFocusableSpy = vi.spyOn(
+        popup as unknown as { getFocusableElements(): HTMLElement[] },
+        "getFocusableElements"
+      ).mockReturnValue([btn1, btn2, btn3]);
+
+      // Patch document.activeElement to be the LAST element (btn3)
+      Object.defineProperty(document, "activeElement", { value: btn3, configurable: true });
+
+      const focusSpy = vi.fn();
+      btn1.focus = focusSpy;
+
+      // Dispatch Tab — should call btn1.focus() (wrap to index 0)
+      const tabEvent = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(tabEvent);
+
+      expect(focusSpy).toHaveBeenCalled();
+
+      getFocusableSpy.mockRestore();
+      // Reset activeElement
+      Object.defineProperty(document, "activeElement", { value: document.body, configurable: true });
+      [btn1, btn2, btn3].forEach((b) => b.remove());
+    });
+  });
+
+  describe("Escape in keyboard nav handler (line 159 true branch)", () => {
+    it("closes popup via keyboard nav Escape when active element is inside container", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+      const urlInput = document.querySelector(".link-create-popup-url") as HTMLInputElement;
+
+      // Confirm urlInput is actually inside the container
+      expect(container.contains(urlInput)).toBe(true);
+
+      // Grab the keydownHandler while popup is open
+      const keydownHandler = (popup as unknown as Record<string, ((e: KeyboardEvent) => void) | null>).keydownHandler;
+      if (!keydownHandler) throw new Error("keydownHandler not set");
+
+      mockClosePopup.mockClear();
+
+      // Patch document.activeElement to urlInput (which is inside the container)
+      Object.defineProperty(document, "activeElement", { value: urlInput, configurable: true });
+
+      const fakeEvent = {
+        key: "Escape",
+        preventDefault: vi.fn(),
+      } as unknown as KeyboardEvent;
+
+      keydownHandler(fakeEvent);
+
+      expect(mockClosePopup).toHaveBeenCalled();
+
+      // Restore activeElement
+      Object.defineProperty(document, "activeElement", { value: document.body, configurable: true });
+    });
+  });
+
+  describe("show() — anchorRect null early return (line 179)", () => {
+    it("returns early without building container when anchorRect is null", () => {
+      const view2 = createMockView();
+      const popup2 = new SourceLinkCreatePopupView(view2);
+
+      const container = (popup2 as unknown as Record<string, HTMLElement>).container;
+      // Container display starts as "none"
+      expect(container.style.display).toBe("none");
+
+      // Call private show() directly with null anchorRect
+      (popup2 as unknown as Record<string, (s: object) => void>).show({
+        anchorRect: null,
+        showTextInput: true,
+        text: "",
+        url: "",
+        rangeFrom: 0,
+        rangeTo: 0,
+        isOpen: true,
+        closePopup: mockClosePopup,
+        setText: mockSetText,
+        setUrl: mockSetUrl,
+        openPopup: mockOpenPopup,
+      });
+
+      // Container should still be "none" — show() returned early (line 179)
+      expect(container.style.display).toBe("none");
+
+      popup2.destroy();
+      view2.dom.remove();
+    });
+  });
+
+  describe("Tab handler — currentIndex === -1 (line 140) via direct invocation", () => {
+    it("returns early when activeElement is not in the focusable list", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      const container = document.querySelector(".link-create-popup") as HTMLElement;
+      const btn1 = document.createElement("button");
+      const btn2 = document.createElement("button");
+      container.appendChild(btn1);
+      container.appendChild(btn2);
+
+      // getFocusableElements returns [btn1, btn2], but activeElement is an external element
+      const externalEl = document.createElement("input");
+      document.body.appendChild(externalEl);
+
+      const getFocusableSpy = vi.spyOn(
+        popup as unknown as { getFocusableElements(): HTMLElement[] },
+        "getFocusableElements"
+      ).mockReturnValue([btn1, btn2]);
+
+      // Patch activeElement to external element (not in the focusable list)
+      Object.defineProperty(document, "activeElement", { value: externalEl, configurable: true });
+
+      const focusSpy1 = vi.fn();
+      const focusSpy2 = vi.fn();
+      btn1.focus = focusSpy1;
+      btn2.focus = focusSpy2;
+
+      // Invoke keydownHandler directly — currentIndex = -1 → returns early at line 140
+      const keydownHandler = (popup as unknown as Record<string, (e: KeyboardEvent) => void>).keydownHandler;
+      keydownHandler(new KeyboardEvent("keydown", { key: "Tab" }));
+
+      // Neither button should have been focused
+      expect(focusSpy1).not.toHaveBeenCalled();
+      expect(focusSpy2).not.toHaveBeenCalled();
+
+      getFocusableSpy.mockRestore();
+      Object.defineProperty(document, "activeElement", { value: document.body, configurable: true });
+      externalEl.remove();
+      btn1.remove();
+      btn2.remove();
+    });
+  });
+
+  describe("handleTextInput — textInput null false branch (line 243)", () => {
+    it("does not call setText when textInput is null at handler call time", () => {
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "" });
+
+      mockSetText.mockClear();
+
+      // Nullify textInput on the popup instance then invoke the handler directly
+      (popup as unknown as Record<string, null>).textInput = null;
+      (popup as unknown as Record<string, () => void>).handleTextInput();
+
+      expect(mockSetText).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("wasOpen true branch (line 45 false)", () => {
+    it("does not call show() again when popup is already open (wasOpen=true)", () => {
+      // First open — show() is called (wasOpen was false)
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true });
+
+      // Spy on the private show method after first open
+      const showSpy = vi.spyOn(popup as unknown as { show: (s: object) => void }, "show");
+
+      // Emit again with isOpen=true — wasOpen is now true, so show() should NOT be called again
+      emitStateChange({ isOpen: true, anchorRect, showTextInput: true, text: "updated" });
+
+      expect(showSpy).not.toHaveBeenCalled();
+      showSpy.mockRestore();
     });
   });
 

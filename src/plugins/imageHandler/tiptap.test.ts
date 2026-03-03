@@ -113,7 +113,7 @@ import { imageHandlerExtension } from "./tiptap";
 /**
  * Extract the plugin's handlePaste and handleDrop from the extension.
  */
-function getPluginProps() {
+function _getPluginProps() {
   const ext = imageHandlerExtension;
   // Access the addProseMirrorPlugins method
   const plugins = ext.options?.addProseMirrorPlugins
@@ -322,7 +322,7 @@ describe("handleDrop behavior", () => {
   });
 
   it("text drop with image paths triggers insertMultipleImages", () => {
-    const text = "/Users/test/photo.png";
+    const _text = "/Users/test/photo.png";
     mockInsertMultipleImages("/Users/test/photo.png");
 
     expect(mockInsertMultipleImages).toHaveBeenCalled();

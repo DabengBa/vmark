@@ -483,7 +483,7 @@ describe("handleSmartSelectAll dispatch paths", () => {
 
   it("handleSmartSelectAll selects entire document when no container and stack is non-empty", () => {
     const d = doc(ul(li(p("item"))));
-    const { state, plugins } = createPluginState(d, 4);
+    const { state, plugins: _plugins } = createPluginState(d, 4);
 
     // First, expand once to populate the stack
     const dispatched1: Transaction[] = [];
@@ -679,6 +679,35 @@ describe("handleSmartSelectAll dispatch paths", () => {
     // Plugin state should be preserved
     const pState = pluginKey!.getState(state3);
     expect(pState).toEqual(customState);
+  });
+
+  it("handleSmartSelectAll uses fallback plugin state when plugin is not registered (L90 ?? branch)", () => {
+    // L90: `smartSelectPluginKey.getState(state) ?? { stack: [], lastExpanded: null }`
+    // When the plugin is NOT in the editor state, getState returns null, hitting the ?? fallback.
+    // Create a state WITHOUT the smart-select plugin — just a plain EditorState.
+    const d = doc(ul(li(p("item A")), li(p("item B"))));
+    const stateWithoutPlugin = EditorState.create({
+      doc: d,
+      selection: TextSelection.create(d, 4),
+      plugins: [], // no smartSelectPlugin
+    });
+
+    const dispatched: Transaction[] = [];
+    const mockDispatch = (tr: Transaction) => { dispatched.push(tr); };
+
+    const shortcuts = smartSelectAllExtension.config.addKeyboardShortcuts!.call({
+      editor: {
+        state: stateWithoutPlugin,
+        view: { dispatch: mockDispatch },
+      },
+    } as never);
+
+    // nextBounds is non-null (cursor in list) and plugin state is null → uses fallback {stack:[], lastExpanded:null}
+    const result = shortcuts["Mod-a"]({ editor: { state: stateWithoutPlugin, view: { dispatch: mockDispatch } } } as never);
+    expect(result).toBe(true);
+    expect(dispatched.length).toBe(1);
+    // The meta should have been set with the fallback empty stack
+    expect(dispatched[0].getMeta("addToHistory")).toBe(false);
   });
 
   it("handleSelectionUndo sets lastExpanded to null when stack becomes empty", () => {

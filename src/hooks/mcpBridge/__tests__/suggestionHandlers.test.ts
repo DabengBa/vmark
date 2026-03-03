@@ -841,7 +841,7 @@ describe("suggestionHandlers", () => {
   describe("handleSuggestionList — non-Error throw", () => {
     it("handles non-Error thrown value", async () => {
       mockGetSortedSuggestions.mockImplementation(() => {
-        throw "string error"; // eslint-disable-line no-throw-literal
+        throw "string error";
       });
 
       await handleSuggestionList("req-ne-list");
@@ -858,7 +858,7 @@ describe("suggestionHandlers", () => {
   describe("handleSuggestionAcceptAll — non-Error throw", () => {
     it("handles non-Error thrown value", async () => {
       mockAcceptAll.mockImplementation(() => {
-        throw 42; // eslint-disable-line no-throw-literal
+        throw 42;
       });
 
       await handleSuggestionAcceptAll("req-ne-aa");
@@ -875,8 +875,7 @@ describe("suggestionHandlers", () => {
   describe("handleSuggestionRejectAll — non-Error throw", () => {
     it("handles non-Error thrown value", async () => {
       mockRejectAll.mockImplementation(() => {
-        throw null; // eslint-disable-line no-throw-literal
-      });
+        throw null;      });
 
       await handleSuggestionRejectAll("req-ne-ra");
 
@@ -944,8 +943,7 @@ describe("suggestionHandlers", () => {
   describe("handleSetContent — non-Error thrown value (catch branch)", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw 999; // eslint-disable-line no-throw-literal
-      });
+        throw 999;      });
 
       await handleSetContent("req-ne-sc", { content: "x" });
 
@@ -960,8 +958,7 @@ describe("suggestionHandlers", () => {
   describe("handleInsertAtCursorWithSuggestion — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw "cursor error"; // eslint-disable-line no-throw-literal
-      });
+        throw "cursor error";      });
 
       await handleInsertAtCursorWithSuggestion("req-ne-ic", { text: "x" });
 
@@ -976,8 +973,7 @@ describe("suggestionHandlers", () => {
   describe("handleInsertAtPositionWithSuggestion — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw false; // eslint-disable-line no-throw-literal
-      });
+        throw false;      });
 
       await handleInsertAtPositionWithSuggestion("req-ne-ip", { text: "x", position: 0 });
 
@@ -992,8 +988,7 @@ describe("suggestionHandlers", () => {
   describe("handleSelectionReplaceWithSuggestion — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw undefined; // eslint-disable-line no-throw-literal
-      });
+        throw undefined;      });
 
       await handleSelectionReplaceWithSuggestion("req-ne-sr", { text: "x" });
 
@@ -1008,8 +1003,7 @@ describe("suggestionHandlers", () => {
   describe("handleDocumentReplaceInSourceWithSuggestion — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetEditor.mockImplementation(() => {
-        throw { custom: true }; // eslint-disable-line no-throw-literal
-      });
+        throw { custom: true };      });
 
       await handleDocumentReplaceInSourceWithSuggestion("req-ne-ris", {
         search: "x",
@@ -1027,8 +1021,7 @@ describe("suggestionHandlers", () => {
   describe("handleSuggestionAccept — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetSuggestion.mockImplementation(() => {
-        throw 0; // eslint-disable-line no-throw-literal
-      });
+        throw 0;      });
 
       await handleSuggestionAccept("req-ne-sa", { suggestionId: "s-1" });
 
@@ -1045,8 +1038,7 @@ describe("suggestionHandlers", () => {
   describe("handleSuggestionReject — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockGetSuggestion.mockImplementation(() => {
-        throw "reject fail"; // eslint-disable-line no-throw-literal
-      });
+        throw "reject fail";      });
 
       await handleSuggestionReject("req-ne-srej", { suggestionId: "s-1" });
 
@@ -1057,6 +1049,63 @@ describe("suggestionHandlers", () => {
       });
 
       mockGetSuggestion.mockReturnValue(null);
+    });
+  });
+
+  // ── replaceInSource: normSearch empty branch (line 339) ──
+
+  describe("handleDocumentReplaceInSourceWithSuggestion — normSearch empty (line 339)", () => {
+    it("returns no matches when search is all whitespace (normSearch becomes empty)", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      vi.mocked(serializeMarkdown).mockReturnValue("Hello World");
+      mockGetEditor.mockReturnValue(createMockEditor({ docSize: 50 }));
+
+      // search is "   " — non-empty string but normalizes to ""
+      // parts.length - 1 === 0 (not found in exact search)
+      // normSearch = "" (length 0) → skip the if block → totalMatches stays 0
+      await handleDocumentReplaceInSourceWithSuggestion("req-norm-empty", {
+        search: "   ",
+        replace: "x",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.count).toBe(0);
+      expect(call.data.message).toContain("No matches");
+
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
+    });
+  });
+
+  // ── replaceInSource: regexMatches null → ?? 0 fallback (line 372) ──
+
+  describe("handleDocumentReplaceInSourceWithSuggestion — regexMatches null (line 372)", () => {
+    it("regexMatchCount falls back to 0 when flex regex has no matches in raw markdown", async () => {
+      const { serializeMarkdown } = await import("@/utils/markdownPipeline");
+      // Raw markdown: extra spaces so normalized match works but flex regex on raw doesn't
+      // "Hello  World" (2 spaces) — normalized matches "Hello World"
+      // flex pattern from "Hello World": "Hello[ \t]+World"
+      // This DOES match "Hello  World", so we need a case where normalization finds a match
+      // but the flex regex on the RAW content does not match.
+      // Actually the flex regex uses the ORIGINAL search (with spaces → [ \t]+).
+      // If search = "Hello\nWorld" and markdown = "Hello  World", normSearch = "Hello World",
+      // normMarkdown.split("Hello World") finds it (totalMatches=1, usedNormalized=true).
+      // flexPattern = "Hello\\n[ \t]+World" which won't match "Hello  World".
+      // This gives regexMatches = null → ?? 0 fires.
+      vi.mocked(serializeMarkdown).mockReturnValue("Hello  World");
+      mockGetEditor.mockReturnValue(createMockEditor({ docSize: 50 }));
+      mockIsAutoApproveEnabled.mockReturnValue(true);
+
+      await handleDocumentReplaceInSourceWithSuggestion("req-regex-null", {
+        search: "Hello\nWorld",
+        replace: "Hi",
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      // Should succeed — count is 0 due to ?? 0 fallback, but replacement still applied
+      expect(call.success).toBe(true);
+
+      vi.mocked(serializeMarkdown).mockReturnValue("# Hello\n\nWorld");
     });
   });
 

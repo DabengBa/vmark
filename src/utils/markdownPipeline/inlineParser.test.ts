@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { parseInlineMarkdown } from "./inlineParser";
-import type { Content, Text, Strong, Emphasis, Delete, InlineCode, Link } from "mdast";
+import type { Text } from "mdast";
 
 describe("parseInlineMarkdown", () => {
   describe("empty and plain text", () => {

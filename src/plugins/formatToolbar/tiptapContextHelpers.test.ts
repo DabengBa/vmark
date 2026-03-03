@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { EditorState } from "@tiptap/pm/state";
 import {
   detectMarksAtCursor,
   findMarkRange,
@@ -135,6 +135,38 @@ describe("detectMarksAtCursor", () => {
 
     // inFormattedRange should still be bold, not overwritten by italic
     expect(ctx.inFormattedRange?.markType).toBe("bold");
+  });
+
+  it("skips link detection when ctx.inLink is already set (line 25 false branch)", () => {
+    // Two link marks in the same paragraph — first sets ctx.inLink, second is skipped
+    const linkMark1 = schema.marks.link.create({ href: "https://first.com" });
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("link", [linkMark1]),
+        schema.text(" plain"),
+      ]),
+    ]);
+    const state = createState(doc);
+    const $from = state.doc.resolve(3); // Inside the link text
+
+    const ctx: CursorContext = {
+      surface: "wysiwyg",
+      contextMode: "insert",
+      hasSelection: false,
+      // Pre-populate inLink to simulate it already being set
+      inLink: {
+        href: "https://already-set.com",
+        text: "",
+        from: 1,
+        to: 5,
+        contentFrom: 1,
+        contentTo: 5,
+      },
+    };
+    detectMarksAtCursor($from, ctx);
+
+    // inLink should remain as the pre-set value, not be overwritten
+    expect(ctx.inLink?.href).toBe("https://already-set.com");
   });
 
   it("detects formatted range when cursor is in a non-link mark (lines 42-44)", () => {

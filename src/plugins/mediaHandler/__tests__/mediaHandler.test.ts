@@ -787,6 +787,113 @@ describe("handlePaste copyMediaToAssets catch fallback", () => {
   });
 });
 
+describe("mediaHandler — getDocumentPath no tabId branch (line 47)", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = {
+      state: { doc: { nodeSize: 10 }, selection: { from: 0, to: 0 } },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("returns false for paste when activeTabId has no entry for window label (tabId is undefined)", async () => {
+    const { useTabStore } = await import("@/stores/tabStore");
+    (useTabStore.getState as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      activeTabId: {},  // No entry for "main" → tabId is undefined
+    });
+
+    const plugins = getPlugins();
+    const handlePaste = plugins[0].props.handlePaste!;
+    const event = {
+      clipboardData: {
+        getData: vi.fn((type: string) => (type === "text/plain" ? "/path/to/video.mp4" : "")),
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    const result = handlePaste(mockView, event, null as never);
+    expect(result).toBe(false);
+  });
+});
+
+describe("mediaHandler — getMediaType extension fallback (line 58)", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = {
+      state: { doc: { nodeSize: 10 }, selection: { from: 0, to: 0 } },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("uses video extension fallback when MIME type is empty (e.g. .mkv file)", async () => {
+    // File with no MIME type but video extension — isMediaFile uses extension fallback,
+    // and getMediaType must also fall through to line 58: hasVideoExtension(file.name)
+    const file = new File(["video"], "clip.mkv", { type: "" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(8))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockInsertBlockVideoNode).toHaveBeenCalledWith(mockView, "./assets/media.mp4");
+    }, { timeout: 200 });
+  });
+});
+
+describe("mediaHandler — handleDroppedMediaFile non-Error catch branch (line 95)", () => {
+  let mockView: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = {
+      state: { doc: { nodeSize: 10 }, selection: { from: 0, to: 0 } },
+      dispatch: vi.fn(),
+    } as unknown as EditorView;
+  });
+
+  it("handles non-Error thrown from saveMediaToAssets via String(error) (line 95)", async () => {
+    // Throw a non-Error object (string) to exercise the String(error) branch
+    mockSaveMediaToAssets.mockRejectedValueOnce("disk quota exceeded");
+
+    const file = new File(["v"], "clip.mp4", { type: "video/mp4" });
+    (file as unknown as Record<string, unknown>).arrayBuffer = vi.fn(() =>
+      Promise.resolve(new ArrayBuffer(4))
+    );
+
+    const plugins = getPlugins();
+    const handleDrop = plugins[0].props.handleDrop!;
+    const event = {
+      dataTransfer: { files: [file] },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent;
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    handleDrop(mockView, event, null as never, false);
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining("disk quota exceeded"),
+        expect.objectContaining({ kind: "error" })
+      );
+    }, { timeout: 200 });
+
+    consoleSpy.mockRestore();
+  });
+});
+
 describe("media type detection via mediaPathDetection", () => {
   describe("hasVideoExtension", () => {
     it.each([

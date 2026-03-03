@@ -486,7 +486,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
 
   it("handles compositionend with data and schedules cleanup via requestAnimationFrame", () => {
     const events = getFullPlugin();
-    const mockResolve = (pos: number) => ({
+    const mockResolve = (_pos: number) => ({
       depth: 1,
       node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
       end: (d?: number) => d !== undefined ? 20 : 15,
@@ -516,7 +516,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
 
   it("calls fixCompositionSplitBlock when pinyin is available", () => {
     const events = getFullPlugin();
-    const mockResolve = (pos: number) => ({
+    const mockResolve = (_pos: number) => ({
       depth: 1,
       node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
       end: (d?: number) => d !== undefined ? 20 : 15,
@@ -548,7 +548,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
 
   it("scheduleImeCleanup with table cell adjusts cleanup range", () => {
     const events = getFullPlugin();
-    const mockResolve = (pos: number) => ({
+    const mockResolve = (_pos: number) => ({
       depth: 2,
       node: (d: number) => ({
         type: { name: d === 2 ? "tableCell" : d === 1 ? "paragraph" : "doc" },
@@ -620,7 +620,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
     mockGetImeCleanupPrefixLength.mockReturnValue(3);
 
     const events = getFullPlugin();
-    const mockResolve = (pos: number) => ({
+    const mockResolve = (_pos: number) => ({
       depth: 1,
       node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
       end: (d?: number) => d !== undefined ? 20 : 15,
@@ -658,7 +658,7 @@ describe("compositionGuard scheduleImeCleanup", () => {
     // compositionStartPos will be 5 (from selection.from)
     // end() returns 3, which is less than 5
     // The resolve needs to work for both compositionend (findTableCellDepth) and scheduleImeCleanup
-    const mockResolve = (pos: number) => ({
+    const mockResolve = (_pos: number) => ({
       depth: 1,
       node: (d: number) => ({ type: { name: d === 1 ? "paragraph" : "doc" } }),
       end: () => 3,
@@ -1147,6 +1147,91 @@ describe("compositionGuard tableHeader cursor fix", () => {
 
     // Restore synchronous rAF
     globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
+  });
+
+  it("appendTransaction catch branch returns null when resolve throws inside try block", () => {
+    const { events, appendTransaction } = getFullPlugin();
+
+    // Set up compositionstart in a tableHeader so pendingHeaderCursorFix is set
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => ({
+            depth: 2,
+            node: (d: number) => ({
+              type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+            }),
+            end: () => 20,
+          }),
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: {
+          delete: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
+        },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    events.compositionend(mockView, { data: "你好" });
+
+    // appendTransaction with doc-changing transaction but resolve throws in the try block
+    const newState = {
+      selection: { from: 5 },
+      doc: {
+        resolve: () => { throw new Error("stale position"); },
+        content: { size: 30 },
+      },
+      tr: { setSelection: vi.fn().mockReturnThis() },
+    };
+
+    const result = appendTransaction([{ docChanged: true }], {}, newState);
+    // catch block returns null
+    expect(result).toBeNull();
+  });
+
+  it("compositionend stale position catch: resolve throws inside pendingHeaderCursorFix setup", () => {
+    const { events } = getFullPlugin();
+
+    // compositionStartPos = 5, but when compositionend calls findTableCellDepth (resolve(5))
+    // then tries to resolve again for cellNode → throw stale error
+    let resolveCallCount = 0;
+    const mockView = {
+      state: {
+        selection: { from: 5 },
+        doc: {
+          resolve: () => {
+            resolveCallCount++;
+            // First call (findTableCellDepth loop): works fine → returns tableHeader depth
+            // Second call (resolve(compositionStartPos).node(depth)): throws
+            if (resolveCallCount >= 2) {
+              throw new Error("stale position");
+            }
+            return {
+              depth: 2,
+              node: (d: number) => ({
+                type: { name: d === 2 ? "tableHeader" : d === 1 ? "paragraph" : "doc" },
+              }),
+              end: () => 20,
+            };
+          },
+          textBetween: () => "",
+          content: { size: 30 },
+        },
+        tr: {
+          delete: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
+        },
+      },
+      dispatch: vi.fn(),
+    };
+
+    events.compositionstart(mockView);
+    // Should not throw — the catch block inside compositionend swallows the error
+    expect(() => events.compositionend(mockView, { data: "你好" })).not.toThrow();
   });
 
   it("appendTransaction returns null when no doc-changing transactions", () => {

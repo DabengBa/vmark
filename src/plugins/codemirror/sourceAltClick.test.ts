@@ -238,6 +238,29 @@ describe("addCursorAtPosition — code fence boundaries", () => {
   });
 });
 
+describe("removeCursorAtPosition — non-cursor range, pos outside range", () => {
+  it("returns false when pos is outside a non-cursor selection range", () => {
+    // positionInRanges line 49 else-if branch: range.from !== range.to but pos NOT in range
+    const ranges = [
+      EditorSelection.range(0, 5),
+      EditorSelection.cursor(10),
+    ];
+    const state = EditorState.create({
+      doc: "hello world",
+      selection: EditorSelection.create(ranges, 0),
+      extensions: [multiCursorExtension],
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const view = new EditorView({ state, parent: container });
+    views.push(view);
+
+    // pos=7 is OUTSIDE the range [0,5) and not at cursor 10 → positionInRanges returns -1
+    const result = removeCursorAtPosition(view, 7);
+    expect(result).toBe(false);
+  });
+});
+
 describe("handleAltClick", () => {
   it("returns false when altKey is not set", () => {
     const view = createView("hello", 0);
@@ -337,5 +360,30 @@ describe("handleAltClick", () => {
     handleAltClick(view, event);
 
     expect(focusSpy).toHaveBeenCalled();
+  });
+
+  it("returns false and does not call preventDefault when toggleCursor returns false", () => {
+    // Line 226 false branch: handled=false, so if(handled) block is skipped
+    // toggleCursorAtPosition returns false when clicking on the only existing cursor
+    const view = createView("hello", 3);
+    // Mock posAtCoords to return position 3 — the primary cursor is already there
+    vi.spyOn(view, "posAtCoords").mockReturnValue(3);
+    const focusSpy = vi.spyOn(view, "focus");
+
+    const event = new MouseEvent("mousedown", {
+      altKey: true,
+      clientX: 30,
+      clientY: 10,
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventSpy = vi.spyOn(event, "preventDefault");
+
+    const result = handleAltClick(view, event);
+
+    // toggleCursorAtPosition(view, 3) → addCursorAtPosition(view, 3) → false (already primary)
+    expect(result).toBe(false);
+    expect(preventSpy).not.toHaveBeenCalled();
+    expect(focusSpy).not.toHaveBeenCalled();
   });
 });

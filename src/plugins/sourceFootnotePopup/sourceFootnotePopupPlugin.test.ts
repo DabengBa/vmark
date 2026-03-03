@@ -246,7 +246,7 @@ describe("onOpen callback (via plugin config)", () => {
     createSourceFootnotePopupPlugin();
     const config = (createSourcePopupPlugin as ReturnType<typeof vi.fn>).mock.calls[0][0];
 
-    const { SourceFootnotePopupView } = await import("./SourceFootnotePopupView");
+    const { SourceFootnotePopupView: _SourceFootnotePopupView } = await import("./SourceFootnotePopupView");
     const view = createView("test", 0);
     const store = { getState: () => ({}) };
     const popupView = config.createView(view, store);

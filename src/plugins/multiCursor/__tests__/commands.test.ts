@@ -915,7 +915,7 @@ describe("commands", () => {
       // For line 197: findAllOccurrences returns [] when searchText isn't found anywhere.
       // This needs the text to not exist in the doc — which can't happen if we selected it.
       // Let's try: select special chars that wouldn't repeat.
-      const doc = schema.node("doc", null, [
+      const _doc = schema.node("doc", null, [
         schema.node("paragraph", null, [schema.text("unique")]),
       ]);
       // "unique" occurs once → findAllOccurrences returns [1 item] → not 0
@@ -953,6 +953,87 @@ describe("commands", () => {
       const result = selectAllOccurrences(state);
       // Should select both 'ab' in code block
       expect(result).not.toBeNull();
+    });
+  });
+
+  describe("addCursorAbove — MultiSelection topmost reduction (lines 417-418)", () => {
+    function makeView(
+      state: EditorState,
+      coordsAtPos: (pos: number) => { top: number; bottom: number; left: number; right: number },
+      posAtCoords: (coords: { left: number; top: number }) => { pos: number } | null
+    ) {
+      return { state, coordsAtPos, posAtCoords } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("uses topmost range from MultiSelection when adding cursor above (line 418)", () => {
+      // Build MultiSelection with two cursor ranges so addCursorAbove uses the reduce on MultiSelection
+      const state0 = createState("hello hello", { anchor: 7, head: 12 });
+      const tr1 = selectNextOccurrence(state0);
+      const state = state0.apply(tr1!);
+      // state has MultiSelection
+
+      const view = makeView(
+        state,
+        (pos) => ({ top: pos * 2, bottom: pos * 2 + 10, left: 50, right: 55 }),
+        () => ({ pos: 2 }) // new position above
+      );
+      const tr = addCursorAbove(state, view);
+      expect(tr).not.toBeNull();
+    });
+  });
+
+  describe("addCursorBelow — MultiSelection bottommost reduction (lines 420-421)", () => {
+    function makeView(
+      state: EditorState,
+      coordsAtPos: (pos: number) => { top: number; bottom: number; left: number; right: number },
+      posAtCoords: (coords: { left: number; top: number }) => { pos: number } | null
+    ) {
+      return { state, coordsAtPos, posAtCoords } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("finds bottommost cursor in MultiSelection (line 421 reduce path)", () => {
+      // Three cursors at different positions — bottommost reduction picks the max
+      const state0 = createState("hello hello hello", { anchor: 1, head: 6 });
+      const tr1 = selectNextOccurrence(state0);
+      const state = state0.apply(tr1!);
+
+      const view = makeView(
+        state,
+        (pos) => ({ top: pos, bottom: pos + 10, left: 50, right: 55 }),
+        () => ({ pos: 15 }) // position below all existing
+      );
+      const tr = addCursorBelow(state, view);
+      expect(tr).not.toBeNull();
+    });
+  });
+
+  describe("addCursorAbove/Below — duplicate cursor deduplication (line 443)", () => {
+    function makeView(
+      state: EditorState,
+      coordsAtPos: (pos: number) => { top: number; bottom: number; left: number; right: number },
+      posAtCoords: (coords: { left: number; top: number }) => { pos: number } | null
+    ) {
+      return { state, coordsAtPos, posAtCoords } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("returns null when posAtCoords maps to an existing cursor position in MultiSelection (line 443)", () => {
+      // Build a MultiSelection with two cursor (empty) ranges at positions 1 and 7
+      const doc = createDoc("hello hello");
+      const stateBase = EditorState.create({ doc, schema, plugins: [multiCursorPlugin()] });
+      const cursors = [
+        new SelectionRange(doc.resolve(1), doc.resolve(1)),
+        new SelectionRange(doc.resolve(7), doc.resolve(7)),
+      ];
+      const multiSel = new MultiSelection(cursors, 1);
+      const state = stateBase.apply(stateBase.tr.setSelection(multiSel));
+
+      // posAtCoords returns pos=7 which matches an existing empty cursor range exactly
+      const view = makeView(
+        state,
+        () => ({ top: 100, bottom: 120, left: 50, right: 55 }),
+        () => ({ pos: 7 }) // matches cursor at 7 exactly (from === to === 7)
+      );
+      expect(addCursorBelow(state, view)).toBeNull();
     });
   });
 

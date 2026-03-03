@@ -1010,7 +1010,7 @@ describe("parser — fixNormalizationSpread with non-empty nested list item", ()
   it("handles isEmptyListItem with listItem that has 0 children (line 485)", () => {
     // normalizeBareListMarkers with a bare marker produces an empty list item
     // isEmptyListItem should return true for li.children.length === 0
-    const { text, modified } = normalizeBareListMarkers("- text\n  -\n");
+    const { text: _text, modified } = normalizeBareListMarkers("- text\n  -\n");
     expect(modified).toBe(true);
     // Parse the normalized text
     const result = parseMarkdownToMdast("- text\n  -\n");

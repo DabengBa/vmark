@@ -148,7 +148,7 @@ describe("createSourceMathPreviewPlugin", () => {
     it("runs checkMathAtCursor after RAF fires", () => {
       // Spy installed before view creation via createViewWithRafSpy
       const callbacks: FrameRequestCallback[] = [];
-      const view = createViewWithRafSpy("hello $x^2$ world", callbacks);
+      const _view = createViewWithRafSpy("hello $x^2$ world", callbacks);
 
       // There should be a pending RAF from construction
       expect(callbacks.length).toBeGreaterThan(0);
@@ -207,7 +207,7 @@ describe("createSourceMathPreviewPlugin", () => {
       const callbacks: FrameRequestCallback[] = [];
       mockFindBlockMath.mockReturnValue(null);
       mockFindInlineMath.mockReturnValue(null);
-      const view = createViewWithRafSpy("no math here", callbacks);
+      const _view = createViewWithRafSpy("no math here", callbacks);
 
       if (callbacks.length > 0) callbacks[0](0);
 

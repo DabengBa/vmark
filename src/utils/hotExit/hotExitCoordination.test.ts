@@ -5,7 +5,7 @@
  * Critical: Finder file open must wait for hot exit restore to complete.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   isRestoreInProgress,
   setRestoreInProgress,
@@ -183,6 +183,33 @@ describe('hotExitCoordination', () => {
 
       const result = await waiter;
       expect(result).toBe(true);
+    });
+  });
+
+  describe('notifyRestoreComplete — while loop exhausts all waiters', () => {
+    it('resolves five simultaneous waiters in order', async () => {
+      setRestoreInProgress(true);
+
+      // Register five waiters — exercises the while(pendingWaiters.length > 0) loop
+      // with if(waiter) true on each iteration
+      const w1 = waitForRestoreComplete(5000);
+      const w2 = waitForRestoreComplete(5000);
+      const w3 = waitForRestoreComplete(5000);
+      const w4 = waitForRestoreComplete(5000);
+      const w5 = waitForRestoreComplete(5000);
+
+      notifyRestoreComplete();
+
+      const results = await Promise.all([w1, w2, w3, w4, w5]);
+      expect(results).toEqual([true, true, true, true, true]);
+      expect(isRestoreInProgress()).toBe(false);
+    });
+
+    it('notifyRestoreComplete with no waiters leaves state clean', () => {
+      // Empty pendingWaiters — while condition is false immediately, loop body never runs
+      setRestoreInProgress(true);
+      notifyRestoreComplete();
+      expect(isRestoreInProgress()).toBe(false);
     });
   });
 });

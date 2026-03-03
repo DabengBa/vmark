@@ -472,6 +472,11 @@ describe("getExportFolderName", () => {
     it("uses fallback when file name is only dots", () => {
       expect(getExportFolderName("No H1", "/path/to/...", "Fallback")).toBe("Fallback");
     });
+
+    it("uses fallback when filePath ends with separator (empty last component, line 240 branch)", () => {
+      // "/path/to/" splits to ["", "path", "to", ""] → last part is "" → empty filename
+      expect(getExportFolderName("No H1", "/path/to/", "Fallback")).toBe("Fallback");
+    });
   });
 
   describe("Empty and edge cases", () => {

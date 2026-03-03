@@ -7,10 +7,9 @@
  * - Store subscription wiring in plugin view
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import { EditorState, Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
-import { DecorationSet } from "@tiptap/pm/view";
 
 // Mock CSS import
 vi.mock("./focus-mode.css", () => ({}));
@@ -89,7 +88,7 @@ describe("focusModeExtension", () => {
 
       // Get the plugin from the extension
       const ext = focusModeExtension.configure({});
-      const plugins = ext.options?.addProseMirrorPlugins?.call(ext) ??
+      const _plugins = ext.options?.addProseMirrorPlugins?.call(ext) ??
         (focusModeExtension as unknown as { addProseMirrorPlugins: () => Plugin[] }).addProseMirrorPlugins?.() ?? [];
 
       // The extension uses addProseMirrorPlugins - test through Editor

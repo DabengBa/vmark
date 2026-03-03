@@ -157,6 +157,7 @@ describe("searchExtension", () => {
     it("returns null for invalid regex patterns gracefully", () => {
       let result: RegExp | null = null;
       try {
+        // eslint-disable-next-line no-invalid-regexp
         result = new RegExp("[invalid", "gi");
       } catch {
         result = null;
@@ -453,8 +454,8 @@ describe("search plugin integration", () => {
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
     // Apply a trivial transaction to trigger the apply() path
-    const nextState = state.apply(state.tr);
-    const pluginState = plugin.getState(nextState);
+    const _nextState = state.apply(state.tr);
+    const _pluginState = plugin.getState(_nextState);
 
     // setMatches should have been called with 2 matches
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
@@ -535,7 +536,7 @@ describe("search plugin integration", () => {
     mockSearchState.caseSensitive = true;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     // Only "hello" (lowercase) matches
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(1, 0);
@@ -550,7 +551,7 @@ describe("search plugin integration", () => {
     mockSearchState.wholeWord = true;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     // "hello" as whole word appears twice, "helloworld" is excluded
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
@@ -565,7 +566,7 @@ describe("search plugin integration", () => {
     mockSearchState.useRegex = true;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(3, 0);
   });
@@ -579,7 +580,7 @@ describe("search plugin integration", () => {
     mockSearchState.useRegex = true;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
   });
@@ -592,7 +593,7 @@ describe("search plugin integration", () => {
     mockSearchState.query = "hello";
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(2, 0);
   });
@@ -607,7 +608,7 @@ describe("search plugin integration", () => {
     mockSearchState.query = "hello";
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
   });
@@ -621,7 +622,7 @@ describe("search plugin integration", () => {
     mockSearchState.useRegex = false;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const nextState = state.apply(state.tr);
+    const _nextState = state.apply(state.tr);
 
     // In non-regex mode, "." is escaped — only matches literal "hello.world"
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(1, 0);
@@ -640,8 +641,8 @@ describe("search plugin integration", () => {
 
     // Now change the doc
     const tr = state2.tr.insertText(" hello", state2.doc.content.size - 1);
-    const state3 = state2.apply(tr);
-    const pluginState = plugin.getState(state3);
+    const _state3 = state2.apply(tr);
+    const _pluginState = plugin.getState(_state3);
 
     // Should have found more matches after the insert
     expect(mockSearchState.setMatches).toHaveBeenLastCalledWith(2, 0);
@@ -756,7 +757,7 @@ describe("search plugin integration", () => {
     // Clear query
     mockSearchState.query = "";
     mockSearchState.setMatches.mockClear();
-    const state3 = state2.apply(state2.tr);
+    const _state3 = state2.apply(state2.tr);
     expect(mockSearchState.setMatches).toHaveBeenCalledWith(0, -1);
   });
 
@@ -769,7 +770,7 @@ describe("search plugin integration", () => {
     mockSearchState.useRegex = true;
 
     const state = EditorState.create({ doc, schema, plugins: [plugin] });
-    const state2 = state.apply(state.tr);
+    const _state2 = state.apply(state.tr);
     // Should find matches without infinite loop
     expect(mockSearchState.setMatches).toHaveBeenCalled();
     const matchCount = mockSearchState.setMatches.mock.calls[0][0];

@@ -229,4 +229,42 @@ describe("proseMirrorToMdast inline", () => {
     // Should contain both bold and italic markers
     expect(md).toMatch(/\*{3}both\*{3}|\*\*\*both\*\*\*/);
   });
+
+  it("serializes footnote_definition with null label — falls back to '1' (L225/226)", () => {
+    // L225/226: identifier/label uses `node.attrs.label ?? "1"` when label is null
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("footnote_definition", { label: null }, [
+        testSchema.node("paragraph", null, [testSchema.text("note content")]),
+      ]),
+    ]);
+    const mdast = proseMirrorToMdast(testSchema, doc);
+    const footnote = mdast.children.find((c) => c.type === "footnoteDefinition") as
+      | { type: string; identifier: string; label: string }
+      | undefined;
+    expect(footnote).toBeDefined();
+    expect(footnote!.identifier).toBe("1");
+    expect(footnote!.label).toBe("1");
+  });
+
+  it("serializes wikiLink with null value attribute — falls back to empty string (L238)", () => {
+    // L238: value uses `node.attrs.value ?? ""` when value is null
+    const md = pmToMarkdown([
+      testSchema.node("paragraph", null, [
+        testSchema.node("wikiLink", { value: null }),
+      ]),
+    ]);
+    // Should produce a wiki link with empty target (no crash)
+    expect(md).toContain("[[]]");
+  });
+
+  it("serializes html_inline with null value attribute — falls back to empty string (L249)", () => {
+    // L249: value uses `node.attrs.value ?? ""` when value is null
+    const md = pmToMarkdown([
+      testSchema.node("paragraph", null, [
+        testSchema.node("html_inline", { value: null }),
+      ]),
+    ]);
+    // Should produce empty html inline (no crash)
+    expect(md).toBeDefined();
+  });
 });

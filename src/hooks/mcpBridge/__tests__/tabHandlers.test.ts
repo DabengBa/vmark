@@ -323,7 +323,7 @@ describe("tabHandlers", () => {
     it("handles non-Error thrown value (String(error) branch)", async () => {
       const origTabs = mockTabStoreState.tabs;
       Object.defineProperty(mockTabStoreState, "tabs", {
-        get: () => { throw "string throw"; }, // eslint-disable-line no-throw-literal
+        get: () => { throw "string throw"; },
         configurable: true,
       });
 
@@ -346,7 +346,7 @@ describe("tabHandlers", () => {
   describe("handleTabsSwitch — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockTabStoreState.setActiveTab.mockImplementationOnce(() => {
-        throw 42; // eslint-disable-line no-throw-literal
+        throw 42;
       });
 
       await handleTabsSwitch("req-ne-sw", { tabId: "tab-1" });
@@ -362,8 +362,7 @@ describe("tabHandlers", () => {
   describe("handleTabsClose — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockTabStoreState.closeTab.mockImplementationOnce(() => {
-        throw null; // eslint-disable-line no-throw-literal
-      });
+        throw null;      });
 
       await handleTabsClose("req-ne-cl", { tabId: "tab-1" });
 
@@ -378,8 +377,7 @@ describe("tabHandlers", () => {
   describe("handleTabsCreate — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockTabStoreState.createTab.mockImplementationOnce(() => {
-        throw false; // eslint-disable-line no-throw-literal
-      });
+        throw false;      });
 
       await handleTabsCreate("req-ne-cr", {});
 
@@ -395,8 +393,7 @@ describe("tabHandlers", () => {
     it("handles non-Error thrown value", async () => {
       const origTabs = mockTabStoreState.tabs;
       Object.defineProperty(mockTabStoreState, "tabs", {
-        get: () => { throw "info error"; }, // eslint-disable-line no-throw-literal
-        configurable: true,
+        get: () => { throw "info error"; },        configurable: true,
       });
 
       await handleTabsGetInfo("req-ne-gi", { tabId: "tab-1" });
@@ -418,8 +415,7 @@ describe("tabHandlers", () => {
   describe("handleTabsReopenClosed — non-Error catch branch", () => {
     it("handles non-Error thrown value", async () => {
       mockTabStoreState.reopenClosedTab.mockImplementationOnce(() => {
-        throw 0; // eslint-disable-line no-throw-literal
-      });
+        throw 0;      });
 
       await handleTabsReopenClosed("req-ne-ro", {});
 
@@ -427,6 +423,32 @@ describe("tabHandlers", () => {
         id: "req-ne-ro",
         success: false,
         error: "0",
+      });
+    });
+  });
+
+  describe("handleTabsSwitch — unknown windowId uses ?? [] fallback (line 81)", () => {
+    it("returns error for unknown windowId (tabs[windowId] is undefined)", async () => {
+      // resolveWindowId returns the windowId as-is; "unknown-window" has no tabs entry
+      await handleTabsSwitch("req-sw-unk", { tabId: "tab-1", windowId: "unknown-window" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-sw-unk",
+        success: false,
+        error: "Tab not found: tab-1",
+      });
+    });
+  });
+
+  describe("handleTabsGetInfo — unknown windowId uses ?? [] fallback (line 175)", () => {
+    it("returns error for unknown windowId (tabs[windowId] is undefined)", async () => {
+      // tabId is provided, resolveWindowId returns "unknown-window", tabs["unknown-window"] is undefined
+      await handleTabsGetInfo("req-gi-unk", { tabId: "tab-1", windowId: "unknown-window" });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-gi-unk",
+        success: false,
+        error: "Tab not found: tab-1",
       });
     });
   });

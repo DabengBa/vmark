@@ -485,6 +485,103 @@ describe("geniesStore", () => {
     });
   });
 
+  // ── loadGenies race guard ────────────────────────────────────────────
+
+  describe("loadGenies race guard", () => {
+    it("discards stale first load result when a second load starts before list_genies returns (line 89)", async () => {
+      const mockInvoke = vi.mocked(invoke);
+
+      // Use a promise to control when the first list_genies resolves
+      let resolveFirstListGenies!: (value: unknown) => void;
+      const firstListGeniesPending = new Promise((resolve) => {
+        resolveFirstListGenies = resolve;
+      });
+
+      let callCount = 0;
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === "list_genies") {
+          callCount++;
+          if (callCount === 1) {
+            // First call: block until released
+            return firstListGeniesPending;
+          }
+          // Second call: return immediately with a different genie
+          return [{ path: "/genies/Second.md", category: null }];
+        }
+        if (cmd === "read_genie") {
+          return { metadata: { name: "Second", description: "d", scope: "selection" }, template: "t" };
+        }
+        return null;
+      });
+
+      // Start first load (blocked)
+      const load1 = useGeniesStore.getState().loadGenies();
+
+      // Start second load (completes first since list_genies returns immediately)
+      const load2 = useGeniesStore.getState().loadGenies();
+      await load2;
+
+      // Now release the first load's list_genies — it should detect stale and return early
+      resolveFirstListGenies([{ path: "/genies/Stale.md", category: null }]);
+      await load1;
+
+      // Only the second load's result should be present
+      const state = useGeniesStore.getState();
+      expect(state.genies).toHaveLength(1);
+      expect(state.genies[0].metadata.name).toBe("Second");
+    });
+
+    it("discards stale load result when a second load starts after read_genie calls complete (line 113)", async () => {
+      const mockInvoke = vi.mocked(invoke);
+
+      // Control resolution of read_genie for the first load
+      let resolveFirstReadGenie!: (value: unknown) => void;
+      const firstReadGeniePending = new Promise((resolve) => {
+        resolveFirstReadGenie = resolve;
+      });
+
+      let listCallCount = 0;
+      let readCallCount = 0;
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === "list_genies") {
+          listCallCount++;
+          if (listCallCount === 1) {
+            return [{ path: "/genies/First.md", category: null }];
+          }
+          return [{ path: "/genies/Second.md", category: null }];
+        }
+        if (cmd === "read_genie") {
+          readCallCount++;
+          if (readCallCount === 1) {
+            // First load's read_genie: block
+            return firstReadGeniePending;
+          }
+          return { metadata: { name: "Second", description: "d", scope: "selection" }, template: "t" };
+        }
+        return null;
+      });
+
+      // Start first load — its list_genies resolves, then blocks on read_genie
+      const load1 = useGeniesStore.getState().loadGenies();
+
+      // Wait for first load to have called list_genies and be blocked on read_genie
+      await vi.waitFor(() => expect(readCallCount).toBeGreaterThanOrEqual(1));
+
+      // Start second load — completes fully
+      const load2 = useGeniesStore.getState().loadGenies();
+      await load2;
+
+      // Now release the first load's read_genie — it should detect stale after all reads
+      resolveFirstReadGenie({ metadata: { name: "First", description: "d", scope: "selection" }, template: "t" });
+      await load1;
+
+      // Only second load's result should remain
+      const state = useGeniesStore.getState();
+      expect(state.genies).toHaveLength(1);
+      expect(state.genies[0].metadata.name).toBe("Second");
+    });
+  });
+
   // ── SSR guard ───────────────────────────────────────────────────────
 
   it("store is functional (SSR guard does not break initialization)", () => {

@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import { EditorState, SelectionRange, TextSelection } from "@tiptap/pm/state";
 import {
   multiCursorPlugin,
   multiCursorPluginKey,
-  type MultiCursorPluginState,
 } from "../multiCursorPlugin";
 import { MultiSelection } from "../MultiSelection";
 

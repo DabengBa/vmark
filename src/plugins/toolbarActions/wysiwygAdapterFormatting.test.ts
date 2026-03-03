@@ -43,8 +43,51 @@ import {
 } from "./wysiwygAdapterFormatting";
 import { handleRemoveBlockquote } from "@/plugins/formatToolbar/nodeActions.tiptap";
 import { computeQuoteToggle } from "@/lib/cjkFormatter/quoteToggle";
+import { MultiSelection } from "@/plugins/multiCursor";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { WysiwygToolbarContext } from "./types";
+
+// ---------- clearFormattingInView — MultiSelection branch (line 29) ----------
+
+describe("clearFormattingInView — MultiSelection branch (line 29)", () => {
+  it("uses MultiSelection ranges when selection is a MultiSelection instance", () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const removeMark = vi.fn().mockReturnThis();
+
+    const marks = [{ type: { name: "bold" } }];
+    const tr = { removeMark, docChanged: true };
+
+    const nodesBetween = vi.fn((_from: number, _to: number, cb: (node: Record<string, unknown>, pos: number) => void) => {
+      cb({ isText: true, marks, text: "hello", nodeSize: 5 }, 5);
+    });
+
+    // Build a selection that is instanceof MockMultiSelection (the mocked class)
+    const multiSel = Object.create(MultiSelection.prototype) as {
+      ranges: Array<{ $from: { pos: number }; $to: { pos: number } }>;
+    };
+    multiSel.ranges = [
+      { $from: { pos: 5 }, $to: { pos: 10 } },
+      { $from: { pos: 15 }, $to: { pos: 20 } },
+    ];
+
+    const view = {
+      state: {
+        selection: multiSel,
+        doc: { nodesBetween },
+        tr,
+      },
+      dispatch,
+      focus,
+    } as unknown as import("@tiptap/pm/view").EditorView;
+
+    const result = clearFormattingInView(view);
+    expect(result).toBe(true);
+    // nodesBetween should be called for each non-empty range
+    expect(nodesBetween).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenCalled();
+  });
+});
 
 // ---------- clearFormattingInView ----------
 

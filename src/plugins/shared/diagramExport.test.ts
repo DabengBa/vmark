@@ -215,6 +215,23 @@ describe("setupDiagramExport - menu behavior", () => {
     expect(document.querySelector(".mermaid-export-menu")).toBeNull();
   });
 
+  it("does not close menu when mousedown is on the export button itself", () => {
+    setupDiagramExport(container, vi.fn());
+
+    const btn = container.querySelector<HTMLElement>(".mermaid-export-btn")!;
+    btn.click(); // open menu
+    expect(document.querySelector(".mermaid-export-menu")).not.toBeNull();
+
+    // Dispatch mousedown on the button — the onClickOutside handler should bail
+    // out via the btn.contains() check, leaving the menu open (click will toggle it)
+    const mousedownEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    Object.defineProperty(mousedownEvent, "target", { value: btn, configurable: true });
+    document.dispatchEvent(mousedownEvent);
+
+    // Menu should still be present (btn.contains returned true so closeMenu was not called)
+    expect(document.querySelector(".mermaid-export-menu")).not.toBeNull();
+  });
+
   it("does not close menu when clicking inside menu", () => {
     setupDiagramExport(container, vi.fn());
 

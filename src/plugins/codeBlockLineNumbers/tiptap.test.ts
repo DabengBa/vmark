@@ -8,7 +8,7 @@
  * - ignoreMutation: gutter and selector mutations are ignored
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Polyfill scrollIntoView for jsdom (used by renderLanguageList)
 if (!Element.prototype.scrollIntoView) {
@@ -539,7 +539,7 @@ describe("CodeBlockWithLineNumbers", () => {
       };
       const getPos = vi.fn(() => 0);
       const factory = capturedConfig.addNodeView.call({});
-      return (factory as Function)({ node, editor: mockEditor, getPos });
+      return (factory as (...args: unknown[]) => unknown)({ node, editor: mockEditor, getPos });
     }
 
     it("creates DOM structure with wrapper, gutter, pre, code, and lang selector", () => {
@@ -626,10 +626,10 @@ describe("CodeBlockWithLineNumbers", () => {
         textContent: "line1\nline2",
       };
       // Fix: use the actual type reference from the initial node
-      const origNode = { type: updatedNode.type, attrs: { language: "javascript" }, textContent: "hello" };
+      const _origNode = { type: updatedNode.type, attrs: { language: "javascript" }, textContent: "hello" };
       // The update uses `node.type !== this.node.type` (reference equality)
       // Since we use the same type object, update should return true
-      const result = nodeView.update({ ...updatedNode, type: nodeView.contentDOM.parentElement?.parentElement?.__codeBlockType });
+      const _result = nodeView.update({ ...updatedNode, type: nodeView.contentDOM.parentElement?.parentElement?.__codeBlockType });
       // The type reference won't match in our mock, so this tests the false path
       // Let's just verify the update method exists and can be called
       expect(typeof nodeView.update).toBe("function");
@@ -1011,7 +1011,7 @@ describe("CodeBlockWithLineNumbers", () => {
       };
       const getPos = vi.fn(() => undefined);
       const factory = capturedConfig.addNodeView.call({});
-      const nodeView = (factory as Function)({ node, editor: mockEditor, getPos });
+      const nodeView = (factory as (...args: unknown[]) => unknown)({ node, editor: mockEditor, getPos });
 
       // Open dropdown and select a language
       const selector = nodeView.dom.querySelector(".code-lang-selector");
@@ -1041,7 +1041,7 @@ describe("CodeBlockWithLineNumbers", () => {
         };
         const getPos = vi.fn(() => 0);
         const factory = capturedConfig.addNodeView.call({});
-        const nodeView = (factory as Function)({ node, editor: mockEditor, getPos });
+        const nodeView = (factory as (...args: unknown[]) => unknown)({ node, editor: mockEditor, getPos });
 
         const updatedNode = { type: nodeType, attrs: { language: "python" }, textContent: "line1\nline2\nline3" };
         const result = nodeView.update(updatedNode);
@@ -1067,7 +1067,7 @@ describe("CodeBlockWithLineNumbers", () => {
         };
         const getPos = vi.fn(() => 0);
         const factory = capturedConfig.addNodeView.call({});
-        const nodeView = (factory as Function)({ node, editor: mockEditor, getPos });
+        const nodeView = (factory as (...args: unknown[]) => unknown)({ node, editor: mockEditor, getPos });
 
         expect(nodeView.contentDOM.className).toBe("language-javascript");
 

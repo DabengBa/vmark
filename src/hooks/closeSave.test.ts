@@ -480,6 +480,70 @@ describe("promptSaveForDirtyDocument — edge cases", () => {
   });
 });
 
+describe("closeSave — toSafeFilename and ensureMarkdownExtension (lines 73, 80)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses 'Untitled' when title is empty string (line 80 fallback)", async () => {
+    vi.mocked(message).mockResolvedValueOnce("Yes");
+    vi.mocked(save).mockResolvedValueOnce("/tmp/Untitled.md");
+    vi.mocked(saveToPath).mockResolvedValue(true);
+
+    await promptSaveForDirtyDocument({
+      windowLabel: "main",
+      tabId: "tab-1",
+      title: "",
+      filePath: null,
+      content: "content",
+    });
+
+    const callArgs = vi.mocked(save).mock.calls[0][0];
+    const defaultPath = callArgs?.defaultPath ?? "";
+    const filename = defaultPath.split("/").pop() ?? "";
+    expect(filename).toBe("Untitled.md");
+  });
+
+  it("uses 'Untitled' when title is only invalid chars that sanitize to empty (line 80 fallback)", async () => {
+    vi.mocked(message).mockResolvedValueOnce("Yes");
+    vi.mocked(save).mockResolvedValueOnce("/tmp/Untitled.md");
+    vi.mocked(saveToPath).mockResolvedValue(true);
+
+    await promptSaveForDirtyDocument({
+      windowLabel: "main",
+      tabId: "tab-1",
+      title: "   ",
+      filePath: null,
+      content: "content",
+    });
+
+    const callArgs = vi.mocked(save).mock.calls[0][0];
+    const defaultPath = callArgs?.defaultPath ?? "";
+    const filename = defaultPath.split("/").pop() ?? "";
+    expect(filename).toBe("Untitled.md");
+  });
+
+  it("does not double-add .md when title already ends with .md (line 73 true branch)", async () => {
+    vi.mocked(message).mockResolvedValueOnce("Yes");
+    vi.mocked(save).mockResolvedValueOnce("/tmp/MyDoc.md");
+    vi.mocked(saveToPath).mockResolvedValue(true);
+
+    await promptSaveForDirtyDocument({
+      windowLabel: "main",
+      tabId: "tab-1",
+      title: "MyDoc.md",
+      filePath: null,
+      content: "content",
+    });
+
+    const callArgs = vi.mocked(save).mock.calls[0][0];
+    const defaultPath = callArgs?.defaultPath ?? "";
+    const filename = defaultPath.split("/").pop() ?? "";
+    // Should be "MyDoc.md" not "MyDoc.md.md"
+    expect(filename).toBe("MyDoc.md");
+  });
+});
+
 describe("promptSaveForMultipleDocuments — additional edge cases", () => {
   beforeEach(() => {
     vi.clearAllMocks();

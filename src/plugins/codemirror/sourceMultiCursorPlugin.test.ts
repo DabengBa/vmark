@@ -127,7 +127,7 @@ describe("sourceMultiCursorExtensions", () => {
   describe("Alt+Click plugin", () => {
     it("attaches mousedown listener on construction", () => {
       const view = createSingleCursorView("hello", 0);
-      const addEventSpy = vi.spyOn(view.dom, "addEventListener");
+      const _addEventSpy = vi.spyOn(view.dom, "addEventListener");
 
       // The listener was already attached during construction
       // We verify by dispatching a mousedown with alt

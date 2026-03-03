@@ -32,6 +32,13 @@ describe("htmlInlineExtension", () => {
       el.textContent = "";
       expect(rule.getAttrs!(el)).toBe(false);
     });
+
+    it("returns false when textContent is null (line 40 null coalesce)", () => {
+      const el = document.createElement("span");
+      el.setAttribute("data-type", "html");
+      Object.defineProperty(el, "textContent", { value: null, writable: false });
+      expect(rule.getAttrs!(el)).toBe(false);
+    });
   });
 
   describe("renderHTML", () => {

@@ -136,13 +136,13 @@ describe("detailsSummaryExtension", () => {
 
 describe("detailsBlock renderHTML", () => {
   it("serializes details block to DOM without errors", () => {
-    const { schema, doc } = createDocWithDetails(true, "Summary", "Content");
+    const { doc, schema } = createDocWithDetails(true, "Summary", "Content");
     const serializer = DOMSerializer.fromSchema(schema);
     expect(() => serializer.serializeFragment(doc.content)).not.toThrow();
   });
 
   it("renders with 'details' tag and 'details-block' class", () => {
-    const { schema, doc } = createDocWithDetails(true, "Summary", "Content");
+    const { doc, schema } = createDocWithDetails(true, "Summary", "Content");
     const serializer = DOMSerializer.fromSchema(schema);
     const fragment = serializer.serializeFragment(doc.content);
     const container = document.createElement("div");
@@ -154,7 +154,7 @@ describe("detailsBlock renderHTML", () => {
   });
 
   it("renders with open attribute when open is true", () => {
-    const { schema, doc } = createDocWithDetails(true, "Summary", "Content");
+    const { doc, schema } = createDocWithDetails(true, "Summary", "Content");
     const serializer = DOMSerializer.fromSchema(schema);
     const fragment = serializer.serializeFragment(doc.content);
     const container = document.createElement("div");
@@ -165,7 +165,7 @@ describe("detailsBlock renderHTML", () => {
   });
 
   it("does not render open attribute when open is false", () => {
-    const { schema, doc } = createDocWithDetails(false, "Summary", "Content");
+    const { doc, schema } = createDocWithDetails(false, "Summary", "Content");
     const serializer = DOMSerializer.fromSchema(schema);
     const fragment = serializer.serializeFragment(doc.content);
     const container = document.createElement("div");
@@ -176,7 +176,7 @@ describe("detailsBlock renderHTML", () => {
   });
 
   it("renders summary with 'details-summary' class", () => {
-    const { schema, doc } = createDocWithDetails(true, "My Summary", "Content");
+    const { doc, schema } = createDocWithDetails(true, "My Summary", "Content");
     const serializer = DOMSerializer.fromSchema(schema);
     const fragment = serializer.serializeFragment(doc.content);
     const container = document.createElement("div");
@@ -195,6 +195,7 @@ describe("detailsBlock renderHTML", () => {
 describe("createDetailsBlockNode returns null for missing types", () => {
   it("insertDetailsBlock returns false when schema lacks required node types", () => {
     // Create a schema without detailsBlock/detailsSummary
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema: PmSchema } = require("@tiptap/pm/model");
     const bareSchema = new PmSchema({
       nodes: {
@@ -252,6 +253,7 @@ describe("insertDetailsBlock command", () => {
 
   it("returns false when createDetailsBlockNode returns null (missing types in schema)", () => {
     // Use a schema without paragraph type to make createDetailsBlockNode return null
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema: PmSchema } = require("@tiptap/pm/model");
     const bareSchema = new PmSchema({
       nodes: {
@@ -297,6 +299,31 @@ describe("insertDetailsBlock command", () => {
       chain: () => ({}) as never, can: () => ({}) as never,
       commands: {} as never, editor: {} as never, view: {} as never,
     } as never);
+    expect(dispatched).toBe(true);
+  });
+
+  it("insertDetailsBlock sets cursor after summary using summarySize from firstChild", () => {
+    // This verifies the detailsNode.firstChild?.nodeSize ?? 0 path executes correctly
+    // when firstChild exists (normal case). The ?? 0 fallback is a defensive branch
+    // for a hypothetically childless node created by the schema.
+    const { doc } = createDocWithParagraph("Hello");
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 3),
+    });
+
+    const commandFn = detailsBlockExtension.config.addCommands!.call({
+      name: "detailsBlock", options: {}, storage: {}, editor: {},
+    } as never);
+    const insertCmd = commandFn.insertDetailsBlock;
+
+    let dispatched = false;
+    insertCmd()({
+      state, dispatch: () => { dispatched = true; }, tr: state.tr,
+      chain: () => ({}) as never, can: () => ({}) as never,
+      commands: {} as never, editor: {} as never, view: {} as never,
+    } as never);
+    // Confirms line 107 executes without error and proceeds to dispatch
     expect(dispatched).toBe(true);
   });
 });
@@ -353,9 +380,10 @@ describe("detailsBlock addInputRules", () => {
       name: "detailsBlock", options: {}, storage: {}, editor: {},
     } as never);
     const rule = rules![0];
-    const handler = (rule as unknown as { handler: Function }).handler;
+    const handler = (rule as unknown as { handler: (...args: unknown[]) => unknown }).handler;
 
     // Create a state with a schema that lacks detailsBlock/detailsSummary
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema: PmSchema } = require("@tiptap/pm/model");
     const bareSchema = new PmSchema({
       nodes: {
@@ -395,7 +423,7 @@ describe("detailsBlock addInputRules", () => {
     const rule = rules![0];
 
     // Access the handler from the InputRule
-    const handler = (rule as unknown as { handler: Function }).handler;
+    const handler = (rule as unknown as { handler: (...args: unknown[]) => unknown }).handler;
     expect(handler).toBeDefined();
 
     const { doc } = createDocWithParagraph(":::details");
@@ -418,6 +446,44 @@ describe("detailsBlock addInputRules", () => {
     expect(result).toBeNull();
     expect(mockInsertContentAt).toHaveBeenCalled();
     expect(mockSetTextSelection).toHaveBeenCalled();
+  });
+
+  it("input rule handler executes summarySize calculation from firstChild (line 128)", () => {
+    // Verifies detailsNode.firstChild?.nodeSize ?? 0 executes in the input rule handler.
+    // When firstChild exists (normal), summarySize = firstChild.nodeSize.
+    const addInputRules = detailsBlockExtension.config.addInputRules;
+    const rules = addInputRules!.call({
+      name: "detailsBlock", options: {}, storage: {}, editor: {},
+    } as never);
+    const rule = rules![0];
+    const handler = (rule as unknown as { handler: (...args: unknown[]) => unknown }).handler;
+
+    const { doc } = createDocWithParagraph(":::details");
+    const state = EditorState.create({ doc });
+
+    const mockInsertContentAt = vi.fn();
+    const mockSetTextSelection = vi.fn();
+
+    const result = handler({
+      state,
+      range: { from: 1, to: 11 },
+      match: [":::details"],
+      commands: {
+        insertContentAt: mockInsertContentAt,
+        setTextSelection: mockSetTextSelection,
+      },
+    });
+
+    // Line 128 executed: summarySize = detailsNode.firstChild?.nodeSize ?? 0
+    // With a real schema, firstChild (detailsSummary "Click to expand") has a nodeSize
+    expect(result).toBeNull();
+    expect(mockInsertContentAt).toHaveBeenCalled();
+    // setTextSelection is called with paragraphStart + 1 + summarySize + 1
+    // summarySize > 0 since firstChild exists
+    expect(mockSetTextSelection).toHaveBeenCalled();
+    const callArg = mockSetTextSelection.mock.calls[0][0];
+    // paragraphStart=0, so position = 0 + 1 + summarySize + 1; summarySize should be > 0
+    expect(callArg).toBeGreaterThan(2);
   });
 });
 
@@ -484,7 +550,7 @@ describe("detailsBlock click handler", () => {
 
   it("toggles open state when clicking on summary element", () => {
     const handleClick = getClickHandler();
-    const { schema, doc } = createDocWithDetails(false, "Summary", "Content");
+    const { doc } = createDocWithDetails(false, "Summary", "Content");
     const state = EditorState.create({ doc });
 
     // Create a summary DOM element for the event target
@@ -505,7 +571,7 @@ describe("detailsBlock click handler", () => {
 
   it("toggles from open=true to open=false", () => {
     const handleClick = getClickHandler();
-    const { schema, doc } = createDocWithDetails(true, "Summary", "Content");
+    const { doc } = createDocWithDetails(true, "Summary", "Content");
     const state = EditorState.create({ doc });
 
     const summary = document.createElement("summary");
@@ -525,7 +591,7 @@ describe("detailsBlock click handler", () => {
 
   it("toggles from open=false to open=true", () => {
     const handleClick = getClickHandler();
-    const { schema, doc } = createDocWithDetails(false, "Summary", "Content");
+    const { doc } = createDocWithDetails(false, "Summary", "Content");
     const state = EditorState.create({ doc });
 
     const summary = document.createElement("summary");
@@ -544,7 +610,7 @@ describe("detailsBlock click handler", () => {
 
   it("sets addToHistory=false meta on toggle transaction", () => {
     const handleClick = getClickHandler();
-    const { schema, doc } = createDocWithDetails(false, "Summary", "Content");
+    const { doc } = createDocWithDetails(false, "Summary", "Content");
     const state = EditorState.create({ doc });
 
     const summary = document.createElement("summary");

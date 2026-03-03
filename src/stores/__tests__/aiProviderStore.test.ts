@@ -269,6 +269,73 @@ describe("aiProviderStore", () => {
       expect(useAiProviderStore.getState().detecting).toBe(false);
     });
 
+    it("stale check discards result of first call when second call wins (line 133)", async () => {
+      // Control resolution order: first call resolves AFTER second call has already
+      // incremented _detectId, so the first call's stale check (line 133) triggers.
+      let resolveFirst!: (value: unknown) => void;
+      let callCount = 0;
+
+      vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+        if (cmd === "detect_ai_providers") {
+          callCount++;
+          if (callCount === 1) {
+            // First call: wait until manually resolved (after second call starts)
+            await new Promise((r) => { resolveFirst = r; });
+            return [{ type: "claude", name: "Claude", command: "claude", available: true }];
+          }
+          // Second call: resolve immediately with different data
+          return [{ type: "gemini", name: "Gemini", command: "gemini", available: false }];
+        }
+        if (cmd === "read_env_api_keys") return {};
+        return undefined;
+      });
+
+      // Start first call but don't await
+      const first = useAiProviderStore.getState().detectProviders();
+      // Start second call — this increments _detectId
+      const second = useAiProviderStore.getState().detectProviders();
+      await second;
+      // Now let the first call resolve (it will hit the stale check and return early)
+      resolveFirst(undefined);
+      await first;
+
+      // The second call's result should be used (gemini), not the first call's (claude)
+      const { cliProviders } = useAiProviderStore.getState();
+      expect(cliProviders.some((p) => p.type === "gemini")).toBe(true);
+    });
+
+    it("stale error is silently ignored (line 165 false branch)", async () => {
+      // Trigger a stale detectId scenario in the catch branch:
+      // First call throws, but by then a second call has already won.
+      let resolveFirst!: (value: unknown) => void;
+      let callCount = 0;
+
+      vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+        if (cmd === "detect_ai_providers") {
+          callCount++;
+          if (callCount === 1) {
+            // First call: wait, then throw
+            await new Promise((r) => { resolveFirst = r; });
+            throw new Error("stale error");
+          }
+          // Second call: resolves immediately
+          return [];
+        }
+        if (cmd === "read_env_api_keys") return {};
+        return undefined;
+      });
+
+      const first = useAiProviderStore.getState().detectProviders();
+      const second = useAiProviderStore.getState().detectProviders();
+      await second;
+      // Now let the first call reject — _detectId has been incremented by second call
+      resolveFirst(undefined);
+      await first;
+
+      // detecting should be false (set by second call), not reset by stale first's catch
+      expect(useAiProviderStore.getState().detecting).toBe(false);
+    });
+
     it("handles empty detection result", async () => {
       vi.mocked(invoke).mockImplementation(async (cmd: string) => {
         if (cmd === "detect_ai_providers") return [];

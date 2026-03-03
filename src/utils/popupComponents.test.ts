@@ -303,7 +303,7 @@ describe("getFocusableElements", () => {
     container.appendChild(inputEl);
     container.appendChild(btn2);
 
-    const focusable = getFocusableElements(container);
+    const _focusable = getFocusableElements(container);
     // Note: jsdom offsetParent is always null, so filter excludes all.
     // We test the querySelectorAll part works by checking the raw query.
     const raw = Array.from(

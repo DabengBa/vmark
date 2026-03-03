@@ -12,7 +12,7 @@
  * - Edge cases: stale positions, zero-length ranges, whole-document replace
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import { EditorState } from "@tiptap/pm/state";
 
@@ -26,7 +26,7 @@ vi.mock("@/utils/imeGuard", () => ({
 
 // Mock markdownPaste
 vi.mock("@/plugins/markdownPaste/tiptap", () => ({
-  createMarkdownPasteSlice: vi.fn((state, content) => {
+  createMarkdownPasteSlice: vi.fn((state, _content) => {
     // Return a simple text slice
     return state.schema.text ? state.doc.slice(0, 0) : null;
   }),
@@ -876,7 +876,7 @@ describe("aiSuggestion plugin integration", () => {
 
       // Get the widget spec and call toDOM
       const widget = found[0];
-      const spec = (widget as { spec?: { toDOM?: () => HTMLElement } }).spec;
+      const _spec = (widget as { spec?: { toDOM?: () => HTMLElement } }).spec;
       // Widget decorations have a toDOM in their type
       const widgetType = (widget as { type?: { toDOM?: () => HTMLElement } }).type;
       if (widgetType?.toDOM) {

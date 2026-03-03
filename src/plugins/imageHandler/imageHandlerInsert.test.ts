@@ -504,3 +504,71 @@ describe("pasteAsText", () => {
     expect(view.state.tr.insertText).toHaveBeenCalledWith("inserted", 10, 10);
   });
 });
+
+describe("resolveImagePath — needsCopy && !copyToAssets branch for non-homePath type (line 62)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetState.mockReturnValue({ image: { copyToAssets: false } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+  });
+
+  it("returns detection.path directly when needsCopy=true, copyToAssets=false, type is absolutePath", async () => {
+    const view = createMockView();
+    const detection = makeDetection({
+      type: "absolutePath",
+      path: "/Users/test/photo.png",
+      needsCopy: true,
+    });
+
+    await insertImageFromPath(view, detection, 0, 0, "");
+
+    // copyToAssets is false and type is not homePath — goes straight to return detection.path
+    expect(mockCopyImageToAssets).not.toHaveBeenCalled();
+    expect(mockInsertBlockImageNode).toHaveBeenCalledWith(
+      view,
+      "/Users/test/photo.png",
+      ""
+    );
+  });
+});
+
+describe("insertImageFromPath — safeFrom >= safeTo branch (line 112)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetState.mockReturnValue({ image: { copyToAssets: false } });
+    mockIsViewConnected.mockReturnValue(true);
+    mockGetActiveFilePathForCurrentWindow.mockReturnValue("/docs/test.md");
+  });
+
+  it("skips selection restore when both captured positions clamp to the same maxPos value", async () => {
+    const { Schema } = await import("@tiptap/pm/model");
+    const { EditorState } = await import("@tiptap/pm/state");
+    const testSchema = new Schema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { content: "text*" },
+        text: { inline: true },
+      },
+    });
+    // Short doc: content.size is small (e.g. 4 for "hi" in a paragraph)
+    const doc = testSchema.node("doc", null, [
+      testSchema.node("paragraph", null, [testSchema.text("hi")]),
+    ]);
+    const state = EditorState.create({ doc, schema: testSchema });
+    const mockDispatch = vi.fn();
+    const view = createMockView({
+      state: { ...state, doc: state.doc, tr: state.tr, selection: state.selection },
+      dispatch: mockDispatch,
+    });
+
+    const detection = makeDetection({ needsCopy: false });
+
+    // capturedFrom=100 and capturedTo=200: they differ, so outer if is entered.
+    // Both > maxPos (doc size ~4), so both clamp to maxPos → safeFrom === safeTo → line 112 is false.
+    await insertImageFromPath(view, detection, 100, 200, "alt text");
+
+    // No selection restore dispatch since safeFrom === safeTo after clamping
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+});

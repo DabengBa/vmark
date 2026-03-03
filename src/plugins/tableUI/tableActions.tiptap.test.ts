@@ -5,9 +5,9 @@
  * fit-to-width helpers, setSelectionNear, and edge cases.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Schema, type Node } from "@tiptap/pm/model";
-import { EditorState, TextSelection, type Selection } from "@tiptap/pm/state";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
 vi.mock("@/plugins/tableScroll/fitToWidth", () => ({
@@ -1078,6 +1078,7 @@ describe("getCellPosition out-of-bounds via alignColumn", () => {
 describe("getTableInfo - shallow selection fallback indices", () => {
   it("defaults rowIndex=0 when selection depth is at table level", () => {
     // Create a table, then select the table node itself via NodeSelection
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { NodeSelection: NS } = require("@tiptap/pm/state");
     const state = createTableState(2, 2);
     const tablePos = 0; // table is first child

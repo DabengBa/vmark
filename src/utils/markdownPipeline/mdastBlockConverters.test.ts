@@ -8,7 +8,6 @@
 import { describe, it, expect } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import type {
-  Content,
   Paragraph,
   Heading,
   Code,
@@ -17,8 +16,6 @@ import type {
   ListItem,
   ThematicBreak,
   Table,
-  TableRow,
-  TableCell,
   Html,
   Definition,
   FootnoteDefinition,

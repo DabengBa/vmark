@@ -8,9 +8,9 @@
  * - LinkPopupPluginView lifecycle
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { EditorState } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
 // Mock CSS
@@ -364,7 +364,7 @@ describe("linkPopupExtension", () => {
       const view = createMockView(state);
 
       // Need real dispatch for TextSelection.near to work
-      view.dispatch = vi.fn((tr) => {
+      view.dispatch = vi.fn((_tr) => {
         // Accept the transaction
       });
 
@@ -685,6 +685,41 @@ describe("linkPopupExtension", () => {
       // Position in plain text after the link — should return null
       const result = findLinkMarkRange(view, 10);
       expect(result).toBeNull();
+    });
+
+    it("second pass skips non-text child before linked text (line 63 else branch)", () => {
+      // A schema with a non-text inline node so the second pass encounters it first
+      const schemaWithBreak = new Schema({
+        nodes: {
+          doc: { content: "block+" },
+          paragraph: { group: "block", content: "inline*" },
+          hard_break: { inline: true, group: "inline" },
+          text: { inline: true, group: "inline" },
+        },
+        marks: {
+          link: {
+            attrs: { href: { default: "" } },
+            toDOM: (mark) => ["a", { href: mark.attrs.href }, 0] as const,
+          },
+        },
+      });
+      const linkMark = schemaWithBreak.marks.link.create({ href: "http://example.com" });
+      // hard_break (non-text), then linked text
+      // First pass will find the link on the text node.
+      // Second pass starts at hard_break (non-text) → hits line 101 else branch → then finds text link.
+      const doc = schemaWithBreak.node("doc", null, [
+        schemaWithBreak.node("paragraph", null, [
+          schemaWithBreak.nodes.hard_break.create(),
+          schemaWithBreak.text("click", [linkMark]),
+        ]),
+      ]);
+      const state = EditorState.create({ doc, schema: schemaWithBreak });
+      const view = createMockView(state);
+
+      // Position inside "click" text (hard_break=1 node, so text starts at pos 2)
+      const result = findLinkMarkRange(view, 3);
+      expect(result).not.toBeNull();
+      expect(result!.mark.attrs.href).toBe("http://example.com");
     });
   });
 

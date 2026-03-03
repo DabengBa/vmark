@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { getSchema, Editor } from "@tiptap/core";
+import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { DOMSerializer, DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
@@ -214,7 +214,7 @@ describe("alertBlock renderHTML", () => {
 
 describe("insertAlertBlock command", () => {
   it("inserts an alert block after current paragraph (dry run without dispatch)", () => {
-    const { schema, doc } = createDocWithParagraph("Hello");
+    const { doc } = createDocWithParagraph("Hello");
     const state = EditorState.create({
       doc,
       selection: TextSelection.create(doc, 3), // cursor inside "Hello"
@@ -229,7 +229,7 @@ describe("insertAlertBlock command", () => {
   });
 
   it("inserts an alert block with dispatch and updates selection", () => {
-    const { schema, doc } = createDocWithParagraph("Hello");
+    const { doc } = createDocWithParagraph("Hello");
     const state = EditorState.create({
       doc,
       selection: TextSelection.create(doc, 3),
@@ -239,14 +239,14 @@ describe("insertAlertBlock command", () => {
     const insertCmd = commandFn.insertAlertBlock;
 
     let dispatched = false;
-    const dispatch = (tr: unknown) => { dispatched = true; };
+    const dispatch = (_tr: unknown) => { dispatched = true; };
 
     insertCmd("TIP")({ state, dispatch, tr: state.tr, chain: () => ({}) as never, can: () => ({}) as never, commands: {} as never, editor: {} as never, view: {} as never } as never);
     expect(dispatched).toBe(true);
   });
 
   it("defaults to NOTE when no alertType argument provided", () => {
-    const { schema, doc } = createDocWithParagraph("Hello");
+    const { doc } = createDocWithParagraph("Hello");
     const state = EditorState.create({
       doc,
       selection: TextSelection.create(doc, 3),

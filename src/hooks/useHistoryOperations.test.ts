@@ -233,7 +233,7 @@ describe("useHistoryOperations", () => {
       // For loadSnapshot after revert
       mockReadTextFile.mockResolvedValue("old content");
 
-      const result = await revertToSnapshot(
+      const _result = await revertToSnapshot(
         "/test/doc.md",
         "snap-1",
         "current content",

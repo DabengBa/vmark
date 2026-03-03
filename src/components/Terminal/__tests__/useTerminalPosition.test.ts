@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { computeTerminalPosition, pixelsToRatio, getAvailableDimension } from "../useTerminalPosition";
 import type { EffectiveTerminalPosition } from "@/stores/uiStore";
 
@@ -225,8 +225,8 @@ vi.mock("@/stores/settingsStore", () => {
 });
 
 vi.mock("@/stores/uiStore", () => {
-  let sidebarVisible = false;
-  let sidebarWidth = 260;
+  const sidebarVisible = false;
+  const sidebarWidth = 260;
   const subscribers: ((s: unknown) => unknown)[] = [];
 
   const store = ((selector: (s: unknown) => unknown) => {

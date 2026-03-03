@@ -399,4 +399,80 @@ describe("listContinuation — direct ProseMirror tests", () => {
     expect(result).toBe(true);
     expect(dispatch).toHaveBeenCalled();
   });
+
+  it("handleListEnter returns false when schema has no listItem type (line 76)", () => {
+    // Schema without listItem or list_item → findListItemType returns undefined → return false
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Schema: PmSchema } = require("@tiptap/pm/model");
+    const bareSchema = new PmSchema({
+      nodes: {
+        doc: { content: "paragraph+" },
+        paragraph: { group: "block", content: "text*" },
+        text: { inline: true },
+      },
+    });
+    const doc = bareSchema.node("doc", null, [
+      bareSchema.node("paragraph", null, [bareSchema.text("Hello")]),
+    ]);
+    const state = EditorState.create({ doc, schema: bareSchema });
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch: vi.fn() } as never,
+      mockEvent
+    );
+    // No listItem in schema → returns false
+    expect(result).toBe(false);
+  });
+
+  it("splitTaskListItem wrappedDispatch is undefined when no dispatch provided (line 65 : undefined branch)", () => {
+    // When splitTaskListItem is called without dispatch (dry-run check),
+    // wrappedDispatch should be undefined and splitListItem should still return
+    // a boolean indicating whether the operation is possible.
+    const doc = createTaskDoc("Task", true);
+    const state = EditorState.create({ doc, schema: taskSchema });
+
+    let textPos = 0;
+    doc.descendants((node, pos) => {
+      if (node.isText && textPos === 0) { textPos = pos; return false; }
+      return true;
+    });
+
+    const stateWithSel = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, textPos + 2))
+    );
+
+    const plugins = listContinuationExtension.config.addProseMirrorPlugins!.call({
+      editor: {},
+      name: "listContinuation",
+      options: {},
+      storage: {},
+      type: undefined,
+      parent: undefined,
+    } as never);
+    const keymapPlugin = plugins[0];
+    const handleKeyDown = keymapPlugin.props.handleKeyDown!;
+    const mockEvent = new KeyboardEvent("keydown", { key: "Enter" });
+
+    // Pass dispatch=undefined to trigger the `: undefined` branch (line 65)
+    const result = handleKeyDown(
+      { state: stateWithSel, dispatch: undefined } as never,
+      mockEvent
+    );
+    // splitListItem without dispatch is a dry-run → returns true (can split)
+    expect(result).toBe(true);
+  });
 });

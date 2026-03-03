@@ -488,6 +488,29 @@ describe("initSuggestionTabWatcher", () => {
 });
 
 // ---------------------------------------------------------------------------
+// navigatePrevious — currentIndex > 0 branch (line 256 right-hand side)
+// ---------------------------------------------------------------------------
+describe("navigatePrevious — from middle of list", () => {
+  it("moves to previous suggestion when focused is not first (covers line 256 right branch)", () => {
+    const id1 = addTestSuggestion({ from: 0, to: 5 });
+    const id2 = addTestSuggestion({ from: 10, to: 15 });
+    const id3 = addTestSuggestion({ from: 20, to: 25 });
+
+    // Focus the last suggestion (index 2 in sorted order)
+    useAiSuggestionStore.getState().focusSuggestion(id3);
+    expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id3);
+
+    // navigatePrevious: currentIndex = 2 > 0, so prevIndex = 2 - 1 = 1
+    useAiSuggestionStore.getState().navigatePrevious();
+    expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id2);
+
+    // navigatePrevious again: currentIndex = 1 > 0, so prevIndex = 0
+    useAiSuggestionStore.getState().navigatePrevious();
+    expect(useAiSuggestionStore.getState().focusedSuggestionId).toBe(id1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // navigateNext/navigatePrevious with null focus
 // ---------------------------------------------------------------------------
 describe("navigateNext with null focus", () => {

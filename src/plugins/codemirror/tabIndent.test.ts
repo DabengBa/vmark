@@ -4,7 +4,7 @@
  * Tests Tab and Shift-Tab key handlers for indentation.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("@/utils/imeGuard", () => ({
   guardCodeMirrorKeyBinding: (binding: unknown) => binding,

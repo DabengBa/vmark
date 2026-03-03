@@ -10,10 +10,10 @@
  * - deleteNode, unwrapToText, commitChanges, commitAndExit, exitAndFocusEditor guards
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState, Selection } from "@tiptap/pm/state";
+import { EditorState } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
 // --- Mocks ---

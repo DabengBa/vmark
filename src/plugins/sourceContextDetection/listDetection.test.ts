@@ -3,7 +3,7 @@
  * in source mode.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
@@ -23,7 +23,6 @@ import {
   toTaskList,
   removeList,
   getListBlockBounds,
-  type ListItemInfo,
 } from "./listDetection";
 
 function createView(doc: string, pos?: number): EditorView {

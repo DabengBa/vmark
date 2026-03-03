@@ -1034,7 +1034,7 @@ describe("TabContextMenu", () => {
 
       // Navigate to Move to New Window (disabled, index 0) — can't via arrow since it's not in focusableIndices
       // Instead directly fire keydown on the disabled button to simulate pressing Enter
-      const disabledItem = screen.getByRole("menuitem", { name: "Move to New Window" });
+      const _disabledItem = screen.getByRole("menuitem", { name: "Move to New Window" });
       fireEvent.keyDown(menu, { key: "Enter" });
 
       // The guard at line 212 would trigger if focusedIndex pointed to a disabled item

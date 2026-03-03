@@ -26,7 +26,7 @@ function createMockView(opts?: { selectionFrom?: number; selectionTo?: number })
   const from = opts?.selectionFrom ?? 10;
   const to = opts?.selectionTo ?? 10;
 
-  const textNode = { text: "page", marks: [] };
+  const _textNode = { text: "page", marks: [] };
   const wikiLinkType = {
     create: vi.fn((_attrs: Record<string, unknown>, children: unknown[]) => ({
       type: "wikiLink",

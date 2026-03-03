@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { Schema, DOMSerializer } from "@tiptap/pm/model";
+import { Schema } from "@tiptap/pm/model";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { EditorView } from "@tiptap/pm/view";
 import {
@@ -572,7 +572,7 @@ describe("selectWordInView — non-textblock parent returns false", () => {
     const view = new EditorView(parent, { state });
 
     // Mock $from to have a non-textblock parent
-    const originalDispatch = view.dispatch.bind(view);
+    const _originalDispatch = view.dispatch.bind(view);
     vi.spyOn(view.state.selection, "$from", "get").mockReturnValue({
       ...view.state.selection.$from,
       parent: { isTextblock: false, textContent: "", type: { name: "paragraph" } },

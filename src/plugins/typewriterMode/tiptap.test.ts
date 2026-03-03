@@ -61,7 +61,7 @@ function createMockView(opts: {
       }
     : null;
 
-  const mockSelection = { from: selectionFrom, eq: vi.fn((other: unknown) => false) };
+  const mockSelection = { from: selectionFrom, eq: vi.fn((_other: unknown) => false) };
   const prevSelection = { from: prevSelectionFrom, eq: vi.fn() };
 
   const view = {
@@ -121,7 +121,7 @@ describe("typewriterModeExtension", () => {
     it("returns early when typewriter mode is disabled", () => {
       mockEditorStoreState.typewriterModeEnabled = false;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({});
       viewObj.update(view, prevState);
@@ -133,7 +133,7 @@ describe("typewriterModeExtension", () => {
     it("returns early when selection has not changed", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({});
       // Make selections equal
@@ -146,7 +146,7 @@ describe("typewriterModeExtension", () => {
     it("skips the first 3 updates (SKIP_INITIAL_UPDATES)", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({});
 
@@ -164,7 +164,7 @@ describe("typewriterModeExtension", () => {
     it("scrolls when offset exceeds threshold (30px)", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       // cursor at top=400, container top=0, height=600 => target = 0 + 600*0.4 = 240
       // offset = 400 - 240 = 160 > 30 threshold
@@ -191,7 +191,7 @@ describe("typewriterModeExtension", () => {
     it("does not scroll when offset is below threshold", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       // cursor at top=250, container top=0, height=600 => target = 240
       // offset = 250 - 240 = 10 < 30 threshold
@@ -212,7 +212,7 @@ describe("typewriterModeExtension", () => {
     it("cancels previous rAF when new update arrives", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({});
 
@@ -232,7 +232,7 @@ describe("typewriterModeExtension", () => {
     it("handles coordsAtPos throwing an error gracefully", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState, scrollByMock } = createMockView({
         coordsThrows: true,
@@ -249,7 +249,7 @@ describe("typewriterModeExtension", () => {
     it("returns early when no scroll container found", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const scrollByMock = vi.fn();
       const view = {
@@ -273,7 +273,7 @@ describe("typewriterModeExtension", () => {
     it("falls back to parentElement when closest returns null", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const scrollByMock = vi.fn();
       const parentElement = {
@@ -303,7 +303,7 @@ describe("typewriterModeExtension", () => {
     it("resets rafId to null inside the rAF callback", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({ coordsTop: 250 });
 
@@ -323,7 +323,7 @@ describe("typewriterModeExtension", () => {
     it("scrolls with negative offset when cursor is above center", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       // cursor at top=50, container top=0, height=600 => target=240
       // offset = 50 - 240 = -190 => Math.abs = 190 > 30
@@ -348,7 +348,7 @@ describe("typewriterModeExtension", () => {
     it("cancels pending rAF on destroy", () => {
       mockEditorStoreState.typewriterModeEnabled = true;
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       const { view, prevState } = createMockView({});
 
@@ -363,7 +363,7 @@ describe("typewriterModeExtension", () => {
 
     it("does not call cancelAnimationFrame when no rAF is pending", () => {
       const plugin = getPlugin();
-      const viewObj = (plugin.spec.view as Function)();
+      const viewObj = (plugin.spec.view as (...args: unknown[]) => unknown)();
 
       (globalThis.cancelAnimationFrame as ReturnType<typeof vi.fn>).mockClear();
       viewObj.destroy();

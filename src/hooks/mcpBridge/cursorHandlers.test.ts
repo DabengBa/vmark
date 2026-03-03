@@ -260,6 +260,61 @@ describe("cursorHandlers", () => {
     });
   });
 
+  describe("createMock$Pos — node() fallback to options.parent (line 57)", () => {
+    it("returns options.parent when depth > 0 but ancestorIndex is out of bounds (line 57)", async () => {
+      // createMock$Pos.node(depth) returns options.parent when:
+      //   ancestorIndex >= ancestors.length (uncovered — line 57 fallback)
+      // With depth=2 and ancestors=[] (empty):
+      //   node(1): ancestorIndex = 2-1-1 = 0, ancestors.length=0 → 0 >= 0 is true but
+      //   0 < 0 is false → condition fails → falls through to return options.parent (line 57).
+      const paraNode = createMockNode("Content", "paragraph");
+      const blocks = [paraNode];
+      const parentNode = createMockParentNode(blocks);
+      const $pos = createMock$Pos({
+        parent: paraNode,
+        depth: 2,
+        blockIndex: 0,
+        parentNode,
+        ancestors: [],  // empty — triggers the out-of-bounds fallback at line 57
+      });
+      const editor = createMockEditor({ from: 5, $pos, doc: parentNode });
+
+      vi.mocked(getEditor).mockReturnValue(editor as never);
+
+      await handleCursorGetContext("req-fallback", {});
+
+      expect(respond).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "req-fallback", success: true })
+      );
+    });
+
+    it("index() returns 0 when depth !== 1 (line 49 else branch)", async () => {
+      // createMock$Pos.index() returns blockIndex when depth===1, else 0.
+      // handleCursorGetContext calls $pos.index(blockDepth) where blockDepth = $pos.depth > 0 ? 1 : 0.
+      // When $pos.depth === 0: blockDepth=0 → $pos.index(0) → depth!==1 → returns 0 (line 49 else).
+      const paraNode = createMockNode("Only block", "paragraph");
+      const blocks = [paraNode];
+      const parentNode = createMockParentNode(blocks);
+      const $pos = createMock$Pos({
+        parent: paraNode,
+        depth: 0,       // depth=0 → blockDepth=0 → index(0) uses else branch
+        blockIndex: 99, // unused since depth!==1 path returns 0
+        parentNode,
+      });
+      // Use the default index() implementation (do NOT override it)
+      const editor = createMockEditor({ from: 0, $pos, doc: parentNode });
+
+      vi.mocked(getEditor).mockReturnValue(editor as never);
+
+      await handleCursorGetContext("req-index-else", {});
+
+      // Should succeed without error
+      expect(respond).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "req-index-else", success: true })
+      );
+    });
+  });
+
   describe("handleCursorGetContext — edge cases", () => {
     it("handles depth=0 (blockDepth fallback)", async () => {
       const blocks = [createMockNode("Root text")];

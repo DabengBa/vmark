@@ -4,7 +4,6 @@ import {
   EditorState,
   TextSelection,
   NodeSelection,
-  Selection,
 } from "@tiptap/pm/state";
 import { EditorView } from "@tiptap/pm/view";
 

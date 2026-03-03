@@ -82,4 +82,17 @@ describe("markdownPasteDetection", () => {
     const text = "> Quote line\nPlain text no markdown signals";
     expect(isMarkdownPasteCandidate(text)).toBe(false);
   });
+
+  it("detects table inside blockquote (line 38: nextLine starts with >, nextStripped is separator)", () => {
+    // Line i is a table header inside a blockquote, line i+1 is blockquote + separator
+    // BLOCKQUOTE_RE.test(nextLine) → true → nextStripped = separator text
+    const text = "> | Column A | Column B |\n> | --- | --- |\n> | val1 | val2 |";
+    expect(isMarkdownPasteCandidate(text)).toBe(true);
+  });
+
+  it("detects single-line text with link and emphasis (line 89: weakSignals >= 2 on single line)", () => {
+    // Single line (no newline): one link (weakSignal) + one emphasis (weakSignal) → weakSignals=2 → true at line 89
+    const text = "[Click here](https://example.com) with *important* note";
+    expect(isMarkdownPasteCandidate(text)).toBe(true);
+  });
 });

@@ -526,7 +526,7 @@ describe("handleWikiLinkShortcut", () => {
 
   it("exercises wikiLinkPopupWarn path when coordsAtPos throws during setTimeout", async () => {
     const debugMod = await import("@/utils/debug");
-    const wikiLinkPopupWarn = vi.mocked(debugMod.wikiLinkPopupWarn as ReturnType<typeof vi.fn>);
+    const _wikiLinkPopupWarn = vi.mocked(debugMod.wikiLinkPopupWarn as ReturnType<typeof vi.fn>);
 
     // We need to trigger the catch block (line 287-290).
     // The catch fires when the wikiLink node IS found (loop runs) but coordsAtPos throws.
@@ -776,11 +776,11 @@ describe("handleWikiLinkShortcut — setTimeout popup opening (lines 273-291)", 
 
     // After insertion, the doc now has a wikiLink node
     let foundWikiLink = false;
-    let wikiLinkPos = -1;
+    let _wikiLinkPos = -1;
     view.state.doc.descendants((node, pos) => {
       if (node.type.name === "wikiLink") {
         foundWikiLink = true;
-        wikiLinkPos = pos;
+        _wikiLinkPos = pos;
       }
     });
     expect(foundWikiLink).toBe(true);
@@ -979,7 +979,7 @@ describe("handleWikiLinkShortcut — setTimeout body with mocked resolve (lines 
       attrs: {},
       nodeSize: 20,
     };
-    const originalResolve = view.state.doc.resolve.bind(view.state.doc);
+    const _originalResolve = view.state.doc.resolve.bind(view.state.doc);
     view.state.doc.resolve = vi.fn((_pos: number) => {
       // Return a fake $pos with depth=1, node(1)=wikiLink, node(0)=doc
       return {
@@ -1018,7 +1018,7 @@ describe("handleWikiLinkShortcut — setTimeout body with mocked resolve (lines 
       attrs: { value: "test" },
       nodeSize: 6,
     };
-    const originalResolve = view.state.doc.resolve.bind(view.state.doc);
+    const _originalResolve = view.state.doc.resolve.bind(view.state.doc);
     view.state.doc.resolve = vi.fn(() => {
       return {
         depth: 1,
@@ -1046,7 +1046,7 @@ describe("handleWikiLinkShortcut — setTimeout body with mocked resolve (lines 
       attrs: { value: null },
       nodeSize: 6,
     };
-    const originalResolve = view.state.doc.resolve.bind(view.state.doc);
+    const _originalResolve = view.state.doc.resolve.bind(view.state.doc);
     view.state.doc.resolve = vi.fn(() => {
       return {
         depth: 1,

@@ -540,8 +540,8 @@ describe("textDragDrop plugin handler integration", () => {
 
 describe("textDragDrop full drag lifecycle", () => {
   let mousedownHandler: (view: unknown, event: MouseEvent) => boolean;
-  let capturedListeners: Record<string, Function>;
-  let capturedWindowListeners: Record<string, Function>;
+  let capturedListeners: Record<string, (...args: unknown[]) => unknown>;
+  let capturedWindowListeners: Record<string, (...args: unknown[]) => unknown>;
   let plugin: ReturnType<typeof textDragDropExtension.config.addProseMirrorPlugins>[0];
 
   beforeEach(() => {
@@ -549,11 +549,11 @@ describe("textDragDrop full drag lifecycle", () => {
     capturedWindowListeners = {};
 
     vi.spyOn(document, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
-      capturedListeners[type] = handler as Function;
+      capturedListeners[type] = handler as (...args: unknown[]) => unknown;
     });
     vi.spyOn(document, "removeEventListener").mockImplementation(() => {});
     vi.spyOn(window, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
-      capturedWindowListeners[type] = handler as Function;
+      capturedWindowListeners[type] = handler as (...args: unknown[]) => unknown;
     });
     vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
 
@@ -774,9 +774,9 @@ describe("textDragDrop full drag lifecycle", () => {
     capturedListeners.mousemove?.(createMouseEvent("mousemove", { clientX: 110, clientY: 100 } as Partial<MouseEvent>));
 
     // Make rAF NOT immediately execute (simulate pending rAF)
-    let pendingCallback: FrameRequestCallback | null = null;
+    let _pendingCallback: FrameRequestCallback | null = null;
     (globalThis.requestAnimationFrame as ReturnType<typeof vi.fn>).mockImplementation((cb: FrameRequestCallback) => {
-      pendingCallback = cb;
+      _pendingCallback = cb;
       return 42;
     });
 
@@ -900,8 +900,8 @@ describe("edge cases", () => {
 
 describe("textDragDrop coverage — uncovered branches", () => {
   let mousedownHandler: (view: unknown, event: MouseEvent) => boolean;
-  let capturedListeners: Record<string, Function>;
-  let capturedWindowListeners: Record<string, Function>;
+  let capturedListeners: Record<string, (...args: unknown[]) => unknown>;
+  let capturedWindowListeners: Record<string, (...args: unknown[]) => unknown>;
   let plugin: ReturnType<typeof textDragDropExtension.config.addProseMirrorPlugins>[0];
 
   beforeEach(() => {
@@ -909,11 +909,11 @@ describe("textDragDrop coverage — uncovered branches", () => {
     capturedWindowListeners = {};
 
     vi.spyOn(document, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
-      capturedListeners[type] = handler as Function;
+      capturedListeners[type] = handler as (...args: unknown[]) => unknown;
     });
     vi.spyOn(document, "removeEventListener").mockImplementation(() => {});
     vi.spyOn(window, "addEventListener").mockImplementation((type: string, handler: EventListenerOrEventListenerObject) => {
-      capturedWindowListeners[type] = handler as Function;
+      capturedWindowListeners[type] = handler as (...args: unknown[]) => unknown;
     });
     vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
 
@@ -1012,7 +1012,7 @@ describe("textDragDrop coverage — uncovered branches", () => {
           },
           mapping: real.mapping,
           setSelection: real.setSelection.bind(real),
-          replaceRange: (_f: number, _t: number, slice: unknown) => fakeTr,
+          replaceRange: (_f: number, _t: number, _slice: unknown) => fakeTr,
         });
       },
     };

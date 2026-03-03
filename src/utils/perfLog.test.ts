@@ -232,8 +232,7 @@ describe("perfLog — enabled", () => {
 describe("perfLog — localStorage error handling", () => {
   it("PERF_ENABLED returns false when localStorage throws", async () => {
     const original = localStorage.getItem;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (localStorage as any).getItem = () => {
+    (localStorage as unknown as Record<string, unknown>).getItem = () => {
       throw new Error("SecurityError");
     };
 

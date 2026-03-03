@@ -455,6 +455,56 @@ describe("useImageContextMenu", () => {
     });
   });
 
+  // --- change action: re-entry guard (isChangingImage, line 71) ---
+
+  describe("change action — re-entry guard", () => {
+    it("does nothing when isChangingImage is true (concurrent call)", async () => {
+      // First call hangs waiting for the dialog
+      let resolveOpen!: (value: string | null) => void;
+      mockOpen.mockImplementationOnce(() => new Promise<string | null>((res) => { resolveOpen = res; }));
+
+      const view = makeEditorView();
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      // Start first call (do not await — it hangs at open())
+      const firstPromise = result.current("change");
+
+      // Start second call immediately — should be a no-op due to re-entry guard
+      await act(async () => { await result.current("change"); });
+
+      // Resolve the hanging dialog so first call can finish
+      resolveOpen(null);
+      await act(async () => { await firstPromise; });
+
+      // open() should have been called exactly once (second call was no-op)
+      expect(mockOpen).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // --- revealInFinder: absolutePath null branch (line 168) ---
+
+  describe("revealInFinder — absolutePath null", () => {
+    it("does nothing when resolveImagePath returns null for revealInFinder", async () => {
+      const { dirname } = await import("@tauri-apps/api/path");
+      vi.mocked(dirname).mockRejectedValueOnce(new Error("dirname failed"));
+
+      useImageContextMenuStore.setState({ imageSrc: "relative/path.png" });
+      const view = makeEditorView();
+      const getView = () => view as never;
+      const { result } = renderHook(() => useImageContextMenu(getView));
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await act(async () => {
+        await result.current("revealInFinder");
+      });
+
+      // absolutePath is null → revealItemInDir should NOT be called
+      expect(mockRevealItemInDir).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+  });
+
   // --- relative path with ./ prefix ---
 
   describe("copyPath with ./ prefix", () => {

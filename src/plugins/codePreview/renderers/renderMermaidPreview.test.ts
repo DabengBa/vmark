@@ -51,7 +51,7 @@ describe("updateMermaidLivePreview", () => {
     vi.mocked(renderMermaid).mockResolvedValueOnce("<svg>diagram</svg>");
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMermaidLivePreview(element, "graph TD; A-->B", token, () => token);
 
     expect(element.textContent).toContain("diagram");
@@ -61,7 +61,7 @@ describe("updateMermaidLivePreview", () => {
     vi.mocked(renderMermaid).mockResolvedValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMermaidLivePreview(element, "bad syntax", token, () => token);
 
     expect(element.textContent).toContain("Invalid syntax");
@@ -71,7 +71,7 @@ describe("updateMermaidLivePreview", () => {
     vi.mocked(renderMermaid).mockResolvedValueOnce("<svg>diagram</svg>");
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMermaidLivePreview(element, "graph TD", token, () => 2);
 
     // Element should NOT be updated because token changed
@@ -82,7 +82,7 @@ describe("updateMermaidLivePreview", () => {
     vi.mocked(renderMermaid).mockResolvedValueOnce(null);
 
     const element = document.createElement("div");
-    let token = 1;
+    const token = 1;
     await updateMermaidLivePreview(element, "bad", token, () => 2);
 
     expect(element.textContent).not.toContain("Invalid syntax");

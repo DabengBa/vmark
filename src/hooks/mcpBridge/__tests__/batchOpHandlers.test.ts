@@ -1484,7 +1484,7 @@ describe("batchOpHandlers", () => {
       const tableRow = {
         type: { name: "tableRow" },
         childCount: 2,
-        child: (i: number) => cellNode,
+        child: (_i: number) => cellNode,
         nodeSize: 12,
         firstChild: { type: { name: "tableHeader" } },
         forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {

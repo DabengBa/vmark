@@ -5,6 +5,54 @@ vi.mock("./table", () => ({
   restoreTableColumnFromAnchor: vi.fn(() => null),
 }));
 
+// ---------------------------------------------------------------------------
+// Isolated test: getCodeBlockAnchor returns undefined when fenceStart is null
+// This exercises line 38: `if (fenceStart === null) return undefined;`
+// The branch is unreachable via the normal call path (isInsideCodeBlock and
+// findCodeFenceStartLine are consistent), so we test via a mocked markdown module.
+// ---------------------------------------------------------------------------
+describe("getCodeBlockAnchor — fenceStart null branch (line 38)", () => {
+  it("blockAnchor is undefined when isInsideCodeBlock returns true but findCodeFenceStartLine returns null", async () => {
+    // Mock the markdown module so isInsideCodeBlock=true but findCodeFenceStartLine=null
+    vi.doMock("./markdown", () => ({
+      detectNodeType: () => "paragraph",
+      stripMarkdownSyntax: (line: string, col: number) => ({
+        text: line,
+        adjustedColumn: col,
+      }),
+      isInsideCodeBlock: () => true,        // triggers getCodeBlockAnchor call
+      findCodeFenceStartLine: () => null,   // causes `if (fenceStart === null) return undefined`
+    }));
+
+    const { getCursorInfoFromCodeMirror } = await import("./codemirror");
+
+    const lines = ["some text"];
+    const content = lines.join("\n");
+    const doc = {
+      toString: () => content,
+      lines: lines.length,
+      lineAt: (_pos: number) => ({ number: 1, from: 0, to: content.length, text: lines[0] }),
+      line: (_n: number) => ({ from: 0, to: content.length, text: lines[0] }),
+    };
+    const view = {
+      state: {
+        selection: { main: { head: 0 } },
+        doc,
+      },
+      dispatch: vi.fn(),
+    };
+
+    const info = getCursorInfoFromCodeMirror(view as never);
+
+    // nodeType is overridden to code_block by isInsideCodeBlock=true,
+    // but getCodeBlockAnchor returns undefined because fenceStart is null
+    expect(info.blockAnchor).toBeUndefined();
+
+    vi.doUnmock("./markdown");
+    vi.resetModules();
+  });
+});
+
 import { getCursorInfoFromCodeMirror, restoreCursorInCodeMirror } from "./codemirror";
 import type { CursorInfo } from "@/types/cursorSync";
 import { getTableAnchorForLine, restoreTableColumnFromAnchor } from "./table";
@@ -136,6 +184,21 @@ describe("getCursorInfoFromCodeMirror", () => {
       lineInBlock: 1,
       columnInLine: 3,
     });
+  });
+
+  it("sets columnInLine to 0 when cursor is on the opening fence line (rawLineInBlock < 0)", () => {
+    // Cursor ON the ``` opening line → lineIndex === fenceStart → rawLineInBlock = -1
+    const content = "```\nline0\n```";
+    // Cursor at position 1 (within the opening ```)
+    const view = buildMockView({ content, cursorPos: 1 });
+    const info = getCursorInfoFromCodeMirror(view as never);
+    expect(info.nodeType).toBe("code_block");
+    expect(info.blockAnchor).toBeDefined();
+    expect(info.blockAnchor!.kind).toBe("code");
+    // lineInBlock should be clamped to 0
+    expect((info.blockAnchor as { lineInBlock: number }).lineInBlock).toBe(0);
+    // columnInLine should be 0 (defensive: cursor on fence line)
+    expect((info.blockAnchor as { columnInLine: number }).columnInLine).toBe(0);
   });
 
   it("detects table node type when table anchor is returned", () => {

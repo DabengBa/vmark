@@ -93,12 +93,12 @@ import { wikiLinkPopupExtension } from "../tiptap";
 function createMockPMView() {
   const editorDom = document.createElement("div");
   editorDom.className = "ProseMirror";
-  const listeners: Record<string, Function[]> = {};
-  editorDom.addEventListener = vi.fn((event: string, handler: Function) => {
+  const listeners: Record<string, ((...args: unknown[]) => unknown)[]> = {};
+  editorDom.addEventListener = vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
     if (!listeners[event]) listeners[event] = [];
     listeners[event].push(handler);
   }) as unknown as typeof editorDom.addEventListener;
-  editorDom.removeEventListener = vi.fn((event: string, handler: Function) => {
+  editorDom.removeEventListener = vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
     if (listeners[event]) {
       listeners[event] = listeners[event].filter((h) => h !== handler);
     }
@@ -160,7 +160,7 @@ describe("wikiLinkPopupExtension", () => {
       const plugin = plugins[0];
       const viewFactory = plugin.spec.view;
       const pluginView = typeof viewFactory === "function"
-        ? (viewFactory as Function)(mockView)
+        ? (viewFactory as (...args: unknown[]) => unknown)(mockView)
         : null;
 
       return { pluginView, mockView };

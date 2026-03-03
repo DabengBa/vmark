@@ -55,7 +55,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isImeKeyEvent } from "@/utils/imeGuard";
+// isImeKeyEvent is mocked above — no direct import needed
 import { findHeadingById } from "@/utils/headingSlug";
 
 // ---------------------------------------------------------------------------

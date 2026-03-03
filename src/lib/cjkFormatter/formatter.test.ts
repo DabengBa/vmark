@@ -322,6 +322,67 @@ describe("formatSelection", () => {
   });
 });
 
+describe("formatter branch coverage — splitLines nullish fallback (line 52)", () => {
+  it("handles single-line input with no trailing newline", () => {
+    // splitLines on "text" → chunks = ["text"], chunks[1] = undefined → lineBreak = ""
+    const out = formatMarkdown("中文Python单行", makeConfig());
+    expect(out).toContain("中文 Python");
+  });
+
+  it("handles empty string input", () => {
+    // splitLines on "" → chunks = [""], chunks[1] = undefined → lineBreak = ""
+    const out = formatMarkdown("", makeConfig());
+    expect(out).toBe("");
+  });
+
+  it("handles CRLF line endings (\\r\\n)", () => {
+    // splitLines captures \r\n as lineBreak; chunks[i+1] = "\r\n" (not undefined)
+    const out = formatMarkdown("中文Python\r\n第二行", makeConfig());
+    expect(out).toContain("中文 Python");
+  });
+});
+
+describe("formatter branch coverage — splitBlockquotePrefix (line 63)", () => {
+  it("handles line with no blockquote prefix (empty prefix)", () => {
+    // match returns ["", ""] — match[1] = "" (not undefined, ?? not needed)
+    // but this exercises the code path
+    const out = formatMarkdown("中文Python内容", makeConfig());
+    expect(out).toContain("中文 Python");
+  });
+
+  it("handles blockquote prefix with nested arrows", () => {
+    // match[1] captures "> > " prefix (always matches, ?? fallback never fires)
+    const out = formatMarkdown("> > 中文Python内容", makeConfig());
+    expect(out).toContain("> > 中文 Python");
+  });
+});
+
+describe("formatter branch coverage — formatTableBlock cell regex (lines 190-192)", () => {
+  it("handles table cell with leading/trailing whitespace (regex groups always defined)", () => {
+    // The regex /^(\s*)([\s\S]*?)(\s*)$/ always matches any string.
+    // Groups 1, 2, 3 always defined → ?? fallbacks never fire.
+    // This test simply exercises the code path fully.
+    const input = [
+      "| Header | Col |",
+      "| --- | --- |",
+      "|  中文Python  |  data  |",
+    ].join("\n");
+    const out = formatMarkdown(input, makeConfig());
+    expect(out).toContain("中文 Python");
+  });
+
+  it("handles table cell with empty content", () => {
+    // Cell with only whitespace: match groups = [" ", "", " "]
+    const input = [
+      "| Header | Col |",
+      "| --- | --- |",
+      "|  |  |",
+    ].join("\n");
+    // Should not throw; empty cells formatted as-is
+    expect(() => formatMarkdown(input, makeConfig())).not.toThrow();
+  });
+});
+
 describe("formatFile", () => {
   it("delegates to formatMarkdown", () => {
     const input = "中文Python内容";

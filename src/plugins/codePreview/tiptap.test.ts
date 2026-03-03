@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach, beforeAll } from "vitest";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { EditorState } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { Editor, getSchema } from "@tiptap/core";
 import {
@@ -311,7 +311,7 @@ describe("codePreview plugin state apply", () => {
   });
 
   it("recomputes decorations when doc changes", () => {
-    const { state, plugins, schema } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
 
     // Insert text to change the document
     const nextState = state.apply(state.tr.insertText("X", 1));
@@ -440,7 +440,7 @@ describe("codePreview decoration widget rendering", () => {
 describe("codePreview editing mode decorations", () => {
   it("creates editing decorations when editing a math block", async () => {
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
-    const { state, plugins, schema } = createStateWithCodeBlock("$$math$$", "x^2 + y^2");
+    const { state, plugins } = createStateWithCodeBlock("$$math$$", "x^2 + y^2");
 
     // Find the code block position
     let codeBlockPos = -1;
@@ -856,7 +856,7 @@ describe("codePreview exitEditMode — via plugin with dispatch-able view (lines
   it("exitEditMode with null node calls store.exitEditing and dispatches (lines 153-160)", async () => {
     // Set up: editing store points to a position that has no node (out-of-doc position).
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
-    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+    const { state, plugins: _plugins } = createStateWithCodeBlock("latex", "x^2");
 
     // Use a very large pos that is beyond the doc — nodeAt() returns null
     const invalidPos = 9999;
@@ -895,7 +895,7 @@ describe("codePreview exitEditMode — via plugin with dispatch-able view (lines
 
   it("exitEditMode saves and clears cache — revert=false path (lines 176-198)", async () => {
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
-    const { state, plugins } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
+    const { state, plugins: _plugins2 } = createStateWithCodeBlock("mermaid", "graph TD; A-->B");
 
     let codeBlockPos = -1;
     state.doc.descendants((node, pos) => {
@@ -945,7 +945,7 @@ describe("codePreview exitEditMode — via plugin with dispatch-able view (lines
 
     // Invoke the header widget factory directly — get the header element
     // The widget at side=-1 is the header widget
-    const headerDec = decs.find((d: DecorationLike) => {
+    const _headerDec = decs.find((d: DecorationLike) => {
       // Widget decorations have a spec.widget function, not attrs
       return !d.type?.attrs?.class;
     });
@@ -965,7 +965,7 @@ describe("codePreview exitEditMode — via plugin with dispatch-able view (lines
   it("exitEditMode with revert=true and changed content replaces content (lines 166-172)", async () => {
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
     const originalContent = "x^2";
-    const { state, plugins } = createStateWithCodeBlock("latex", originalContent);
+    const { state, plugins: _plugins } = createStateWithCodeBlock("latex", originalContent);
 
     let codeBlockPos = -1;
     state.doc.descendants((node, pos) => {
@@ -1024,7 +1024,7 @@ describe("codePreview exitEditMode — via plugin with dispatch-able view (lines
 
   it("exitEditMode with empty originalContent uses empty replacement (line 171 empty branch)", async () => {
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
-    const { state, plugins } = createStateWithCodeBlock("latex", "x^2");
+    const { state, plugins: _plugins } = createStateWithCodeBlock("latex", "x^2");
 
     let codeBlockPos = -1;
     state.doc.descendants((node, pos) => {
@@ -1768,10 +1768,10 @@ describe("codePreview widget factory invocation — covers lines 263-354", () =>
 
     const { state } = createStateWithCodeBlock("latex", "   ");
 
-    let codeBlockPos = -1;
+    let _codeBlockPos = -1;
     state.doc.descendants((node, pos) => {
       if (node.type.name === "codeBlock" || node.type.name === "code_block") {
-        codeBlockPos = pos;
+        _codeBlockPos = pos;
         return false;
       }
       return true;
@@ -1853,7 +1853,7 @@ describe("codePreview widget factory invocation — covers lines 263-354", () =>
     // Actually the simplest null case: position equal to doc.content.size returns null (end-of-doc).
     // Let's use a two-paragraph doc where pos between paragraphs returns null.
     const { useBlockMathEditingStore } = await import("@/stores/blockMathEditingStore");
-    const { state, schema } = createStateWithCodeBlock("latex", "x^2");
+    const { schema } = createStateWithCodeBlock("latex", "x^2");
 
     // Build a doc with TWO code blocks — between them, nodeAt returns null at the boundary
     // Actually, just use doc.content.size - 1 which is the closing token of the last node.

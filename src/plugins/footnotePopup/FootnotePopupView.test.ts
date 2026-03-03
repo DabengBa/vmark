@@ -188,7 +188,7 @@ describe("FootnotePopupView", () => {
     vi.advanceTimersByTime(100);
 
     // The store is still open — textarea.focus() and .select() should be called
-    const textarea = popup["textarea"] as HTMLTextAreaElement;
+    const _textarea = popup["textarea"] as HTMLTextAreaElement;
     // We can't easily spy on element methods directly, but we verify no errors
     // and the popup is still visible (autoFocus ran without throwing)
     expect(popup["container"].style.display).toBe("flex");
@@ -331,7 +331,7 @@ describe("FootnotePopupView", () => {
     triggerStore({ isOpen: true, anchorRect: ANCHOR, definitionPos: 10, label: "1" });
 
     // Trigger save via the save button
-    const saveBtn = viewWithError._editorContainer.querySelector
+    const _saveBtn = viewWithError._editorContainer.querySelector
       ? null
       : null;
 

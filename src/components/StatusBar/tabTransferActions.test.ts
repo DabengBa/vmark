@@ -43,11 +43,11 @@ vi.mock("@/stores/documentStore", () => ({
   },
 }));
 
+const mockGetWorkspaceState = vi.fn(() => ({ rootPath: "/workspace" as string | null }));
+
 vi.mock("@/stores/workspaceStore", () => ({
   useWorkspaceStore: {
-    getState: () => ({
-      rootPath: "/workspace",
-    }),
+    getState: (...args: unknown[]) => mockGetWorkspaceState(...args),
   },
 }));
 
@@ -65,6 +65,8 @@ const baseTransferData: TabTransferPayload = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Restore default workspace mock after clearAllMocks resets it
+  mockGetWorkspaceState.mockReturnValue({ rootPath: "/workspace" });
 });
 
 describe("restoreTransferredTab", () => {
@@ -406,6 +408,47 @@ describe("transferTabFromDragOut", () => {
     expect(vi.mocked(windowCloseWarn)).toHaveBeenCalledWith(
       "Failed to close window:",
       "close failed",
+    );
+  });
+
+  it("uses null workspaceRoot when rootPath is null (line 93 ?? null branch)", async () => {
+    mockGetWorkspaceState.mockReturnValueOnce({ rootPath: null });
+    setupTabsAndDoc();
+    mockInvoke.mockResolvedValueOnce(null);
+    mockInvoke.mockResolvedValueOnce("new-win");
+
+    await transferTabFromDragOut(defaultOptions);
+
+    expect(mockInvoke).toHaveBeenCalledWith("detach_tab_to_new_window", {
+      data: expect.objectContaining({ workspaceRoot: null }),
+    });
+  });
+
+  it("close_window non-Error rejection uses String() in windowCloseWarn", async () => {
+    setupTabsAndDoc();
+
+    mockGetTabsByWindow
+      .mockReturnValueOnce([
+        { id: "tab-1", title: "Doc 1", filePath: "/f1.md", isPinned: false },
+        { id: "tab-2", title: "Doc 2", filePath: "/f2.md", isPinned: false },
+      ])
+      .mockReturnValueOnce([]);
+
+    mockInvoke
+      .mockResolvedValueOnce(null)          // find_drop_target_window
+      .mockResolvedValueOnce("new-win")     // detach_tab_to_new_window
+      .mockRejectedValueOnce("string-error"); // close_window rejects with a string
+
+    const { windowCloseWarn } = await import("@/utils/debug");
+
+    const opts = { ...defaultOptions, windowLabel: "secondary" };
+    await transferTabFromDragOut(opts);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(windowCloseWarn)).toHaveBeenCalledWith(
+      "Failed to close window:",
+      "string-error",
     );
   });
 

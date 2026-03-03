@@ -269,6 +269,23 @@ describe("findOrphanedImages", () => {
     expect(result.totalInFolder).toBe(1);
   });
 
+  it("skips file with trailing dot — ext is empty string, || '' branch (line 41)", async () => {
+    // isImageExtension line 41: `ext || ""` — when filename ends with ".", pop() returns ""
+    // (empty string is falsy), so the || "" right-hand branch fires.
+    // IMAGE_EXTENSIONS.includes("") is false, so the file is not counted as an image.
+    const { exists, readDir } = await import("@tauri-apps/plugin-fs");
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readDir).mockResolvedValue([
+      { name: "file.", isFile: true, isDirectory: false, isSymlink: false },
+      { name: "valid.png", isFile: true, isDirectory: false, isSymlink: false },
+    ]);
+
+    const { findOrphanedImages } = await import("./orphanAssetCleanup");
+    const result = await findOrphanedImages("/doc/test.md", "no refs");
+    // "file." has an empty extension — not counted as image, only valid.png is
+    expect(result.totalInFolder).toBe(1);
+  });
+
   it("skips directory entries", async () => {
     const { exists, readDir } = await import("@tauri-apps/plugin-fs");
     vi.mocked(exists).mockResolvedValue(true);

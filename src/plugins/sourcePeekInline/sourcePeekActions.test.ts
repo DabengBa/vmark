@@ -236,6 +236,33 @@ describe("openSourcePeekInline", () => {
     );
   });
 
+  it("uses 'unknown' when nodeAt returns null (line 80 null coalesce)", () => {
+    const view = createMockView("Hello");
+    // Patch doc.nodeAt to return null for this test
+    const originalNodeAt = view.state.doc.nodeAt;
+    view.state.doc.nodeAt = () => null;
+
+    const result = openSourcePeekInline(view);
+    expect(result).toBe(true);
+    expect(mockOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ blockTypeName: "unknown" })
+    );
+
+    view.state.doc.nodeAt = originalNodeAt;
+  });
+
+  it("skips checkpoint when tabId is null (line 92 falsy branch)", async () => {
+    // Make tabStore return no activeTabId for "main" window
+    const { useTabStore } = await import("@/stores/tabStore") as any;
+    vi.mocked(useTabStore.getState).mockReturnValueOnce({ activeTabId: {} });
+
+    const view = createMockView("Hello");
+    const result = openSourcePeekInline(view);
+    expect(result).toBe(true);
+    // Should still open, just skip checkpoint
+    expect(mockOpen).toHaveBeenCalled();
+  });
+
   it("returns false for excluded block types (e.g. codeBlock)", () => {
     // Create a schema with codeBlock
     const codeSchema = new Schema({
@@ -339,6 +366,33 @@ describe("commitSourcePeek", () => {
     commitSourcePeek(view);
     // Should dispatch, close, cleanup, and focus
     expect(view.dispatch).toHaveBeenCalled();
+    expect(mockClose).toHaveBeenCalled();
+    expect(cleanupCMView).toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it("skips empty paragraph replacement when schema has no paragraph type (line 128)", () => {
+    // Create a schema without a "paragraph" node
+    const noParagraphSchema = new Schema({
+      nodes: {
+        doc: { content: "text*" },
+        text: { group: "inline" },
+      },
+    });
+    const doc = noParagraphSchema.node("doc", null, [noParagraphSchema.text("Hello")]);
+    const state = EditorState.create({ doc, schema: noParagraphSchema });
+    const view = {
+      state,
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as unknown as EditorView;
+
+    mockStoreState.range = { from: 0, to: 5 };
+    mockStoreState.markdown = "   "; // whitespace-only → empty path
+    mockStoreState.originalMarkdown = "# Hello";
+
+    commitSourcePeek(view);
+    // Should still close and cleanup even without paragraph type
     expect(mockClose).toHaveBeenCalled();
     expect(cleanupCMView).toHaveBeenCalled();
     expect(view.focus).toHaveBeenCalled();

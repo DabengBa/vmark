@@ -56,6 +56,14 @@ describe("frontmatterExtension", () => {
       const result = rule.getAttrs!(el);
       expect(result).toBe(false);
     });
+
+    it("returns false when textContent is null (line 54 optional chaining)", () => {
+      const el = document.createElement("div");
+      el.setAttribute("data-type", "frontmatter");
+      Object.defineProperty(el, "textContent", { value: null, writable: false });
+      const result = rule.getAttrs!(el);
+      expect(result).toBe(false);
+    });
   });
 
   describe("renderHTML", () => {

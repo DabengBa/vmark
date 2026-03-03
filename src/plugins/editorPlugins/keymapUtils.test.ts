@@ -228,7 +228,9 @@ describe("escapeMarkBoundary", () => {
   });
 
   it("handles cursor at markFrom with markFrom > 1 using real ProseMirror state", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema } = require("@tiptap/pm/model");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EditorState, TextSelection } = require("@tiptap/pm/state");
 
     const testSchema = new Schema({
@@ -289,7 +291,9 @@ describe("escapeMarkBoundary", () => {
   });
 
   it("moves cursor to mark end when inside mark range using real state", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Schema } = require("@tiptap/pm/model");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EditorState, TextSelection } = require("@tiptap/pm/state");
 
     const testSchema = new Schema({
