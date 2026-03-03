@@ -49,9 +49,9 @@ export function Editor() {
   const editorKey = `${tabId}-doc-${documentId}`;
   /* v8 ignore next -- @preserve tableFitToWidth conditional class appended at runtime */
   const containerClass = `editor-container media-border-${mediaBorderStyle} media-align-${mediaAlignment} heading-align-${headingAlignment}${tableFitToWidth ? " table-fit-to-width" : ""}`;
-  /* v8 ignore next -- @preserve sourceMode attr: sourceMode=true branch requires mode toggle */
+  /* v8 ignore next -- @preserve sourceMode ternary branches require mode toggle */
   const activeEditor = sourceMode ? "source" : "wysiwyg";
-  /* v8 ignore next 8 -- @preserve keepAlive=true branch requires advanced setting; sourceMode=true branch requires mode toggle */
+  /* v8 ignore next 8 -- @preserve keepAlive and sourceMode ternary branches require advanced settings */
   const editorContent = keepAlive ? (
     <>
       <SourceEditor key={editorKey} hidden={!sourceMode} />
