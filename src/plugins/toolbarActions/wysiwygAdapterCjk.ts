@@ -1,9 +1,10 @@
 /**
  * WYSIWYG Adapter - CJK Formatting
  *
- * Purpose: CJK text formatting actions for WYSIWYG mode — selection-level
- * formatting, block-level formatting, and whole-file formatting. Also handles
- * trailing space removal, blank line collapse, and line ending normalization.
+ * Purpose: CJK text formatting actions for WYSIWYG mode — block-level
+ * formatting and whole-file formatting via markdown roundtrip (preserves
+ * inline marks). Also handles trailing space removal, blank line collapse,
+ * and line ending normalization.
  *
  * @coordinates-with wysiwygAdapter.ts — main dispatcher delegates CJK/cleanup actions here
  * @coordinates-with wysiwygAdapterUtils.ts — uses applyFullDocumentTransform, getSerializeOptions
