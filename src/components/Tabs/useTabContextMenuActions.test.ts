@@ -779,5 +779,32 @@ describe("useTabContextMenuActions", () => {
         );
       });
     });
+
+    it("handleMoveToNewWindow logs warn with String(error) when close_window rejects with non-Error (branch 12, line 158)", async () => {
+      // Reject with a plain string — exercises the String(error) branch of the ternary
+      mocks.getTabsByWindow.mockReturnValue([]);
+      mocks.getCurrentWebviewWindow.mockReturnValue({ label: "doc-2" });
+      mocks.invoke
+        .mockResolvedValueOnce("new-window-label") // detach_tab_to_new_window
+        .mockRejectedValueOnce("raw string error"); // close_window rejects with a string, not Error
+
+      const { windowCloseWarn } = await import("@/utils/debug");
+
+      const tab = makeTab({ id: "tab-1" });
+      const tabs = [tab, makeTab({ id: "tab-2" })];
+      const { items } = renderActions({
+        tab,
+        tabs,
+        windowLabel: "doc-2",
+      });
+      await findItem(items, "moveToNewWindow")!.action();
+
+      await vi.waitFor(() => {
+        expect(windowCloseWarn).toHaveBeenCalledWith(
+          "Failed to close window:",
+          "raw string error",
+        );
+      });
+    });
   });
 });

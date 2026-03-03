@@ -18,6 +18,7 @@ function isFootnoteContinuationLine(lineText: string): boolean {
 
 function stripFootnoteIndent(lineText: string): string {
   if (lineText.startsWith("\t")) return lineText.slice(1);
+  /* v8 ignore next -- @preserve continuation lines always start with tab or 2+ spaces; other whitespace is structurally unreachable */
   if (lineText.startsWith("  ")) return lineText.slice(2);
   return lineText.replace(/^\s+/, "");
 }
@@ -28,6 +29,7 @@ function buildFootnoteDefinitionBlock(
   label: string,
   firstLineContent: string
 ): { from: number; to: number; content: string; label: string } {
+  /* v8 ignore next -- @preserve directMatch[2] always exists (captured by (.*) group); nullish fallback is unreachable */
   const contentLines: string[] = [firstLineContent ?? ""];
   let endLineNumber = startLineNumber;
 
@@ -50,6 +52,7 @@ function buildFootnoteDefinitionBlock(
 
 function buildFootnoteDefinitionText(label: string, content: string): string {
   const lines = content.split(/\r?\n/);
+  /* v8 ignore next -- @preserve split always returns at least one element; lines[0] is never undefined */
   const firstLine = lines[0] ?? "";
   const rest = lines.slice(1);
   const formatted = [`[^${label}]: ${firstLine}`];
@@ -123,6 +126,7 @@ export function removeFootnote(view: EditorView): void {
 
   const references = findFootnoteReferences(view, label);
   const referenceAtPos = findFootnoteReferenceAtPos(view, label, referencePos);
+  /* v8 ignore next -- @preserve defensive dedup guard: referenceAtPos is always found by findFootnoteReferences since both use the same regex */
   if (referenceAtPos && !references.some((ref) => ref.from === referenceAtPos.from)) {
     references.push(referenceAtPos);
   }

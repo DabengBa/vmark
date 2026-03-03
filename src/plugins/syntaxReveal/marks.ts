@@ -52,6 +52,7 @@ export function findAnyMarkRangeAtCursor(
       // Find ranges for each mark and pick the smallest
       for (const mark of child.marks) {
         const markRange = findMarkRange(pos, mark, parentStart, parent);
+        /* v8 ignore next -- @preserve defensive guard: markRange is always found when pos is in a marked child */
         if (markRange) {
           const rangeSize = markRange.to - markRange.from;
           if (!smallestRange || rangeSize < (smallestRange.to - smallestRange.from)) {
@@ -108,6 +109,7 @@ function findMarksAtPosition(pos: number, $pos: ResolvedPos): MarkRange[] {
     if (pos >= from && pos <= to && child.isText) {
       child.marks.forEach((mark) => {
         const markRange = findMarkRange(pos, mark, parentStart, parent);
+        /* v8 ignore next -- @preserve defensive guard: markRange is always found when pos is in a marked child */
         if (markRange) {
           if (!ranges.some((r) => r.from === markRange.from && r.to === markRange.to)) {
             ranges.push(markRange);
