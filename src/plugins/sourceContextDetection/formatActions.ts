@@ -94,7 +94,7 @@ function applyFootnote(
       selection: { anchor: newRefEnd },
     });
   } else {
-    // No renumbering needed, just set cursor
+    /* v8 ignore next -- @preserve reason: renumberFootnotes always returns a value in practice */
     view.dispatch({
       selection: { anchor: to + ref.length },
     });

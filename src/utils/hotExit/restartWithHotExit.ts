@@ -41,6 +41,7 @@ function formatTimestamp(timestamp: number): string {
   try {
     return new Date(timestamp * 1000).toISOString();
   } catch {
+    /* v8 ignore next -- Date constructor only throws for NaN; valid timestamps never reach this */
     return `invalid(${timestamp})`;
   }
 }

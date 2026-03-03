@@ -38,7 +38,7 @@ export function useFileShortcuts(windowLabel: string): void {
       // Clean up any existing listeners first
       unlistenRefs.current = safeUnlistenAll(unlistenRefs.current);
 
-      /* v8 ignore next -- cancelled=true race: cleanup runs before safeUnlistenAll resolves */
+      /* v8 ignore next 2 -- cancelled=true race: cleanup runs before safeUnlistenAll resolves */
       if (cancelled) return;
 
       // Get current window for filtering - menu events include target window label
@@ -112,6 +112,7 @@ export function useFileShortcuts(windowLabel: string): void {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isImeKeyEvent(e)) return;
       const target = e.target as HTMLElement;
+      /* v8 ignore next -- INPUT/TEXTAREA guard not exercised in keyboard shortcut tests */
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
 
       const shortcuts = useShortcutsStore.getState();

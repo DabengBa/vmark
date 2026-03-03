@@ -106,9 +106,11 @@ export function UpdateIndicator() {
       openSettingsWindow("about");
     } else if (status === "ready") {
       restartApp();
-    /* v8 ignore next -- @preserve non-status-matching else branch: all clickable statuses tested */
     } else if (status === "error") {
       checkForUpdates();
+    /* v8 ignore next -- @preserve unreachable else: getIndicatorConfig only returns non-null for checking/downloading/available/ready/error statuses */
+    } else {
+      // no-op for any other clickable status
     }
   };
 

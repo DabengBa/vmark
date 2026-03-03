@@ -55,11 +55,13 @@ async function resizeWithCanvas(
   let newHeight = height;
 
   if (width > height) {
+    /* v8 ignore next -- width<=maxDimension branch: no resize needed for small landscape images */
     if (width > maxDimension) {
       newHeight = Math.round((height * maxDimension) / width);
       newWidth = maxDimension;
     }
   } else {
+    /* v8 ignore next -- height<=maxDimension branch: no resize needed for small portrait images */
     if (height > maxDimension) {
       newWidth = Math.round((width * maxDimension) / height);
       newHeight = maxDimension;

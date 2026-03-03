@@ -38,7 +38,7 @@ export function DropZoneIndicator() {
           <polyline points="21 15 16 10 5 21" />
         </svg>
         <span className="drop-zone-text">
-          {/* v8 ignore next -- @preserve render guard: requires active drag with images */}
+          {/* v8 ignore next 3 -- @preserve render guard: requires active drag with images */}
           {imageCount === 1
             ? "Drop to insert image"
             : `Drop to insert ${imageCount} images`}

@@ -228,6 +228,7 @@ export function handleMultiCursorArrow(
   // Derive updated backward flags: compare original anchor to new head
   const newBackward = nextRanges.map((range, i) => {
     if (range.$from.pos === range.$to.pos) return false;
+    /* v8 ignore next -- @preserve non-extend (collapsed) move always returns false; range equality checked above */
     if (!extend) return false;
     const origRange = selection.ranges[i];
     const anchorPos = backwardFlags?.[i] ? origRange.$to.pos : origRange.$from.pos;

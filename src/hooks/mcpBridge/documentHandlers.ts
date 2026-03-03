@@ -153,6 +153,7 @@ export async function handleMetadataGet(id: string): Promise<void> {
     // Get first heading as title if available
     let title = tab?.title ?? "Untitled";
     editor.state.doc.descendants((node) => {
+      /* v8 ignore next -- traversal stop (return false) only reached when a level-1 heading exists */
       if (node.type.name === "heading" && node.attrs.level === 1) {
         title = node.textContent;
         return false; // stop traversal

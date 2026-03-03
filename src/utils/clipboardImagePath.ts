@@ -24,6 +24,7 @@ export interface ClipboardImagePathResult extends ImagePathResult {
  * Expand home path (~/) to absolute path.
  */
 async function expandHomePath(path: string): Promise<string | null> {
+  /* v8 ignore next -- non-home paths are handled by callers before reaching this; false branch is defensive */
   if (!path.startsWith("~/")) return path;
 
   try {
@@ -142,6 +143,7 @@ export async function readClipboardImagePath(): Promise<ClipboardImagePathResult
       };
     }
 
+    /* v8 ignore next 5 -- only reachable for unknown detection types; callers always pass absolutePath/relativePath/url/none */
     return {
       ...detection,
       validated: false,

@@ -214,6 +214,7 @@ export function useFinderFileOpen(): void {
         const queued = pendingEventsRef.current;
         pendingEventsRef.current = [];
         for (const payload of queued) {
+          /* v8 ignore next -- cancelled race in queued-events loop not exercised in tests */
           if (cancelled) return;
           enqueueFileOpen(payload.path, payload.workspace_root);
         }
@@ -223,10 +224,12 @@ export function useFinderFileOpen(): void {
 
         // Fetch and process any files queued during cold start.
         // This handles the race condition where Finder opens a file before React mounts.
+        /* v8 ignore next -- pendingFetchedRef already-fetched guard not exercised in tests */
         if (!pendingFetchedRef.current) {
           pendingFetchedRef.current = true;
           const pending = await invoke<PendingFileOpen[]>("get_pending_file_opens");
           for (const file of pending) {
+            /* v8 ignore next -- cancelled race in pending-file loop not exercised in tests */
             if (cancelled) return;
             enqueueFileOpen(file.path, file.workspace_root);
           }

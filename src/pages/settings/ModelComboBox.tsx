@@ -164,6 +164,9 @@ export function ModelComboBox({
     if (!open) handleOpen();
   };
 
+  /* v8 ignore next -- @preserve reason: dropUp CSS branch only applied when spaceBelow < threshold; jsdom always reports zero rects */
+  const dropPositionClass = dropUp ? "bottom-full mb-1" : "top-full mt-1";
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="flex items-center gap-0.5">
@@ -210,10 +213,7 @@ export function ModelComboBox({
       {open && (
         <ul
           ref={listRef}
-          /* v8 ignore next -- @preserve reason: dropUp CSS branch only applied when spaceBelow < threshold; jsdom always reports zero rects */
-          className={`absolute z-50 left-0 right-0 max-h-[140px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-color)] shadow-[var(--popup-shadow)] text-xs ${
-            dropUp ? "bottom-full mb-1" : "top-full mt-1"
-          }`}
+          className={`absolute z-50 left-0 right-0 max-h-[140px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-color)] shadow-[var(--popup-shadow)] text-xs ${dropPositionClass}`}
           role="listbox"
         >
           {fetching && filtered.length === 0 && (

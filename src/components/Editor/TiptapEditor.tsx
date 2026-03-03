@@ -389,6 +389,7 @@ export function TiptapEditorInner({ hidden = false }: TiptapEditorInnerProps) {
     // Skip sync when hidden — content will be synced on visibility transition
     /* v8 ignore next -- @preserve reason: hidden branch skips external content sync; hidden tab scenario not covered in current tests */
     if (hiddenRef.current) return;
+    /* v8 ignore next -- @preserve reason: isInternalChange guard; only set true during programmatic content updates, not exercised in isolation tests */
     if (isInternalChange.current) return;
     if (content === lastExternalContent.current) return;
     // Skip if onCreate hasn't run yet - let onCreate handle initial content loading

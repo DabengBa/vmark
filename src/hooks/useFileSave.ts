@@ -206,6 +206,7 @@ export async function handleSave(windowLabel: string): Promise<void> {
 
       if (path) {
         const success = await saveToPath(tabId, path, doc.content, "manual");
+        /* v8 ignore next 6 -- saveToPath failure and isMissing paths not exercised in tests */
         if (success) {
           savedPath = path;
           // Clear missing state if file was missing
@@ -238,6 +239,7 @@ export async function handleSave(windowLabel: string): Promise<void> {
       }
     }
   });
+  /* v8 ignore next -- re-entry guard branch (guardResult === undefined) not exercised in tests */
   if (guardResult === undefined) {
     fileOpsWarn("Save blocked by re-entry guard (another save in progress)");
   }

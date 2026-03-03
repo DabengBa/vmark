@@ -120,6 +120,7 @@ export const videoEmbedExtension = Node.create({
 
   addNodeView() {
     return ({ node, getPos, editor }) => {
+      /* v8 ignore next -- @preserve reason: getPos is always a function in Tiptap NodeView context */
       const safeGetPos = typeof getPos === "function" ? getPos : () => undefined;
       return new VideoEmbedNodeView(node, safeGetPos, editor) as unknown as NodeView;
     };

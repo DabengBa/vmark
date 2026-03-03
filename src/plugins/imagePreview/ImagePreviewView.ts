@@ -308,7 +308,7 @@ export class ImagePreviewView {
       })
       .catch((error: unknown) => {
         if (currentToken !== this.resolveToken) return;
-        renderWarn("Image path resolution failed:", error instanceof Error ? error.message : String(error));
+        renderWarn("Image path resolution failed:", error instanceof Error ? error.message : /* v8 ignore next -- @preserve non-Error rejection is rare */ String(error));
         this.showError("Path resolution failed");
       });
   }

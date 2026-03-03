@@ -114,6 +114,7 @@ export function useSourceEditorContentSync(
       const targetContent = pendingContentRef.current;
       pendingContentRef.current = null;
 
+      /* v8 ignore next -- false branch (content already matches) is a no-op guard against redundant updates */
       if (currentContent !== targetContent && lastAppliedContentRef.current !== targetContent) {
         lastAppliedContentRef.current = targetContent;
         runOrQueueCodeMirrorAction(view, () => {

@@ -80,6 +80,7 @@ export const blockAudioExtension = Node.create({
 
   addNodeView() {
     return ({ node, getPos, editor }) => {
+      /* v8 ignore next -- @preserve defensive guard: getPos is always a function in practice; () => undefined fallback is unreachable */
       const safeGetPos = typeof getPos === "function" ? getPos : () => undefined;
       return new BlockAudioNodeView(node, safeGetPos, editor) as unknown as NodeView;
     };

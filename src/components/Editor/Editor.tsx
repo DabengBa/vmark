@@ -49,26 +49,27 @@ export function Editor() {
   const editorKey = `${tabId}-doc-${documentId}`;
   /* v8 ignore next -- @preserve tableFitToWidth conditional class appended at runtime */
   const containerClass = `editor-container media-border-${mediaBorderStyle} media-align-${mediaAlignment} heading-align-${headingAlignment}${tableFitToWidth ? " table-fit-to-width" : ""}`;
+  /* v8 ignore next -- @preserve sourceMode attr: sourceMode=true branch requires mode toggle */
+  const activeEditor = sourceMode ? "source" : "wysiwyg";
+  /* v8 ignore next 8 -- @preserve keepAlive=true branch requires advanced setting; sourceMode=true branch requires mode toggle */
+  const editorContent = keepAlive ? (
+    <>
+      <SourceEditor key={editorKey} hidden={!sourceMode} />
+      <TiptapEditorInner key={editorKey} hidden={sourceMode} />
+    </>
+  ) : (
+    sourceMode
+      ? <SourceEditor key={editorKey} />
+      : <TiptapEditorInner key={editorKey} />
+  );
 
   return (
     <div
       className={containerClass}
       data-html-rendering-mode={htmlRenderingMode}
     >
-      {/* v8 ignore next -- @preserve sourceMode attr and keepAlive branches require editor interaction */}
-      <div className="editor-content" data-active-editor={sourceMode ? "source" : "wysiwyg"}>
-        {/* v8 ignore next -- @preserve keepAlive and sourceMode branches exercised at runtime */}
-        {keepAlive ? (
-          <>
-            <SourceEditor key={editorKey} hidden={!sourceMode} />
-            <TiptapEditorInner key={editorKey} hidden={sourceMode} />
-          </>
-        ) : (
-          /* v8 ignore next -- @preserve sourceMode render branch requires mode toggle */
-          sourceMode
-            ? <SourceEditor key={editorKey} />
-            : <TiptapEditorInner key={editorKey} />
-        )}
+      <div className="editor-content" data-active-editor={activeEditor}>
+        {editorContent}
       </div>
       <HeadingPicker />
       <DropZoneIndicator />

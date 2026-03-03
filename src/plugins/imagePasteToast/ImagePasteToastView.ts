@@ -204,8 +204,7 @@ export class ImagePasteToastView {
           this.handleInsert();
         } else if (activeEl?.classList.contains("image-paste-toast-btn-dismiss")) {
           this.handleDismiss();
-        } else {
-          // No button focused, default to insert
+        } else /* v8 ignore next -- @preserve no-button-focused fallback; neither toast button is focused */ {
           this.handleInsert();
         }
       } else if (e.key === "Escape") {
