@@ -832,6 +832,129 @@ describe("lineOperationCommands", () => {
     });
   });
 
+  describe("getBlockRange — skips wrapper nodes (line 29 match branch)", () => {
+    it("skips blockquote and finds inner paragraph block", () => {
+      // getBlockRange walks from $from.depth up to 1 and skips nodes matching
+      // /^(bulletList|orderedList|blockquote|doc)$/. We need to verify it
+      // correctly skips blockquote at some depth and finds the paragraph.
+      const wrapperSchema = new Schema({
+        nodes: {
+          doc: { content: "block+", toDOM: () => ["div", 0] },
+          blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+          paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+          text: { inline: true },
+        },
+      });
+
+      const p1 = wrapperSchema.node("paragraph", null, [wrapperSchema.text("inside bq")]);
+      const bq = wrapperSchema.node("blockquote", null, [p1]);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      // getBlockRange should find the paragraph (not blockquote), so duplicate works
+      const result = doWysiwygDuplicateLine(view);
+      expect(result).toBe(true);
+      view.destroy();
+    });
+
+    it("skips bulletList wrapper and finds paragraph for delete", () => {
+      const listSchema = new Schema({
+        nodes: {
+          doc: { content: "block+", toDOM: () => ["div", 0] },
+          bulletList: { group: "block", content: "listItem+", toDOM: () => ["ul", 0] },
+          listItem: { group: "block", content: "paragraph+", toDOM: () => ["li", 0] },
+          paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+          text: { inline: true },
+        },
+      });
+
+      const para = listSchema.node("paragraph", null, [listSchema.text("item text")]);
+      const li = listSchema.node("listItem", null, [para]);
+      const ul = listSchema.node("bulletList", null, [li]);
+      const doc = listSchema.node("doc", null, [ul]);
+
+      let state = EditorState.create({ doc, schema: listSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 4))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      // getBlockRange should skip bulletList & find paragraph inside listItem
+      const result = doWysiwygDeleteLine(view);
+      expect(result).toBe(true);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygMoveLineUp — prevBlock null guard (line 50)", () => {
+    it("returns false when $prevFrom.nodeBefore is null", () => {
+      // This happens when the resolved position before the block has no node before it.
+      // In practice this is when the block is at position 0 in the document.
+      // We use a wrapper schema to get past the "already at top" check but
+      // still have nodeBefore be null.
+      const wrapperSchema = new Schema({
+        nodes: {
+          doc: { content: "block+", toDOM: () => ["div", 0] },
+          blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+          paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+          text: { inline: true },
+        },
+      });
+
+      // Single paragraph in blockquote — first child, index = 0
+      const p1 = wrapperSchema.node("paragraph", null, [wrapperSchema.text("only")]);
+      const bq = wrapperSchema.node("blockquote", null, [p1]);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygMoveLineUp(view);
+      expect(result).toBe(false);
+      view.destroy();
+    });
+  });
+
+  describe("doWysiwygMoveLineDown — nodeAfter null guard (line 80)", () => {
+    it("returns false when $to.nodeAfter is null", () => {
+      // Last paragraph in a blockquote — nodeAfter at blockRange.to is null
+      const wrapperSchema = new Schema({
+        nodes: {
+          doc: { content: "block+", toDOM: () => ["div", 0] },
+          blockquote: { group: "block", content: "block+", toDOM: () => ["blockquote", 0] },
+          paragraph: { group: "block", content: "text*", toDOM: () => ["p", 0] },
+          text: { inline: true },
+        },
+      });
+
+      const p1 = wrapperSchema.node("paragraph", null, [wrapperSchema.text("only")]);
+      const bq = wrapperSchema.node("blockquote", null, [p1]);
+      const doc = wrapperSchema.node("doc", null, [bq]);
+
+      let state = EditorState.create({ doc, schema: wrapperSchema });
+      state = state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 3))
+      );
+      const container = document.createElement("div");
+      const view = new EditorView(container, { state });
+
+      const result = doWysiwygMoveLineDown(view);
+      expect(result).toBe(false);
+      view.destroy();
+    });
+  });
+
   describe("doWysiwygJoinLines — with selection spanning blocks in wrapper", () => {
     const wrapperSchema = new Schema({
       nodes: {
