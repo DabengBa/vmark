@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Extracts menu IDs from src-tauri/src/menu.rs and generates shared/menu-ids.json
+ * Extracts menu IDs from src-tauri/src/menu.rs and generates src/shared/menu-ids.json
  *
  * Usage: npx tsx scripts/extract-menu-ids.ts
  *
@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const MENU_RS_PATH = path.join(process.cwd(), "src-tauri/src/menu.rs");
-const OUTPUT_PATH = path.join(process.cwd(), "shared/menu-ids.json");
+const OUTPUT_PATH = path.join(process.cwd(), "src/shared/menu-ids.json");
 
 // Regex to match MenuItem::with_id(app, "menu-id", ...)
 // Captures the menu ID string
