@@ -411,4 +411,23 @@ describe("MultiSelection", () => {
       expect(mapped.backward[0]).toBe(true);
     });
   });
+
+  describe("backward array length mismatch defense (#311)", () => {
+    it("resets backward to all-false when length mismatches ranges", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const ranges = [
+        new SelectionRange(doc.resolve(1), doc.resolve(1)),
+        new SelectionRange(doc.resolve(5), doc.resolve(5)),
+      ];
+      // Deliberately wrong length (3 flags for 2 ranges)
+      const wrongBackward = [true, false, true];
+
+      const sel = new MultiSelection(ranges, 0, wrongBackward);
+      // Should have reset to [false, false] due to length mismatch
+      expect(sel.backward).toHaveLength(2);
+      expect(sel.backward).toEqual([false, false]);
+    });
+  });
 });

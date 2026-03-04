@@ -6,6 +6,7 @@ import {
   mergeOverlappingRanges,
   sortAndDedupeRanges,
   normalizeRangesWithPrimary,
+  remapBackwardFlags,
 } from "../rangeUtils";
 
 // Simple schema for testing
@@ -220,6 +221,81 @@ describe("rangeUtils", () => {
       // The primary [3-8] was merged into [1-10], exact match fails → primaryIndex falls back to 0
       expect(result.ranges).toHaveLength(1);
       expect(result.primaryIndex).toBe(0);
+    });
+  });
+
+  describe("remapBackwardFlags", () => {
+    it("preserves flags when ranges are unchanged", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const ranges = [
+        new SelectionRange(doc.resolve(1), doc.resolve(3)),
+        new SelectionRange(doc.resolve(5), doc.resolve(8)),
+      ];
+      const backward = [true, false];
+
+      const result = remapBackwardFlags(ranges, backward, ranges);
+      expect(result).toEqual([true, false]);
+    });
+
+    it("remaps flags when duplicate ranges are removed", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const original = [
+        new SelectionRange(doc.resolve(1), doc.resolve(3)),
+        new SelectionRange(doc.resolve(5), doc.resolve(5)),
+        new SelectionRange(doc.resolve(5), doc.resolve(5)), // duplicate
+      ];
+      const backward = [true, false, true];
+
+      // After dedup, only first occurrence at pos 5 survives
+      const normalized = sortAndDedupeRanges(original, doc);
+      expect(normalized).toHaveLength(2);
+
+      const result = remapBackwardFlags(original, backward, normalized);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe(true);  // range [1,3] → backward=true
+      expect(result[1]).toBe(false); // range [5,5] → first match backward=false
+    });
+
+    it("remaps flags when overlapping ranges are merged", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const original = [
+        new SelectionRange(doc.resolve(1), doc.resolve(5)),
+        new SelectionRange(doc.resolve(3), doc.resolve(8)),
+      ];
+      const backward = [false, true];
+
+      // After merge: single range [1, 8]
+      const normalized = mergeOverlappingRanges(original, doc);
+      expect(normalized).toHaveLength(1);
+
+      const result = remapBackwardFlags(original, backward, normalized);
+      expect(result).toHaveLength(1);
+      // Merged range contains original[1] which has backward=true
+      expect(result[0]).toBe(true);
+    });
+
+    it("returns false for ranges with no matching original", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const original = [
+        new SelectionRange(doc.resolve(1), doc.resolve(3)),
+      ];
+      const backward = [true];
+
+      // A normalized range that doesn't match any original
+      const normalized = [
+        new SelectionRange(doc.resolve(7), doc.resolve(10)),
+      ];
+
+      const result = remapBackwardFlags(original, backward, normalized);
+      expect(result).toEqual([false]);
     });
   });
 });

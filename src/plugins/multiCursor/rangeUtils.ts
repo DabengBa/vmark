@@ -137,6 +137,50 @@ export function normalizeRanges(
 }
 
 /**
+ * Remap backward flags after normalization.
+ *
+ * After sorting/deduplication/merging, the normalized ranges may have fewer
+ * entries than the original. This function maps each surviving normalized
+ * range back to its closest original range (by from-position) and copies
+ * the corresponding backward flag.
+ *
+ * @param originalRanges - Ranges before normalization
+ * @param originalBackward - Backward flags before normalization (same length as originalRanges)
+ * @param normalizedRanges - Ranges after normalization
+ * @returns Backward flags matching normalizedRanges length
+ */
+export function remapBackwardFlags(
+  originalRanges: readonly SelectionRange[],
+  originalBackward: boolean[],
+  normalizedRanges: readonly SelectionRange[]
+): boolean[] {
+  return normalizedRanges.map((nr) => {
+    // Find the original range that best matches this normalized range.
+    // For dedup: exact position match. For merge: the range whose from is closest.
+    for (let i = 0; i < originalRanges.length; i++) {
+      if (
+        originalRanges[i].$from.pos === nr.$from.pos &&
+        originalRanges[i].$to.pos === nr.$to.pos
+      ) {
+        return originalBackward[i] ?? false;
+      }
+    }
+    // Merged range — find original range contained within normalized range.
+    // Use the last original range that falls within (highest from-pos), as
+    // that's the range the user was most recently interacting with.
+    for (let i = originalRanges.length - 1; i >= 0; i--) {
+      if (
+        originalRanges[i].$from.pos >= nr.$from.pos &&
+        originalRanges[i].$to.pos <= nr.$to.pos
+      ) {
+        return originalBackward[i] ?? false;
+      }
+    }
+    return false;
+  });
+}
+
+/**
  * Normalize ranges and preserve the primary index.
  * Sorts ranges and removes duplicates, and optionally merges overlaps.
  *
