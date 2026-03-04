@@ -3,11 +3,13 @@
  *
  * Purpose: Orchestrates the full AI genie pipeline — extracts content from
  *   the editor, fills the genie template, invokes the AI provider via Rust,
- *   streams the response, and creates a suggestion for user approval.
+ *   streams the response, and either creates a suggestion for user approval
+ *   or applies changes directly when auto-approve is enabled.
  *
  * Pipeline: User triggers genie → extractContent(scope) → fillTemplate()
  *   → invoke("stream_ai_response") → listen("ai:chunk") → accumulate
- *   → aiSuggestionStore.createSuggestion() → user accepts/rejects
+ *   → if autoApprove: apply directly via createMarkdownPasteSlice
+ *   → else: aiSuggestionStore.createSuggestion() → user accepts/rejects
  *
  * Key decisions:
  *   - Content extraction supports document/selection/block/paragraph scopes
@@ -30,6 +32,7 @@ import { toast } from "sonner";
 import type { GenieDefinition, GenieScope, GenieAction, AiResponseChunk } from "@/types/aiGenies";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { useAiProviderStore, REST_TYPES, KEY_OPTIONAL_REST } from "@/stores/aiProviderStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useAiInvocationStore } from "@/stores/aiInvocationStore";
 import { useEditorStore } from "@/stores/editorStore";
 import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
@@ -37,6 +40,7 @@ import { useGeniesStore } from "@/stores/geniesStore";
 import { useTabStore } from "@/stores/tabStore";
 import { getExpandedSourcePeekRange, serializeSourcePeekRange } from "@/utils/sourcePeek";
 import { extractSurroundingContext } from "@/utils/extractContext";
+import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
 import { serializeMarkdown } from "@/utils/markdownPipeline";
 import { genieWarn } from "@/utils/debug";
 
@@ -236,17 +240,35 @@ export function useGenieInvocation() {
         accumulated += chunk.chunk;
 
         if (chunk.done) {
-          // Create suggestion from accumulated result
+          // Apply accumulated result
           if (accumulated.trim()) {
+            const autoApprove = useSettingsStore.getState().advanced.mcpServer.autoApproveEdits;
             const isInsert = action === "insert";
-            useAiSuggestionStore.getState().addSuggestion({
-              tabId,
-              type: isInsert ? "insert" : "replace",
-              from: isInsert ? extraction.to : extraction.from,
-              to: extraction.to,
-              newContent: accumulated.trim(),
-              originalContent: isInsert ? "" : extraction.text,
-            });
+            if (autoApprove) {
+              // Apply directly — skip ghost text preview
+              const editor = useTiptapEditorStore.getState().editor;
+              if (editor) {
+                const content = accumulated.trim();
+                const from = isInsert ? extraction.to : extraction.from;
+                const to = extraction.to;
+                const slice = createMarkdownPasteSlice(editor.state, content);
+                const tr = editor.state.tr
+                  .replaceRange(from, to, slice)
+                  .scrollIntoView()
+                  .setMeta("addToHistory", true);
+                editor.view.dispatch(tr);
+              }
+            } else {
+              // Show as ghost text suggestion for user approval
+              useAiSuggestionStore.getState().addSuggestion({
+                tabId,
+                type: isInsert ? "insert" : "replace",
+                from: isInsert ? extraction.to : extraction.from,
+                to: extraction.to,
+                newContent: accumulated.trim(),
+                originalContent: isInsert ? "" : extraction.text,
+              });
+            }
           }
           cancel();
         }
