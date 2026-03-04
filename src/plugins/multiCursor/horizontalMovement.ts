@@ -7,9 +7,10 @@
  * Key decisions:
  *   - Uses wordSegmentation utility for word boundaries (CJK-aware via Intl.Segmenter)
  *   - Line-start/end uses doc.resolve to find textblock boundaries
+ *   - Backward flags are remapped through normalization via remapBackwardFlags()
  *
  * @coordinates-with keymap.ts — binds arrow key combos to these handlers
- * @coordinates-with rangeUtils.ts — normalizes resulting ranges
+ * @coordinates-with rangeUtils.ts — normalizes resulting ranges and remaps backward flags
  * @module plugins/multiCursor/horizontalMovement
  */
 import { Selection, SelectionRange } from "@tiptap/pm/state";
