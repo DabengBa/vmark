@@ -1,0 +1,80 @@
+/**
+ * Footnote Node Rendering Styles
+ *
+ * Styles for footnote_reference (inline [^n]) and footnote_definition (block)
+ * nodes in WYSIWYG mode. Moved from editor.css for co-location per rule 32/50.
+ *
+ * Popup styles are in ./footnote-popup.css (same directory).
+ */
+
+/* Footnote reference - superscript link */
+.tiptap-editor sup[data-type="footnote_reference"] {
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.65em;
+  vertical-align: baseline;
+  position: relative;
+  bottom: 0.35em;
+  padding: 0 2px;
+  font-weight: 500;
+}
+
+.tiptap-editor sup[data-type="footnote_reference"]:hover {
+  text-decoration: underline;
+}
+
+.tiptap-editor sup[data-type="footnote_reference"]::before {
+  content: "[";
+}
+
+.tiptap-editor sup[data-type="footnote_reference"]::after {
+  content: "]";
+}
+
+/* Footnote definition - description list */
+.tiptap-editor dl[data-type="footnote_definition"] {
+  margin: 0 0 var(--editor-block-spacing, 1em) 0;
+  padding: 0;
+  line-height: var(--editor-line-height-px);
+  color: var(--text-secondary);
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dt {
+  display: inline;
+  font-weight: 500;
+  color: var(--primary-color);
+  margin-right: 0.25em;
+  cursor: pointer;
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dt:hover {
+  text-decoration: underline;
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dt::before {
+  content: "[";
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dt::after {
+  content: "]: ";
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dd {
+  display: inline;
+  margin: 0;
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dd::after {
+  content: " ↩";
+  color: var(--primary-color);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dd:hover::after {
+  opacity: 1;
+}
+
+.tiptap-editor dl[data-type="footnote_definition"] dd > *:first-child {
+  display: inline;
+}

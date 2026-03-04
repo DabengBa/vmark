@@ -14,6 +14,7 @@
  * @coordinates-with shared/sourceLineAttr.ts — source-line tracking on list items
  * @module plugins/taskToggle/tiptap
  */
+import "./task-toggle.css";
 import { mergeAttributes, Node } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 import { Plugin, PluginKey } from "@tiptap/pm/state";

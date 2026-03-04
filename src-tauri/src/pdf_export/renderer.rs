@@ -59,6 +59,8 @@ fn create_offscreen_webview(
         objc2_core_foundation::CGPoint::new(0.0, 0.0),
         objc2_core_foundation::CGSize::new(800.0, 600.0),
     );
+    // SAFETY: Called on the main thread (mtm proves MainThreadMarker).
+    // NSWindow init is a standard Cocoa initializer with valid frame/style params.
     let window = unsafe {
         NSWindow::initWithContentRect_styleMask_backing_defer(
             NSWindow::alloc(mtm),
@@ -68,7 +70,9 @@ fn create_offscreen_webview(
             true,
         )
     };
+    // SAFETY: Main thread (mtm). WKWebViewConfiguration::new is a standard initializer.
     let config = unsafe { WKWebViewConfiguration::new(mtm) };
+    // SAFETY: Main thread (mtm). config is a valid WKWebViewConfiguration created above.
     let webview = unsafe {
         WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config)
     };
@@ -89,6 +93,9 @@ fn load_html_and_wait(
 
     let file_url = NSURL::fileURLWithPath(&NSString::from_str(html_path));
     let dir_url = NSURL::fileURLWithPath(&NSString::from_str(read_access_dir));
+    // SAFETY: webview is a valid WKWebView (caller provides it). file_url and dir_url
+    // are valid NSURLs constructed from path strings above. Runs on the main thread
+    // (this function is only called from main-thread contexts).
     unsafe { webview.loadFileURL_allowingReadAccessToURL(&file_url, &dir_url) };
 
     let load_start = std::time::Instant::now();
@@ -96,6 +103,8 @@ fn load_html_and_wait(
     for i in 0..200 {
         run_loop_tick(0.05);
 
+        // SAFETY: webview is a valid WKWebView. isLoading is a simple property
+        // getter that returns a BOOL. Called on the main thread.
         let is_loading: bool = unsafe { objc2::msg_send![webview, isLoading] };
         if !is_loading && i > 2 {
             eprintln!(
@@ -266,12 +275,17 @@ fn print_to_pdf(
     let print_info = configure_print_info();
 
     // Configure save-to-PDF disposition
+    // SAFETY: print_info is a valid NSPrintInfo copy from configure_print_info().
+    // NSPrintSaveJob is a valid job disposition constant.
     unsafe {
         print_info.setJobDisposition(NSPrintSaveJob);
     }
 
     // Set the output file URL in the print info dictionary.
     let output_url = NSURL::fileURLWithPath(&NSString::from_str(output_path));
+    // SAFETY: print_info.dictionary() returns a valid NSMutableDictionary.
+    // output_url is a valid NSURL. NSPrintJobSavingURL is a valid dictionary key.
+    // setObject:forKey: is a standard NSDictionary mutation on a mutable dict.
     unsafe {
         let dict = print_info.dictionary();
         let _: () =
@@ -283,6 +297,8 @@ fn print_to_pdf(
 
     eprintln!("[PDF] creating print operation...");
 
+    // SAFETY: webview is a valid WKWebView; print_info is a valid NSPrintInfo.
+    // Called on the main thread (caller verified MainThreadMarker).
     let print_op = unsafe { webview.printOperationWithPrintInfo(&print_info) };
 
     // Hide print panel and progress panel (save silently)
@@ -293,6 +309,9 @@ fn print_to_pdf(
 
     // Run the print operation modally for the hidden window.
     // This is required for WKWebView — plain runOperation() produces blank PDFs.
+    // SAFETY: print_op and window are valid objects. delegate=None and
+    // didRunSelector=None skip the callback. null contextInfo is allowed.
+    // Called on the main thread (required for modal operations).
     unsafe {
         print_op.runOperationModalForWindow_delegate_didRunSelector_contextInfo(
             window,
@@ -442,6 +461,8 @@ fn print_on_main_thread(
     let print_info = configure_print_info();
 
     // Show the print panel (unlike PDF export which hides it)
+    // SAFETY: ov.webview is a valid WKWebView created on this main thread.
+    // print_info is a valid NSPrintInfo from configure_print_info().
     let print_op = unsafe { ov.webview.printOperationWithPrintInfo(&print_info) };
     print_op.setShowsPrintPanel(true);
     print_op.setShowsProgressPanel(true);
@@ -452,6 +473,9 @@ fn print_on_main_thread(
     let parent_window = ns_app.keyWindow().unwrap_or(ov.window.clone());
 
     // Run modal — shows native macOS print dialog as a sheet on the main window
+    // SAFETY: print_op is a valid NSPrintOperation. parent_window is either the
+    // app's key window or the offscreen window (both valid). delegate=None and
+    // didRunSelector=None skip the callback. Called on the main thread (mtm).
     unsafe {
         print_op.runOperationModalForWindow_delegate_didRunSelector_contextInfo(
             &parent_window,

@@ -528,94 +528,7 @@
   margin-top: 0.5em;
 }
 
-/* Task list items - use negative margin to align text with regular list items.
-   Checkbox size matches mono ratio (0.85×). Gap is ~40% of checkbox size.
-   The offset is pulled into the padding area where bullets normally render. */
-.tiptap-editor .task-list-item {
-  --checkbox-size: 0.85em;
-  --checkbox-gap: calc(var(--checkbox-size) * 0.4);
-  list-style-type: none;
-  margin-left: calc(-1 * (var(--checkbox-size) + var(--checkbox-gap)));
-  display: flex;
-  align-items: baseline;
-  gap: var(--checkbox-gap);
-}
-
-.tiptap-editor .task-list-checkbox {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  /* Offset to align checkbox center with text baseline */
-  transform: translateY(0.1em);
-}
-
-/* Task content needs explicit line-height because flex container doesn't
-   create vertical space from line-height the way block layout does */
-.tiptap-editor .task-list-content {
-  flex: 1;
-  min-width: 0;
-  line-height: var(--editor-line-height-px);
-}
-
-/* Custom checkbox styling - uses --checkbox-size from parent .task-list-item
-   Border and radius are proportional to checkbox size */
-.tiptap-editor .task-list-item input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  box-sizing: border-box;
-  width: var(--checkbox-size);
-  height: var(--checkbox-size);
-  border: calc(var(--checkbox-size) * 0.12) solid var(--text-secondary);
-  border-radius: calc(var(--checkbox-size) * 0.15);
-  background: transparent;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.15s ease;
-}
-
-.tiptap-editor .task-list-item input[type="checkbox"]:hover {
-  border-color: var(--primary-color);
-}
-
-.tiptap-editor .task-list-item input[type="checkbox"]:checked {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-/* Checkmark proportions relative to checkbox size - centered using transform */
-.tiptap-editor .task-list-item input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 45%;
-  width: calc(var(--checkbox-size) * 0.25);
-  height: calc(var(--checkbox-size) * 0.5);
-  border: solid var(--contrast-text);
-  border-width: 0 calc(var(--checkbox-size) * 0.12) calc(var(--checkbox-size) * 0.12) 0;
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-/* Keyboard focus indicator for accessibility */
-.tiptap-editor .task-list-item input[type="checkbox"]:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 1px;
-}
-
-/* Completed task: dim color on content container */
-.tiptap-editor .task-list-item:has(> .task-list-checkbox input[type="checkbox"]:checked) > .task-list-content {
-  color: var(--text-tertiary);
-}
-
-/* Completed task: strike-through only direct paragraphs (text-decoration cannot be removed by children) */
-.tiptap-editor .task-list-item:has(> .task-list-checkbox input[type="checkbox"]:checked) > .task-list-content > p {
-  text-decoration: line-through;
-  text-decoration-color: var(--text-tertiary);
-}
-
-/* Nested task items: reset color - each item controls its own visual state */
-.tiptap-editor .task-list-content .task-list-item {
-  color: var(--text-color);
-}
+/* Task list styles are in src/plugins/taskToggle/task-toggle.css */
 
 /* Images */
 .tiptap-editor img {
@@ -658,16 +571,12 @@
   cursor: help;
 }
 
-/* Media border styles - applied to editor container */
-.media-border-always .tiptap-editor img,
-.media-border-always .mermaid-block,
-.media-border-always .math-block {
+/* Media border styles - applied to editor container (images only; mermaid/math borders in their plugin CSS) */
+.media-border-always .tiptap-editor img {
   border: 1px solid var(--border-color);
 }
 
-.media-border-hover .tiptap-editor img:hover,
-.media-border-hover .mermaid-block:hover,
-.media-border-hover .math-block:hover {
+.media-border-hover .tiptap-editor img:hover {
   border: 1px solid var(--border-color);
 }
 
@@ -688,79 +597,8 @@
   color: var(--meta-content-color);
 }
 
-/* Footnotes */
-.tiptap-editor sup[data-type="footnote_reference"] {
-  color: var(--primary-color);
-  cursor: pointer;
-  font-size: 0.65em;
-  vertical-align: baseline;
-  position: relative;
-  bottom: 0.35em;
-  padding: 0 2px;
-  font-weight: 500;
-}
-
-.tiptap-editor sup[data-type="footnote_reference"]:hover {
-  text-decoration: underline;
-}
-
-.tiptap-editor sup[data-type="footnote_reference"]::before {
-  content: "[";
-}
-
-.tiptap-editor sup[data-type="footnote_reference"]::after {
-  content: "]";
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] {
-  margin: 0 0 var(--editor-block-spacing, 1em) 0;
-  padding: 0;
-  line-height: var(--editor-line-height-px);
-  color: var(--text-secondary);
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dt {
-  display: inline;
-  font-weight: 500;
-  color: var(--primary-color);
-  margin-right: 0.25em;
-  cursor: pointer;
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dt:hover {
-  text-decoration: underline;
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dt::before {
-  content: "[";
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dt::after {
-  content: "]: ";
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dd {
-  display: inline;
-  margin: 0;
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dd::after {
-  content: " ↩";
-  color: var(--primary-color);
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dd:hover::after {
-  opacity: 1;
-}
-
-.tiptap-editor dl[data-type="footnote_definition"] dd > *:first-child {
-  display: inline;
-}
-
-/* Focus mode styles moved to src/plugins/focusMode/focus-mode.css */
-/* Footnote popup styles are in src/plugins/footnotePopup/footnote-popup.css */
+/* Footnote styles are in src/plugins/footnotePopup/footnote-nodes.css and footnote-popup.css */
+/* Focus mode styles are in src/plugins/focusMode/focus-mode.css */
 
 /* Source editor (CodeMirror) - matches WYSIWYG styling */
 .source-editor {

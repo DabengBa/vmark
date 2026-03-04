@@ -28,9 +28,13 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
     eprintln!("[PDF] adding {} bookmarks to {}", headings.len(), pdf_path);
 
     let url = objc2_foundation::NSURL::fileURLWithPath(&NSString::from_str(pdf_path));
+    // SAFETY: NSURL was just constructed from a valid path string, and
+    // PDFDocument::initWithURL is a standard Objective-C initializer that
+    // returns nil (mapped to None) on failure. No main thread requirement.
     let doc = unsafe { PDFDocument::initWithURL(PDFDocument::alloc(), &url) }
         .ok_or("Failed to open PDF for bookmark injection")?;
 
+    // SAFETY: doc is a valid PDFDocument obtained from a successful initWithURL above.
     let page_count = unsafe { doc.pageCount() };
     if page_count == 0 {
         return Err("PDF has no pages".to_string());
@@ -42,6 +46,7 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
     let page_texts = build_page_texts(&doc, page_count);
 
     // Create root outline
+    // SAFETY: PDFOutline::new() is a simple alloc+init with no preconditions.
     let root = unsafe { PDFOutline::new() };
 
     // Track outline hierarchy using a stack of (level, outline_ref_index)
@@ -51,15 +56,21 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
     for heading in headings {
         let page_idx = find_heading_page(&page_texts, &heading.text, last_page);
         last_page = page_idx;
+        // SAFETY: doc is valid and page_idx is bounded by page_count (from find_heading_page).
+        // pageAtIndex returns nil (None) for out-of-range indices, handled by the if-let below.
         let page = unsafe { doc.pageAtIndex(page_idx as objc2_foundation::NSUInteger) };
 
+        // SAFETY: PDFOutline::new() is a simple alloc+init with no preconditions.
         let item = unsafe { PDFOutline::new() };
+        // SAFETY: item was just created above; NSString::from_str produces a valid string.
         unsafe {
             item.setLabel(Some(&NSString::from_str(&heading.text)));
         }
 
         if let Some(page) = page {
             // Point to top of the page where heading was found
+            // SAFETY: page is a valid PDFPage obtained from pageAtIndex (guarded by if-let).
+            // PDFDestination::initWithPage_atPoint is a standard initializer.
             let dest = unsafe {
                 PDFDestination::initWithPage_atPoint(
                     PDFDestination::alloc(),
@@ -67,6 +78,7 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
                     NSPoint::new(0.0, 10000.0), // top of page (PDF coords: y=0 is bottom)
                 )
             };
+            // SAFETY: item and dest are valid objects created above.
             unsafe { item.setDestination(Some(&dest)) };
         }
 
@@ -81,9 +93,12 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
         }
 
         if let Some((_, parent)) = items.last() {
+            // SAFETY: parent is a valid PDFOutline from the items stack.
+            // Inserting at numberOfChildren appends to the end.
             let child_count = unsafe { parent.numberOfChildren() };
             unsafe { parent.insertChild_atIndex(&item, child_count) };
         } else {
+            // SAFETY: root is a valid PDFOutline created at the top of this function.
             let child_count = unsafe { root.numberOfChildren() };
             unsafe { root.insertChild_atIndex(&item, child_count) };
         }
@@ -92,12 +107,16 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
     }
 
     // Set the outline root and expand top-level items
+    // SAFETY: root and doc are valid objects created/validated earlier in this function.
+    // setOutlineRoot transfers the outline tree to the document.
     unsafe {
         root.setIsOpen(true);
         doc.setOutlineRoot(Some(&root));
     }
 
     // Write back
+    // SAFETY: doc is a valid PDFDocument with the outline now attached.
+    // writeToFile writes to a valid path and returns a bool indicating success.
     let success = unsafe { doc.writeToFile(&NSString::from_str(pdf_path)) };
     if !success {
         return Err("Failed to write PDF with bookmarks".to_string());
@@ -114,6 +133,9 @@ fn build_page_texts(
 ) -> Vec<String> {
     let mut texts = Vec::with_capacity(page_count as usize);
     for i in 0..page_count {
+        // SAFETY: doc is a valid PDFDocument and i is in range [0, page_count).
+        // pageAtIndex returns None for invalid indices; string() returns the
+        // text content of the page as an NSString (or None if empty).
         let text = unsafe {
             doc.pageAtIndex(i)
                 .and_then(|page| page.string())

@@ -123,6 +123,15 @@
   background-color: var(--subtle-bg-hover);
 }
 
+/* Media border feature (setting-driven) */
+.media-border-always .math-block {
+  border: 1px solid var(--border-color);
+}
+
+.media-border-hover .math-block:hover {
+  border: 1px solid var(--border-color);
+}
+
 .math-block.editing {
   cursor: default;
 }
