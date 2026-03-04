@@ -8,6 +8,8 @@
  * via the status bar button or keyboard shortcut.
  *
  * Key decisions:
+ *   - SourceEditor is lazy-loaded via React.lazy() so the CodeMirror bundle is deferred
+ *     until source mode is first activated.
  *   - `keepAlive` setting keeps both editors mounted (hidden) to preserve undo history
  *     across mode switches — at the cost of double memory usage.
  *   - `editorKey` includes both tabId and documentId to force remount on tab switch AND
