@@ -184,7 +184,7 @@ export function multiCursorPlugin(): Plugin<MultiCursorPluginState> {
           return false;
         }
 
-        const tr = handleMultiCursorKeyDown(state, event);
+        const tr = handleMultiCursorKeyDown(state, event, view);
         if (tr) {
           view.dispatch(tr);
           return true;

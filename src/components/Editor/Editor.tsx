@@ -17,13 +17,17 @@
  * @coordinates-with stores/editorStore.ts — reads sourceMode for mode switching
  * @module components/Editor/Editor
  */
+import { lazy, Suspense } from "react";
 import { useEditorStore } from "@/stores/editorStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useActiveTabId, useDocumentId } from "@/hooks/useDocumentState";
 import { useUnifiedMenuCommands } from "@/hooks/useUnifiedMenuCommands";
-import { SourceEditor } from "./SourceEditor";
 import { TiptapEditorInner } from "./TiptapEditor";
 import { HeadingPicker } from "./HeadingPicker";
+
+const SourceEditor = lazy(() =>
+  import("./SourceEditor").then((m) => ({ default: m.SourceEditor }))
+);
 import { DropZoneIndicator } from "./DropZoneIndicator";
 import "./editor.css";
 import "./heading-picker.css";
@@ -51,15 +55,17 @@ export function Editor() {
   const containerClass = `editor-container media-border-${mediaBorderStyle} media-align-${mediaAlignment} heading-align-${headingAlignment}${tableFitToWidth ? " table-fit-to-width" : ""}`;
   /* v8 ignore next -- @preserve sourceMode ternary branches require mode toggle */
   const activeEditor = sourceMode ? "source" : "wysiwyg";
-  /* v8 ignore next 8 -- @preserve keepAlive and sourceMode ternary branches require advanced settings */
+  /* v8 ignore next 10 -- @preserve keepAlive and sourceMode ternary branches require advanced settings */
   const editorContent = keepAlive ? (
     <>
-      <SourceEditor key={editorKey} hidden={!sourceMode} />
+      <Suspense fallback={null}>
+        <SourceEditor key={editorKey} hidden={!sourceMode} />
+      </Suspense>
       <TiptapEditorInner key={editorKey} hidden={sourceMode} />
     </>
   ) : (
     sourceMode
-      ? <SourceEditor key={editorKey} />
+      ? <Suspense fallback={null}><SourceEditor key={editorKey} /></Suspense>
       : <TiptapEditorInner key={editorKey} />
   );
 

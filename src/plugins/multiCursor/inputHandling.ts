@@ -6,10 +6,12 @@
  */
 import { Selection, SelectionRange } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { MultiSelection } from "./MultiSelection";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import {
   normalizeRangesWithPrimary,
+  remapBackwardFlags,
   sortRangesDescending,
 } from "./rangeUtils";
 import {
@@ -180,10 +182,14 @@ export function handleMultiCursorDelete(
  * @param extend - Whether to extend selection (Shift+Arrow)
  * @returns Transaction or null if not a MultiSelection
  */
+/** Fallback line height (px) when coordsAtPos returns zero-height rect */
+const DEFAULT_LINE_HEIGHT_PX = 20;
+
 export function handleMultiCursorArrow(
   state: EditorState,
   direction: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
-  extend: boolean
+  extend: boolean,
+  view?: EditorView
 ): Transaction | null {
   const { selection, doc } = state;
 
@@ -205,6 +211,28 @@ export function handleMultiCursorArrow(
 
     const isBackward = backwardFlags?.[i];
     const headPos = isBackward ? range.$from.pos : range.$to.pos;
+
+    // Vertical movement: use coordinate-based placement when view is available
+    if (isVertical && view) {
+      const coords = view.coordsAtPos(headPos);
+      const lineHeight = coords.bottom - coords.top || DEFAULT_LINE_HEIGHT_PX;
+      const targetY = dir < 0
+        ? coords.top - lineHeight / 2
+        : coords.bottom + lineHeight / 2;
+      const result = view.posAtCoords({ left: coords.left, top: targetY });
+      if (!result) return range;
+      const targetPos = result.pos;
+      if (extend) {
+        const anchorPos = isBackward ? range.$to.pos : range.$from.pos;
+        const from = Math.min(anchorPos, targetPos);
+        const to = Math.max(anchorPos, targetPos);
+        return new SelectionRange(doc.resolve(from), doc.resolve(to));
+      }
+      const $pos = doc.resolve(targetPos);
+      return new SelectionRange($pos, $pos);
+    }
+
+    // Horizontal movement or vertical fallback (no view)
     const startPos = isVertical ? headPos : Math.max(0, Math.min(doc.content.size, headPos + dir));
     const $head = doc.resolve(startPos);
     const found = Selection.findFrom($head, dir, true);
@@ -243,7 +271,8 @@ export function handleMultiCursorArrow(
     doc,
     selection.primaryIndex
   );
-  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex, newBackward);
+  const remappedBackward = remapBackwardFlags(nextRanges, newBackward, normalized.ranges);
+  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex, remappedBackward);
   return state.tr.setSelection(newSel);
 }
 
@@ -257,7 +286,8 @@ export type MultiCursorKeyEvent = Pick<
  */
 export function handleMultiCursorKeyDown(
   state: EditorState,
-  event: MultiCursorKeyEvent
+  event: MultiCursorKeyEvent,
+  view?: EditorView
 ): Transaction | null {
   if (!(state.selection instanceof MultiSelection)) {
     return null;
@@ -292,7 +322,7 @@ export function handleMultiCursorKeyDown(
       if (event.metaKey || event.altKey || event.ctrlKey) {
         return null;
       }
-      return handleMultiCursorArrow(state, event.key, event.shiftKey);
+      return handleMultiCursorArrow(state, event.key, event.shiftKey, view);
     default:
       return null;
   }

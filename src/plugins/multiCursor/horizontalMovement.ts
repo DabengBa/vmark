@@ -16,7 +16,7 @@ import { Selection, SelectionRange } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { findWordEdge } from "@/utils/wordSegmentation";
 import { MultiSelection } from "./MultiSelection";
-import { normalizeRangesWithPrimary } from "./rangeUtils";
+import { normalizeRangesWithPrimary, remapBackwardFlags } from "./rangeUtils";
 
 export type HorizontalUnit = "char" | "word" | "line";
 
@@ -115,6 +115,7 @@ export function handleMultiCursorHorizontal(
     doc,
     selection.primaryIndex
   );
-  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex, newBackward);
+  const remappedBackward = remapBackwardFlags(nextRanges, newBackward, normalized.ranges);
+  const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex, remappedBackward);
   return state.tr.setSelection(newSel);
 }

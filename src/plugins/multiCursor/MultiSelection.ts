@@ -35,7 +35,11 @@ export class MultiSelection extends Selection {
     super(primary.$from, primary.$to, normalized.ranges);
 
     this.primaryIndex = normalized.primaryIndex;
-    this.backward = backward ?? new Array(normalized.ranges.length).fill(false);
+    // Ensure backward array matches range count — mismatched lengths cause
+    // selection direction bugs (see #311).
+    this.backward = backward && backward.length === normalized.ranges.length
+      ? backward
+      : new Array(normalized.ranges.length).fill(false);
   }
 
   /**
