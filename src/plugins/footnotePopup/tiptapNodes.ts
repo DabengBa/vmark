@@ -14,6 +14,7 @@
  * @module plugins/footnotePopup/tiptapNodes
  */
 
+import "./footnote-nodes.css";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 

@@ -1,0 +1,95 @@
+/**
+ * Task Toggle Plugin Styles
+ *
+ * Task list item rendering: checkbox, content, completed states.
+ * Moved from editor.css for co-location per rule 32/50.
+ */
+
+/* Task list items - use negative margin to align text with regular list items.
+   Checkbox size matches mono ratio (0.85×). Gap is ~40% of checkbox size.
+   The offset is pulled into the padding area where bullets normally render. */
+.tiptap-editor .task-list-item {
+  --checkbox-size: 0.85em;
+  --checkbox-gap: calc(var(--checkbox-size) * 0.4);
+  list-style-type: none;
+  margin-left: calc(-1 * (var(--checkbox-size) + var(--checkbox-gap)));
+  display: flex;
+  align-items: baseline;
+  gap: var(--checkbox-gap);
+}
+
+.tiptap-editor .task-list-checkbox {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  /* Offset to align checkbox center with text baseline */
+  transform: translateY(0.1em);
+}
+
+/* Task content needs explicit line-height because flex container doesn't
+   create vertical space from line-height the way block layout does */
+.tiptap-editor .task-list-content {
+  flex: 1;
+  min-width: 0;
+  line-height: var(--editor-line-height-px);
+}
+
+/* Custom checkbox styling - uses --checkbox-size from parent .task-list-item
+   Border and radius are proportional to checkbox size */
+.tiptap-editor .task-list-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  border: calc(var(--checkbox-size) * 0.12) solid var(--text-secondary);
+  border-radius: calc(var(--checkbox-size) * 0.15);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.tiptap-editor .task-list-item input[type="checkbox"]:hover {
+  border-color: var(--primary-color);
+}
+
+.tiptap-editor .task-list-item input[type="checkbox"]:checked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Checkmark proportions relative to checkbox size - centered using transform */
+.tiptap-editor .task-list-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: calc(var(--checkbox-size) * 0.25);
+  height: calc(var(--checkbox-size) * 0.5);
+  border: solid var(--contrast-text);
+  border-width: 0 calc(var(--checkbox-size) * 0.12) calc(var(--checkbox-size) * 0.12) 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Keyboard focus indicator for accessibility */
+.tiptap-editor .task-list-item input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
+/* Completed task: dim color on content container */
+.tiptap-editor .task-list-item:has(> .task-list-checkbox input[type="checkbox"]:checked) > .task-list-content {
+  color: var(--text-tertiary);
+}
+
+/* Completed task: strike-through only direct paragraphs (text-decoration cannot be removed by children) */
+.tiptap-editor .task-list-item:has(> .task-list-checkbox input[type="checkbox"]:checked) > .task-list-content > p {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-tertiary);
+}
+
+/* Nested task items: reset color - each item controls its own visual state */
+.tiptap-editor .task-list-content .task-list-item {
+  color: var(--text-color);
+}
