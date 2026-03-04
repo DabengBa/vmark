@@ -294,11 +294,10 @@ describe("LinkPopupView", () => {
       openBtn.click();
 
       // Flush microtask queue: dynamic import() + .then() + .catch()
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
-
-      expect(mockOpenUrl).toHaveBeenCalledWith("https://test.com");
+      // Use vi.waitFor to reliably wait for the async dynamic import chain
+      await vi.waitFor(() => {
+        expect(mockOpenUrl).toHaveBeenCalledWith("https://test.com");
+      });
     });
 
     it("copy button copies URL to clipboard", async () => {

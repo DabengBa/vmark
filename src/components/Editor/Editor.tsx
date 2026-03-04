@@ -27,6 +27,7 @@ import { useUnifiedMenuCommands } from "@/hooks/useUnifiedMenuCommands";
 import { TiptapEditorInner } from "./TiptapEditor";
 import { HeadingPicker } from "./HeadingPicker";
 
+/* v8 ignore next 3 -- @preserve React.lazy wrapper; no logic to test */
 const SourceEditor = lazy(() =>
   import("./SourceEditor").then((m) => ({ default: m.SourceEditor }))
 );

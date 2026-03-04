@@ -280,6 +280,39 @@ describe("rangeUtils", () => {
       expect(result[0]).toBe(true);
     });
 
+    it("falls back to false when backward array is shorter than original ranges", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const original = [
+        new SelectionRange(doc.resolve(1), doc.resolve(3)),
+        new SelectionRange(doc.resolve(5), doc.resolve(8)),
+      ];
+      // backward array is shorter — index 1 is undefined
+      const backward = [true];
+
+      const result = remapBackwardFlags(original, backward, original);
+      expect(result).toEqual([true, false]); // second falls back to false
+    });
+
+    it("falls back to false for merged range when backward entry is undefined", () => {
+      const state = createState("hello world");
+      const doc = state.doc;
+
+      const original = [
+        new SelectionRange(doc.resolve(1), doc.resolve(5)),
+        new SelectionRange(doc.resolve(3), doc.resolve(8)),
+      ];
+      // backward array has only first entry; second is undefined
+      const backward: boolean[] = [];
+
+      const normalized = mergeOverlappingRanges(original, doc);
+      expect(normalized).toHaveLength(1);
+
+      const result = remapBackwardFlags(original, backward, normalized);
+      expect(result).toEqual([false]); // ?? false fallback
+    });
+
     it("returns false for ranges with no matching original", () => {
       const state = createState("hello world");
       const doc = state.doc;

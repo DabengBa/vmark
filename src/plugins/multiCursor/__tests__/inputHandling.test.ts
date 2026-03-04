@@ -1045,6 +1045,159 @@ describe("inputHandling", () => {
     });
   });
 
+  describe("handleMultiCursorArrow — coordinate-based vertical movement with view", () => {
+    function makeMockView(state: ReturnType<typeof createState>) {
+      // Mock EditorView that simulates two-line layout:
+      // Line 1: y=0..20 (pos 1-6 "hello")
+      // Line 2: y=20..40 (pos 8-13 "world")
+      const LINE_HEIGHT = 20;
+      return {
+        coordsAtPos: (pos: number) => {
+          const lineY = pos <= 7 ? 0 : LINE_HEIGHT;
+          return {
+            left: (pos % 7) * 10,
+            top: lineY,
+            bottom: lineY + LINE_HEIGHT,
+            right: (pos % 7) * 10 + 10,
+          };
+        },
+        posAtCoords: (coords: { left: number; top: number }) => {
+          if (coords.top < 0 || coords.top > 40) return null;
+          const line = coords.top < LINE_HEIGHT ? 0 : 1;
+          const basePos = line === 0 ? 1 : 8;
+          const charOffset = Math.round(coords.left / 10);
+          return { pos: basePos + charOffset };
+        },
+        state,
+      } as unknown as import("@tiptap/pm/view").EditorView;
+    }
+
+    it("moves cursors down using coordsAtPos/posAtCoords", () => {
+      const state = createMultiCursorState("hello\nworld", [
+        { from: 3, to: 3 },
+      ]);
+      const view = makeMockView(state);
+
+      const result = handleMultiCursorArrow(state, "ArrowDown", false, view);
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = state.apply(result);
+        const multiSel = newState.selection as MultiSelection;
+        // Should have moved to line 2 via coordinate lookup
+        expect(multiSel.ranges[0].$from.pos).toBeGreaterThan(3);
+      }
+    });
+
+    it("moves cursors up using coordsAtPos/posAtCoords", () => {
+      const state = createMultiCursorState("hello\nworld", [
+        { from: 10, to: 10 },
+      ]);
+      const view = makeMockView(state);
+
+      const result = handleMultiCursorArrow(state, "ArrowUp", false, view);
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = state.apply(result);
+        const multiSel = newState.selection as MultiSelection;
+        // Should have moved to line 1 via coordinate lookup
+        expect(multiSel.ranges[0].$from.pos).toBeLessThan(10);
+      }
+    });
+
+    it("extends selection vertically with Shift+ArrowDown and view", () => {
+      const state = createMultiCursorState("hello\nworld", [
+        { from: 3, to: 3 },
+      ]);
+      const view = makeMockView(state);
+
+      const result = handleMultiCursorArrow(state, "ArrowDown", true, view);
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = state.apply(result);
+        const multiSel = newState.selection as MultiSelection;
+        // Should have extended selection from line 1 to line 2
+        expect(multiSel.ranges[0].$to.pos).toBeGreaterThan(multiSel.ranges[0].$from.pos);
+      }
+    });
+
+    it("returns original range when posAtCoords returns null", () => {
+      const state = createMultiCursorState("hello", [
+        { from: 3, to: 3 },
+      ]);
+      // Mock view where posAtCoords always returns null (e.g., cursor at top edge)
+      const view = {
+        coordsAtPos: () => ({ left: 30, top: 0, bottom: 20, right: 40 }),
+        posAtCoords: () => null,
+        state,
+      } as unknown as import("@tiptap/pm/view").EditorView;
+
+      const result = handleMultiCursorArrow(state, "ArrowUp", false, view);
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = state.apply(result);
+        const multiSel = newState.selection as MultiSelection;
+        // Cursor should stay at original position
+        expect(multiSel.ranges[0].$from.pos).toBe(3);
+      }
+    });
+
+    it("passes view through handleMultiCursorKeyDown to handleMultiCursorArrow", () => {
+      const state = createMultiCursorState("hello\nworld", [
+        { from: 3, to: 3 },
+      ]);
+      const view = makeMockView(state);
+
+      const result = handleMultiCursorKeyDown(state, {
+        key: "ArrowDown",
+        shiftKey: false,
+        isComposing: false,
+        keyCode: 0,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+      }, view);
+
+      expect(result).not.toBeNull();
+    });
+
+    it("extends backward selection vertically with view (isBackward anchor branch)", () => {
+      const state = createState("hello\nworld");
+      const doc = state.doc;
+      // Backward selection: anchor=5 ($to), head=2 ($from)
+      const selRanges = [new SelectionRange(doc.resolve(2), doc.resolve(5))];
+      const multiSel = new MultiSelection(selRanges, 0, [true]);
+      const stateWithMulti = state.apply(state.tr.setSelection(multiSel));
+
+      const view = makeMockView(stateWithMulti);
+      const result = handleMultiCursorArrow(stateWithMulti, "ArrowDown", true, view);
+      expect(result).not.toBeNull();
+      if (result) {
+        const newState = stateWithMulti.apply(result);
+        const ms = newState.selection as MultiSelection;
+        // Extended down from backward selection — anchor stays at $to (5)
+        expect(ms.ranges[0].$from.pos).toBeLessThanOrEqual(ms.ranges[0].$to.pos);
+      }
+    });
+
+    it("uses fallback lineHeight when coords.bottom === coords.top", () => {
+      const state = createMultiCursorState("hello\nworld", [
+        { from: 3, to: 3 },
+      ]);
+      // Mock view where top === bottom (zero-height coords)
+      const view = {
+        coordsAtPos: () => ({ left: 30, top: 10, bottom: 10, right: 40 }),
+        posAtCoords: (coords: { left: number; top: number }) => {
+          // With DEFAULT_LINE_HEIGHT_PX fallback, targetY will be 10 + 20/2 = 20
+          return coords.top > 15 ? { pos: 10 } : { pos: 3 };
+        },
+        state,
+      } as unknown as import("@tiptap/pm/view").EditorView;
+
+      const result = handleMultiCursorArrow(state, "ArrowDown", false, view);
+      expect(result).not.toBeNull();
+    });
+  });
+
   describe("handleMultiCursorArrow — backward flag branches (lines 207, 218, 231, 233, 236)", () => {
     it("uses $from.pos as headPos when isBackward is true (line 207)", () => {
       // Create a MultiSelection with a backward flag so isBackward=true.
