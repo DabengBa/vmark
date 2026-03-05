@@ -52,6 +52,38 @@ Some blocks have their own editing mechanisms and skip Source Peek:
 
 Source Peek is useful for precise Markdown editing (fixing table syntax, adjusting list indentation) while staying in the visual editor.
 
+## Multi-Cursor Editing
+
+Edit multiple locations simultaneously — VMark supports full multi-cursor in both WYSIWYG and Source modes.
+
+| Action | Shortcut |
+|--------|----------|
+| Add cursor at next match | `Mod + D` |
+| Skip match, jump to next | `Mod + Shift + D` |
+| Select all occurrences | `Mod + Shift + L` |
+| Add cursor above/below | `Mod + Alt + Up/Down` |
+| Add cursor at click | `Alt + Click` |
+| Undo last cursor | `Alt + Mod + Z` |
+| Collapse to single cursor | `Escape` |
+
+All standard editing (typing, deletion, clipboard, navigation) works at every cursor independently. Block-scoped by default to prevent unintended edits across sections.
+
+[Learn more →](/guide/multi-cursor)
+
+## Auto-Pair & Tab Escape
+
+When you type an opening bracket, quote, or backtick, VMark auto-inserts the closing pair. Press **Tab** to jump past the closing character instead of reaching for the arrow key.
+
+- Brackets: `()` `[]` `{}`
+- Quotes: `""` `''` `` ` ` ``
+- CJK: `「」` `『』` `（）` `【】` `《》` `〈〉`
+- Curly quotes: `""` `''`
+- Formatting marks in WYSIWYG: **bold**, *italic*, `code`, ~~strike~~, links
+
+Backspace deletes both characters when the pair is empty. Smart context awareness skips auto-pair inside code blocks. Configurable in **Settings → Editor**.
+
+[Learn more →](/guide/tab-navigation)
+
 ## Text Formatting
 
 ### Basic Styles
