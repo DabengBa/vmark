@@ -8,231 +8,80 @@ Free. Smart. Beautiful. Yours.
   <img src="website/public/screenshots/ai-workflow.png" alt="VMark AI Integration - Claude Code, Claude Desktop, and VMark" width="800">
 </p>
 
-VMark is a modern, local-first Markdown editor designed for the AI era. It combines the simplicity of rich text editing with the power of source mode — clean when you need focus, powerful when you need control.
+VMark is a modern, local-first Markdown editor designed for the AI era. Three editing modes — WYSIWYG, Source Peek, and full Source — with multi-cursor editing, CJK formatting, and native AI integration.
 
 **[Download](https://github.com/xiaolai/vmark/releases)** · **[Documentation](https://vmark.app/guide/)** · **[Features](https://vmark.app/guide/features)**
 
-## Contributing: Issues Only, No PRs
+---
 
-VMark is a **vibe-coded** codebase — written **entirely** by AI. The human maintainer guides the AI but does not review code line-by-line in the traditional sense. This has a practical consequence:
+## Highlights
 
-**We cannot safely merge pull requests from other contributors.** When one person's AI-generated code meets another person's AI-generated code, neither human can fully vouch for what's inside. The risk of subtle regressions is too high.
+- **Three Modes** — WYSIWYG (Tiptap/ProseMirror), Source Peek (`F5`), Source Mode (`F6`, CodeMirror 6)
+- **AI-Native** — MCP integration for Claude Desktop, Claude Code, Codex CLI, Gemini CLI. AI Genies for inline writing assistance.
+- **Multi-Cursor** — `Mod + D` to select next match, `Alt + Click` to add cursors, `Mod + Alt + ↑↓` for vertical cursors
+- **Tab Escape** — Auto-pair brackets/quotes, press Tab to jump past closing characters
+- **CJK Done Right** — 20+ formatting rules for Chinese, Japanese, Korean text
+- **5 Themes** — White, Paper, Mint, Sepia, Night
+- **Local-First** — No cloud, no accounts, no analytics. Documents stay on your machine.
+- **117 Shortcuts** — All customizable in Settings
 
-**What we welcome:**
-
-- **Issues** — Bug reports, feature requests, and suggestions are very welcome. The more detailed, the better. Feel free to use AI to write comprehensive, well-structured issues.
-- **Discussions** — Architecture ideas, UX feedback, workflow suggestions.
-
-**What happens next:**
-
-When you file an issue, AI fixes the codebase under the maintainer's supervision — with full context of the project's conventions, test suite, and architecture. This keeps the codebase consistent and well-tested.
-
-**Templates:**
-
-- **[Bug Report](.github/ISSUE_TEMPLATE/bug_report.yml)**
-- **[Feature Request](.github/ISSUE_TEMPLATE/feature_request.yml)**
-
-**Why no "Co-authored-by: Claude" in commits?**
-
-VMark is built with multiple AI tools — Claude Code, Codex CLI, and Gemini CLI. Only Claude automatically adds a `Co-authored-by` trailer to commits. Codex and Gemini do not. Giving credit to one AI while the others contribute silently would misrepresent how this project is built. Since there's no fair way to attribute every AI involved, we turned off `Co-authored-by` entirely. The commit history belongs to the maintainer who supervised the work.
-
-Read more: **[Why Issues, Not PRs](https://vmark.app/guide/users-as-developers/why-issues-not-prs)**
+See the full feature list at **[vmark.app/guide/features](https://vmark.app/guide/features)**.
 
 ---
 
-## Why VMark?
+## Install
 
-### AI-Native
-
-Built to work seamlessly with AI assistants. Claude, Codex, and Gemini can read your documents, suggest edits, and write content directly — no plugins required.
-
-- One-click setup for Claude Desktop, Claude Code, Codex CLI, Gemini CLI
-- AI suggestions appear inline for your review
-- Accept or reject changes with a keystroke
-
-### CJK Done Right
-
-Finally, a Markdown editor that understands Chinese, Japanese, and Korean text. Smart spacing between CJK and Latin characters, proper punctuation handling, and 19+ formatting rules — all built in.
-
-- Automatic CJK-Latin spacing
-- Fullwidth punctuation conversion
-- Corner bracket quotes for CJK
-- One shortcut to fix everything: `Alt + Cmd + Shift + F`
-
-### Two Modes, Zero Friction
-
-Switch instantly between rich text (WYSIWYG) and source mode. See your formatting rendered beautifully, or dive into the Markdown source when you need precision.
-
-- Rich text mode powered by Tiptap/ProseMirror
-- Source mode powered by CodeMirror 6
-- Toggle with `Cmd + /`
-
-### Beautifully Designed
-
-Five hand-crafted themes designed for extended writing sessions. Typography that respects your fonts. An interface that stays out of your way.
-
-- **White** — Clean and minimal
-- **Paper** — Warm and gentle
-- **Mint** — Fresh and focused
-- **Sepia** — Classic reading feel
-- **Night** — Easy on the eyes
-
-### Local-First, Privacy-Respecting
-
-Your documents stay on your machine. No cloud services, no accounts, no analytics SDKs. VMark works entirely offline.
-
-The only network request VMark makes is an **automatic update check** — a standard HTTP request to see if a new version is available. We count unique IPs from these requests to track active users. No document content, file names, or personal information is ever sent. See our [Privacy page](https://vmark.app/guide/privacy) for full details.
-
----
-
-## Features
-
-| Category | What You Get |
-|----------|--------------|
-| **Editing** | Rich text, source mode, focus mode, typewriter mode |
-| **Formatting** | Headings, lists, tables, code blocks, blockquotes |
-| **Advanced** | Math equations (LaTeX), Mermaid diagrams, wiki links |
-| **AI Integration** | MCP support for Claude, Codex, Gemini |
-| **CJK** | 19+ formatting rules for Chinese, Japanese, Korean |
-| **Customization** | 165 keyboard shortcuts, 5 themes, font controls |
-| **Export** | HTML, PDF, copy as HTML |
-
----
-
-## Installation
-
-### macOS (Recommended)
-
-**Homebrew:**
+**macOS (Homebrew):**
 
 ```bash
 brew install xiaolai/tap/vmark
 ```
 
-**Manual Download:**
-
-Download the `.dmg` from the [Releases page](https://github.com/xiaolai/vmark/releases).
-- Apple Silicon (M1/M2/M3): `VMark_x.x.x_aarch64.dmg`
+**Manual:** Download from the [Releases page](https://github.com/xiaolai/vmark/releases).
+- Apple Silicon: `VMark_x.x.x_aarch64.dmg`
 - Intel: `VMark_x.x.x_x64.dmg`
 
-### Windows & Linux
-
-Pre-built binaries are available on the [Releases page](https://github.com/xiaolai/vmark/releases). Active development is focused on macOS; Windows and Linux builds are provided as-is.
+**Windows & Linux:** Pre-built binaries on the [Releases page](https://github.com/xiaolai/vmark/releases). macOS is the primary platform; other builds are best-effort.
 
 ---
 
 ## AI Integration
 
-VMark speaks [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) natively. Connect your favorite AI assistant in one click:
+VMark speaks [MCP](https://modelcontextprotocol.io/) natively. **Settings → Integrations → Install** — one click per assistant.
 
-1. Open **Settings → Integrations**
-2. Enable MCP Server
-3. Click **Install** for your AI assistant
-4. Restart the AI assistant
+Supported: Claude Desktop, Claude Code, Codex CLI, Gemini CLI.
 
-That's it. Your AI can now read, edit, and write to your VMark documents.
-
-**Supported assistants:**
-- Claude Desktop
-- Claude Code
-- Codex CLI
-- Gemini CLI
+See the **[MCP Setup Guide](https://vmark.app/guide/mcp-setup)**.
 
 ---
 
-## Keyboard Shortcuts
+## Contributing: Issues Only, No PRs
 
-VMark has 165 customizable shortcuts. Here are the essentials:
+VMark is **vibe-coded** — written entirely by AI under human supervision. We welcome **issues** (bug reports, feature requests) but cannot safely merge external PRs.
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd + /` | Toggle Rich Text / Source Mode |
-| `F8` | Toggle Focus Mode |
-| `F9` | Toggle Typewriter Mode |
-| `Cmd + S` | Save |
-| `Cmd + Shift + V` | Paste as Plain Text |
-| `Alt + Cmd + Shift + F` | Format CJK Text |
+When you file an issue, AI fixes it with full context of the project's conventions, test suite, and architecture.
 
-See the full list in **Settings → Keyboard Shortcuts** or the [documentation](https://vmark.app/guide/shortcuts).
-
----
-
-## Documentation
-
-- **[Getting Started](https://vmark.app/guide/)** — First steps with VMark
-- **[Features](https://vmark.app/guide/features)** — Complete feature overview
-- **[Keyboard Shortcuts](https://vmark.app/guide/shortcuts)** — All 165 shortcuts
-- **[CJK Formatting](https://vmark.app/guide/cjk-formatting)** — CJK text handling
-- **[MCP Setup](https://vmark.app/guide/mcp-setup)** — AI integration guide
-- **[MCP Tools](https://vmark.app/guide/mcp-tools)** — Complete MCP reference
+- **[Bug Report](.github/ISSUE_TEMPLATE/bug_report.yml)** · **[Feature Request](.github/ISSUE_TEMPLATE/feature_request.yml)**
+- Read more: **[Why Issues, Not PRs](https://vmark.app/guide/users-as-developers/why-issues-not-prs)**
 
 ---
 
 ## Building from Source
 
-For developers who want to contribute or build VMark locally.
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) 18+
-- [pnpm](https://pnpm.io/) 8+
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
-- [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
-
-### Quick Start
+**Prerequisites:** [Node.js](https://nodejs.org/) 20+, [pnpm](https://pnpm.io/) 10+, [Rust](https://www.rust-lang.org/tools/install) (stable), [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ```bash
-# Clone
 git clone https://github.com/xiaolai/vmark.git
 cd vmark
-
-# Install dependencies
 pnpm install
-
-# Run in development mode
-pnpm tauri dev
-
-# Build for production
-pnpm tauri build
+pnpm tauri dev        # Development
+pnpm tauri build      # Production
+pnpm check:all        # Lint + test + build
 ```
 
-### Development Commands
+**Tech Stack:** Tauri v2 (Rust), React 19, TypeScript, Zustand v5, Tiptap, CodeMirror 6, Tailwind CSS v4
 
-| Command | Description |
-|---------|-------------|
-| `pnpm tauri dev` | Start development mode |
-| `pnpm test` | Run tests |
-| `pnpm lint` | Run linter |
-| `pnpm check:all` | Lint + test + build |
-
-### Project Structure
-
-```
-vmark/
-├── src/                    # React frontend
-├── src-tauri/              # Rust backend (Tauri)
-├── vmark-mcp-server/       # MCP server
-├── website/                # Documentation (VitePress)
-└── plugins/                # Claude Code skills
-```
-
-### Tech Stack
-
-- **Framework:** Tauri v2 (Rust backend)
-- **Frontend:** React 19, TypeScript, Zustand
-- **Rich Editor:** Tiptap (ProseMirror)
-- **Source Editor:** CodeMirror 6
-- **Styling:** Tailwind CSS v4
-
-### AI-Assisted Development
-
-The repo ships with full configuration for AI coding tools (Claude Code, Codex CLI, Gemini CLI). Project rules, conventions, and architecture docs are pre-loaded — the AI already knows how VMark works.
-
-- **`AGENTS.md`** — Single source of truth for all AI tool instructions
-- **`.claude/`** — Rules, slash commands, skills, and subagent definitions ([developer guide](.claude/README.md))
-- **`.mcp.json`** — MCP server config (Codex for cross-model auditing, Tauri for E2E testing)
-
-See the [Users as Developers](https://vmark.app/guide/users-as-developers) guide for details.
+**AI-Assisted Development:** The repo ships with full configuration for Claude Code, Codex CLI, and Gemini CLI. See `AGENTS.md` for conventions and `.claude/` for rules, skills, and subagents.
 
 ---
 

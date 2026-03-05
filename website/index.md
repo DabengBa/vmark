@@ -35,7 +35,7 @@ features:
   - icon:
       src: /icons/keyboard.svg
     title: Power Without Complexity
-    details: 165 keyboard shortcuts. WYSIWYG and source mode. Focus mode, typewriter mode, document history. All there when you need them. Invisible when you don't.
+    details: 165 keyboard shortcuts. Three editor modes — WYSIWYG, Source Peek, and Source. Multi-cursor editing, focus mode, typewriter mode, document history. All there when you need them. Invisible when you don't.
 ---
 
 <script setup>
@@ -46,6 +46,9 @@ import TypographyDemo from './.vitepress/components/demos/TypographyDemo.vue'
 import AlertBlockDemo from './.vitepress/components/demos/AlertBlockDemo.vue'
 import FocusModeDemo from './.vitepress/components/demos/FocusModeDemo.vue'
 import DetailsBlockDemo from './.vitepress/components/demos/DetailsBlockDemo.vue'
+import ModeSwitcherDemo from './.vitepress/components/demos/ModeSwitcherDemo.vue'
+import MultiCursorDemo from './.vitepress/components/demos/MultiCursorDemo.vue'
+import TabEscapeDemo from './.vitepress/components/demos/TabEscapeDemo.vue'
 import UserStats from './.vitepress/theme/UserStats.vue'
 </script>
 
@@ -108,15 +111,29 @@ Claude Code, Claude Desktop, Codex CLI, Gemini CLI... can write directly to your
 
 ## See It in Action
 
+### Three Editor Modes
+
+<ModeSwitcherDemo />
+
+### Multi-Cursor Editing
+
+<MultiCursorDemo />
+
+### Tab Escape
+
+<TabEscapeDemo />
+
+## Screenshots
+
 <div class="screenshots-section">
 <div class="screenshots-grid">
   <div class="screenshot-card">
     <img src="/screenshots/editor-main.png" alt="VMark Rich Text Editor" loading="lazy" />
-    <div class="caption">Rich Text Mode</div>
+    <div class="caption">WYSIWYG Mode</div>
   </div>
   <div class="screenshot-card">
     <img src="/screenshots/source-mode.png" alt="VMark Source Mode" loading="lazy" />
-    <div class="caption">Source Mode</div>
+    <div class="caption">Source Mode (F6)</div>
   </div>
   <div class="screenshot-card">
     <img src="/screenshots/dark-theme.png" alt="VMark Night Theme" loading="lazy" />
@@ -125,7 +142,7 @@ Claude Code, Claude Desktop, Codex CLI, Gemini CLI... can write directly to your
 </div>
 </div>
 
-## Part of Features:
+## More Features
 
 ### CJK Formatting
 
