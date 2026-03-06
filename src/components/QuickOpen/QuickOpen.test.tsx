@@ -76,6 +76,7 @@ vi.mock("@/stores/geniePickerStore", () => ({
 // --- Imports (after mocks) ---
 
 import { useQuickOpenStore } from "./quickOpenStore";
+import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import { QuickOpen } from "./QuickOpen";
 
 // --- Setup ---
@@ -110,6 +111,12 @@ describe("QuickOpen", () => {
     render(<QuickOpen windowLabel="main" />);
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes GeniePicker when opening", () => {
+    useQuickOpenStore.setState({ isOpen: true });
+    render(<QuickOpen windowLabel="main" />);
+    expect(useGeniePickerStore.getState).toHaveBeenCalled();
   });
 
   it("Escape key closes the overlay", () => {
