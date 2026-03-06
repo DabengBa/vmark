@@ -1,7 +1,7 @@
 /**
  * Genie Shortcuts Hook
  *
- * Purpose: Keyboard shortcut (Cmd+Y) to open the genie picker, loads
+ * Purpose: Keyboard shortcut (Cmd+Y) to toggle the genie picker, loads
  *   genie definitions on mount, syncs to native menu, and handles
  *   direct genie invocation from the Genies menu.
  *
@@ -58,7 +58,7 @@ function detectScope(): GenieScope | undefined {
 export function useGenieShortcuts() {
   const { invokeGenie } = useGenieInvocation();
 
-  // Keyboard shortcut (Cmd+Y) — opens the genie picker
+  // Keyboard shortcut (Cmd+Y) — toggles the genie picker
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
