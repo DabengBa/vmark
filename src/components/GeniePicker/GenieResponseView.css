@@ -174,3 +174,14 @@
 .dark-theme .genie-response-error {
   background: color-mix(in srgb, var(--error-color) 10%, transparent);
 }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .genie-response-spinner {
+    animation: none;
+  }
+
+  .genie-response-cursor {
+    animation: none;
+  }
+}
