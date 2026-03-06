@@ -51,4 +51,23 @@ describe("useQuickOpenShortcuts", () => {
 
     expect(useQuickOpenStore.getState().isOpen).toBe(false);
   });
+
+  it("ignores repeat key events", () => {
+    renderHook(() => useQuickOpenShortcuts());
+
+    const event = new KeyboardEvent("keydown", { key: "o", metaKey: true, repeat: true });
+    window.dispatchEvent(event);
+
+    expect(useQuickOpenStore.getState().isOpen).toBe(false);
+  });
+
+  it("removes listener on unmount", () => {
+    const { unmount } = renderHook(() => useQuickOpenShortcuts());
+    unmount();
+
+    const event = new KeyboardEvent("keydown", { key: "o", metaKey: true });
+    window.dispatchEvent(event);
+
+    expect(useQuickOpenStore.getState().isOpen).toBe(false);
+  });
 });

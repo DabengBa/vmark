@@ -165,3 +165,10 @@
 .dark-theme .quick-open {
   box-shadow: var(--popup-shadow-dark);
 }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .quick-open {
+    animation: none;
+  }
+}

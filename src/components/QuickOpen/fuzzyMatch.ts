@@ -60,7 +60,8 @@ function matchWithPathSegments(
   filename: string,
   relPath?: string,
 ): FuzzyMatchResult | null {
-  const parts = query.split("/");
+  const parts = query.split("/").filter(Boolean);
+  if (parts.length === 0) return null;
   const filePart = parts[parts.length - 1];
   const dirParts = parts.slice(0, -1);
 

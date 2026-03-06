@@ -33,6 +33,8 @@ import { isImeKeyEvent } from "@/utils/imeGuard";
 import { useImeComposition } from "@/hooks/useImeComposition";
 import "./QuickOpen.css";
 
+const EMPTY_FOLDERS: string[] = [];
+
 // Inline SVG icons to avoid import complexity
 function FileIcon() {
   return (
@@ -76,11 +78,13 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<Element | null>(null);
   const ime = useImeComposition();
 
   // Workspace file tree — only load while Quick Open is open (perf: avoids idle watcher)
   const rootPath = useWorkspaceStore((s) => s.rootPath);
-  const excludeFolders = useWorkspaceStore((s) => s.config?.excludeFolders ?? []);
+  const isWorkspaceMode = useWorkspaceStore((s) => s.isWorkspaceMode);
+  const excludeFolders = useWorkspaceStore((s) => s.config?.excludeFolders ?? EMPTY_FOLDERS);
   const { tree } = useFileTree(isOpen ? rootPath : null, {
     excludeFolders,
     showHidden: false,
@@ -108,13 +112,26 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   // Total count including Browse row
   const totalCount = rankedItems.length + 1; // +1 for Browse
 
+  // Clamp selectedIndex when ranked list shrinks (e.g. after typing narrows results)
+  useEffect(() => {
+    if (selectedIndex >= totalCount) {
+      setSelectedIndex(Math.max(0, totalCount - 1));
+    }
+  }, [selectedIndex, totalCount]);
+
   // Reset state on open — bump revision to rebuild items from fresh store state
+  // Save previous focus for restoration on close
   useEffect(() => {
     if (isOpen) {
+      previousFocusRef.current = document.activeElement;
       setFilter("");
       setSelectedIndex(0);
       setRevision((r) => r + 1);
       requestAnimationFrame(() => inputRef.current?.focus());
+    } else if (previousFocusRef.current) {
+      const el = previousFocusRef.current as HTMLElement;
+      if (typeof el.focus === "function") el.focus();
+      previousFocusRef.current = null;
     }
   }, [isOpen]);
 
@@ -189,8 +206,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
 
   if (!isOpen) return null;
 
-  const isWorkspace = useWorkspaceStore.getState().isWorkspaceMode;
-  const placeholder = isWorkspace ? "Open file..." : "Open recent file...";
+  const placeholder = isWorkspaceMode ? "Open file..." : "Open recent file...";
 
   return createPortal(
     <div className="quick-open-backdrop">
