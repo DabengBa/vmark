@@ -32,7 +32,7 @@ function getFilename(path: string): string {
 }
 
 function getRelativePath(path: string, rootPath: string | null): string {
-  if (rootPath && path.startsWith(rootPath)) {
+  if (rootPath && (path === rootPath || path.startsWith(rootPath + "/"))) {
     const rel = path.slice(rootPath.length);
     return rel.startsWith("/") ? rel.slice(1) : rel;
   }

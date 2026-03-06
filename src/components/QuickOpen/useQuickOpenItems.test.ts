@@ -173,6 +173,12 @@ describe("buildQuickOpenItems", () => {
     expect(items[0].relPath).toBe("/some/file.md");
   });
 
+  it("does not match rootPath as prefix of different directory", () => {
+    mockWorkspaceStore.mockReturnValue({ rootPath: "/project" } as any);
+    const items = buildQuickOpenItems("win", ["/project2/file.md"]);
+    expect(items[0].relPath).toBe("/project2/file.md");
+  });
+
   it("handles tabs without filePath (untitled tabs)", () => {
     mockTabStore.mockReturnValue({
       getTabsByWindow: () => [{ filePath: null }, { filePath: "/b.md" }],

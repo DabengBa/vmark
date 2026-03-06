@@ -2,7 +2,7 @@
  * Quick Open
  *
  * Spotlight-style centered overlay for quickly opening files.
- * Opens via Cmd+P, supports keyboard navigation, fuzzy search,
+ * Opens via Cmd+O, supports keyboard navigation, fuzzy search,
  * and a pinned "Browse..." row at the bottom.
  *
  * Follows the GeniePicker pattern: portal to document.body,
@@ -20,13 +20,10 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "sonner";
 import { useQuickOpenStore } from "./quickOpenStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { useRecentFilesStore } from "@/stores/recentFilesStore";
 import { useFileTree } from "@/components/Sidebar/FileExplorer/useFileTree";
-import { openFileInNewTabCore } from "@/hooks/useFileOpen";
-import { handleOpen } from "@/hooks/useFileOpen";
+import { openFileInNewTabCore, handleOpen } from "@/hooks/useFileOpen";
 import {
   buildQuickOpenItems,
   filterAndRankItems,
@@ -74,15 +71,17 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   const isOpen = useQuickOpenStore((s) => s.isOpen);
   const [filter, setFilter] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Revision counter — incremented on each open to force item rebuild
+  const [revision, setRevision] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const ime = useImeComposition();
 
-  // Workspace file tree (reuse existing hook)
+  // Workspace file tree — only load while Quick Open is open (perf: avoids idle watcher)
   const rootPath = useWorkspaceStore((s) => s.rootPath);
   const excludeFolders = useWorkspaceStore((s) => s.config?.excludeFolders ?? []);
-  const { tree } = useFileTree(rootPath, {
+  const { tree } = useFileTree(isOpen ? rootPath : null, {
     excludeFolders,
     showHidden: false,
     showAllFiles: false,
@@ -93,9 +92,11 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   const workspacePaths = useMemo(() => flattenFileTree(tree), [tree]);
 
   // Build all items (recent + open tabs + workspace)
+  // revision dep ensures fresh store reads on each open
   const allItems = useMemo(
     () => buildQuickOpenItems(windowLabel, workspacePaths),
-    [windowLabel, workspacePaths]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- revision forces rebuild from store
+    [windowLabel, workspacePaths, revision]
   );
 
   // Filter and rank
@@ -107,11 +108,12 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   // Total count including Browse row
   const totalCount = rankedItems.length + 1; // +1 for Browse
 
-  // Reset state on open
+  // Reset state on open — bump revision to rebuild items from fresh store state
   useEffect(() => {
     if (isOpen) {
       setFilter("");
       setSelectedIndex(0);
+      setRevision((r) => r + 1);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
@@ -123,14 +125,9 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   const handleSelectItem = useCallback(
     async (path: string) => {
       handleClose();
-      try {
-        await openFileInNewTabCore(windowLabel, path);
-      } catch (error) {
-        // Stale file — remove from recent and toast
-        useRecentFilesStore.getState().removeFile(path);
-        const msg = error instanceof Error ? error.message : String(error);
-        toast.error(`Failed to open file: ${msg}`);
-      }
+      // openFileInNewTabCore handles errors internally (detaches orphaned tab, shows toast).
+      // No try/catch needed — stale file errors are handled within the core function.
+      await openFileInNewTabCore(windowLabel, path);
     },
     [windowLabel, handleClose]
   );
@@ -202,6 +199,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
         className="quick-open"
         onKeyDown={handleKeyDown}
         role="dialog"
+        aria-modal="true"
         aria-label="Quick Open"
       >
         <div className="quick-open-header">
