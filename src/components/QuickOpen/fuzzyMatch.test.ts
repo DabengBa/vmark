@@ -123,5 +123,22 @@ describe("fuzzyMatch", () => {
     it("handles query equal to filename", () => {
       expect(fuzzyMatch("readme.md", "readme.md")).not.toBeNull();
     });
+
+    it("handles trailing slash in query", () => {
+      // "src/" splits into ["src", ""] — after filtering empty, file part is "src"
+      const result = fuzzyMatch("src/", "src", "src");
+      // Should not crash; may or may not match depending on segments
+      expect(result === null || typeof result.score === "number").toBe(true);
+    });
+
+    it("handles consecutive slashes in query", () => {
+      // "src//f" splits and filters to ["src", "f"]
+      const result = fuzzyMatch("src//f", "file.ts", "src/file.ts");
+      expect(result).not.toBeNull();
+    });
+
+    it("handles slash-only query", () => {
+      expect(fuzzyMatch("/", "file.md", "src/file.md")).toBeNull();
+    });
   });
 });

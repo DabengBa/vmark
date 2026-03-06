@@ -9,6 +9,7 @@ import { isImeKeyEvent } from "@/utils/imeGuard";
 export function useQuickOpenShortcuts(): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (isImeKeyEvent(e)) return;
       const quickOpenKey = useShortcutsStore.getState().getShortcut("quickOpen");
       if (matchesShortcutEvent(e, quickOpenKey)) {

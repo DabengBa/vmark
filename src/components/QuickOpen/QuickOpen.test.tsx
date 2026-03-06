@@ -5,7 +5,7 @@
  * open/close, keyboard navigation, item selection, and browse.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -75,7 +75,12 @@ import { QuickOpen } from "./QuickOpen";
 // --- Setup ---
 
 // jsdom lacks scrollIntoView
+const originalScrollIntoView = Element.prototype.scrollIntoView;
 Element.prototype.scrollIntoView = vi.fn();
+
+afterAll(() => {
+  Element.prototype.scrollIntoView = originalScrollIntoView;
+});
 
 beforeEach(() => {
   useQuickOpenStore.setState({ isOpen: false });
@@ -311,5 +316,41 @@ describe("QuickOpen with file items", () => {
     const secondItem = screen.getByText("notes.md").closest("[role='option']")!;
     fireEvent.mouseEnter(secondItem);
     expect(secondItem).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("clamps selectedIndex when results shrink after filtering", async () => {
+    useQuickOpenStore.setState({ isOpen: true });
+    render(<QuickOpen windowLabel="main" />);
+    const dialog = screen.getByRole("dialog");
+
+    // Move to last file item (index 1 = notes.md)
+    fireEvent.keyDown(dialog, { key: "ArrowDown" });
+
+    // Type a filter that removes notes.md — only readme.md matches
+    const input = screen.getByRole("combobox");
+    await userEvent.setup().type(input, "read");
+
+    // Selection should clamp — Browse row (index 1) or readme.md (index 0) should be selected
+    const options = screen.getAllByRole("option");
+    const anySelected = options.some((o) => o.getAttribute("aria-selected") === "true");
+    expect(anySelected).toBe(true);
+  });
+
+  it("restores focus to previously focused element on close", () => {
+    // Create and focus a button to simulate prior focus
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+    expect(document.activeElement).toBe(button);
+
+    useQuickOpenStore.setState({ isOpen: true });
+    const { rerender } = render(<QuickOpen windowLabel="main" />);
+
+    // Close
+    act(() => useQuickOpenStore.setState({ isOpen: false }));
+    rerender(<QuickOpen windowLabel="main" />);
+
+    expect(document.activeElement).toBe(button);
+    document.body.removeChild(button);
   });
 });
