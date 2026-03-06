@@ -67,6 +67,12 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
+vi.mock("@/stores/geniePickerStore", () => ({
+  useGeniePickerStore: {
+    getState: vi.fn(() => ({ isOpen: false, closePicker: vi.fn() })),
+  },
+}));
+
 // --- Imports (after mocks) ---
 
 import { useQuickOpenStore } from "./quickOpenStore";

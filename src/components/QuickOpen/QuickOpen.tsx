@@ -21,6 +21,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useQuickOpenStore } from "./quickOpenStore";
+import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useFileTree } from "@/components/Sidebar/FileExplorer/useFileTree";
 import { openFileInNewTabCore, handleOpen } from "@/hooks/useFileOpen";
@@ -123,6 +124,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
   // Save previous focus for restoration on close
   useEffect(() => {
     if (isOpen) {
+      useGeniePickerStore.getState().closePicker();
       previousFocusRef.current = document.activeElement;
       setFilter("");
       setSelectedIndex(0);

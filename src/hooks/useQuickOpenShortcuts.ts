@@ -24,7 +24,7 @@ export function useQuickOpenShortcuts(): void {
 
   useEffect(() => {
     const unlisten = listen("menu:quick-open", () => {
-      useQuickOpenStore.getState().toggle();
+      useQuickOpenStore.getState().open();
     });
     return () => safeUnlistenAsync(unlisten);
   }, []);

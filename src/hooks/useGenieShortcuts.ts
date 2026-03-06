@@ -61,6 +61,7 @@ export function useGenieShortcuts() {
   // Keyboard shortcut (Cmd+Y) — opens the genie picker
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (isImeKeyEvent(e)) return;
 
       const aiGeniesKey = useShortcutsStore.getState().getShortcut("aiPrompts");

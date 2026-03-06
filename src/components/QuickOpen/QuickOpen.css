@@ -81,6 +81,11 @@
   background: var(--accent-bg);
 }
 
+.quick-open-item:focus-visible {
+  outline: none;
+  background: var(--accent-bg);
+}
+
 .quick-open-item-icon {
   width: 16px;
   height: 16px;

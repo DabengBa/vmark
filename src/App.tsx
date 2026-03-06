@@ -251,6 +251,7 @@ function MainLayout() {
       {/* Drop zone indicator for drag-and-drop */}
       <DropOverlay />
       <QuickOpen windowLabel={windowLabel} />
+      <GeniePicker />
 
       {/* Title bar with drag region and filename display */}
       <TitleBar />
@@ -324,7 +325,6 @@ function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/pdf-export" element={<PdfExportPage />} />
         </Routes>
-        <GeniePicker />
         <Toaster
           position="top-center"
           icons={{
