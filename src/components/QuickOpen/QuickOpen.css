@@ -12,7 +12,7 @@
 }
 
 .quick-open {
-  width: 540px;
+  width: min(540px, calc(100vw - 24px));
   max-height: 60vh;
   display: flex;
   flex-direction: column;
