@@ -21,6 +21,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useGeniePickerStore } from "@/stores/geniePickerStore";
+import { useQuickOpenStore } from "@/components/QuickOpen/quickOpenStore";
 import { useAiInvocationStore } from "@/stores/aiInvocationStore";
 import { useGeniesStore } from "@/stores/geniesStore";
 import { useGenieInvocation } from "@/hooks/useGenieInvocation";
@@ -61,6 +62,7 @@ export function GeniePicker() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<Element | null>(null);
 
   const { invokeGenie, invokeFreeform } = useGenieInvocation();
   const activeProvider = useAiProviderStore((s) => s.activeProvider);
@@ -80,6 +82,8 @@ export function GeniePicker() {
   // Load genies on open + reset history hook
   useEffect(() => {
     if (isOpen) {
+      useQuickOpenStore.getState().close();
+      previousFocusRef.current = document.activeElement;
       useGeniesStore.getState().loadGenies();
       setFilter("");
       setSelectedIndex(0);
@@ -87,6 +91,10 @@ export function GeniePicker() {
       setShowProviderSwitcher(false);
       promptHistory.reset();
       setActiveScope(filterScope);
+    } else if (previousFocusRef.current) {
+      const el = previousFocusRef.current as HTMLElement;
+      if (typeof el.focus === "function") el.focus();
+      previousFocusRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, filterScope]);
@@ -151,6 +159,13 @@ export function GeniePicker() {
     }
     return items;
   }, [recents, grouped]);
+
+  // Clamp selectedIndex when flatList shrinks (e.g. after typing narrows results)
+  useEffect(() => {
+    if (flatList.length > 0 && selectedIndex >= flatList.length) {
+      setSelectedIndex(flatList.length - 1);
+    }
+  }, [selectedIndex, flatList.length]);
 
   const handleClose = useCallback(() => {
     useGeniePickerStore.getState().closePicker();
@@ -223,12 +238,12 @@ export function GeniePicker() {
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         if (maxIndex >= 0) {
-          setSelectedIndex((prev) => Math.min(prev + 1, maxIndex));
+          setSelectedIndex((prev) => (prev + 1) % (maxIndex + 1));
         }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         if (maxIndex >= 0) {
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          setSelectedIndex((prev) => (prev - 1 + maxIndex + 1) % (maxIndex + 1));
         }
       } else if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -324,6 +339,9 @@ export function GeniePicker() {
         ref={containerRef}
         className="genie-picker"
         onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI Genies"
       >
         {/* Unified input (search + freeform) */}
         <div className="genie-picker-header">
@@ -349,6 +367,10 @@ export function GeniePicker() {
               onCompositionStart={ime.onCompositionStart}
               onCompositionEnd={ime.onCompositionEnd}
               rows={1}
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="genie-picker-list"
+              aria-activedescendant={flatList.length > 0 && selectedIndex >= 0 ? `genie-item-${selectedIndex}` : undefined}
             />
             {ghostTextEl}
           </div>
@@ -364,7 +386,7 @@ export function GeniePicker() {
               )}
 
               {/* Genie list */}
-              <div className="genie-picker-list" ref={listRef}>
+              <div className="genie-picker-list" ref={listRef} id="genie-picker-list" role="listbox">
                 {loading && (
                   <div className="genie-picker-empty">Loading genies...</div>
                 )}

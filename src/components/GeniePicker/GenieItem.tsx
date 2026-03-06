@@ -25,6 +25,9 @@ export function GenieItem({
     <div
       className={`genie-picker-item ${selected ? "genie-picker-item--selected" : ""}`}
       data-index={index}
+      role="option"
+      id={`genie-item-${index}`}
+      aria-selected={selected}
       onClick={() => onSelect(genie)}
       onMouseEnter={() => onHover(index)}
     >

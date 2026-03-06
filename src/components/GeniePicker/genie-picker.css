@@ -14,7 +14,7 @@
 }
 
 .genie-picker {
-  width: 500px;
+  width: min(500px, calc(100vw - 24px));
   max-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -45,12 +45,12 @@
   border: none;
   background: transparent;
   color: var(--text-color);
-  font-size: 15px;
+  font-size: 14px;
   font-family: var(--font-sans);
   outline: none;
   resize: none;
   overflow: hidden;
-  max-height: calc(15px * 1.5 * 6); /* ~6 rows max */
+  max-height: calc(14px * 1.5 * 6); /* ~6 rows max */
 }
 
 .genie-picker-search::placeholder {
@@ -197,7 +197,7 @@
   top: 0;
   left: 0;
   padding: 4px 0;
-  font-size: 15px;
+  font-size: 14px;
   font-family: var(--font-sans);
   line-height: normal;
   pointer-events: none;
@@ -505,4 +505,13 @@
 .dark-theme .provider-switcher-badge--available {
   color: var(--success-color-dark);
   border-color: var(--success-color-dark);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .genie-picker,
+  .prompt-history-dropdown,
+  .provider-switcher {
+    animation: none;
+  }
 }

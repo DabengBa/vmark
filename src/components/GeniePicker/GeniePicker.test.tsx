@@ -93,6 +93,17 @@ vi.mock("@/stores/geniePickerStore", () => ({
   ),
 }));
 
+vi.mock("@/components/QuickOpen/quickOpenStore", () => ({
+  useQuickOpenStore: Object.assign(
+    (selector: (s: Record<string, unknown>) => unknown) =>
+      selector({ isOpen: false }),
+    {
+      getState: () => ({ isOpen: false, close: vi.fn() }),
+      subscribe: vi.fn(() => () => {}),
+    }
+  ),
+}));
+
 vi.mock("@/stores/geniesStore", () => {
   const fullState = () => ({
     ...geniesState,
@@ -461,33 +472,33 @@ describe("GeniePicker — keyboard navigation", () => {
     }
   });
 
-  it("ArrowUp does not go below 0", () => {
+  it("ArrowUp wraps to last item from index 0", () => {
     render(<GeniePicker />);
 
     const container = document.querySelector(".genie-picker") as HTMLElement;
-    // Try to move up from index 0
+    // Try to move up from index 0 — should wrap to last
     fireEvent.keyDown(container, { key: "ArrowUp" });
 
     const items = document.querySelectorAll(".genie-picker-item");
     if (items.length > 0) {
-      expect(items[0]?.classList.contains("genie-picker-item--selected")).toBe(true);
+      const lastItem = items[items.length - 1];
+      expect(lastItem?.classList.contains("genie-picker-item--selected")).toBe(true);
     }
   });
 
-  it("ArrowDown does not exceed max index", () => {
+  it("ArrowDown wraps to first item from last", () => {
     render(<GeniePicker />);
 
     const container = document.querySelector(".genie-picker") as HTMLElement;
     const items = document.querySelectorAll(".genie-picker-item");
-    // Press down many times
-    for (let i = 0; i < items.length + 5; i++) {
+    // Press down exactly items.length times to wrap back to first
+    for (let i = 0; i < items.length; i++) {
       fireEvent.keyDown(container, { key: "ArrowDown" });
     }
 
-    // Last item should be selected
-    const lastItem = items[items.length - 1];
-    if (lastItem) {
-      expect(lastItem.classList.contains("genie-picker-item--selected")).toBe(true);
+    // First item should be selected (wrapped around)
+    if (items.length > 0) {
+      expect(items[0]?.classList.contains("genie-picker-item--selected")).toBe(true);
     }
   });
 
