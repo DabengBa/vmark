@@ -234,9 +234,9 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
             onCompositionStart={ime.onCompositionStart}
             onCompositionEnd={ime.onCompositionEnd}
             role="combobox"
-            aria-expanded="true"
+            aria-expanded={totalCount > 0}
             aria-controls="quick-open-list"
-            aria-activedescendant={`quick-open-item-${selectedIndex}`}
+            aria-activedescendant={totalCount > 0 ? `quick-open-item-${selectedIndex}` : undefined}
           />
         </div>
 

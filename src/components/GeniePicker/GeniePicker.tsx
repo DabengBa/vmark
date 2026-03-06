@@ -368,7 +368,7 @@ export function GeniePicker() {
               onCompositionEnd={ime.onCompositionEnd}
               rows={1}
               role="combobox"
-              aria-expanded="true"
+              aria-expanded={flatList.length > 0}
               aria-controls="genie-picker-list"
               aria-activedescendant={flatList.length > 0 && selectedIndex >= 0 ? `genie-item-${selectedIndex}` : undefined}
             />
