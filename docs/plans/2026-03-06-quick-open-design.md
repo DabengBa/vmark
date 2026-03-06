@@ -184,10 +184,13 @@ Cmd+O
 
 | File | Before | After |
 |------|--------|-------|
-| `shortcutsStore.ts` | `"open"` → `Mod-o` → `menuId: "open"` | `"quickOpen"` → `Mod-o` → `menuId: "quick-open"` |
-| `shortcutsStore.ts` | (none) | `"openFile"` → `Mod-Shift-o` → `menuId: "open"` (native dialog) |
-| `menu/default_menu.rs` | `"open"` → `CmdOrCtrl+O` | `"quick-open"` → `CmdOrCtrl+O` + `"open"` → `CmdOrCtrl+Shift+O` |
-| `website/guide/shortcuts.md` | `Mod + O` → Open File | `Mod + O` → Quick Open, `Mod + Shift + O` → Open File |
+| `shortcutsStore.ts` | `"openFile"` → `Mod-o` → `menuId: "open"` | `"quickOpen"` → `Mod-o` → `menuId: "quick-open"`, scope: `"global"` |
+| `shortcutsStore.ts` | — | `"openFile"` keeps entry but `defaultKey: ""` (no shortcut; accessible via Quick Open Browse + File menu) |
+| `menu/default_menu.rs` | `"open"` → `CmdOrCtrl+O` | `"quick-open"` → `CmdOrCtrl+O`; `"open"` → no accelerator |
+| `menu/custom_menu.rs` | `"open"` → `CmdOrCtrl+O` | `"quick-open"` → accelerator from store; `"open"` → no accelerator |
+| `website/guide/shortcuts.md` | `Mod + O` → Open File | `Mod + O` → Quick Open |
+
+**Note:** `Mod-Shift-o` remains "Open Workspace" (`openFolder`) — unchanged.
 
 ### Accessibility
 
