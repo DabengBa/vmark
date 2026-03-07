@@ -42,6 +42,28 @@ describe("getTableAnchorForLine", () => {
     expect(anchor).toBeUndefined();
   });
 
+  it("returns correct row for 2nd+ data rows in multi-row tables", () => {
+    const lines = [
+      "| Name | Age |",
+      "| --- | --- |",
+      "| Alice | 30 |",
+      "| Bob | 25 |",
+      "| Carol | 40 |",
+    ];
+
+    // 2nd data row (lineIndex=3, "Bob") → row should be 2
+    const anchor3 = getTableAnchorForLine(lines, 3, lines[3].indexOf("Bob"));
+    expect(anchor3).toBeDefined();
+    expect(anchor3!.row).toBe(2);
+    expect(anchor3!.col).toBe(0);
+
+    // 3rd data row (lineIndex=4, "Carol") → row should be 3
+    const anchor4 = getTableAnchorForLine(lines, 4, lines[4].indexOf("Carol"));
+    expect(anchor4).toBeDefined();
+    expect(anchor4!.row).toBe(3);
+    expect(anchor4!.col).toBe(0);
+  });
+
   it("returns undefined when cellRanges is empty (line 127: all pipes are escaped)", () => {
     // A line that passes isTableRowLine (contains \|) but when parsed by
     // getTableCellRanges all pipes are escaped — so separators.length === 0 → [].

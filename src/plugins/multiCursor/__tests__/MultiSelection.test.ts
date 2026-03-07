@@ -214,6 +214,34 @@ describe("MultiSelection", () => {
     });
   });
 
+  describe("map merges overlapping ranges", () => {
+    it("merges selection ranges that overlap after a replacement collapses the gap", () => {
+      // "abcdefghijk" — 11 chars
+      const state = createState("abcdefghijk");
+      const doc = state.doc;
+
+      // Range 1: [1,4) = "abc", Range 2: [8,11) = "hij"
+      const ranges = [
+        new SelectionRange(doc.resolve(1), doc.resolve(4)),
+        new SelectionRange(doc.resolve(8), doc.resolve(11)),
+      ];
+      const multiSel = new MultiSelection(ranges, 0);
+
+      // Replace [3,9) with "X" — replaces "cdefgh" (6 chars) with "X" (1 char), net -5
+      // After mapping:
+      //   Range 1: from=1 (bias -1)→1, to=4 (bias 1, in [3,9))→3+1=4
+      //   Range 2: from=8 (bias -1, in [3,9))→3, to=11 (bias 1)→11-5=6
+      // Result: range1=[1,4), range2=[3,6) — genuine overlap (4 > 3)
+      const tr = state.tr.replaceWith(3, 9, schema.text("X"));
+      const mapped = multiSel.map(tr.doc, tr.mapping) as MultiSelection;
+
+      // With merge=true, overlapping ranges [1,4) and [3,6) should merge to [1,6)
+      expect(mapped.ranges).toHaveLength(1);
+      expect(mapped.ranges[0].$from.pos).toBe(1);
+      expect(mapped.ranges[0].$to.pos).toBe(6);
+    });
+  });
+
   describe("toJSON / fromJSON", () => {
     it("serializes and deserializes correctly", () => {
       const state = createState("hello world");

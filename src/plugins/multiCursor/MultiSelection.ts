@@ -55,7 +55,8 @@ export class MultiSelection extends Selection {
       return new SelectionRange($from, $to);
     });
 
-    return new MultiSelection(mappedRanges, this.primaryIndex, this.backward);
+    const normalized = normalizeRangesWithPrimary(mappedRanges, doc, this.primaryIndex, true);
+    return new MultiSelection(normalized.ranges, normalized.primaryIndex, this.backward);
   }
 
   /**
