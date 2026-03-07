@@ -68,3 +68,6 @@ export {
   getRenderedHtml,
 } from "./useExportOperations";
 export type { ExportToHtmlOptions, ExportToPdfOptions } from "./useExportOperations";
+
+// Pandoc Export
+export { exportViaPandoc } from "./pandocExport";

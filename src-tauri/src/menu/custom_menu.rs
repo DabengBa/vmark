@@ -85,6 +85,7 @@ pub(crate) fn create_menu_with_shortcuts(
         &[
             &MenuItem::with_id(app, "export-html", "HTML...", true, get_accel("export-html", ""))?,
             &MenuItem::with_id(app, "export-pdf-native", "PDF...", true, get_accel("export-pdf-native", ""))?,
+            &MenuItem::with_id(app, "export-pandoc", "Pandoc...", true, get_accel("export-pandoc", ""))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, get_accel("copy-html", "CmdOrCtrl+Shift+C"))?,
         ],

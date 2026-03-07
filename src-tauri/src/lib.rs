@@ -35,6 +35,7 @@ mod window_manager;
 mod workspace;
 mod file_tree;
 mod hot_exit;
+mod pandoc;
 mod tab_transfer;
 
 #[cfg(target_os = "macos")]
@@ -526,6 +527,8 @@ pub fn run() {
             pdf_export::commands::export_pdf,
             #[cfg(target_os = "macos")]
             pdf_export::commands::print_document,
+            pandoc::commands::detect_pandoc,
+            pandoc::commands::export_via_pandoc,
         ])
         .setup(|app| {
             let menu = menu::create_menu(app.handle())?;

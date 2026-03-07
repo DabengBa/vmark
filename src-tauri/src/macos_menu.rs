@@ -106,6 +106,7 @@ const MENU_ICONS: &[(&str, &str)] = &[
     ("HTML...", "doc.richtext"),
     ("Print...", "printer"),
     ("PDF...", "arrow.up.doc"),
+    ("Pandoc...", "arrow.triangle.branch"),
     ("Copy as HTML", "doc.text"),
     // History
     ("Clear Workspace History...", "clock.badge.xmark"),
