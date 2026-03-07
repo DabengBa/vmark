@@ -8,6 +8,7 @@
  */
 
 import { respond, getEditor } from "./utils";
+import { requireString, optionalString } from "./validateArgs";
 import { addCJKEnglishSpacing } from "@/lib/cjkFormatter/rules";
 
 /**
@@ -22,8 +23,7 @@ export async function handleInsertMathInline(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const latex = args.latex as string;
-    if (!latex) throw new Error("latex is required");
+    const latex = requireString(args, "latex");
 
     // Insert math_inline node with content attribute
     editor
@@ -57,8 +57,7 @@ export async function handleInsertMathBlock(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const latex = args.latex as string;
-    if (!latex) throw new Error("latex is required");
+    const latex = requireString(args, "latex");
 
     // Insert as a code block with latex language
     editor
@@ -94,8 +93,7 @@ async function handleInsertCodeBlock(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const code = args.code as string;
-    if (!code) throw new Error("code is required");
+    const code = requireString(args, "code");
 
     editor
       .chain()
@@ -153,9 +151,8 @@ export async function handleInsertWikiLink(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const target = args.target as string;
-    const displayText = args.displayText as string | undefined;
-    if (!target) throw new Error("target is required");
+    const target = requireString(args, "target");
+    const displayText = optionalString(args, "displayText");
 
     // Insert wikiLink node with value and optional alias
     editor
@@ -211,7 +208,7 @@ export async function handleCjkPunctuationConvert(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const direction = args.direction as string;
+    const direction = requireString(args, "direction");
     if (direction !== "to-fullwidth" && direction !== "to-halfwidth") {
       throw new Error('direction must be "to-fullwidth" or "to-halfwidth"');
     }
@@ -259,7 +256,7 @@ export async function handleCjkSpacingFix(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const action = args.action as string;
+    const action = requireString(args, "action");
     if (action !== "add" && action !== "remove") {
       throw new Error('action must be "add" or "remove"');
     }

@@ -96,7 +96,7 @@ describe("genieHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-4",
         success: false,
-        error: "path is required and must be a string",
+        error: expect.stringContaining("Missing or invalid 'path'"),
       });
     });
 
@@ -106,7 +106,7 @@ describe("genieHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-5",
         success: false,
-        error: "path is required and must be a string",
+        error: expect.stringContaining("Missing or invalid 'path'"),
       });
     });
   });
@@ -154,7 +154,7 @@ describe("genieHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-7",
         success: false,
-        error: "geniePath is required and must be a string",
+        error: expect.stringContaining("Missing or invalid 'geniePath'"),
       });
     });
 
@@ -205,7 +205,7 @@ describe("genieHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-10",
         success: false,
-        error: "geniePath is required and must be a string",
+        error: expect.stringContaining("Missing or invalid 'geniePath'"),
       });
     });
   });

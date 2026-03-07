@@ -19,6 +19,7 @@ import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
 import { serializeMarkdown } from "@/utils/markdownPipeline";
 import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
+import { requireString, requireNumber, booleanWithDefault } from "./validateArgs";
 
 /**
  * Check if the editor document is empty.
@@ -57,10 +58,7 @@ export async function handleSetContent(
       return;
     }
 
-    const content = args.content as string;
-    if (typeof content !== "string") {
-      throw new Error("content must be a string");
-    }
+    const content = requireString(args, "content");
 
     // Parse markdown and set as document content
     // Don't add to history — content loading shouldn't be undoable
@@ -97,10 +95,7 @@ export async function handleInsertAtCursorWithSuggestion(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const text = args.text as string;
-    if (typeof text !== "string") {
-      throw new Error("text must be a string");
-    }
+    const text = requireString(args, "text");
 
     const insertPos = editor.state.selection.from;
 
@@ -161,15 +156,8 @@ export async function handleInsertAtPositionWithSuggestion(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const text = args.text as string;
-    const position = args.position as number;
-
-    if (typeof text !== "string") {
-      throw new Error("text must be a string");
-    }
-    if (typeof position !== "number") {
-      throw new Error("position must be a number");
-    }
+    const text = requireString(args, "text");
+    const position = requireNumber(args, "position");
 
     // Validate position is within document bounds
     const docSize = editor.state.doc.content.size;
@@ -234,10 +222,7 @@ export async function handleSelectionReplaceWithSuggestion(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const text = args.text as string;
-    if (typeof text !== "string") {
-      throw new Error("text must be a string");
-    }
+    const text = requireString(args, "text");
 
     const { from, to } = editor.state.selection;
     if (from === to) {
@@ -309,15 +294,12 @@ export async function handleDocumentReplaceInSourceWithSuggestion(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const search = args.search as string;
-    const replace = args.replace as string;
-    const replaceAll = (args.all as boolean) ?? false;
+    const search = requireString(args, "search");
+    const replace = requireString(args, "replace");
+    const replaceAll = booleanWithDefault(args, "all", false);
 
-    if (typeof search !== "string" || search.length === 0) {
+    if (search.length === 0) {
       throw new Error("search must be a non-empty string");
-    }
-    if (typeof replace !== "string") {
-      throw new Error("replace must be a string");
     }
 
     // Serialize current document to markdown
@@ -448,10 +430,7 @@ export async function handleSuggestionAccept(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const suggestionId = args.suggestionId as string;
-    if (typeof suggestionId !== "string") {
-      throw new Error("suggestionId must be a string");
-    }
+    const suggestionId = requireString(args, "suggestionId");
 
     const store = useAiSuggestionStore.getState();
     const suggestion = store.getSuggestion(suggestionId);
@@ -485,10 +464,7 @@ export async function handleSuggestionReject(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const suggestionId = args.suggestionId as string;
-    if (typeof suggestionId !== "string") {
-      throw new Error("suggestionId must be a string");
-    }
+    const suggestionId = requireString(args, "suggestionId");
 
     const store = useAiSuggestionStore.getState();
     const suggestion = store.getSuggestion(suggestionId);

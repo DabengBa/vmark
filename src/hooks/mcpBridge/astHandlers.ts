@@ -11,6 +11,7 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { respond, getEditor } from "./utils";
 import { useRevisionStore } from "@/stores/revisionStore";
+import { numberWithDefault, optionalString } from "./validateArgs";
 
 // ── Shared Types ──────────────────────────────────────────────────────
 
@@ -229,9 +230,9 @@ export async function handleGetAst(
 
     const projection = args.projection as string[] | undefined;
     const filter = args.filter as BlockQuery | undefined;
-    const limit = (args.limit as number) ?? 100;
-    const offset = (args.offset as number) ?? 0;
-    const afterCursor = args.afterCursor as string | undefined;
+    const limit = numberWithDefault(args, "limit", 100);
+    const offset = numberWithDefault(args, "offset", 0);
+    const afterCursor = optionalString(args, "afterCursor");
 
     resetNodeIdCounters();
 

@@ -10,6 +10,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { respond } from "./utils";
+import { requireString, stringWithDefault } from "./validateArgs";
 
 interface GenieEntry {
   name: string;
@@ -55,10 +56,7 @@ export async function handleGeniesRead(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const path = args.path as string;
-    if (typeof path !== "string" || !path) {
-      throw new Error("path is required and must be a string");
-    }
+    const path = requireString(args, "path");
 
     const content = await invoke<GenieContent>("read_genie", { path });
     await respond({ id, success: true, data: content });
@@ -83,12 +81,8 @@ export async function handleGeniesInvoke(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const geniePath = args.geniePath as string;
-    if (typeof geniePath !== "string" || !geniePath) {
-      throw new Error("geniePath is required and must be a string");
-    }
-
-    const scope = (args.scope as string) ?? "selection";
+    const geniePath = requireString(args, "geniePath");
+    const scope = stringWithDefault(args, "scope", "selection");
     const validScopes = ["selection", "block", "document"];
     if (!validScopes.includes(scope)) {
       throw new Error(`Invalid scope "${scope}". Must be one of: ${validScopes.join(", ")}`);

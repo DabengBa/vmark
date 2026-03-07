@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { requireString, optionalString, optionalNumber, stringWithDefault } from "./validateArgs";
+import { requireString, optionalString, optionalNumber, optionalBoolean, numberWithDefault, booleanWithDefault, stringWithDefault } from "./validateArgs";
 
 describe("requireString", () => {
   it.each([
@@ -84,6 +84,66 @@ describe("optionalNumber", () => {
 
   it("throws for non-number value", () => {
     expect(() => optionalNumber({ key: "42" }, "key")).toThrow("expected number, got string");
+  });
+});
+
+describe("optionalBoolean", () => {
+  it("returns boolean when present", () => {
+    expect(optionalBoolean({ key: true }, "key")).toBe(true);
+    expect(optionalBoolean({ key: false }, "key")).toBe(false);
+  });
+
+  it("returns undefined for missing key", () => {
+    expect(optionalBoolean({}, "key")).toBeUndefined();
+  });
+
+  it("returns undefined for null value", () => {
+    expect(optionalBoolean({ key: null }, "key")).toBeUndefined();
+  });
+
+  it("throws for non-boolean value", () => {
+    expect(() => optionalBoolean({ key: "true" }, "key")).toThrow("expected boolean, got string");
+  });
+});
+
+describe("numberWithDefault", () => {
+  it("returns number when present", () => {
+    expect(numberWithDefault({ key: 42 }, "key", 0)).toBe(42);
+  });
+
+  it("returns 0 when present (not default)", () => {
+    expect(numberWithDefault({ key: 0 }, "key", 100)).toBe(0);
+  });
+
+  it("returns default for missing key", () => {
+    expect(numberWithDefault({}, "key", 100)).toBe(100);
+  });
+
+  it("returns default for null value", () => {
+    expect(numberWithDefault({ key: null }, "key", 100)).toBe(100);
+  });
+
+  it("throws for non-number value", () => {
+    expect(() => numberWithDefault({ key: "42" }, "key", 0)).toThrow("expected number, got string");
+  });
+});
+
+describe("booleanWithDefault", () => {
+  it("returns boolean when present", () => {
+    expect(booleanWithDefault({ key: true }, "key", false)).toBe(true);
+    expect(booleanWithDefault({ key: false }, "key", true)).toBe(false);
+  });
+
+  it("returns default for missing key", () => {
+    expect(booleanWithDefault({}, "key", true)).toBe(true);
+  });
+
+  it("returns default for null value", () => {
+    expect(booleanWithDefault({ key: null }, "key", false)).toBe(false);
+  });
+
+  it("throws for non-boolean value", () => {
+    expect(() => booleanWithDefault({ key: "true" }, "key", false)).toThrow("expected boolean, got string");
   });
 });
 

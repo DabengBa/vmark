@@ -11,7 +11,7 @@
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { respond, getEditor } from "./utils";
-import { optionalString, optionalNumber } from "./validateArgs";
+import { optionalString, optionalNumber, optionalBoolean } from "./validateArgs";
 import { useRevisionStore } from "@/stores/revisionStore";
 import {
   type AstNode,
@@ -236,7 +236,7 @@ export async function handleGetSection(
     }
 
     const heading = args.heading as string | { level: number; index: number };
-    const includeNested = args.includeNested as boolean | undefined;
+    const includeNested = optionalBoolean(args, "includeNested");
 
     if (!heading) {
       throw new Error("heading is required");

@@ -57,6 +57,43 @@ export function optionalNumber(args: Record<string, unknown>, key: string): numb
 }
 
 /**
+ * Get an optional boolean argument. Returns undefined if not present.
+ * Throws if present but wrong type.
+ */
+export function optionalBoolean(args: Record<string, unknown>, key: string): boolean | undefined {
+  const val = args[key];
+  if (val === undefined || val === null) return undefined;
+  if (typeof val !== "boolean") {
+    throw new Error(`Invalid '${key}' (expected boolean, got ${typeof val})`);
+  }
+  return val;
+}
+
+/**
+ * Number argument with a default fallback.
+ */
+export function numberWithDefault(args: Record<string, unknown>, key: string, defaultVal: number): number {
+  const val = args[key];
+  if (val === undefined || val === null) return defaultVal;
+  if (typeof val !== "number") {
+    throw new Error(`Invalid '${key}' (expected number, got ${typeof val})`);
+  }
+  return val;
+}
+
+/**
+ * Boolean argument with a default fallback.
+ */
+export function booleanWithDefault(args: Record<string, unknown>, key: string, defaultVal: boolean): boolean {
+  const val = args[key];
+  if (val === undefined || val === null) return defaultVal;
+  if (typeof val !== "boolean") {
+    throw new Error(`Invalid '${key}' (expected boolean, got ${typeof val})`);
+  }
+  return val;
+}
+
+/**
  * Require a string argument with a default fallback.
  */
 export function stringWithDefault(args: Record<string, unknown>, key: string, defaultVal: string): string {

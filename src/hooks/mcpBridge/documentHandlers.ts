@@ -12,6 +12,7 @@
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
 import { respond, getEditor, getDocumentContent } from "./utils";
+import { requireString, booleanWithDefault } from "./validateArgs";
 
 /**
  * Handle document.getContent request.
@@ -40,12 +41,8 @@ export async function handleDocumentSearch(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const query = args.query as string;
-    if (typeof query !== "string") {
-      throw new Error("query must be a string");
-    }
-
-    const caseSensitive = (args.caseSensitive as boolean) ?? false;
+    const query = requireString(args, "query");
+    const caseSensitive = booleanWithDefault(args, "caseSensitive", false);
     const text = editor.state.doc.textContent;
     const searchText = caseSensitive ? query : query.toLowerCase();
     const docText = caseSensitive ? text : text.toLowerCase();

@@ -8,6 +8,7 @@
  */
 
 import { respond, getEditor } from "./utils";
+import { requireString } from "./validateArgs";
 
 /**
  * Handle format.toggle request.
@@ -20,7 +21,7 @@ export async function handleFormatToggle(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const format = (args.format ?? args.mark) as string;
+    const format = requireString({ format: args.format ?? args.mark }, "format");
 
     // Direct commands for MCP (programmatic, no focus side effects needed).
     // For marks without dedicated toggle commands, use the generic toggleMark.
@@ -68,11 +69,7 @@ export async function handleFormatSetLink(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const href = args.href as string;
-
-    if (typeof href !== "string") {
-      throw new Error("href must be a string");
-    }
+    const href = requireString(args, "href");
 
     editor.commands.setLink({ href });
 

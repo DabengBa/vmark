@@ -11,6 +11,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { respond, getEditor, isAutoApproveEnabled } from "./utils";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
+import { stringWithDefault } from "./validateArgs";
 
 // Types
 type OperationMode = "apply" | "suggest" | "dryRun";
@@ -224,7 +225,7 @@ export async function handleTableBatchModify(
     const baseRevision = typeof args.baseRevision === "string" ? args.baseRevision : "";
     const target = args.target as TableTarget;
     const operations = Array.isArray(args.operations) ? (args.operations as TableOperation[]) : [];
-    const mode = (args.mode as OperationMode) ?? "apply";
+    const mode = stringWithDefault(args, "mode", "apply") as OperationMode;
 
     // Validate revision
     const revisionError = validateBaseRevision(baseRevision);
@@ -464,7 +465,7 @@ export async function handleListBatchModify(
     const baseRevision = typeof args.baseRevision === "string" ? args.baseRevision : "";
     const target = args.target as ListTarget;
     const operations = Array.isArray(args.operations) ? (args.operations as ListOperation[]) : [];
-    const mode = (args.mode as OperationMode) ?? "apply";
+    const mode = stringWithDefault(args, "mode", "apply") as OperationMode;
 
     // Validate revision
     const revisionError = validateBaseRevision(baseRevision);

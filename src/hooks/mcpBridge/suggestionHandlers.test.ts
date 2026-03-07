@@ -225,7 +225,7 @@ describe("suggestionHandlers", () => {
       expect(respond).toHaveBeenCalledWith({
         id: "req-4",
         success: false,
-        error: "text must be a string",
+        error: "Missing or invalid 'text' (expected string, got number)",
       });
     });
   });
@@ -302,7 +302,7 @@ describe("suggestionHandlers", () => {
       expect(respond).toHaveBeenCalledWith({
         id: "req-4",
         success: false,
-        error: "position must be a number",
+        error: "Missing or invalid 'position' (expected number, got string)",
       });
     });
   });

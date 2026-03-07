@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isSafeUrl, sanitizeUrl } from "./urlValidation";
+import { isSafeUrl } from "./urlValidation";
 
 describe("urlValidation", () => {
   describe("isSafeUrl", () => {
@@ -78,22 +78,6 @@ describe("urlValidation", () => {
         expect(isSafeUrl("unknown:something")).toBe(false);
         expect(isSafeUrl("custom:protocol")).toBe(false);
       });
-    });
-  });
-
-  describe("sanitizeUrl", () => {
-    it("returns URL for safe URLs", () => {
-      expect(sanitizeUrl("https://example.com")).toBe("https://example.com");
-      expect(sanitizeUrl("/path")).toBe("/path");
-    });
-
-    it("returns null for unsafe URLs", () => {
-      expect(sanitizeUrl("javascript:alert(1)")).toBe(null);
-    });
-
-    it("returns null for null/undefined", () => {
-      expect(sanitizeUrl(null)).toBe(null);
-      expect(sanitizeUrl(undefined)).toBe(null);
     });
   });
 

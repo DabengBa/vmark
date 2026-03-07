@@ -77,18 +77,3 @@ export function isSafeUrl(url: string | null | undefined): boolean {
   const scheme = trimmed.slice(0, colonIndex + 1).toLowerCase();
   return ALLOWED_SCHEMES.has(scheme);
 }
-
-/**
- * Sanitize a URL by returning null for unsafe URLs.
- *
- * @param url - The URL to sanitize
- * @returns The original URL if safe, or null if unsafe
- *
- * @example
- * sanitizeUrl("https://example.com"); // "https://example.com"
- * sanitizeUrl("javascript:alert(1)"); // null
- */
-export function sanitizeUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  return isSafeUrl(url) ? url : null;
-}

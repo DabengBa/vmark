@@ -387,17 +387,19 @@ describe("LinkPopupView", () => {
   // ---------------------------------------------------------------------------
 
   it("handleOpen opens external link in browser", async () => {
+    // Import the mock BEFORE clicking so we have the same reference
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+
     const popup = new LinkPopupView(view as never);
     triggerStore({ isOpen: true, anchorRect: ANCHOR, href: "https://example.com" });
 
     const openBtn = popup["openBtn"] as HTMLElement;
     openBtn.click();
 
-    // Wait for dynamic import to resolve
-    await new Promise((r) => setTimeout(r, 10));
-
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    expect(openUrl).toHaveBeenCalledWith("https://example.com");
+    // Wait for dynamic import + .then() chain inside handleOpen to resolve
+    await vi.waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith("https://example.com");
+    });
 
     popup.destroy();
   });

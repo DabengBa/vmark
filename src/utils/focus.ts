@@ -16,11 +16,3 @@ export function isEditorFocused(): boolean {
     !!activeEl.closest(".cm-editor")
   );
 }
-
-/**
- * Get the current focus context for shortcut scoping.
- */
-export function getFocusContext(): "editor" | "other" {
-  if (isEditorFocused()) return "editor";
-  return "other";
-}

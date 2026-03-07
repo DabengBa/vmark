@@ -51,7 +51,7 @@ import {
   loadSnapshot,
   revertToSnapshot,
   pruneSnapshots,
-  markAsDeleted,
+
   deleteSnapshot,
 } from "./useHistoryOperations";
 
@@ -296,27 +296,6 @@ describe("useHistoryOperations", () => {
     });
   });
 
-  describe("markAsDeleted", () => {
-    it("sets status to deleted with timestamp", async () => {
-      const index = makeIndex();
-      mockExists.mockResolvedValue(true);
-      mockReadTextFile.mockResolvedValue(JSON.stringify(index));
-
-      await markAsDeleted("/test/doc.md");
-
-      expect(mockWriteTextFile).toHaveBeenCalled();
-      const writtenContent = JSON.parse(mockWriteTextFile.mock.calls[0][1]);
-      expect(writtenContent.status).toBe("deleted");
-      expect(writtenContent.deletedAt).toBeGreaterThan(0);
-    });
-
-    it("does nothing when no index", async () => {
-      mockExists.mockResolvedValue(false);
-      await markAsDeleted("/test/doc.md");
-      expect(mockWriteTextFile).not.toHaveBeenCalled();
-    });
-  });
-
   describe("deleteSnapshot", () => {
     it("removes snapshot file and updates index", async () => {
       const index = makeIndex({
@@ -379,14 +358,6 @@ describe("useHistoryOperations", () => {
       mockExists.mockRejectedValue(new Error("fs error in prune"));
       // Should not throw
       await pruneSnapshots("/test/doc.md");
-    });
-  });
-
-  describe("markAsDeleted — error path (line 347)", () => {
-    it("catches and silences errors from getHistoryIndex throwing", async () => {
-      mockExists.mockRejectedValue(new Error("fs error in markAsDeleted"));
-      // Should not throw
-      await markAsDeleted("/test/doc.md");
     });
   });
 

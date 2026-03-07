@@ -242,7 +242,7 @@ describe("workspaceHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-20",
         success: false,
-        error: "windowId is required",
+        error: expect.stringContaining("Missing or invalid 'windowId'"),
       });
     });
 
@@ -264,7 +264,7 @@ describe("workspaceHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-30",
         success: false,
-        error: "path is required",
+        error: expect.stringContaining("Missing or invalid 'path'"),
       });
     });
 
@@ -343,7 +343,7 @@ describe("workspaceHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-50",
         success: false,
-        error: "path is required",
+        error: expect.stringContaining("Missing or invalid 'path'"),
       });
     });
 

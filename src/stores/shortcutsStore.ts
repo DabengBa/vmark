@@ -481,10 +481,6 @@ export function formatKeyForDisplay(key: string): string {
 // Category Helpers
 // ============================================================================
 
-export function getShortcutsByCategory(category: ShortcutCategory): ShortcutDefinition[] {
-  return DEFAULT_SHORTCUTS.filter((s) => s.category === category);
-}
-
 export const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   formatting: "Formatting",
   blocks: "Blocks",

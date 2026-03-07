@@ -8,6 +8,7 @@
  */
 
 import { respond, getEditor } from "./utils";
+import { booleanWithDefault } from "./validateArgs";
 
 /**
  * Handle table.insert request.
@@ -23,7 +24,7 @@ export async function handleTableInsert(
 
     const rows = Number(args.rows);
     const cols = Number(args.cols);
-    const withHeaderRow = (args.withHeaderRow as boolean) ?? true;
+    const withHeaderRow = booleanWithDefault(args, "withHeaderRow", true);
 
     if (!Number.isFinite(rows) || !Number.isFinite(cols)) {
       throw new Error("rows and cols must be finite numbers");
