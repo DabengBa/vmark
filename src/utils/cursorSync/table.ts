@@ -25,22 +25,23 @@ function isTableRowLine(line: string): boolean {
 }
 
 function findTableHeaderLineIndex(lines: string[], lineIndex: number): number | null {
-  if (lineIndex + 1 < lines.length) {
-    if (isTableRowLine(lines[lineIndex]) && isTableSeparatorLine(lines[lineIndex + 1])) {
-      return lineIndex;
-    }
-  }
-
-  if (lineIndex - 1 >= 0 && isTableSeparatorLine(lines[lineIndex - 1])) {
-    if (lineIndex - 2 >= 0 && isTableRowLine(lines[lineIndex - 2])) {
-      return lineIndex - 2;
-    }
-  }
-
+  // Current line is separator
   if (isTableSeparatorLine(lines[lineIndex]) && lineIndex - 1 >= 0) {
-    if (isTableRowLine(lines[lineIndex - 1])) {
-      return lineIndex - 1;
+    if (isTableRowLine(lines[lineIndex - 1])) return lineIndex - 1;
+  }
+
+  // Current line is header (next line is separator)
+  if (lineIndex + 1 < lines.length &&
+      isTableRowLine(lines[lineIndex]) && isTableSeparatorLine(lines[lineIndex + 1])) {
+    return lineIndex;
+  }
+
+  // Scan upward for separator line, then header above it
+  for (let i = lineIndex - 1; i >= 0; i--) {
+    if (isTableSeparatorLine(lines[i]) && i - 1 >= 0 && isTableRowLine(lines[i - 1])) {
+      return i - 1;
     }
+    if (!isTableRowLine(lines[i])) break;
   }
 
   return null;
