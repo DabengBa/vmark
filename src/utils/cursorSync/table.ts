@@ -9,6 +9,7 @@
  *   - Cell ranges account for escaped pipes (\\|) inside cells
  *   - Leading/trailing pipe handling follows GFM conventions
  *   - Row index is relative to the table header (row 0 = header row)
+ *   - Header detection scans upward through all preceding rows (supports tables of any size)
  *
  * @coordinates-with cursorSync/tiptapAnchors.ts — the WYSIWYG counterpart
  * @module utils/cursorSync/table
