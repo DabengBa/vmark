@@ -171,7 +171,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-5",
         success: false,
-        error: "content must be a string",
+        error: "Missing or invalid 'content' (expected string, got number)",
       });
     });
   });
@@ -199,7 +199,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-11",
         success: false,
-        error: "text must be a string",
+        error: "Missing or invalid 'text' (expected string, got number)",
       });
     });
 
@@ -267,7 +267,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-21",
         success: false,
-        error: "text must be a string",
+        error: "Missing or invalid 'text' (expected string, got number)",
       });
     });
 
@@ -282,7 +282,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-22",
         success: false,
-        error: "position must be a number",
+        error: "Missing or invalid 'position' (expected number, got string)",
       });
     });
 
@@ -370,7 +370,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-31",
         success: false,
-        error: "text must be a string",
+        error: "Missing or invalid 'text' (expected string, got number)",
       });
     });
 
@@ -472,7 +472,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-42",
         success: false,
-        error: "search must be a non-empty string",
+        error: "Missing or invalid 'search' (expected string, got number)",
       });
     });
 
@@ -487,7 +487,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-43",
         success: false,
-        error: "replace must be a string",
+        error: "Missing or invalid 'replace' (expected string, got number)",
       });
     });
 
@@ -645,7 +645,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-50",
         success: false,
-        error: "suggestionId must be a string",
+        error: "Missing or invalid 'suggestionId' (expected string, got number)",
       });
     });
 
@@ -680,7 +680,7 @@ describe("suggestionHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-55",
         success: false,
-        error: "suggestionId must be a string",
+        error: "Missing or invalid 'suggestionId' (expected string, got number)",
       });
     });
 

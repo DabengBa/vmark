@@ -9,7 +9,7 @@
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { respond, getEditor, isAutoApproveEnabled, getActiveTabId } from "./utils";
-import { requireString, optionalString, stringWithDefault } from "./validateArgs";
+import { requireString, optionalString, stringWithDefault, booleanWithDefault } from "./validateArgs";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 import { createMarkdownPasteSlice } from "@/plugins/markdownPaste/tiptap";
@@ -143,7 +143,7 @@ export async function handleParagraphRead(
 ): Promise<void> {
   try {
     const target = args.target as ParagraphTarget;
-    const includeContext = (args.includeContext as boolean) ?? false;
+    const includeContext = booleanWithDefault(args, "includeContext", false);
 
     const editor = getEditor();
     if (!editor) {

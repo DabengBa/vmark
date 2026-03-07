@@ -75,7 +75,7 @@ import {
   loadSnapshot,
   revertToSnapshot,
   pruneSnapshots,
-  markAsDeleted,
+
 } from "../useHistoryOperations";
 
 const DOC_PATH = "/docs/test.md";
@@ -817,34 +817,3 @@ describe("pruneSnapshots", () => {
   });
 });
 
-describe("markAsDeleted", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-    fileStore.clear();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("no-ops when no history exists", async () => {
-    await markAsDeleted(DOC_PATH);
-    expect(mockWriteTextFile).not.toHaveBeenCalled();
-  });
-
-  it("sets status to deleted and records deletedAt timestamp", async () => {
-    const now = 1700000000000;
-    vi.setSystemTime(now);
-
-    seedIndex([
-      { id: "snap-1", timestamp: 1000, type: "auto", size: 10, preview: "a" },
-    ]);
-
-    await markAsDeleted(DOC_PATH);
-
-    const writtenIndex = getLastWrittenIndex();
-    expect(writtenIndex.status).toBe("deleted");
-    expect(writtenIndex.deletedAt).toBe(now);
-  });
-});

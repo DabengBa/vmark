@@ -81,7 +81,7 @@ describe("vmarkHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-2",
         success: false,
-        error: "latex is required",
+        error: "Missing or invalid 'latex' (expected string, got undefined)",
       });
     });
 
@@ -120,7 +120,7 @@ describe("vmarkHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-5",
         success: false,
-        error: "latex is required",
+        error: "Missing or invalid 'latex' (expected string, got undefined)",
       });
     });
 
@@ -186,7 +186,7 @@ describe("vmarkHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-7",
         success: false,
-        error: "code is required",
+        error: "Missing or invalid 'code' (expected string, got undefined)",
       });
     });
   });
@@ -242,7 +242,7 @@ describe("vmarkHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-11",
         success: false,
-        error: "target is required",
+        error: "Missing or invalid 'target' (expected string, got undefined)",
       });
     });
 

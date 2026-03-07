@@ -12,6 +12,7 @@
 import { respond, getEditor } from "./utils";
 import { validateBaseRevision, getCurrentRevision } from "./revisionTracker";
 import { sanitizeMediaHtml } from "@/utils/sanitize";
+import { requireString } from "./validateArgs";
 
 /**
  * Handle insertMedia request — inserts media HTML at cursor or end of document.
@@ -21,12 +22,8 @@ export async function handleInsertMedia(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const baseRevision = args.baseRevision as string;
-    const mediaHtml = args.mediaHtml as string;
-
-    if (!mediaHtml || typeof mediaHtml !== "string") {
-      throw new Error("mediaHtml is required and must be a string");
-    }
+    const baseRevision = requireString(args, "baseRevision");
+    const mediaHtml = requireString(args, "mediaHtml");
 
     // Only allow a single expected media tag — reject arbitrary or appended HTML.
     // Patterns match: opening tag … closing tag, with nothing after the close.

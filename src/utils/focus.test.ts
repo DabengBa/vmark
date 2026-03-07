@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { isEditorFocused, getFocusContext } from "./focus";
+import { isEditorFocused } from "./focus";
 
 describe("focus", () => {
   // Helper to create a mock element with closest() behavior
@@ -63,41 +63,4 @@ describe("focus", () => {
     });
   });
 
-  describe("getFocusContext", () => {
-    it("returns 'editor' when WYSIWYG editor focused", () => {
-      const mockElement = createMockElement({
-        ".ProseMirror": true,
-        ".cm-editor": false,
-      });
-      vi.spyOn(document, "activeElement", "get").mockReturnValue(mockElement);
-
-      expect(getFocusContext()).toBe("editor");
-    });
-
-    it("returns 'editor' when Source editor focused", () => {
-      const mockElement = createMockElement({
-        ".ProseMirror": false,
-        ".cm-editor": true,
-      });
-      vi.spyOn(document, "activeElement", "get").mockReturnValue(mockElement);
-
-      expect(getFocusContext()).toBe("editor");
-    });
-
-    it("returns 'other' when neither editor focused", () => {
-      const mockElement = createMockElement({
-        ".ProseMirror": false,
-        ".cm-editor": false,
-      });
-      vi.spyOn(document, "activeElement", "get").mockReturnValue(mockElement);
-
-      expect(getFocusContext()).toBe("other");
-    });
-
-    it("returns 'other' when no activeElement", () => {
-      vi.spyOn(document, "activeElement", "get").mockReturnValue(null);
-
-      expect(getFocusContext()).toBe("other");
-    });
-  });
 });

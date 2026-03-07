@@ -96,7 +96,7 @@ describe("mediaHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-4",
         success: false,
-        error: "mediaHtml is required and must be a string",
+        error: expect.stringContaining("Missing or invalid"),
       });
     });
 
@@ -109,7 +109,7 @@ describe("mediaHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-5",
         success: false,
-        error: "mediaHtml is required and must be a string",
+        error: expect.stringContaining("Missing or invalid"),
       });
     });
 

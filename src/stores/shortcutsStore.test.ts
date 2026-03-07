@@ -10,7 +10,7 @@ import {
   DEFAULT_SHORTCUTS,
   CATEGORY_ORDER,
   CATEGORY_LABELS,
-  getShortcutsByCategory,
+
   formatKeyForDisplay,
   prosemirrorToTauri,
 } from "./shortcutsStore";
@@ -306,19 +306,6 @@ describe("shortcutsStore", () => {
     it("returns undefined for unknown ID", () => {
       const { getDefinition } = useShortcutsStore.getState();
       expect(getDefinition("nonexistent")).toBeUndefined();
-    });
-  });
-
-  describe("getShortcutsByCategory", () => {
-    it("returns shortcuts for category", () => {
-      const formatting = getShortcutsByCategory("formatting");
-      expect(formatting.length).toBeGreaterThan(0);
-      expect(formatting.every((s) => s.category === "formatting")).toBe(true);
-    });
-
-    it("returns empty array for invalid category", () => {
-      const result = getShortcutsByCategory("nonexistent" as never);
-      expect(result).toEqual([]);
     });
   });
 

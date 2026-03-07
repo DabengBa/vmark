@@ -192,7 +192,7 @@ describe("formatHandlers", () => {
       expect(respond).toHaveBeenCalledWith({
         id: "req-11",
         success: false,
-        error: "href must be a string",
+        error: expect.stringContaining("Missing or invalid 'href'"),
       });
     });
 
@@ -205,7 +205,7 @@ describe("formatHandlers", () => {
       expect(respond).toHaveBeenCalledWith({
         id: "req-12",
         success: false,
-        error: "href must be a string",
+        error: expect.stringContaining("Missing or invalid 'href'"),
       });
     });
 

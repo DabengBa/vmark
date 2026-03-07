@@ -9,6 +9,7 @@
 
 import { convertSelectionToTaskList } from "@/plugins/taskToggle/tiptapTaskListUtils";
 import { respond, getEditor } from "./utils";
+import { requireString, optionalNumber, optionalString } from "./validateArgs";
 
 /**
  * Handle block.setType request.
@@ -22,9 +23,9 @@ export async function handleBlockSetType(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const blockType = args.blockType as string;
-    const level = args.level as number | undefined;
-    const language = args.language as string | undefined;
+    const blockType = requireString(args, "blockType");
+    const level = optionalNumber(args, "level");
+    const language = optionalString(args, "language");
 
     switch (blockType) {
       case "paragraph":
@@ -68,7 +69,7 @@ export async function handleListToggle(
     const editor = getEditor();
     if (!editor) throw new Error("No active editor");
 
-    const listType = args.listType as string;
+    const listType = requireString(args, "listType");
 
     switch (listType) {
       case "bullet":

@@ -332,25 +332,6 @@ export async function pruneSnapshots(documentPath: string): Promise<void> {
 }
 
 /**
- * Mark a document as deleted (preserves history for recovery)
- */
-export async function markAsDeleted(documentPath: string): Promise<void> {
-  try {
-    const index = await getHistoryIndex(documentPath);
-    if (!index) return;
-
-    index.status = "deleted";
-    index.deletedAt = Date.now();
-    await saveHistoryIndex(documentPath, index);
-
-    historyLog("Marked as deleted:", documentPath);
-  } catch (error) {
-    /* v8 ignore next -- @preserve reason: catch only fires on Tauri filesystem errors; not reproducible in mocked tests */
-    console.error("[History] Failed to mark as deleted:", error);
-  }
-}
-
-/**
  * Delete a single snapshot from a document's history
  */
 export async function deleteSnapshot(

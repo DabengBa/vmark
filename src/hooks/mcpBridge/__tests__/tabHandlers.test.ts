@@ -100,7 +100,17 @@ describe("tabHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-4",
         success: false,
-        error: "tabId is required",
+        error: "Missing or invalid 'tabId' (expected string, got undefined)",
+      });
+    });
+
+    it("returns error for wrong-type tabId", async () => {
+      await handleTabsSwitch("req-4b", { tabId: 123 });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-4b",
+        success: false,
+        error: "Missing or invalid 'tabId' (expected string, got number)",
       });
     });
 
@@ -423,6 +433,38 @@ describe("tabHandlers", () => {
         id: "req-ne-ro",
         success: false,
         error: "0",
+      });
+    });
+  });
+
+  describe("validated arg extraction — wrong-type windowId", () => {
+    it("returns error when windowId is a number", async () => {
+      await handleTabsList("req-wt-1", { windowId: 42 });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-wt-1",
+        success: false,
+        error: "Invalid 'windowId' (expected string, got number)",
+      });
+    });
+
+    it("returns error in handleTabsClose when tabId is a number", async () => {
+      await handleTabsClose("req-wt-2", { tabId: 99 });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-wt-2",
+        success: false,
+        error: "Invalid 'tabId' (expected string, got number)",
+      });
+    });
+
+    it("returns error in handleTabsGetInfo when tabId is a boolean", async () => {
+      await handleTabsGetInfo("req-wt-3", { tabId: true });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-wt-3",
+        success: false,
+        error: "Invalid 'tabId' (expected string, got boolean)",
       });
     });
   });

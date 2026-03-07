@@ -27,15 +27,6 @@ export interface HistoryIndex {
   settings: HistorySettings;
 }
 
-export interface DeletedDocument {
-  pathHash: string;
-  documentName: string;
-  lastPath: string;
-  deletedAt: number;
-  snapshotCount: number;
-  latestPreview: string;
-}
-
 export interface HistorySettings {
   maxSnapshots: number;
   maxAgeDays: number;

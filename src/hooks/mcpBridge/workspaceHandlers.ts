@@ -18,6 +18,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { getFileName } from "@/utils/paths";
 import { reloadTabFromDisk } from "@/utils/reloadFromDisk";
 import { respond, getEditor, resolveWindowId } from "./utils";
+import { requireString, optionalString, booleanWithDefault } from "./validateArgs";
 
 /**
  * Handle windows.list request.
@@ -75,13 +76,10 @@ export async function handleWindowsFocus(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const windowId = args.windowId as string;
-    if (!windowId) {
-      throw new Error("windowId is required");
-    }
+    requireString(args, "windowId");
 
     // For now, VMark is single-window, so we just focus the current window
-    // In the future, this could use WebviewWindow.getByLabel(windowId)
+    // In the future, this could use WebviewWindow.getByLabel(_windowId)
     const currentWindow = getCurrentWindow();
     await currentWindow.setFocus();
 
@@ -127,10 +125,7 @@ export async function handleWorkspaceOpenDocument(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const path = args.path as string;
-    if (!path) {
-      throw new Error("path is required");
-    }
+    const path = requireString(args, "path");
 
     // Read file content
     const content = await readTextFile(path);
@@ -195,7 +190,7 @@ export async function handleWorkspaceCloseWindow(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const windowId = resolveWindowId(args.windowId as string | undefined);
+    const windowId = resolveWindowId(optionalString(args, "windowId"));
     const tabStore = useTabStore.getState();
     const activeTabId = tabStore.activeTabId[windowId];
 
@@ -222,10 +217,7 @@ export async function handleWorkspaceSaveDocumentAs(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const path = args.path as string;
-    if (!path) {
-      throw new Error("path is required");
-    }
+    const path = requireString(args, "path");
 
     const tabStore = useTabStore.getState();
     const docStore = useDocumentStore.getState();
@@ -268,7 +260,7 @@ export async function handleWorkspaceGetDocumentInfo(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const windowId = resolveWindowId(args.windowId as string | undefined);
+    const windowId = resolveWindowId(optionalString(args, "windowId"));
     const tabStore = useTabStore.getState();
     const docStore = useDocumentStore.getState();
     const activeTabId = tabStore.activeTabId[windowId];
@@ -376,7 +368,7 @@ export async function handleWorkspaceReloadDocument(
   args: Record<string, unknown>
 ): Promise<void> {
   try {
-    const windowId = resolveWindowId(args.windowId as string | undefined);
+    const windowId = resolveWindowId(optionalString(args, "windowId"));
     const tabStore = useTabStore.getState();
     const docStore = useDocumentStore.getState();
     const activeTabId = tabStore.activeTabId[windowId];
@@ -391,7 +383,7 @@ export async function handleWorkspaceReloadDocument(
     }
 
     // Guard: refuse to discard unsaved changes unless force=true
-    const force = (args.force as boolean) ?? false;
+    const force = booleanWithDefault(args, "force", false);
     if (doc.isDirty && !force) {
       throw new Error(
         "Document has unsaved changes. Save first with workspace_save_document, " +

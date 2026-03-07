@@ -125,7 +125,7 @@ describe("documentHandlers", () => {
       expect(mockRespond).toHaveBeenCalledWith({
         id: "req-5",
         success: false,
-        error: "query must be a string",
+        error: expect.stringContaining("Missing or invalid 'query'"),
       });
     });
 
