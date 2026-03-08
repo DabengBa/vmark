@@ -26,15 +26,38 @@ vi.mock("@/utils/pathUtils", () => ({
   joinPath: (...parts: string[]) => parts.join("/"),
 }));
 
-import { exportViaPandoc } from "./pandocExport";
+import { exportViaPandoc, PANDOC_FORMAT_KEYS } from "./pandocExport";
+
+describe("PANDOC_FORMAT_KEYS", () => {
+  it("contains all expected formats", () => {
+    expect(PANDOC_FORMAT_KEYS).toEqual(["docx", "epub", "latex", "odt", "rtf", "txt"]);
+  });
+
+  it("all keys resolve to valid format metadata", async () => {
+    for (const key of PANDOC_FORMAT_KEYS) {
+      mockInvoke.mockResolvedValueOnce({ available: true, path: "/usr/local/bin/pandoc", version: "3.1.2" });
+      mockSave.mockResolvedValueOnce(null);
+      // Should not throw "Unknown export format"
+      await exportViaPandoc({ markdown: "content", format: key });
+      expect(mockToast.error).not.toHaveBeenCalledWith(`Unknown export format: ${key}`);
+      vi.clearAllMocks();
+    }
+  });
+});
 
 describe("exportViaPandoc", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  it("shows error toast for unknown format", async () => {
+    const result = await exportViaPandoc({ markdown: "# Hello", format: "xyz" });
+    expect(result).toBe(false);
+    expect(mockToast.error).toHaveBeenCalledWith("Unknown export format: xyz");
+  });
+
   it("shows error toast when content is empty", async () => {
-    const result = await exportViaPandoc({ markdown: "   " });
+    const result = await exportViaPandoc({ markdown: "   ", format: "docx" });
     expect(result).toBe(false);
     expect(mockToast.error).toHaveBeenCalledWith("No content to export!");
     expect(mockInvoke).not.toHaveBeenCalled();
@@ -47,7 +70,7 @@ describe("exportViaPandoc", () => {
       version: null,
     });
 
-    const result = await exportViaPandoc({ markdown: "# Hello" });
+    const result = await exportViaPandoc({ markdown: "# Hello", format: "docx" });
     expect(result).toBe(false);
     expect(mockInvoke).toHaveBeenCalledWith("detect_pandoc");
     expect(mockToast.error).toHaveBeenCalledWith(
@@ -64,14 +87,12 @@ describe("exportViaPandoc", () => {
     });
     mockSave.mockResolvedValueOnce(null);
 
-    const result = await exportViaPandoc({ markdown: "# Hello" });
+    const result = await exportViaPandoc({ markdown: "# Hello", format: "docx" });
     expect(result).toBe(false);
     expect(mockSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Export via Pandoc",
-        filters: expect.arrayContaining([
-          expect.objectContaining({ name: "Word Document", extensions: ["docx"] }),
-        ]),
+        title: "Export Word Document",
+        filters: [{ name: "Word Document", extensions: ["docx"] }],
       })
     );
   });
@@ -83,10 +104,10 @@ describe("exportViaPandoc", () => {
         path: "/usr/local/bin/pandoc",
         version: "3.1.2",
       })
-      .mockResolvedValueOnce(undefined); // export_via_pandoc succeeds
+      .mockResolvedValueOnce(undefined);
     mockSave.mockResolvedValueOnce("/tmp/output.docx");
 
-    const result = await exportViaPandoc({ markdown: "# Hello World" });
+    const result = await exportViaPandoc({ markdown: "# Hello World", format: "docx" });
     expect(result).toBe(true);
     expect(mockInvoke).toHaveBeenCalledWith("export_via_pandoc", {
       markdown: "# Hello World",
@@ -94,6 +115,24 @@ describe("exportViaPandoc", () => {
       sourceDir: null,
     });
     expect(mockToast.success).toHaveBeenCalledWith("Exported successfully");
+  });
+
+  it("uses correct extension for each format", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      available: true,
+      path: "/usr/local/bin/pandoc",
+      version: "3.1.2",
+    });
+    mockSave.mockResolvedValueOnce(null);
+
+    await exportViaPandoc({ markdown: "content", format: "latex" });
+    expect(mockSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Export LaTeX",
+        defaultPath: "document.tex",
+        filters: [{ name: "LaTeX", extensions: ["tex"] }],
+      })
+    );
   });
 
   it("shows error toast when Pandoc command fails", async () => {
@@ -106,7 +145,7 @@ describe("exportViaPandoc", () => {
       .mockRejectedValueOnce("Unknown output format");
     mockSave.mockResolvedValueOnce("/tmp/output.xyz");
 
-    const result = await exportViaPandoc({ markdown: "# Hello" });
+    const result = await exportViaPandoc({ markdown: "# Hello", format: "docx" });
     expect(result).toBe(false);
     expect(mockToast.error).toHaveBeenCalledWith(
       expect.stringContaining("Pandoc export failed")
@@ -116,7 +155,7 @@ describe("exportViaPandoc", () => {
   it("shows error toast when detection invoke rejects", async () => {
     mockInvoke.mockRejectedValueOnce(new Error("IPC error"));
 
-    const result = await exportViaPandoc({ markdown: "# Hello" });
+    const result = await exportViaPandoc({ markdown: "# Hello", format: "docx" });
     expect(result).toBe(false);
     expect(mockToast.error).toHaveBeenCalledWith(
       expect.stringContaining("Pandoc export failed")
@@ -135,6 +174,7 @@ describe("exportViaPandoc", () => {
 
     await exportViaPandoc({
       markdown: "content",
+      format: "epub",
       sourceDirectory: "/Users/test/docs",
     });
 
@@ -155,6 +195,7 @@ describe("exportViaPandoc", () => {
 
     await exportViaPandoc({
       markdown: "content",
+      format: "docx",
       defaultName: "My Doc",
       defaultDirectory: "/Users/test/docs",
     });

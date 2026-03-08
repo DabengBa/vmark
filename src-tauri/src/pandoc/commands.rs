@@ -30,36 +30,12 @@ pub struct PandocInfo {
 /// Detect whether Pandoc is installed and return its absolute path + version.
 #[command]
 pub fn detect_pandoc() -> PandocInfo {
-    let which_cmd = if cfg!(target_os = "windows") {
-        "where"
-    } else {
-        "which"
+    let path = match resolve_pandoc_path() {
+        Some(p) => p,
+        None => return PandocInfo { available: false, path: None, version: None },
     };
 
-    let path = match std::process::Command::new(which_cmd)
-        .arg("pandoc")
-        .env("PATH", login_shell_path())
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            let raw = String::from_utf8_lossy(&output.stdout);
-            let p = raw.lines().next().unwrap_or("").trim().to_string();
-            if p.is_empty() { None } else { Some(p) }
-        }
-        _ => None,
-    };
-
-    if path.is_none() {
-        return PandocInfo {
-            available: false,
-            path: None,
-            version: None,
-        };
-    }
-
-    // Get version using the resolved absolute path
-    let pandoc_exe = path.as_deref().unwrap_or("pandoc");
-    let version = match build_command(pandoc_exe, &["--version"])
+    let version = match build_command(&path, &["--version"])
         .env("PATH", login_shell_path())
         .output()
     {
@@ -76,7 +52,7 @@ pub fn detect_pandoc() -> PandocInfo {
 
     PandocInfo {
         available: true,
-        path,
+        path: Some(path),
         version,
     }
 }
@@ -121,7 +97,7 @@ pub async fn export_via_pandoc(
 }
 
 /// Resolve the absolute path to the Pandoc executable.
-fn resolve_pandoc_path() -> Option<String> {
+pub(crate) fn resolve_pandoc_path() -> Option<String> {
     let which_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
 
     let output = std::process::Command::new(which_cmd)

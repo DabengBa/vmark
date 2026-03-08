@@ -1,13 +1,17 @@
 /**
  * Files & Images Settings Section
  *
- * File browser, auto-save, document history, and image configuration.
+ * File browser, auto-save, document history, image configuration,
+ * and document export tools (Pandoc).
  */
 
+import { useState, useEffect, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { SettingRow, SettingsGroup, Toggle, Select } from "./components";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useSettingsStore, type ImageAutoResizeOption } from "@/stores/settingsStore";
 import { updateWorkspaceConfig } from "@/hooks/workspaceConfig";
+import { RefreshCw, ExternalLink } from "lucide-react";
 
 const autoResizeOptions: { value: string; label: string }[] = [
   { value: "0", label: "Off" },
@@ -225,6 +229,117 @@ export function FilesImagesSettings() {
           />
         </SettingRow>
       </SettingsGroup>
+
+      {/* Document Tools */}
+      <DocumentToolsSettings />
     </div>
+  );
+}
+
+// ============================================================================
+// Document Tools Settings (Pandoc)
+// ============================================================================
+
+interface PandocInfo {
+  available: boolean;
+  path: string | null;
+  version: string | null;
+}
+
+function DocumentToolsSettings() {
+  const [pandoc, setPandoc] = useState<PandocInfo | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  const detect = useCallback(async () => {
+    setDetecting(true);
+    setDetectError(null);
+    try {
+      const info = await invoke<PandocInfo>("detect_pandoc");
+      if (mountedRef.current) setPandoc(info);
+    } catch (err) {
+      if (mountedRef.current) {
+        setPandoc(null);
+        setDetectError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      if (mountedRef.current) setDetecting(false);
+    }
+  }, []);
+
+  // Auto-detect on mount
+  useEffect(() => {
+    detect();
+    return () => { mountedRef.current = false; };
+  }, [detect]);
+
+  return (
+    <SettingsGroup title="Document Tools">
+      <SettingRow
+        label="Pandoc"
+        description="Universal document converter — enables Export → Other Formats"
+      >
+        <div className="flex items-center gap-3">
+          {pandoc && (
+            <span
+              className={`text-xs ${
+                pandoc.available
+                  ? "text-[var(--success-color)]"
+                  : "text-[var(--text-tertiary)]"
+              }`}
+            >
+              {pandoc.available
+                ? `v${pandoc.version ?? "unknown"}`
+                : "Not found"}
+            </span>
+          )}
+          <button
+            onClick={detect}
+            disabled={detecting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+              bg-[var(--bg-tertiary)] text-[var(--text-secondary)]
+              hover:bg-[var(--hover-bg-strong)] hover:text-[var(--text-color)]
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-colors"
+          >
+            <RefreshCw size={12} className={detecting ? "animate-spin" : ""} />
+            Detect
+          </button>
+        </div>
+      </SettingRow>
+
+      {detectError && (
+        <div className="text-xs text-[var(--error-color)] mt-1 px-1">
+          Detection failed: {detectError}
+        </div>
+      )}
+
+      {pandoc && !pandoc.available && (
+        <div className="text-xs text-[var(--text-tertiary)] mt-1 px-1">
+          Install Pandoc to export to DOCX, EPUB, LaTeX, and more.{" "}
+          <a
+            href="https://pandoc.org/installing.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--primary-color)] hover:underline inline-flex items-center gap-0.5"
+          >
+            Installation guide
+            <ExternalLink size={10} />
+          </a>
+        </div>
+      )}
+
+      {pandoc?.available && pandoc.path && (
+        <div className="mt-2 px-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--text-tertiary)]">Path</span>
+            <code className="text-[var(--text-secondary)] font-mono text-[11px]">
+              {pandoc.path}
+            </code>
+          </div>
+        </div>
+      )}
+    </SettingsGroup>
   );
 }
