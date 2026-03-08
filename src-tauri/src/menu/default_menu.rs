@@ -5,7 +5,7 @@
 //!
 //! @coordinates-with `custom_menu.rs` (must mirror structure changes)
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 
 use super::{RECENT_FILES_SUBMENU_ID, RECENT_WORKSPACES_SUBMENU_ID};
 
@@ -81,7 +81,22 @@ pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[
             &MenuItem::with_id(app, "export-html", "HTML...", true, None::<&str>)?,
             &MenuItem::with_id(app, "export-pdf-native", "PDF...", true, None::<&str>)?,
-            &MenuItem::with_id(app, "export-pandoc", "Pandoc...", true, None::<&str>)?,
+            &{
+                let mut items: Vec<Box<dyn IsMenuItem<tauri::Wry>>> = vec![
+                    Box::new(MenuItem::with_id(app, "export-pandoc-docx", "Word (.docx)...", true, None::<&str>)?),
+                    Box::new(MenuItem::with_id(app, "export-pandoc-epub", "EPUB (.epub)...", true, None::<&str>)?),
+                    Box::new(MenuItem::with_id(app, "export-pandoc-latex", "LaTeX (.tex)...", true, None::<&str>)?),
+                    Box::new(MenuItem::with_id(app, "export-pandoc-odt", "OpenDocument (.odt)...", true, None::<&str>)?),
+                    Box::new(MenuItem::with_id(app, "export-pandoc-rtf", "Rich Text (.rtf)...", true, None::<&str>)?),
+                    Box::new(MenuItem::with_id(app, "export-pandoc-txt", "Plain Text (.txt)...", true, None::<&str>)?),
+                ];
+                if crate::pandoc::commands::resolve_pandoc_path().is_none() {
+                    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+                    items.push(Box::new(MenuItem::with_id(app, "export-pandoc-hint", "Requires Pandoc — pandoc.org", true, None::<&str>)?));
+                }
+                let refs: Vec<&dyn IsMenuItem<tauri::Wry>> = items.iter().map(|i| &**i).collect();
+                Submenu::with_items(app, "Other Formats", true, &refs)?
+            },
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "copy-html", "Copy as HTML", true, Some("CmdOrCtrl+Shift+C"))?,
         ],

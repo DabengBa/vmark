@@ -47,18 +47,20 @@ All images are embedded as data URIs, making it completely portable but larger i
 1. Press `Cmd/Ctrl + P` or use **File → Print**
 2. Use the system print dialog to print or save as PDF
 
-### Export via Pandoc
+### Export to Other Formats
 
-VMark integrates with [Pandoc](https://pandoc.org/) — a universal document converter — to export your markdown to additional formats:
+VMark integrates with [Pandoc](https://pandoc.org/) — a universal document converter — to export your markdown to additional formats. Choose a format directly from the menu:
 
-| Format | Extension |
-|--------|-----------|
-| Word | `.docx` |
-| EPUB | `.epub` |
-| LaTeX | `.tex` |
-| OpenDocument | `.odt` |
-| Rich Text | `.rtf` |
-| Plain Text | `.txt` |
+**File → Export → Other Formats →**
+
+| Menu Item | Extension |
+|-----------|-----------|
+| Word (.docx) | `.docx` |
+| EPUB (.epub) | `.epub` |
+| LaTeX (.tex) | `.tex` |
+| OpenDocument (.odt) | `.odt` |
+| Rich Text (.rtf) | `.rtf` |
+| Plain Text (.txt) | `.txt` |
 
 **Setup:**
 
@@ -66,10 +68,12 @@ VMark integrates with [Pandoc](https://pandoc.org/) — a universal document con
    - macOS: `brew install pandoc`
    - Windows: `winget install pandoc`
    - Linux: `apt install pandoc`
-2. Restart VMark (or go to **Settings → Integrations** and click **Detect**)
-3. Use **File → Export → Pandoc...** to export
+2. Restart VMark (or go to **Settings → Files & Images → Document Tools** and click **Detect**)
+3. Use **File → Export → Other Formats → [format]** to export
 
-You can verify Pandoc is detected in **Settings → Integrations → Document Tools**.
+If Pandoc is not installed, the menu shows a **"Requires Pandoc — pandoc.org"** link at the bottom of the Other Formats submenu.
+
+You can verify Pandoc is detected in **Settings → Files & Images → Document Tools**.
 
 ### Copy as HTML
 

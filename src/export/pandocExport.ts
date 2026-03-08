@@ -4,9 +4,9 @@
  * Purpose: Export markdown to various formats (DOCX, EPUB, LaTeX, ODT, RTF,
  *   plain text) via the Pandoc CLI tool. Pandoc must be installed separately.
  *
- * Pipeline: detect_pandoc → save dialog (format picker) → export_via_pandoc
+ * Pipeline: menu:export-pandoc-{fmt} → detect_pandoc → save dialog → export_via_pandoc
  *
- * @coordinates-with useExportMenuEvents.ts — called from menu:export-pandoc
+ * @coordinates-with useExportMenuEvents.ts — called from menu:export-pandoc-{fmt} events
  * @coordinates-with pandoc/commands.rs — Rust backend for Pandoc execution
  * @module export/pandocExport
  */
@@ -24,39 +24,47 @@ interface PandocInfo {
   version: string | null;
 }
 
-/** Supported Pandoc export formats with dialog filter metadata. */
-const PANDOC_FORMATS = [
-  { name: "Word Document", extensions: ["docx"] },
-  { name: "EPUB", extensions: ["epub"] },
-  { name: "LaTeX", extensions: ["tex"] },
-  { name: "OpenDocument Text", extensions: ["odt"] },
-  { name: "Rich Text Format", extensions: ["rtf"] },
-  { name: "Plain Text", extensions: ["txt"] },
-] as const;
+/** Maps format key to display name and file extension. */
+export const PANDOC_FORMAT_KEYS = ["docx", "epub", "latex", "odt", "rtf", "txt"] as const;
+export type PandocFormatKey = (typeof PANDOC_FORMAT_KEYS)[number];
+
+const FORMAT_META: Record<PandocFormatKey, { name: string; ext: string }> = {
+  docx:  { name: "Word Document", ext: "docx" },
+  epub:  { name: "EPUB", ext: "epub" },
+  latex: { name: "LaTeX", ext: "tex" },
+  odt:   { name: "OpenDocument Text", ext: "odt" },
+  rtf:   { name: "Rich Text Format", ext: "rtf" },
+  txt:   { name: "Plain Text", ext: "txt" },
+};
 
 /**
- * Export markdown via Pandoc.
+ * Export markdown via Pandoc in a specific format.
  *
  * 1. Checks if Pandoc is installed.
- * 2. Shows a save dialog with format filters.
+ * 2. Shows a save dialog for the chosen format.
  * 3. Invokes the Rust command to pipe markdown through Pandoc.
  */
 export async function exportViaPandoc(options: {
   markdown: string;
+  format: string;
   defaultName?: string;
   defaultDirectory?: string;
   sourceDirectory?: string;
 }): Promise<boolean> {
-  const { markdown, defaultName = "document", defaultDirectory, sourceDirectory } = options;
+  const { markdown, format, defaultName = "document", defaultDirectory, sourceDirectory } = options;
 
-  // Check for empty content
+  const meta = FORMAT_META[format as PandocFormatKey];
+  if (!meta) {
+    toast.error(`Unknown export format: ${format}`);
+    return false;
+  }
+
   if (!markdown.trim()) {
     toast.error("No content to export!");
     return false;
   }
 
   try {
-    // Detect Pandoc (inside try/catch so detection failures show toast)
     const info: PandocInfo = await invoke("detect_pandoc");
 
     if (!info.available) {
@@ -66,23 +74,19 @@ export async function exportViaPandoc(options: {
       return false;
     }
 
-    // Build combined filter for save dialog
+    const fileName = `${defaultName}.${meta.ext}`;
     const defaultPath = defaultDirectory
-      ? joinPath(defaultDirectory, `${defaultName}.docx`)
-      : `${defaultName}.docx`;
+      ? joinPath(defaultDirectory, fileName)
+      : fileName;
 
     const selectedPath = await save({
       defaultPath,
-      title: "Export via Pandoc",
-      filters: PANDOC_FORMATS.map((f) => ({
-        name: f.name,
-        extensions: [...f.extensions],
-      })),
+      title: `Export ${meta.name}`,
+      filters: [{ name: meta.name, extensions: [meta.ext] }],
     });
 
     if (!selectedPath) return false;
 
-    // Export via Rust command
     await invoke("export_via_pandoc", {
       markdown,
       outputPath: selectedPath,

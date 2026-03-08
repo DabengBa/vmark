@@ -115,33 +115,46 @@ export function useExportMenuEvents(): void {
       if (cancelled) { unlistenExportPdfNative(); return; }
       unlistenRefs.current.push(unlistenExportPdfNative);
 
-      // Export via Pandoc (optional external tool)
-      const unlistenExportPandoc = await currentWindow.listen<string>("menu:export-pandoc", async (event) => {
-        if (event.payload !== windowLabel) return;
-        flushActiveWysiwygNow();
+      // Export via Pandoc — one listener per format (menu:export-pandoc-{ext})
+      const { PANDOC_FORMAT_KEYS } = await import("@/export/pandocExport");
+      for (const fmt of PANDOC_FORMAT_KEYS) {
+        const unlisten = await currentWindow.listen<string>(`menu:export-pandoc-${fmt}`, async (event) => {
+          if (event.payload !== windowLabel) return;
+          flushActiveWysiwygNow();
 
-        await withReentryGuard(windowLabel, "export", async () => {
-          const doc = getActiveDocument(windowLabel);
-          if (!doc) return;
-          const defaultName = getExportFolderName(doc.content, doc.filePath);
-          const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
-          try {
-            const { exportViaPandoc } = await import("@/export");
-            await exportViaPandoc({
-              markdown: doc.content,
-              defaultName,
-              defaultDirectory: defaultDir,
-              sourceDirectory: defaultDir,
-            });
-          } catch (error) {
-            console.error("[Menu] Failed to export via Pandoc:", error);
-            const { toast } = await import("sonner");
-            toast.error("Pandoc export failed");
-          }
+          await withReentryGuard(windowLabel, "export", async () => {
+            const doc = getActiveDocument(windowLabel);
+            if (!doc) return;
+            const defaultName = getExportFolderName(doc.content, doc.filePath);
+            const defaultDir = doc.filePath ? getDirectory(doc.filePath) : undefined;
+            try {
+              const { exportViaPandoc } = await import("@/export");
+              await exportViaPandoc({
+                markdown: doc.content,
+                format: fmt,
+                defaultName,
+                defaultDirectory: defaultDir,
+                sourceDirectory: defaultDir,
+              });
+            } catch (error) {
+              console.error(`[Menu] Failed to export via Pandoc (${fmt}):`, error);
+              const { toast } = await import("sonner");
+              toast.error("Pandoc export failed");
+            }
+          });
         });
+        if (cancelled) { unlisten(); return; }
+        unlistenRefs.current.push(unlisten);
+      }
+
+      // Pandoc hint — open pandoc.org when clicked
+      const unlistenPandocHint = await currentWindow.listen<string>("menu:export-pandoc-hint", async (event) => {
+        if (event.payload !== windowLabel) return;
+        const { openUrl } = await import("@tauri-apps/plugin-opener");
+        await openUrl("https://pandoc.org/installing.html");
       });
-      if (cancelled) { unlistenExportPandoc(); return; }
-      unlistenRefs.current.push(unlistenExportPandoc);
+      if (cancelled) { unlistenPandocHint(); return; }
+      unlistenRefs.current.push(unlistenPandocHint);
 
       const unlistenCopyHtml = await currentWindow.listen<string>("menu:copy-html", async (event) => {
         if (event.payload !== windowLabel) return;
