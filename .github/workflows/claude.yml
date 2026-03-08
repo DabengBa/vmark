@@ -24,11 +24,43 @@ permissions:
   id-token: write
 
 jobs:
+  # Auto-fix audit issues: read the issue, apply the fix, run gates, open a PR
+  audit-fix:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'issues' &&
+      contains(github.event.issue.labels.*.name, 'audit')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model opus"
+          direct_prompt: |
+            Fix the audit issue described in this GitHub issue.
+
+            1. Read issue #$ISSUE_NUMBER body with `gh issue view $ISSUE_NUMBER`
+            2. Apply the suggested fix
+            3. Run `pnpm install && pnpm check:all` to verify all gates pass
+            4. Create a PR that includes `Closes #$ISSUE_NUMBER` in the body
+            5. Enable auto-merge: `gh pr merge --auto --squash`
+
+            If the fix causes test failures, adjust until gates pass.
+
+  # General Claude Code: review issues, PRs, respond to @claude
   claude:
     runs-on: ubuntu-latest
-    # Skip bot comments to avoid infinite loops
-    if: |
-      (github.event_name == 'issues') ||
+    if: >-
+      (github.event_name == 'issues' && !contains(github.event.issue.labels.*.name, 'audit')) ||
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' && !github.event.comment.performed_via_github_app) ||
       (github.event_name == 'pull_request_review_comment' && !github.event.comment.performed_via_github_app)
@@ -47,4 +79,3 @@ jobs:
           # PR review: consolidate into one comment, add "Fix this" links
           use_sticky_comment: true
           include_fix_links: true
-
