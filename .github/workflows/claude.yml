@@ -27,6 +27,9 @@ jobs:
   # Auto-fix audit issues: read the issue, apply the fix, run gates, open a PR
   audit-fix:
     runs-on: ubuntu-latest
+    concurrency:
+      group: audit-fix
+      cancel-in-progress: false
     if: >-
       github.event_name == 'issues' &&
       contains(github.event.issue.labels.*.name, 'audit')
