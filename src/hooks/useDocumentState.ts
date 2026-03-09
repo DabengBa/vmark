@@ -152,8 +152,3 @@ export function useDocumentActions() {
     setCursorInfo,
   };
 }
-
-// Direct tab access for components that need specific tab
-export function useTabDocument(tabId: string | null) {
-  return useDocumentStore((state) => (tabId ? state.documents[tabId] : null) ?? null);
-}

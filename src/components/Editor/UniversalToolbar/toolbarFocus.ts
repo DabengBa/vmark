@@ -27,11 +27,3 @@ export function getInitialFocusIndex(options: FocusOptions): number {
   const index = states.findIndex((state) => !state.disabled);
   return index >= 0 ? index : -1;
 }
-
-/**
- * Check if any button is enabled.
- * Used to determine if toolbar should open at all.
- */
-export function hasAnyEnabledButton(states: ToolbarButtonState[]): boolean {
-  return states.some((state) => !state.disabled);
-}

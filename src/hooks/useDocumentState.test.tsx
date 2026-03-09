@@ -24,7 +24,6 @@ import {
   useDocumentCursorInfo,
   useDocumentLastAutoSave,
   useDocumentActions,
-  useTabDocument,
 } from "./useDocumentState";
 
 const WINDOW = "main";
@@ -430,28 +429,5 @@ describe("useDocumentState — undefined document fallbacks (lines 32-68, 86)", 
     // No initDocument
     const { result } = renderHook(() => useDocumentActions());
     expect(result.current.getContent()).toBe("");
-  });
-});
-
-describe("useTabDocument", () => {
-  beforeEach(resetStores);
-
-  it("returns null when tabId is null", () => {
-    const { result } = renderHook(() => useTabDocument(null));
-    expect(result.current).toBeNull();
-  });
-
-  it("returns null when tab has no document", () => {
-    const { result } = renderHook(() => useTabDocument("nonexistent"));
-    expect(result.current).toBeNull();
-  });
-
-  it("returns document state for a specific tab", () => {
-    const tabId = useTabStore.getState().createTab(WINDOW, null);
-    useDocumentStore.getState().initDocument(tabId, "# Hello", "/test.md");
-    const { result } = renderHook(() => useTabDocument(tabId));
-    expect(result.current).not.toBeNull();
-    expect(result.current?.content).toBe("# Hello");
-    expect(result.current?.filePath).toBe("/test.md");
   });
 });

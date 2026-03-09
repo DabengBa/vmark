@@ -159,13 +159,6 @@ export const footnotePopupWarn = isDev
   ? (...args: unknown[]) => console.warn("[FootnotePopup]", ...args)
   : () => {};
 
-/**
- * Debug logger for Link/Wiki Link Popup warnings.
- * Only logs in development mode.
- */
-export const linkPopupWarn = isDev
-  ? (...args: unknown[]) => console.warn("[LinkPopup]", ...args)
-  : () => {};
 
 /**
  * Debug logger for Media Popup warnings.

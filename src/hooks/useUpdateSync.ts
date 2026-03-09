@@ -56,7 +56,7 @@ export function useUpdateBroadcast() {
 
     if (prevJson !== currentJson) {
       prevState.current = currentState;
-      emit(UPDATE_STATE_EVENT, currentState);
+      emit(UPDATE_STATE_EVENT, currentState).catch(() => {});
     }
   }, [status, updateInfo, downloadProgress, error]);
 }
@@ -99,7 +99,7 @@ export function useUpdateListener() {
 
     // Small delay to ensure listeners are set up
     const timer = setTimeout(() => {
-      emit(REQUEST_STATE_EVENT);
+      emit(REQUEST_STATE_EVENT).catch(() => {});
     }, 100);
 
     return () => clearTimeout(timer);
