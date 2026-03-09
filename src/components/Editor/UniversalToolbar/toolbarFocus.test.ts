@@ -4,7 +4,7 @@
  * Tests for simple first-enabled focus algorithm.
  */
 import { describe, it, expect } from "vitest";
-import { getInitialFocusIndex, hasAnyEnabledButton } from "./toolbarFocus";
+import { getInitialFocusIndex } from "./toolbarFocus";
 
 // Helper to create button states
 function makeStates(disabled: boolean[]): { disabled: boolean; notImplemented: boolean; active: boolean }[] {
@@ -39,31 +39,5 @@ describe("getInitialFocusIndex", () => {
   it("returns last index when only last button is enabled", () => {
     const states = makeStates([true, true, false]);
     expect(getInitialFocusIndex({ states })).toBe(2);
-  });
-});
-
-describe("hasAnyEnabledButton", () => {
-  it("returns true when at least one button is enabled", () => {
-    const states = makeStates([true, false, true]);
-    expect(hasAnyEnabledButton(states)).toBe(true);
-  });
-
-  it("returns false when all buttons are disabled", () => {
-    const states = makeStates([true, true, true]);
-    expect(hasAnyEnabledButton(states)).toBe(false);
-  });
-
-  it("returns false for empty states", () => {
-    expect(hasAnyEnabledButton([])).toBe(false);
-  });
-
-  it("returns true when first button is enabled", () => {
-    const states = makeStates([false, true, true]);
-    expect(hasAnyEnabledButton(states)).toBe(true);
-  });
-
-  it("returns true when last button is enabled", () => {
-    const states = makeStates([true, true, false]);
-    expect(hasAnyEnabledButton(states)).toBe(true);
   });
 });

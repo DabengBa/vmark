@@ -29,7 +29,6 @@ import {
   imageHandlerWarn,
   smartPasteWarn,
   footnotePopupWarn,
-  linkPopupWarn,
   mediaPopupWarn,
   wysiwygAdapterWarn,
   diagramWarn,
@@ -96,7 +95,6 @@ const allLoggers = {
   imageHandlerWarn,
   smartPasteWarn,
   footnotePopupWarn,
-  linkPopupWarn,
   mediaPopupWarn,
   wysiwygAdapterWarn,
   diagramWarn,
@@ -152,7 +150,7 @@ describe("debug loggers — existence and type", () => {
   );
 
   it("exports all known loggers", () => {
-    expect(Object.keys(allLoggers).length).toBeGreaterThanOrEqual(60);
+    expect(Object.keys(allLoggers).length).toBeGreaterThanOrEqual(59);
   });
 });
 
@@ -186,7 +184,6 @@ describe("debug loggers — prefix conventions", () => {
     imageHandlerWarn:     { prefix: "[imageHandler]",        method: "warn" },
     smartPasteWarn:       { prefix: "[smartPaste]",          method: "warn" },
     footnotePopupWarn:    { prefix: "[FootnotePopup]",       method: "warn" },
-    linkPopupWarn:        { prefix: "[LinkPopup]",           method: "warn" },
     mediaPopupWarn:       { prefix: "[MediaPopup]",          method: "warn" },
     wysiwygAdapterWarn:   { prefix: "[wysiwygAdapter]",      method: "warn" },
     diagramWarn:          { prefix: "[Diagram]",             method: "warn" },
