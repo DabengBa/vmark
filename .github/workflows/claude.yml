@@ -47,9 +47,8 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           allowed_bots: "claude[bot]"
-          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,MultiEdit"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--model opus"
+          claude_args: "--model opus --allowedTools Bash Read Write Edit Glob Grep MultiEdit"
           prompt: |
             Fix the audit issue described in this GitHub issue.
 
