@@ -3,7 +3,7 @@ name: Claude Code
 on:
   # Auto-review new issues
   issues:
-    types: [opened]
+    types: [opened, reopened]
 
   # PR review on open/update
   pull_request:
