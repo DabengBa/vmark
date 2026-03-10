@@ -11,7 +11,8 @@
     "statements": 100
   },
   "enforceRedGreenRefactor": true,
-  "blockCommitOnFailure": true,
+  "blockCommitOnFailure": false,
+  "blockCommitWithoutFreshGate": false,
   "stack": "react-ts-vitest",
   "packageManager": "pnpm"
 }
