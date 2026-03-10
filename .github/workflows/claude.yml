@@ -42,6 +42,13 @@ jobs:
         with:
           node-version: 22
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Install dependencies
         run: npm install -g pnpm && pnpm install --frozen-lockfile
 
@@ -57,11 +64,12 @@ jobs:
 
             1. Read issue #$ISSUE_NUMBER body with `gh issue view $ISSUE_NUMBER`
             2. Apply the suggested fix
-            3. Run `pnpm check:all` to verify all gates pass
-            4. Create a PR that includes `Closes #$ISSUE_NUMBER` in the body
-            5. Enable auto-merge: `gh pr merge --auto --squash`
+            3. Run `pnpm check:all` to verify frontend gates pass
+            4. If the fix touches Rust code (src-tauri/), also run `cargo check --manifest-path src-tauri/Cargo.toml`
+            5. Create a PR that includes `Closes #$ISSUE_NUMBER` in the body
+            6. Enable auto-merge: `gh pr merge --auto --squash`
 
-            If the fix causes test failures, adjust until gates pass.
+            If the fix causes test or compilation failures, adjust until gates pass.
 
   # General Claude Code: review issues, PRs, respond to @claude
   claude:
