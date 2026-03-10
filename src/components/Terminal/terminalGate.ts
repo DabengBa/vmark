@@ -1,10 +1,23 @@
 import { toast } from "sonner";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useTabStore } from "@/stores/tabStore";
+import { useDocumentStore } from "@/stores/documentStore";
+import { getCurrentWindowLabel } from "@/utils/workspaceStorage";
 
 /** Pure check — testable without side effects. */
 export function canOpenTerminal(): boolean {
-  return useWorkspaceStore.getState().isWorkspaceMode;
+  if (useWorkspaceStore.getState().isWorkspaceMode) return true;
+
+  // Allow terminal when active tab has a saved file (use its parent dir as cwd)
+  const windowLabel = getCurrentWindowLabel();
+  const activeTabId = useTabStore.getState().activeTabId[windowLabel];
+  if (activeTabId) {
+    const doc = useDocumentStore.getState().getDocument(activeTabId);
+    if (doc?.filePath) return true;
+  }
+
+  return false;
 }
 
 /** Gate terminal toggle: show toast if no workspace when opening. */

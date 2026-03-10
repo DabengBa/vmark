@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useTabStore } from "@/stores/tabStore";
+import { useDocumentStore } from "@/stores/documentStore";
 
 // Mock sonner toast
 vi.mock("sonner", () => ({
   toast: { info: vi.fn() },
+}));
+
+const mockGetCurrentWindowLabel = vi.fn(() => "main");
+vi.mock("@/utils/workspaceStorage", () => ({
+  getCurrentWindowLabel: () => mockGetCurrentWindowLabel(),
 }));
 
 import { toast } from "sonner";
@@ -27,6 +34,22 @@ describe("canOpenTerminal", () => {
     useWorkspaceStore.setState({ isWorkspaceMode: true });
     expect(canOpenTerminal()).toBe(true);
   });
+
+  it("returns true when active tab has a saved file path", () => {
+    useWorkspaceStore.setState({ isWorkspaceMode: false });
+    const tabId = useTabStore.getState().createTab("main", "/docs/notes.md");
+    useTabStore.getState().setActiveTab("main", tabId);
+    useDocumentStore.getState().initDocument(tabId, "content", "/docs/notes.md");
+    expect(canOpenTerminal()).toBe(true);
+  });
+
+  it("returns false when active tab is untitled (no file path)", () => {
+    useWorkspaceStore.setState({ isWorkspaceMode: false });
+    const tabId = useTabStore.getState().createTab("main");
+    useTabStore.getState().setActiveTab("main", tabId);
+    useDocumentStore.getState().initDocument(tabId, "content");
+    expect(canOpenTerminal()).toBe(false);
+  });
 });
 
 describe("requestToggleTerminal", () => {
@@ -44,6 +67,19 @@ describe("requestToggleTerminal", () => {
 
   it("DOES toggle when opening with workspace", () => {
     useWorkspaceStore.setState({ isWorkspaceMode: true });
+    useUIStore.setState({ terminalVisible: false });
+
+    requestToggleTerminal();
+
+    expect(useUIStore.getState().terminalVisible).toBe(true);
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
+  it("DOES toggle when active tab has a saved file (no workspace)", () => {
+    useWorkspaceStore.setState({ isWorkspaceMode: false });
+    const tabId = useTabStore.getState().createTab("main", "/docs/notes.md");
+    useTabStore.getState().setActiveTab("main", tabId);
+    useDocumentStore.getState().initDocument(tabId, "content", "/docs/notes.md");
     useUIStore.setState({ terminalVisible: false });
 
     requestToggleTerminal();
