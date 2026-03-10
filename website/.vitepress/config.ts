@@ -49,6 +49,7 @@ export default withMermaid(defineConfig({
             { text: 'Integrated Terminal', link: '/guide/terminal' },
             { text: 'CJK Formatting', link: '/guide/cjk-formatting' },
             { text: 'Privacy', link: '/guide/privacy' },
+            { text: 'License', link: '/guide/license' },
           ]
         },
         {
@@ -77,7 +78,7 @@ export default withMermaid(defineConfig({
     },
 
     footer: {
-      copyright: 'Copyright © 2026 VMark'
+      copyright: 'Copyright © 2026 VMark · <a href="/guide/license">ISC License</a>'
     },
 
     search: {

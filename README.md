@@ -87,7 +87,7 @@ pnpm check:all        # Lint + test + build
 
 ## License
 
-Private - All rights reserved.
+[ISC License](LICENSE) — free to use, copy, modify, and distribute. See the [license page](https://vmark.app/guide/license) for details.
 
 ---
 

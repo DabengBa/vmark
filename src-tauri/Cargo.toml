@@ -3,6 +3,7 @@ name = "vmark"
 version = "0.5.30"
 description = "AI friendly markdown editor"
 authors = ["Xiaolai"]
+license = "ISC"
 edition = "2021"
 
 [lib]
