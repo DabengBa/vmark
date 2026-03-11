@@ -117,7 +117,6 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
     cursorBlink: settings.cursorBlink,
     allowProposedApi: true,
     scrollback: 5000,
-    overviewRuler: { width: 2 },
   });
 
   // Load addons
