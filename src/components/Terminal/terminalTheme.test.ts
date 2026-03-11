@@ -8,12 +8,33 @@ const mockGetState = vi.fn();
 vi.mock("@/stores/settingsStore", () => ({
   useSettingsStore: { getState: () => mockGetState() },
   themes: {
+    white: {
+      background: "#FFFFFF",
+      foreground: "#1a1a1a",
+      link: "#0066cc",
+      secondary: "#f8f8f8",
+      border: "#eeeeee",
+    },
     paper: {
       background: "#EEEDED",
       foreground: "#1a1a1a",
       link: "#0066cc",
       secondary: "#e5e4e4",
       border: "#d5d4d4",
+    },
+    mint: {
+      background: "#CCE6D0",
+      foreground: "#2d3a35",
+      link: "#1a6b4a",
+      secondary: "#b8d9bd",
+      border: "#a8c9ad",
+    },
+    sepia: {
+      background: "#F9F0DB",
+      foreground: "#5c4b37",
+      link: "#8b4513",
+      secondary: "#f0e5cc",
+      border: "#e0d5bc",
     },
     night: {
       background: "#23262b",
@@ -108,5 +129,55 @@ describe("terminalTheme", () => {
   it("falls back selection color when not set", () => {
     const theme = buildXtermThemeForId("paper" as ThemeId);
     expect(theme.selectionBackground).toBe("rgba(0,102,204,0.25)");
+  });
+
+  // WCAG AA contrast regression — every visible ANSI color must have ≥ 4.5:1
+  // contrast against its theme background. black/brightBlack are intentionally
+  // dim and excluded from the light-theme check; likewise white/brightWhite
+  // are excluded from dark-theme check.
+  describe("WCAG AA contrast (≥ 4.5:1)", () => {
+    function hexToSrgb(hex: string): [number, number, number] {
+      hex = hex.replace("#", "");
+      return [parseInt(hex.substr(0, 2), 16), parseInt(hex.substr(2, 2), 16), parseInt(hex.substr(4, 2), 16)];
+    }
+    function relativeLuminance(r: number, g: number, b: number): number {
+      const [rs, gs, bs] = [r, g, b].map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+    }
+    function contrastRatio(hex1: string, hex2: string): number {
+      const l1 = relativeLuminance(...hexToSrgb(hex1));
+      const l2 = relativeLuminance(...hexToSrgb(hex2));
+      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    }
+
+    const ansiColorKeys = [
+      "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+      "brightBlack", "brightRed", "brightGreen", "brightYellow",
+      "brightBlue", "brightMagenta", "brightCyan", "brightWhite",
+    ] as const;
+
+    // black/brightBlack are intentionally near-invisible on dark backgrounds
+    const darkExclude = new Set(["black", "brightBlack"]);
+
+    it.each(["white", "paper", "mint", "sepia"] as ThemeId[])("%s: all ANSI colors ≥ 4.5:1", (themeId) => {
+      const theme = buildXtermThemeForId(themeId);
+      const bg = theme.background!;
+      for (const key of ansiColorKeys) {
+        const color = theme[key] as string;
+        const ratio = contrastRatio(bg, color);
+        expect(ratio, `${key} (${color}) on ${bg} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it("night: all visible colors ≥ 4.5:1", () => {
+      const theme = buildXtermThemeForId("night" as ThemeId);
+      const bg = theme.background!;
+      for (const key of ansiColorKeys) {
+        if (darkExclude.has(key)) continue;
+        const color = theme[key] as string;
+        const ratio = contrastRatio(bg, color);
+        expect(ratio, `${key} (${color}) on ${bg} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
   });
 });
