@@ -68,16 +68,17 @@ export function TerminalTabBar({ onClose, onRestart, orientation = "vertical" }:
           onClick={handleCreate}
           disabled={isMaxed}
           title={isMaxed ? "Maximum 5 sessions" : "New Terminal"}
+          aria-label={isMaxed ? "Maximum 5 sessions" : "New Terminal"}
         >
           <Plus size={12} />
         </button>
       </div>
 
       <div className="terminal-tab-bar-actions">
-        <button className="terminal-tab-bar-btn" onClick={onClose} title="Close">
+        <button className="terminal-tab-bar-btn" onClick={onClose} title="Close" aria-label="Close">
           <Trash2 size={12} />
         </button>
-        <button className="terminal-tab-bar-btn" onClick={onRestart} title="Restart">
+        <button className="terminal-tab-bar-btn" onClick={onRestart} title="Restart" aria-label="Restart">
           <RotateCcw size={12} />
         </button>
       </div>

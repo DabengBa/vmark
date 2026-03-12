@@ -123,7 +123,8 @@ export function handleMultiCursorPaste(
   const normalized = normalizeRangesWithPrimary(
     newRanges,
     tr.doc,
-    selection.primaryIndex
+    selection.primaryIndex,
+    true
   );
 
   const newSel = new MultiSelection(normalized.ranges, normalized.primaryIndex);

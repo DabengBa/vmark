@@ -118,6 +118,7 @@ export function UpdateIndicator() {
       className={config.className}
       onClick={handleClick}
       title={title}
+      aria-label={title}
       style={{ cursor: config.clickable ? "pointer" : "default" }}
     >
       <Icon size={12} />

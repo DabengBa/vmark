@@ -171,6 +171,7 @@ export function FindBar() {
               className={`find-bar-toggle ${useRegex ? "active" : ""}`}
               onClick={handleToggleRegex}
               title="Use Regular Expression"
+              aria-label="Use Regular Expression"
             >
               <Regex size={16} />
             </button>
@@ -179,6 +180,7 @@ export function FindBar() {
             className={`find-bar-toggle ${caseSensitive ? "active" : ""}`}
             onClick={handleToggleCaseSensitive}
             title="Match Case"
+            aria-label="Match Case"
           >
             <CaseSensitive size={16} />
           </button>
@@ -186,6 +188,7 @@ export function FindBar() {
             className={`find-bar-toggle ${wholeWord ? "active" : ""}`}
             onClick={handleToggleWholeWord}
             title="Whole Word"
+            aria-label="Whole Word"
           >
             <WholeWord size={16} />
           </button>
@@ -214,6 +217,7 @@ export function FindBar() {
             onClick={handleFindPrevious}
             disabled={matchCount === 0}
             title="Previous (Shift+Enter)"
+            aria-label="Previous (Shift+Enter)"
           >
             <ChevronLeft size={16} />
           </button>
@@ -223,6 +227,7 @@ export function FindBar() {
             onClick={handleFindNext}
             disabled={matchCount === 0}
             title="Next (Enter)"
+            aria-label="Next (Enter)"
           >
             <ChevronRight size={16} />
           </button>
@@ -266,7 +271,7 @@ export function FindBar() {
           </button>
         </div>
 
-        <button className="find-bar-close" onClick={handleClose} title="Close (Esc)">
+        <button className="find-bar-close" onClick={handleClose} title="Close (Esc)" aria-label="Close (Esc)">
           <X size={16} />
         </button>
       </div>

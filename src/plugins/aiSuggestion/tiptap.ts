@@ -137,6 +137,7 @@ function createButtons(suggestion: AiSuggestion): HTMLSpanElement {
   const acceptBtn = document.createElement("button");
   acceptBtn.className = "ai-suggestion-btn ai-suggestion-btn-accept";
   acceptBtn.title = "Accept (Enter)";
+  acceptBtn.setAttribute("aria-label", "Accept (Enter)");
   acceptBtn.appendChild(createIcon(ICON_CHECK));
   acceptBtn.onmousedown = (e) => {
     e.preventDefault();
@@ -151,6 +152,7 @@ function createButtons(suggestion: AiSuggestion): HTMLSpanElement {
   const rejectBtn = document.createElement("button");
   rejectBtn.className = "ai-suggestion-btn ai-suggestion-btn-reject";
   rejectBtn.title = "Reject (Escape)";
+  rejectBtn.setAttribute("aria-label", "Reject (Escape)");
   rejectBtn.appendChild(createIcon(ICON_X));
   rejectBtn.onmousedown = (e) => {
     e.preventDefault();

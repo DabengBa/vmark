@@ -193,6 +193,7 @@ export function StatusBarRight({
         className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
         onClick={openMcpSettings}
         title={formatMcpTooltip(mcpRunning, mcpLoading, mcpError, mcpClients)}
+        aria-label="MCP Status"
       >
         <Satellite size={12} />
       </button>
@@ -200,6 +201,7 @@ export function StatusBarRight({
       <button
         className={`status-terminal ${terminalVisible ? "active" : ""}`}
         title={`Toggle Terminal (${formatKeyForDisplay(terminalShortcut)})`}
+        aria-label={`Toggle Terminal (${formatKeyForDisplay(terminalShortcut)})`}
         onClick={() => requestToggleTerminal()}
       >
         <Terminal size={12} />
