@@ -33,72 +33,17 @@ import { saveAllDocuments, type CloseSaveContext } from "@/hooks/closeSave";
 import { fileOpsLog, fileOpsWarn } from "@/utils/debug";
 
 /**
- * Save dialog with timeout and filter fallback for macOS Tahoe compatibility.
+ * Open a native save dialog and return the chosen path (or null on cancel).
  *
- * macOS 26 (Tahoe) has known issues with NSSavePanel:
- *   - XPC service hangs/crashes ("Open and Save Panel Service" stuck)
- *   - Deprecated setAllowedFileTypes API (removed behavior in Tahoe)
- *   - Slow/frozen dialog rendering
- *
- * Strategy:
- *   1. Try with file type filters (normal path)
- *   2. If it times out (15s), retry WITHOUT filters to bypass deprecated API
- *   3. If retry also fails, throw so caller can show error toast
- *
- * @coordinates-with panel_ffi.rs — rfd uses setAllowedFileTypes when filters present
+ * We intentionally skip file-type filters because macOS 26 (Tahoe) deprecated
+ * the `setAllowedFileTypes` API used by rfd, causing the dialog to hang or
+ * crash. Omitting filters avoids the issue entirely — the default filename
+ * already carries the `.md` extension, so users still save as Markdown.
  */
 export async function saveDialogWithFallback(
   defaultPath: string,
 ): Promise<string | null> {
-  const DIALOG_TIMEOUT_MS = 15_000;
-
-  /* v8 ignore start -- @preserve reason: withTimeout and its inner callbacks only fire during real Tauri save dialogs; not exercisable in jsdom */
-  const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`Save dialog timed out after ${ms / 1000}s`)),
-        ms,
-      );
-      promise.then(
-        (val) => { clearTimeout(timer); resolve(val); },
-        (err) => { clearTimeout(timer); reject(err); },
-      );
-    });
-  };
-  /* v8 ignore stop */
-
-  // Attempt 1: with filters (normal)
-  try {
-    fileOpsLog("Save dialog attempt 1: with filters");
-    const path = await withTimeout(
-      save({
-        defaultPath,
-        filters: [{ name: "Markdown", extensions: ["md"] }],
-      }),
-      DIALOG_TIMEOUT_MS,
-    );
-    return path;
-  } catch (firstError) {
-    fileOpsWarn("Save dialog attempt 1 failed:", firstError);
-
-    // If it timed out, retry without filters to bypass deprecated setAllowedFileTypes
-    if (firstError instanceof Error && firstError.message.includes("timed out")) {
-      fileOpsLog("Save dialog attempt 2: without filters (Tahoe workaround)");
-      try {
-        const path = await withTimeout(
-          save({ defaultPath }),
-          DIALOG_TIMEOUT_MS,
-        );
-        return path;
-      } catch (secondError) {
-        console.error("[FileOps] Save dialog attempt 2 also failed:", secondError);
-        throw secondError;
-      }
-    }
-
-    // Non-timeout error — propagate immediately
-    throw firstError;
-  }
+  return save({ defaultPath });
 }
 
 /**

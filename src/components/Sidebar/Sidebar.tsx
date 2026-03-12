@@ -70,6 +70,7 @@ export function Sidebar() {
           className="sidebar-btn"
           onClick={handleToggleView}
           title={`Show ${nextTitle.charAt(0) + nextTitle.slice(1).toLowerCase()}`}
+          aria-label={`Show ${nextTitle.charAt(0) + nextTitle.slice(1).toLowerCase()}`}
         >
           <Icon size={16} />
         </button>
@@ -81,6 +82,7 @@ export function Sidebar() {
               className="sidebar-btn"
               onClick={() => fileExplorerRef.current?.createNewFile()}
               title="New File"
+              aria-label="New File"
             >
               <FilePlus size={14} />
             </button>
@@ -88,6 +90,7 @@ export function Sidebar() {
               className="sidebar-btn"
               onClick={() => fileExplorerRef.current?.createNewFolder()}
               title="New Folder"
+              aria-label="New Folder"
             >
               <FolderPlus size={14} />
             </button>
@@ -100,6 +103,7 @@ export function Sidebar() {
               className="sidebar-btn"
               onClick={handleClearDocumentHistory}
               title="Clear Document History"
+              aria-label="Clear Document History"
             >
               <Trash2 size={14} />
             </button>
@@ -118,6 +122,7 @@ export function Sidebar() {
           className="sidebar-btn"
           onClick={() => useUIStore.getState().toggleSidebar()}
           title="Close Sidebar"
+          aria-label="Close Sidebar"
         >
           <PanelLeftClose size={16} />
         </button>

@@ -137,19 +137,14 @@ describe("saveDialogWithFallback", () => {
     vi.clearAllMocks();
   });
 
-  it("returns path on successful save with filters", async () => {
+  it("returns path on successful save", async () => {
     mockSaveDialog.mockResolvedValueOnce("/path/to/saved.md");
 
     const result = await saveDialogWithFallback("/default/path.md");
 
     expect(result).toBe("/path/to/saved.md");
     expect(mockSaveDialog).toHaveBeenCalledTimes(1);
-    expect(mockSaveDialog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaultPath: "/default/path.md",
-        filters: [{ name: "Markdown", extensions: ["md"] }],
-      }),
-    );
+    expect(mockSaveDialog).toHaveBeenCalledWith({ defaultPath: "/default/path.md" });
   });
 
   it("returns null when user cancels dialog", async () => {
@@ -716,42 +711,6 @@ describe("handleSaveAllQuit", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// saveDialogWithFallback — timeout and retry paths
-// ---------------------------------------------------------------------------
-describe("saveDialogWithFallback — timeout/retry", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("retries without filters when first attempt throws timeout error", async () => {
-    // First call throws a timeout error
-    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
-    // Second call succeeds
-    mockSaveDialog.mockResolvedValueOnce("/path/to/retry.md");
-
-    const result = await saveDialogWithFallback("/default.md");
-
-    expect(result).toBe("/path/to/retry.md");
-    expect(mockSaveDialog).toHaveBeenCalledTimes(2);
-    // Second call should NOT have filters (Tahoe workaround)
-    expect(mockSaveDialog).toHaveBeenLastCalledWith(
-      expect.objectContaining({ defaultPath: "/default.md" }),
-    );
-  });
-
-  it("throws when both timeout attempts fail", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    // First call throws timeout
-    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
-    // Second call also throws timeout
-    mockSaveDialog.mockRejectedValueOnce(new Error("Save dialog timed out after 15s"));
-
-    await expect(saveDialogWithFallback("/default.md")).rejects.toThrow("timed out");
-    expect(mockSaveDialog).toHaveBeenCalledTimes(2);
-    errorSpy.mockRestore();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // moveTabToNewWorkspaceWindow — window with no tabs array
@@ -782,21 +741,6 @@ describe("moveTabToNewWorkspaceWindow — empty tabs array fallback", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// saveDialogWithFallback — withTimeout error rejection path (line 58)
-// ---------------------------------------------------------------------------
-describe("saveDialogWithFallback — non-Error rejection propagation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("propagates non-Error object rejection (string) from save dialog", async () => {
-    mockSaveDialog.mockRejectedValueOnce("string rejection");
-
-    await expect(saveDialogWithFallback("/path.md")).rejects.toBe("string rejection");
-    expect(mockSaveDialog).toHaveBeenCalledTimes(1);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // handleSave — missing file and workspace opening edge cases

@@ -231,6 +231,7 @@ export abstract class WysiwygPopupView<TState extends PopupStoreBase> {
     btn.type = "button";
     btn.className = "popup-icon-btn";
     btn.title = title;
+    btn.setAttribute("aria-label", title);
     btn.innerHTML = iconSvg;
     btn.addEventListener("click", onClick);
     return btn;

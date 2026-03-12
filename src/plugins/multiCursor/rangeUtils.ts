@@ -203,13 +203,15 @@ export function normalizeRangesWithPrimary(
   const primary = ranges[Math.min(Math.max(primaryIndex, 0), ranges.length - 1)];
   const normalized = normalizeRanges(ranges, doc, merge);
 
+  const primaryPos = primary.$from.pos;
   const primaryMatch = normalized.findIndex(
     (range) =>
-      range.$from.pos === primary.$from.pos && range.$to.pos === primary.$to.pos
+      range.$from.pos <= primaryPos && primaryPos <= range.$to.pos
   );
 
   return {
     ranges: normalized,
+    /* v8 ignore next -- defensive: after containment check, primary is always found */
     primaryIndex: primaryMatch >= 0 ? primaryMatch : 0,
   };
 }

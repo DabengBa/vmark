@@ -142,6 +142,7 @@ export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBar
         className="terminal-search-btn"
         onClick={findPrevious}
         title="Previous (Shift+Enter)"
+        aria-label="Previous (Shift+Enter)"
         disabled={!query}
       >
         <ChevronUp size={14} />
@@ -150,11 +151,12 @@ export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBar
         className="terminal-search-btn"
         onClick={findNext}
         title="Next (Enter)"
+        aria-label="Next (Enter)"
         disabled={!query}
       >
         <ChevronDown size={14} />
       </button>
-      <button className="terminal-search-btn" onClick={handleClose} title="Close (Escape)">
+      <button className="terminal-search-btn" onClick={handleClose} title="Close (Escape)" aria-label="Close (Escape)">
         <X size={14} />
       </button>
     </div>
