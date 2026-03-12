@@ -201,7 +201,7 @@ export class LinkPopupView extends WysiwygPopupView<LinkPopupState> {
       openUrl(href).catch((error: unknown) => {
         console.error("Failed to open link:", error);
       });
-    });
+    }).catch(console.error);
   };
 
   private handleCopy = async () => {

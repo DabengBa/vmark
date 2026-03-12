@@ -92,10 +92,16 @@ export function getKaTeXFontFiles(): FontFile[] {
  */
 export async function downloadFont(url: string): Promise<Uint8Array | null> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
-    return new Uint8Array(buffer);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return new Uint8Array(buffer);
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (error) {
     exportWarn("Failed to download font:", url, error);
     return null;

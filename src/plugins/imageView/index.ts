@@ -222,6 +222,11 @@ export class ImageNodeView implements NodeView {
       }
       this.dom.src = resolvedSrc;
       this.setupLoadHandlers();
+    }).catch((error: unknown) => {
+      imageViewWarn("resolveImageSrc failed:", error);
+      if (!this.destroyed && requestId === this.resolveRequestId) {
+        this.showError("Failed to resolve path");
+      }
     });
   }
 
