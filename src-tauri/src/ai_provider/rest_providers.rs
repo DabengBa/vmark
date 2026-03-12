@@ -21,7 +21,10 @@ pub(super) async fn run_rest_anthropic(
     model: &str,
     prompt: &str,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
     let body = serde_json::json!({
         "model": model,
         "max_tokens": 4096,
@@ -86,7 +89,10 @@ pub(super) async fn run_rest_openai(
     model: &str,
     prompt: &str,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
     let body = serde_json::json!({
         "model": model,
         "messages": [{"role": "user", "content": prompt}]
@@ -146,7 +152,10 @@ pub(super) async fn run_rest_google(
     model: &str,
     prompt: &str,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
     let body = serde_json::json!({
         "contents": [{"parts": [{"text": prompt}]}]
     });
@@ -213,7 +222,10 @@ pub(super) async fn run_rest_ollama(
     model: &str,
     prompt: &str,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
     let body = serde_json::json!({
         "model": model,
         "prompt": prompt,

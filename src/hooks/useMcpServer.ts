@@ -130,9 +130,15 @@ export function useMcpServer(): UseMcpServerResult {
       setRunning(false);
     });
 
+    const unlistenTerminated = listen("mcp-server:sidecar-terminated", () => {
+      setRunning(false);
+      setError("MCP server terminated unexpectedly");
+    });
+
     return () => {
       safeUnlistenAsync(unlistenStarted);
       safeUnlistenAsync(unlistenStopped);
+      safeUnlistenAsync(unlistenTerminated);
     };
   }, [refresh]);
 

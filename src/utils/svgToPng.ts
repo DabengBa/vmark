@@ -78,7 +78,7 @@ export async function svgToPngBytes(
             reject(new Error("Failed to create PNG"));
             return;
           }
-          pngBlob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+          pngBlob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf))).catch(reject);
         },
         "image/png",
       );

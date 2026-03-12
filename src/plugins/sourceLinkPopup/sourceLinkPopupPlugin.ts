@@ -142,7 +142,7 @@ function createCmdClickPlugin(): Extension {
           openUrl(href).catch((error: unknown) => {
             sourceLinkError("Failed to open link:", error);
           });
-        });
+        }).catch(console.error);
       };
     }
   );

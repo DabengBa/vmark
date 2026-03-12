@@ -226,7 +226,7 @@ pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStat
     }
 
     // Spawn a task to monitor the process output
-    let _app_handle = app.clone();
+    let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
         use tauri_plugin_shell::process::CommandEvent;
 
@@ -240,17 +240,23 @@ pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStat
                     #[cfg(debug_assertions)]
                     eprintln!("[MCP Server Error] {}", String::from_utf8_lossy(&_line));
                 }
-                CommandEvent::Terminated(_payload) => {
+                CommandEvent::Terminated(payload) => {
                     #[cfg(debug_assertions)]
                     eprintln!(
-                        "[MCP Server] Process terminated with code: {:?}",
-                        _payload.code
+                        "[MCP Server] Process terminated with code: {:?}, signal: {:?}",
+                        payload.code, payload.signal
                     );
 
                     // Clear the stored process
                     if let Ok(mut guard) = MCP_SERVER.lock() {
                         *guard = None;
                     }
+
+                    // Notify frontend so it can update MCP status indicator
+                    let _ = app_handle.emit(
+                        "mcp-server:sidecar-terminated",
+                        serde_json::json!({ "code": payload.code, "signal": payload.signal }),
+                    );
 
                     break;
                 }

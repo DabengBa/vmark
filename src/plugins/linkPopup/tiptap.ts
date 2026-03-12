@@ -150,7 +150,7 @@ function handleClick(view: EditorView, pos: number, event: MouseEvent): boolean 
           // External link - open in browser
           import("@tauri-apps/plugin-opener").then(({ openUrl }) => {
             openUrl(href).catch(console.error);
-          });
+          }).catch(console.error);
           event.preventDefault();
           return true;
         }
