@@ -2,9 +2,9 @@
  * Auto-Pair Input Handlers
  *
  * Purpose: Core logic for auto-pairing — handles text input (insert closing char),
- * closing bracket skip-over (type `)` when already there), and backspace pair deletion.
- * Shift+Tab jump-past-closing and backtick toggle are extracted to keyHandler.ts and
- * backtickToggle.ts respectively.
+ * closing bracket skip-over (type `)` when already there), backspace pair deletion,
+ * and directional Tab/Shift+Tab jump over brackets (with code context guard).
+ * Backtick toggle is extracted to backtickToggle.ts.
  *
  * Key decisions:
  *   - Right double quote normalization converts `\u201D` to `\u201C` at line start for
@@ -29,7 +29,7 @@ import {
   straightToCurlyOpening,
   type PairConfig,
 } from "./pairs";
-import { shouldAutoPair, getCharAt, getCharBefore } from "./utils";
+import { shouldAutoPair, isInCodeBlock, isInInlineCode, getCharAt, getCharBefore } from "./utils";
 import { handleBacktickCodeToggle } from "./backtickToggle";
 
 export interface AutoPairConfig {
@@ -221,6 +221,9 @@ function handleDirectionalJump(
   const { from, to } = state.selection;
 
   if (from !== to) return false;
+
+  // Don't jump over brackets in code blocks or inline code — let Tab indent instead
+  if (isInCodeBlock(state) || isInInlineCode(state)) return false;
 
   const char = getChar(state, from);
   if (!char || !isAllowed(char, config)) return false;

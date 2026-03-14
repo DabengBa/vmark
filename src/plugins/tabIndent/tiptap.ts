@@ -181,7 +181,12 @@ function handleTabInsertSpaces(state: EditorState, dispatch: (tr: Transaction) =
 
 export const tabIndentExtension = Extension.create({
   name: "tabIndent",
-  // Low priority - runs after all other Tab handlers
+  // Low priority — runs AFTER autoPairExtension's Tab/Shift+Tab handlers.
+  // Priority chain for Tab key:
+  //   1. autoPair (default priority ~100): bracket jump over closing chars
+  //   2. tabIndent (priority 50): mark/link escape → table nav → list indent → spaces
+  // This means bracket jump takes priority over mark escape (innermost-first).
+  // User can Tab again to escape the mark after jumping the bracket.
   priority: 50,
 
   addProseMirrorPlugins() {

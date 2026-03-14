@@ -23,6 +23,8 @@ export interface TabEscapeResult {
  * Returns true only when:
  * - There is no selection (cursor only)
  * - Cursor is at a position where the mark ends
+ *
+ * @deprecated Unused by canTabEscape — kept for test coverage and potential future use.
  */
 export function isAtMarkEnd(state: EditorState): boolean {
   const { selection } = state;
