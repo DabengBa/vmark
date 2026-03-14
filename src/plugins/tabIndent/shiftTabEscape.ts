@@ -5,13 +5,18 @@
  * or a link, and provides target position for Shift+Tab to jump to the start.
  * Mirrors tabEscape.ts (right-escape) in reverse direction.
  *
- * Pipeline: Shift+Tab pressed → check marks first (innermost-first) → then links
- *   → return start position of the text node containing the cursor
+ * Pipeline: Shift+Tab pressed → check marks first (innermost-first) → storedMarks fallback
+ *   → then links → return start position of the text node containing the cursor
  *
  * Key decisions:
  *   - Marks checked before links (innermost-first principle — opposite of Tab)
  *   - Works from anywhere inside a mark/link (not just boundary)
- *   - Multi-cursor support: each cursor processed independently
+ *   - storedMarks fallback: ProseMirror's $pos.marks() returns the PRECEDING node's marks,
+ *     so at the left boundary of a code span with plain text before it, marks() returns [].
+ *     The inlineCodeBoundary plugin sets state.storedMarks in this case; we check that here.
+ *     targetPos is `from - 1` (not `from`) to avoid re-triggering inlineCodeBoundary.
+ *   - Multi-cursor support: each cursor processed independently (storedMarks fallback
+ *     applies to single-cursor only — only one storedMarks exists per state)
  *   - Shares ESCAPABLE_MARKS set with tabEscape.ts
  *   - Mark boundary uses `<=` (cursor at mark end still has mark active)
  *   - Link boundary uses `<` (cursor at link end is at boundary where link may not be active;
