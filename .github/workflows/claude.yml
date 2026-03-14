@@ -28,7 +28,7 @@ jobs:
   audit-fix:
     runs-on: ubuntu-latest
     concurrency:
-      group: audit-fix
+      group: audit-fix-${{ github.event.issue.number }}
       cancel-in-progress: false
     if: >-
       github.event_name == 'issues' &&
