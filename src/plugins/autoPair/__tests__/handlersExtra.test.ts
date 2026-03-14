@@ -12,6 +12,7 @@ import { EditorView } from "@tiptap/pm/view";
 import {
   handleTextInput,
   handleTabJump,
+  handleShiftTabJump,
   handleClosingBracket,
   handleBackspacePair,
   type AutoPairConfig,
@@ -740,5 +741,128 @@ describe("handleTextInput — wrap selection with pair (from !== to branch, line
 
     expect(handled).toBe(true);
     expect(view.state.doc.firstChild!.textContent).toBe("{ab}");
+  });
+});
+
+/* ================================================================== */
+/*  Tab/Shift+Tab bracket jump — code context guard                    */
+/* ================================================================== */
+
+describe("handleTabJump — code context guard", () => {
+  /** Create a state with cursor inside a code_block containing `text` */
+  function createCodeBlockState(text: string, cursorOffset: number): EditorState {
+    const textNode = text ? schema.text(text) : undefined;
+    const codeBlock = schema.node("code_block", null, textNode ? [textNode] : []);
+    const doc = schema.node("doc", null, [codeBlock]);
+    const state = EditorState.create({ doc, schema });
+    const pos = 1 + cursorOffset;
+    return state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, pos)),
+    );
+  }
+
+  /** Create a state with cursor inside inline code mark in a paragraph */
+  function createInlineCodeState(text: string, cursorOffset: number): EditorState {
+    const codeMark = schema.marks.code.create();
+    const textNode = schema.text(text, [codeMark]);
+    const para = schema.node("paragraph", null, [textNode]);
+    const doc = schema.node("doc", null, [para]);
+    const state = EditorState.create({ doc, schema });
+    const pos = 1 + cursorOffset;
+    return state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, pos)),
+    );
+  }
+
+  it("does NOT jump over ) inside code_block", () => {
+    // code_block: "foo()" with cursor at offset 4 (between ( and ))
+    const state = createCodeBlockState("foo()", 4);
+    const view = createMockView(state);
+
+    expect(handleTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("does NOT jump over ] inside code_block", () => {
+    const state = createCodeBlockState("arr[]", 4);
+    const view = createMockView(state);
+
+    expect(handleTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("does NOT jump over } inside code_block", () => {
+    const state = createCodeBlockState("obj{}", 4);
+    const view = createMockView(state);
+
+    expect(handleTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("does NOT jump over ) inside inline code mark", () => {
+    const state = createInlineCodeState("fn()", 3);
+    const view = createMockView(state);
+
+    expect(handleTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("still jumps over ) in normal paragraph (regression guard)", () => {
+    const state = createState("()", 1);
+    const view = createMockView(state);
+
+    expect(handleTabJump(view, ENABLED)).toBe(true);
+    expect(getCursorOffset(view.state)).toBe(2);
+  });
+});
+
+describe("handleShiftTabJump — code context guard", () => {
+  function createCodeBlockState(text: string, cursorOffset: number): EditorState {
+    const textNode = text ? schema.text(text) : undefined;
+    const codeBlock = schema.node("code_block", null, textNode ? [textNode] : []);
+    const doc = schema.node("doc", null, [codeBlock]);
+    const state = EditorState.create({ doc, schema });
+    const pos = 1 + cursorOffset;
+    return state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, pos)),
+    );
+  }
+
+  function createInlineCodeState(text: string, cursorOffset: number): EditorState {
+    const codeMark = schema.marks.code.create();
+    const textNode = schema.text(text, [codeMark]);
+    const para = schema.node("paragraph", null, [textNode]);
+    const doc = schema.node("doc", null, [para]);
+    const state = EditorState.create({ doc, schema });
+    const pos = 1 + cursorOffset;
+    return state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, pos)),
+    );
+  }
+
+  it("does NOT jump before ( inside code_block", () => {
+    // code_block: "foo()" with cursor at offset 4 — right after ( at offset 3
+    const state = createCodeBlockState("(text)", 1);
+    const view = createMockView(state);
+
+    expect(handleShiftTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("does NOT jump before [ inside code_block", () => {
+    const state = createCodeBlockState("[item]", 1);
+    const view = createMockView(state);
+
+    expect(handleShiftTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("does NOT jump before ( inside inline code mark", () => {
+    const state = createInlineCodeState("(text)", 1);
+    const view = createMockView(state);
+
+    expect(handleShiftTabJump(view, ENABLED)).toBe(false);
+  });
+
+  it("still jumps before ( in normal paragraph (regression guard)", () => {
+    const state = createState("(text)", 1); // cursor right after (
+    const view = createMockView(state);
+
+    expect(handleShiftTabJump(view, ENABLED)).toBe(true);
+    expect(getCursorOffset(view.state)).toBe(0);
   });
 });

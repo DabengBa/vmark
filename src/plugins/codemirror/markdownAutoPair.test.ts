@@ -383,6 +383,85 @@ describe("createMarkdownAutoPairPlugin — destroy with pending timeout", () => 
   });
 });
 
+/* ------------------------------------------------------------------ */
+/*  Code fence guard — auto-pair must NOT fire inside fenced code blocks */
+/* ------------------------------------------------------------------ */
+
+describe("createMarkdownAutoPairPlugin — code fence guard", () => {
+  let view: EditorView;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockIsCodeMirrorComposing.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    view?.destroy();
+    vi.useRealTimers();
+  });
+
+  // Document: "text\n```\ncode here\n```"
+  // Positions: "text\n" (5) + "```\n" (4) + "code here\n" (10) + "```" (3) = 22
+  // Cursor at position 14 is inside "code here" (14 - 9 = 5th char = space)
+  const CODE_FENCE_DOC = "text\n```\ncode here\n```";
+
+  it("does NOT pair * inside fenced code block", async () => {
+    view = createPluginView(CODE_FENCE_DOC);
+    typeChar(view, "*", 14); // inside "code here"
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    // Only the typed * should exist — no closing * inserted
+    expect(view.state.doc.toString()).toBe("text\n```\ncode *here\n```");
+  });
+
+  it("does NOT pair ~ inside fenced code block", async () => {
+    view = createPluginView(CODE_FENCE_DOC);
+    typeChar(view, "~", 14);
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    expect(view.state.doc.toString()).toBe("text\n```\ncode ~here\n```");
+  });
+
+  it("does NOT pair _ inside fenced code block", async () => {
+    view = createPluginView(CODE_FENCE_DOC);
+    typeChar(view, "_", 14);
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    expect(view.state.doc.toString()).toBe("text\n```\ncode _here\n```");
+  });
+
+  it("does NOT pair = inside fenced code block", async () => {
+    // Document with "==" already typed inside code block
+    const docWithEq = "text\n```\n=\n```";
+    view = createPluginView(docWithEq);
+    // Type second = right after the first one (position 10)
+    typeChar(view, "=", 10);
+    await vi.runAllTimersAsync();
+    // Should NOT insert closing == — only the typed = appears
+    expect(view.state.doc.toString()).toBe("text\n```\n==\n```");
+  });
+
+  it("does NOT pair backtick inside fenced code block (single backtick)", async () => {
+    view = createPluginView(CODE_FENCE_DOC);
+    typeChar(view, "`", 14);
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    // No closing backtick inserted
+    expect(view.state.doc.toString()).toBe("text\n```\ncode `here\n```");
+  });
+
+  it("still pairs * outside code block (regression guard)", async () => {
+    // Cursor is BEFORE the code fence, in "text"
+    view = createPluginView(CODE_FENCE_DOC);
+    typeChar(view, "*", 2); // inside "text" (before the fence)
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    // Closing * should be inserted since we're outside the code fence
+    expect(view.state.doc.toString()).toBe("te**xt\n```\ncode here\n```");
+  });
+});
+
 describe("createMarkdownAutoPairPlugin — additional branch coverage", () => {
   let view: EditorView;
 

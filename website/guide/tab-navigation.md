@@ -209,8 +209,8 @@ In Source mode, Tab also jumps over Markdown formatting characters:
 | `*` | Bold/italic |
 | `_` | Bold/italic |
 | `^` | Superscript |
-| `~~` | Strikethrough |
-| `==` | Highlight |
+| `~~` | Strikethrough (jumped as a unit) |
+| `==` | Highlight (jumped as a unit) |
 
 ### Example
 
@@ -225,6 +225,27 @@ Press **Tab**:
 This is **bold**| text
                 ↑ cursor after **
 ```
+
+::: info
+Source mode does not have Shift+Tab escape for markdown characters — Shift+Tab only outdents (removes leading spaces).
+:::
+
+## Source Mode: Auto-Pair
+
+In Source mode, typing a formatting character auto-inserts its closing pair:
+
+| Character | Pairing | Behavior |
+|-----------|---------|----------|
+| `*` | `*\|*` or `**\|**` | Delay-based — waits 150ms to detect single vs double |
+| `~` | `~\|~` or `~~\|~~` | Delay-based |
+| `_` | `_\|_` or `__\|__` | Delay-based |
+| `=` | `==\|==` | Always pairs as double |
+| `` ` `` | `` `\|` `` | Single backtick pairs after delay |
+| ` ``` ` | Code fence | Triple backtick at line start creates a fenced code block |
+
+Auto-pairing is **disabled inside fenced code blocks** — typing `*` in a code block inserts a literal `*` without pairing.
+
+Backspace between a pair deletes both halves: `*\|*` → Backspace → empty.
 
 ## Table Navigation
 
@@ -263,17 +284,19 @@ If Tab escape conflicts with your workflow, you can disable auto-pair brackets e
 
 ## Comparison: WYSIWYG vs Source Mode
 
-| Feature | Tab (WYSIWYG) | Shift+Tab (WYSIWYG) | Source |
-|---------|---------------|---------------------|--------|
-| Bracket escape | ✓ (forward) | ✓ (backward) | ✓ |
-| CJK bracket escape | ✓ (forward) | ✓ (backward) | ✓ |
-| Curly quote escape | ✓ (forward) | ✓ (backward) | ✓ |
-| Mark escape (bold, etc.) | ✓ (forward) | ✓ (backward) | N/A |
-| Link escape | ✓ (forward) | ✓ (backward) | ✓ |
-| Markdown char escape (`*`, `_`) | N/A | N/A | ✓ |
-| Table navigation | Next cell | Previous cell | N/A |
-| List indentation | Indent | Outdent | ✓ |
-| Multi-cursor support | ✓ | ✓ | ✓ |
+| Feature | Tab (WYSIWYG) | Shift+Tab (WYSIWYG) | Tab (Source) | Shift+Tab (Source) |
+|---------|---------------|---------------------|--------------|-------------------|
+| Bracket escape | ✓ | ✓ | ✓ | — |
+| CJK bracket escape | ✓ | ✓ | ✓ | — |
+| Curly quote escape | ✓ | ✓ | ✓ | — |
+| Mark escape (bold, etc.) | ✓ | ✓ | N/A | N/A |
+| Link escape | ✓ | ✓ | ✓ (field navigation) | — |
+| Markdown char escape (`*`, `_`, `~~`, `==`) | N/A | N/A | ✓ | — |
+| Markdown auto-pair (`*`, `~`, `_`, `=`) | N/A | N/A | ✓ (delay-based) | N/A |
+| Table navigation | Next cell | Previous cell | N/A | N/A |
+| List indentation | Indent | Outdent | Indent | Outdent |
+| Multi-cursor support | ✓ | ✓ | ✓ | — |
+| Skipped inside code blocks | ✓ | ✓ | ✓ | N/A |
 
 ## Multi-Cursor Support
 
@@ -305,6 +328,37 @@ Each cursor escapes independently based on its context.
 ::: tip
 This is particularly powerful for bulk editing — select multiple occurrences with `Mod + D`, then use Tab to escape from all of them at once.
 :::
+
+## Priority & Code Block Behavior
+
+### Escape Priority
+
+When multiple escape targets overlap, Tab processes them **innermost-first**:
+
+```
+**bold text(|)** here
+               ↑ Tab jumps ) first (bracket is innermost)
+```
+
+Press **Tab** again:
+
+```
+**bold text()**| here
+               ↑ Tab escapes bold mark
+```
+
+This means bracket jump always fires before mark escape — you can rely on Tab to exit brackets first, then formatting.
+
+### Code Block Guard
+
+Tab and Shift+Tab bracket jumps are **disabled inside code blocks** — both `code_block` nodes and inline code spans. This prevents Tab from jumping over brackets in code, where brackets are literal syntax:
+
+```
+`array[index|]`
+              ↑ Tab does NOT jump ] in inline code — inserts spaces instead
+```
+
+Auto-pair insertion is also disabled inside code blocks for both WYSIWYG and Source modes.
 
 ## Tips
 

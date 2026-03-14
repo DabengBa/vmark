@@ -29,7 +29,7 @@ import {
   straightToCurlyOpening,
   type PairConfig,
 } from "./pairs";
-import { shouldAutoPair, getCharAt, getCharBefore } from "./utils";
+import { shouldAutoPair, isInCodeBlock, isInInlineCode, getCharAt, getCharBefore } from "./utils";
 import { handleBacktickCodeToggle } from "./backtickToggle";
 
 export interface AutoPairConfig {
@@ -221,6 +221,9 @@ function handleDirectionalJump(
   const { from, to } = state.selection;
 
   if (from !== to) return false;
+
+  // Don't jump over brackets in code blocks or inline code — let Tab indent instead
+  if (isInCodeBlock(state) || isInInlineCode(state)) return false;
 
   const char = getChar(state, from);
   if (!char || !isAllowed(char, config)) return false;
