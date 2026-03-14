@@ -144,6 +144,22 @@ function calculateLeftEscapeForPosition(
     if (result !== null) return result;
   }
 
+  // Fallback: check nodeAfter for the left-boundary case (same issue as single-cursor).
+  // $pos.marks() returns the preceding node's marks. At the left boundary of a code span
+  // with non-code content before it, marks() returns [] even though nodeAfter has the mark.
+  // Unlike single-cursor canShiftTabEscape which uses state.storedMarks, multi-cursor
+  // positions don't have individual storedMarks — check nodeAfter directly.
+  if (
+    $pos.textOffset === 0 &&
+    $pos.nodeAfter &&
+    pos > $pos.start()
+  ) {
+    const nodeAfterMark = $pos.nodeAfter.marks.find((m) => ESCAPABLE_MARKS.has(m.type.name));
+    if (nodeAfterMark) {
+      return pos - 1;
+    }
+  }
+
   // Check for link
   const linkMark = $pos.marks().find((m) => m.type.name === "link");
   if (linkMark) {

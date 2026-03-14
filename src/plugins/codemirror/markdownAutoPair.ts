@@ -18,6 +18,7 @@
 
 import { EditorView, ViewPlugin, ViewUpdate, KeyBinding } from "@codemirror/view";
 import { guardCodeMirrorKeyBinding, isCodeMirrorComposing } from "@/utils/imeGuard";
+import { getCodeFenceInfo } from "@/plugins/sourceContextDetection/codeFenceDetection";
 
 // Characters that support delay-based single/double judgment
 const DELAY_CHARS = new Set(["~", "*", "_"]);
@@ -144,6 +145,13 @@ export function createMarkdownAutoPairPlugin() {
 
             const char = text;
             const pos = fromB;
+
+            // Only pair markdown format chars and backticks — skip irrelevant chars
+            // before the more expensive code fence scan.
+            if (!DELAY_CHARS.has(char) && !ALWAYS_DOUBLE_CHARS.has(char) && char !== "`") return;
+
+            // Don't auto-pair inside fenced code blocks
+            if (getCodeFenceInfo(update.view)) return;
 
             // Handle triple backtick for code fence
             if (char === "`") {
