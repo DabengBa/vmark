@@ -5,12 +5,16 @@
  * or a link, and provides target position for Shift+Tab to jump to the start.
  * Mirrors tabEscape.ts (right-escape) in reverse direction.
  *
- * Pipeline: Shift+Tab pressed → check marks first (innermost-first) → then links
- *   → return start position of the text node containing the cursor
+ * Pipeline: Shift+Tab pressed → check marks first (innermost-first) → nodeAfter fallback
+ *   for left-boundary detection → then links → return start position
  *
  * Key decisions:
  *   - Marks checked before links (innermost-first principle — opposite of Tab)
  *   - Works from anywhere inside a mark/link (not just boundary)
+ *   - Left-boundary fallback: $pos.marks() returns preceding node's marks, so at the
+ *     left boundary of a code span with non-code content before it, marks() returns [].
+ *     Both single-cursor (via state.storedMarks) and multi-cursor (via nodeAfter.marks)
+ *     paths detect this and escape to pos - 1 to avoid re-triggering inlineCodeBoundary.
  *   - Multi-cursor support: each cursor processed independently
  *   - Shares ESCAPABLE_MARKS set with tabEscape.ts
  *   - Mark boundary uses `<=` (cursor at mark end still has mark active)
@@ -142,6 +146,22 @@ function calculateLeftEscapeForPosition(
     const result = findChildStartAtPos(parent, parentStart, pos, true, hasMarkType(escapableMark.type));
     /* v8 ignore next -- @preserve reason: findChildStartAtPos always returns a value when escapableMark is found at $pos; defensive guard */
     if (result !== null) return result;
+  }
+
+  // Fallback: check nodeAfter for the left-boundary case (same issue as single-cursor).
+  // $pos.marks() returns the preceding node's marks. At the left boundary of a code span
+  // with non-code content before it, marks() returns [] even though nodeAfter has the mark.
+  // Unlike single-cursor canShiftTabEscape which uses state.storedMarks, multi-cursor
+  // positions don't have individual storedMarks — check nodeAfter directly.
+  if (
+    $pos.textOffset === 0 &&
+    $pos.nodeAfter &&
+    pos > $pos.start()
+  ) {
+    const nodeAfterMark = $pos.nodeAfter.marks.find((m) => ESCAPABLE_MARKS.has(m.type.name));
+    if (nodeAfterMark) {
+      return pos - 1;
+    }
   }
 
   // Check for link

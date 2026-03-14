@@ -493,6 +493,75 @@ describe("canShiftTabEscapeMulti", () => {
     expect(canShiftTabEscapeMulti(state)).toBeNull();
   });
 
+  it("escapes secondary cursor at code left boundary with plain text before", () => {
+    // doc(p("plain ", code("code text")))
+    // "plain " = 6 chars → code starts at 1 + 6 = 7
+    // $pos.marks() at pos 7 returns [] (preceding node is plain text, not code)
+    // calculateLeftEscapeForPosition must detect the code mark via nodeAfter
+    const codeMark = schema.marks.code.create();
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("plain "),
+        schema.text("code text", [codeMark]),
+      ]),
+      schema.node("paragraph", null, [
+        schema.text("normal"),
+      ]),
+    ]);
+    const state = EditorState.create({ doc });
+
+    // Cursor 1: pos 7 = left boundary of code (the bug case)
+    // Cursor 2: pos 18 = inside "normal" in second paragraph
+    // p1: 1 + 6 + 9 = 16 chars, p2 starts at 18
+    const $pos1 = state.doc.resolve(7);
+    const $pos2 = state.doc.resolve(19);
+    const multiSel = new MultiSelection([
+      new SelectionRange($pos1, $pos1),
+      new SelectionRange($pos2, $pos2),
+    ], 0);
+    const stateWithMulti = state.apply(state.tr.setSelection(multiSel));
+
+    const result = canShiftTabEscapeMulti(stateWithMulti);
+    expect(result).toBeInstanceOf(MultiSelection);
+    if (result instanceof MultiSelection) {
+      // First cursor should escape to pos 6 (inside "plain ")
+      expect(result.ranges[0].$from.pos).toBe(6);
+      // Second cursor stays (no mark)
+      expect(result.ranges[1].$from.pos).toBe(19);
+    }
+  });
+
+  it("escapes both cursors when one is inside code and one at code left boundary", () => {
+    const codeMark = schema.marks.code.create();
+    const doc = schema.node("doc", null, [
+      schema.node("paragraph", null, [
+        schema.text("plain "),
+        schema.text("code text", [codeMark]),
+      ]),
+    ]);
+    const state = EditorState.create({ doc });
+
+    // Cursor 1: pos 7 = left boundary of code
+    // Cursor 2: pos 10 = inside "code text" (co|de text)
+    const $pos1 = state.doc.resolve(7);
+    const $pos2 = state.doc.resolve(10);
+    const multiSel = new MultiSelection([
+      new SelectionRange($pos1, $pos1),
+      new SelectionRange($pos2, $pos2),
+    ], 1);
+    const stateWithMulti = state.apply(state.tr.setSelection(multiSel));
+
+    const result = canShiftTabEscapeMulti(stateWithMulti);
+    expect(result).toBeInstanceOf(MultiSelection);
+    if (result instanceof MultiSelection) {
+      const positions = result.ranges.map((r) => r.$from.pos);
+      // Cursor at boundary → escapes to 6
+      expect(positions).toContain(6);
+      // Cursor inside code → escapes to code start = 7
+      expect(positions).toContain(7);
+    }
+  });
+
   it("preserves range selections (from !== to) in multi-cursor", () => {
     const boldMark = schema.marks.bold.create();
     const doc = schema.node("doc", null, [

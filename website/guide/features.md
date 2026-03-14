@@ -80,7 +80,7 @@ When you type an opening bracket, quote, or backtick, VMark auto-inserts the clo
 - Curly quotes: `""` `''`
 - Formatting marks in WYSIWYG: **bold**, *italic*, `code`, ~~strike~~, links
 
-Backspace deletes both characters when the pair is empty. Smart context awareness skips auto-pair inside code blocks. Configurable in **Settings → Editor**.
+Backspace deletes both characters when the pair is empty. Auto-pair and Tab bracket jump are both **disabled inside code blocks and inline code** — brackets in code stay literal. Configurable in **Settings → Editor**.
 
 [Learn more →](/guide/tab-navigation)
 
