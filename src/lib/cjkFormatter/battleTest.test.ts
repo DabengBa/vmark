@@ -237,8 +237,9 @@ describe("CJK Battle Test", () => {
       expect(formatMarkdown("共100个", config)).toBe("共 100 个");
     });
 
-    test("Korean also gets spacing", () => {
-      expect(formatMarkdown("안녕Hello", config)).toBe("안녕 Hello");
+    test("Korean does not get spacing", () => {
+      // Korean uses native word spacing; particles attach directly
+      expect(formatMarkdown("안녕Hello", config)).toBe("안녕Hello");
     });
 
     test("rapid alternation stress test", () => {
@@ -380,19 +381,23 @@ describe("CJK Battle Test", () => {
       expect(formatMarkdown("(안녕하세요)", config)).toBe("(안녕하세요)");
     });
 
-    test("Korean gets Latin spacing", () => {
-      expect(formatMarkdown("한국어English", config)).toBe("한국어 English");
+    test("Korean does not get Latin spacing", () => {
+      // Korean uses native word spacing; particles attach directly
+      expect(formatMarkdown("한국어English", config)).toBe("한국어English");
     });
 
-    test("Korean-Chinese-Japanese mixing", () => {
-      const input = "中文测试안녕하세요日本語テスト";
-      const result = formatMarkdown(input, config);
-      expect(result).toBeDefined();
+    test("Korean-Chinese-Japanese mixing preserves Korean but spaces Chinese/Japanese", () => {
+      // Chinese and Japanese get spacing, Korean stays tight
+      expect(formatMarkdown("中文test안녕", config)).toBe("中文 test안녕");
+      expect(formatMarkdown("test中文안녕test", config)).toBe("test 中文안녕test");
     });
 
-    test("Korean with numbers", () => {
-      const result = formatMarkdown("한국어123테스트", config);
-      expect(result).toContain("123");
+    test("Korean with numbers stays tight", () => {
+      expect(formatMarkdown("한국어123테스트", config)).toBe("한국어123테스트");
+    });
+
+    test("Korean with parentheses stays tight", () => {
+      expect(formatMarkdown("한글(text)한글", config)).toBe("한글(text)한글");
     });
   });
 

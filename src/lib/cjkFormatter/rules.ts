@@ -48,12 +48,10 @@ const BOPOMOFO_EXT = "\u31a0-\u31bf"; // Bopomofo Extended
 const HIRAGANA = "\u3040-\u309f";
 const KATAKANA = "\u30a0-\u30ff";
 const KATAKANA_EXT = "\u31f0-\u31ff"; // Katakana Phonetic Extensions
-const HANGUL = "\uac00-\ud7af"; // Hangul Syllables
-const HANGUL_JAMO = "\u1100-\u11ff"; // Hangul Jamo (combining)
-const HANGUL_COMPAT = "\u3130-\u318f"; // Hangul Compatibility Jamo
 // Combined ranges
 const HAN = `${HAN_BASIC}${HAN_EXT_A}`;
-const CJK_ALL = `${HAN}${BOPOMOFO}${BOPOMOFO_EXT}${HIRAGANA}${KATAKANA}${KATAKANA_EXT}${HANGUL}${HANGUL_JAMO}${HANGUL_COMPAT}`;
+// Korean excluded from spacing rules: Korean uses native word spacing and
+// particles attach directly to preceding words (e.g., "VMark에는").
 const CJK_NO_KOREAN = `${HAN}${BOPOMOFO}${BOPOMOFO_EXT}${HIRAGANA}${KATAKANA}${KATAKANA_EXT}`;
 
 // CJK punctuation
@@ -330,18 +328,19 @@ export function normalizeFullwidthBrackets(text: string): string {
  * Add spaces between CJK characters and English/numbers
  */
 export function addCJKEnglishSpacing(text: string): string {
-  // Pattern for alphanumeric with optional units
+  // Korean excluded: Korean uses native word spacing and particles attach
+  // directly to preceding words (e.g., "VMark에는" not "VMark 에는").
   const alphanumPattern =
     "(?:[$¥€£₹][ ]?)?[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?|[ ]?(?:USD|CNY|EUR|GBP|RMB))?";
 
-  // CJK followed by alphanumeric
+  // CJK (non-Korean) followed by alphanumeric
   text = text.replace(
-    new RegExp(`([${CJK_ALL}])(${alphanumPattern})`, "g"),
+    new RegExp(`([${CJK_NO_KOREAN}])(${alphanumPattern})`, "g"),
     "$1 $2"
   );
-  // Alphanumeric followed by CJK
+  // Alphanumeric followed by CJK (non-Korean)
   text = text.replace(
-    new RegExp(`(${alphanumPattern})([${CJK_ALL}])`, "g"),
+    new RegExp(`(${alphanumPattern})([${CJK_NO_KOREAN}])`, "g"),
     "$1 $2"
   );
 
@@ -352,10 +351,9 @@ export function addCJKEnglishSpacing(text: string): string {
  * Add space between CJK characters and half-width parentheses
  */
 export function addCJKParenthesisSpacing(text: string): string {
-  // Add space between CJK character and opening paren
-  text = text.replace(new RegExp(`([${CJK_ALL}])\\(`, "g"), "$1 (");
-  // Add space between closing paren and CJK character
-  text = text.replace(new RegExp(`\\)([${CJK_ALL}])`, "g"), ") $1");
+  // Korean excluded: Korean uses native word spacing around parentheses.
+  text = text.replace(new RegExp(`([${CJK_NO_KOREAN}])\\(`, "g"), "$1 (");
+  text = text.replace(new RegExp(`\\)([${CJK_NO_KOREAN}])`, "g"), ") $1");
   return text;
 }
 
@@ -475,7 +473,7 @@ function fixQuoteSpacing(
   // Add space before opening quote if preceded by alphanumeric/CJK
   text = text.replace(
     new RegExp(
-      `([A-Za-z0-9${CJK_ALL}${CJK_CLOSING_BRACKETS}${CJK_TERMINAL_PUNCTUATION}]|——)${openingQuote}`,
+      `([A-Za-z0-9${CJK_NO_KOREAN}${CJK_CLOSING_BRACKETS}${CJK_TERMINAL_PUNCTUATION}]|——)${openingQuote}`,
       "g"
     ),
     (_, before) => {
@@ -489,7 +487,7 @@ function fixQuoteSpacing(
   // Add space after closing quote if followed by alphanumeric/CJK
   text = text.replace(
     new RegExp(
-      `${closingQuote}([A-Za-z0-9${CJK_ALL}${CJK_OPENING_BRACKETS}${CJK_TERMINAL_PUNCTUATION}]|——)`,
+      `${closingQuote}([A-Za-z0-9${CJK_NO_KOREAN}${CJK_OPENING_BRACKETS}${CJK_TERMINAL_PUNCTUATION}]|——)`,
       "g"
     ),
     (_, after) => {
@@ -600,7 +598,7 @@ export function convertStraightToSmartQuotes(text: string, style: QuoteStyle): s
 
   // Also handle single quotes after CJK characters
   text = text.replace(
-    new RegExp(`([${CJK_ALL}])'([^']*?)'`, "g"),
+    new RegExp(`([${CJK_NO_KOREAN}])'([^']*?)'`, "g"),
     (_, before, content) => `${before}${quotes.singleOpen}${content}${quotes.singleClose}`
   );
 

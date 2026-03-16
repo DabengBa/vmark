@@ -303,10 +303,10 @@ describe("addCJKEnglishSpacing", () => {
     expect(addCJKEnglishSpacing("你好 World")).toBe("你好 World");
   });
 
-  it("adds spacing around Korean text", () => {
-    // Korean (Hangul) should get CJK↔Latin spacing
-    expect(addCJKEnglishSpacing("안녕Hello")).toBe("안녕 Hello");
-    expect(addCJKEnglishSpacing("Hello안녕")).toBe("Hello 안녕");
+  it("does not add spacing around Korean text", () => {
+    // Korean uses native word spacing; particles attach directly to words
+    expect(addCJKEnglishSpacing("안녕Hello")).toBe("안녕Hello");
+    expect(addCJKEnglishSpacing("Hello안녕")).toBe("Hello안녕");
   });
 });
 
@@ -338,6 +338,16 @@ describe("addCJKParenthesisSpacing", () => {
 
   it("adds space between closing paren and CJK", () => {
     expect(addCJKParenthesisSpacing("(text)测试")).toBe("(text) 测试");
+  });
+
+  it("does not add spacing around Korean text", () => {
+    // Korean uses native word spacing; particles attach directly
+    expect(addCJKParenthesisSpacing("한글(text)")).toBe("한글(text)");
+    expect(addCJKParenthesisSpacing("(text)한글")).toBe("(text)한글");
+  });
+
+  it("adds spacing for Chinese in mixed Korean+Chinese text", () => {
+    expect(addCJKParenthesisSpacing("한글中文(text)")).toBe("한글中文 (text)");
   });
 });
 
@@ -493,7 +503,8 @@ describe("fixDoubleQuoteSpacing", () => {
     it("adds space after CJK characters", () => {
       expect(fixDoubleQuoteSpacing(`中文${OQ}text${CQ}`)).toBe(`中文 ${OQ}text${CQ}`);
       expect(fixDoubleQuoteSpacing(`日本語${OQ}text${CQ}`)).toBe(`日本語 ${OQ}text${CQ}`);
-      expect(fixDoubleQuoteSpacing(`한글${OQ}text${CQ}`)).toBe(`한글 ${OQ}text${CQ}`);
+      // Korean excluded: native word spacing handles quote proximity
+      expect(fixDoubleQuoteSpacing(`한글${OQ}text${CQ}`)).toBe(`한글${OQ}text${CQ}`);
     });
 
     it("no space after CJK closing brackets", () => {
@@ -538,7 +549,8 @@ describe("fixDoubleQuoteSpacing", () => {
     it("adds space before CJK characters", () => {
       expect(fixDoubleQuoteSpacing(`${OQ}text${CQ}中文`)).toBe(`${OQ}text${CQ} 中文`);
       expect(fixDoubleQuoteSpacing(`${OQ}text${CQ}日本語`)).toBe(`${OQ}text${CQ} 日本語`);
-      expect(fixDoubleQuoteSpacing(`${OQ}text${CQ}한글`)).toBe(`${OQ}text${CQ} 한글`);
+      // Korean excluded: native word spacing handles quote proximity
+      expect(fixDoubleQuoteSpacing(`${OQ}text${CQ}한글`)).toBe(`${OQ}text${CQ}한글`);
     });
 
     it("no space before CJK opening brackets", () => {
