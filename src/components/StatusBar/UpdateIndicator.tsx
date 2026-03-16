@@ -10,6 +10,7 @@
  * - Error icon when error (click to retry)
  */
 
+import { useTranslation } from "react-i18next";
 import { RefreshCw, Download, CheckCircle, AlertCircle } from "lucide-react";
 import { useUpdateStore, type UpdateStatus } from "@/stores/updateStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -17,14 +18,14 @@ import { useUpdateOperations } from "@/hooks/useUpdateOperations";
 import { openSettingsWindow } from "@/utils/settingsWindow";
 
 /**
- * Get indicator config based on update status
+ * Get indicator config based on update status (title is a translation key resolved in the component).
  */
 function getIndicatorConfig(status: UpdateStatus) {
   switch (status) {
     case "checking":
       return {
         icon: RefreshCw,
-        title: "Checking for updates...",
+        titleKey: "updateChecking" as const,
         className: "status-update checking",
         showDot: false,
         clickable: false,
@@ -32,7 +33,7 @@ function getIndicatorConfig(status: UpdateStatus) {
     case "downloading":
       return {
         icon: Download,
-        title: "Downloading update...",
+        titleKey: "updateDownloading" as const,
         className: "status-update downloading",
         showDot: false,
         clickable: false,
@@ -40,7 +41,7 @@ function getIndicatorConfig(status: UpdateStatus) {
     case "available":
       return {
         icon: Download,
-        title: "Update available — click to view",
+        titleKey: "updateAvailable" as const,
         className: "status-update available",
         showDot: true,
         clickable: true,
@@ -48,7 +49,7 @@ function getIndicatorConfig(status: UpdateStatus) {
     case "ready":
       return {
         icon: CheckCircle,
-        title: "Click to restart and update",
+        titleKey: "updateReady" as const,
         className: "status-update ready",
         showDot: true,
         clickable: true,
@@ -56,7 +57,7 @@ function getIndicatorConfig(status: UpdateStatus) {
     case "error":
       return {
         icon: AlertCircle,
-        title: "Update check failed — click to retry",
+        titleKey: "updateError" as const,
         className: "status-update error",
         showDot: false,
         clickable: true,
@@ -68,6 +69,7 @@ function getIndicatorConfig(status: UpdateStatus) {
 
 /** Renders an update status icon in the StatusBar (checking, downloading, ready, or error). */
 export function UpdateIndicator() {
+  const { t } = useTranslation("statusbar");
   const status = useUpdateStore((state) => state.status);
   const updateInfo = useUpdateStore((state) => state.updateInfo);
   const downloadProgress = useUpdateStore((state) => state.downloadProgress);
@@ -91,13 +93,13 @@ export function UpdateIndicator() {
       : null;
 
   // Build title with additional context
-  let title = config.title;
+  let title = t(config.titleKey);
   if (status === "available" && updateInfo) {
-    title = `Update available: v${updateInfo.version} — click to view`;
+    title = t("updateAvailableVersion", { version: updateInfo.version });
   } else if (status === "downloading") {
-    title = downloadPercent !== null ? `Downloading: ${downloadPercent}%` : "Downloading update...";
+    title = downloadPercent !== null ? t("updateDownloadingPercent", { percent: downloadPercent }) : t("updateDownloading");
   } else if (status === "ready" && updateInfo) {
-    title = `v${updateInfo.version} ready — click to restart`;
+    title = t("updateReadyVersion", { version: updateInfo.version });
   }
 
   const handleClick = () => {

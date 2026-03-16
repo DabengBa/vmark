@@ -16,7 +16,9 @@
   "sourceModeTitle": "Source Mode ({{shortcut}})",
   "richTextModeTitle": "Rich Text Mode ({{shortcut}})",
   "cancelAiRequest": "Cancel AI request",
+  "cancelAiTitle": "Cancel",
   "dismissError": "Dismiss error",
+  "dismissTitle": "Dismiss",
   "aiWorking": "AI genie is working...",
   "aiThinking": "Thinking... {{seconds}}s",
   "aiStillWorking": "Still working... {{seconds}}s",
@@ -24,5 +26,13 @@
   "aiRetry": "Retry",
   "words": "{{count}} words",
   "chars": "{{count}} chars",
-  "pressAgainToQuit": "Press {{key}} again to quit"
+  "pressAgainToQuit": "Press {{key}} again to quit",
+  "updateChecking": "Checking for updates...",
+  "updateDownloading": "Downloading update...",
+  "updateAvailable": "Update available — click to view",
+  "updateAvailableVersion": "Update available: v{{version}} — click to view",
+  "updateDownloadingPercent": "Downloading: {{percent}}%",
+  "updateReady": "Click to restart and update",
+  "updateReadyVersion": "v{{version}} ready — click to restart",
+  "updateError": "Update check failed — click to retry"
 }

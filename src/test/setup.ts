@@ -1,6 +1,39 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
+// ---------------------------------------------------------------------------
+// react-i18next global mock
+// Makes t(key, opts) return the English translation string with interpolations
+// applied, so component tests can assert against real English text.
+// ---------------------------------------------------------------------------
+import statusbarEn from "../locales/en/statusbar.json";
+
+const localeMap: Record<string, Record<string, string>> = {
+  statusbar: statusbarEn as Record<string, string>,
+};
+
+function applyInterpolation(template: string, opts?: Record<string, unknown>): string {
+  if (!opts) return template;
+  return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
+    const val = opts[key];
+    return val !== undefined ? String(val) : `{{${key}}}`;
+  });
+}
+
+vi.mock("react-i18next", () => ({
+  useTranslation: (ns?: string) => {
+    const namespace = ns ?? "common";
+    const dict = localeMap[namespace] ?? {};
+    const t = (key: string, opts?: Record<string, unknown>) => {
+      const template = dict[key] ?? key;
+      return applyInterpolation(template, opts);
+    };
+    return { t, i18n: { language: "en" } };
+  },
+  Trans: ({ children }: { children: React.ReactNode }) => children,
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
+}));
+
 // Mock Tauri APIs
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

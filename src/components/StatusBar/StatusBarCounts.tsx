@@ -16,11 +16,13 @@
  */
 
 import { memo, useDeferredValue, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useDocumentContent } from "@/hooks/useDocumentState";
 import { countCharsFromPlain, countWordsFromPlain, stripMarkdown } from "./statusTextMetrics";
 
 /** Isolated component computing and displaying word/character counts to avoid parent re-renders. */
 export const StatusBarCounts = memo(function StatusBarCounts() {
+  const { t } = useTranslation("statusbar");
   const content = useDocumentContent();
   const deferredContent = useDeferredValue(content);
   const strippedContent = useMemo(() => stripMarkdown(deferredContent), [deferredContent]);
@@ -29,8 +31,8 @@ export const StatusBarCounts = memo(function StatusBarCounts() {
 
   return (
     <>
-      <span className="status-item">{wordCount} words</span>
-      <span className="status-item">{charCount} chars</span>
+      <span className="status-item">{t("words", { count: wordCount })}</span>
+      <span className="status-item">{t("chars", { count: charCount })}</span>
     </>
   );
 });

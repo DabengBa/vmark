@@ -18,6 +18,7 @@
  * @coordinates-with UpdateIndicator.tsx — inline update badge
  * @module components/StatusBar/StatusBarRight
  */
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Check, Code2, GitFork, Satellite, Save, Sparkles, Terminal, Type } from "lucide-react";
 import { useImagePasteToastStore } from "@/stores/imagePasteToastStore";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
@@ -114,25 +115,26 @@ export function StatusBarRight({
   sourceModeShortcut,
   onToggleSourceMode,
 }: StatusBarRightProps) {
+  const { t } = useTranslation("statusbar");
   return (
     <div className="status-bar-right">
       {showAutoSavePaused && (
         <span
           className="status-autosave-paused"
-          title={`Auto-save paused: file was deleted from disk. Save manually with ${formatKeyForDisplay(saveShortcut)}.`}
+          title={t("autoSavePausedTitle", { shortcut: formatKeyForDisplay(saveShortcut) })}
         >
           <AlertTriangle size={12} />
-          Auto-save paused
+          {t("autoSavePaused")}
         </span>
       )}
 
       {isDivergent && !showAutoSavePaused && (
         <span
           className="status-divergent"
-          title={`Local differs from disk. Save (${formatKeyForDisplay(saveShortcut)}) to sync, or use File > Revert to discard local changes.`}
+          title={t("divergentTitle", { shortcut: formatKeyForDisplay(saveShortcut) })}
         >
           <GitFork size={12} />
-          Divergent
+          {t("divergent")}
         </span>
       )}
 
@@ -148,18 +150,18 @@ export function StatusBarRight({
       <UpdateIndicator />
 
       {aiRunning && (
-        <span className="status-ai-indicator status-ai-indicator--running" title="AI genie is working...">
+        <span className="status-ai-indicator status-ai-indicator--running" title={t("aiWorking")}>
           <Sparkles size={12} className="status-ai-spinner" />
           <span className="status-ai-text">
             {elapsedSeconds < 10
-              ? `Thinking... ${elapsedSeconds}s`
-              : `Still working... ${elapsedSeconds}s`}
+              ? t("aiThinking", { seconds: elapsedSeconds })
+              : t("aiStillWorking", { seconds: elapsedSeconds })}
           </span>
           <button
             className="status-ai-cancel"
             onClick={onCancelAi}
-            title="Cancel"
-            aria-label="Cancel AI request"
+            title={t("cancelAiTitle")}
+            aria-label={t("cancelAiRequest")}
           >
             ×
           </button>
@@ -172,12 +174,12 @@ export function StatusBarRight({
           <span className="status-ai-text">
             {aiError.length > 30 ? `${aiError.slice(0, 30)}...` : aiError}
           </span>
-          <button className="status-ai-action" onClick={onRetryAi}>Retry</button>
+          <button className="status-ai-action" onClick={onRetryAi}>{t("aiRetry")}</button>
           <button
             className="status-ai-cancel"
             onClick={onDismissError}
-            title="Dismiss"
-            aria-label="Dismiss error"
+            title={t("dismissTitle")}
+            aria-label={t("dismissError")}
           >
             ×
           </button>
@@ -187,7 +189,7 @@ export function StatusBarRight({
       {!aiRunning && !aiError && showSuccess && (
         <span className="status-ai-indicator status-ai-indicator--success">
           <Check size={12} />
-          <span className="status-ai-text">Done</span>
+          <span className="status-ai-text">{t("aiDone")}</span>
         </span>
       )}
 
@@ -195,15 +197,15 @@ export function StatusBarRight({
         className={`status-mcp ${mcpRunning ? "connected" : ""} ${mcpLoading ? "loading" : ""} ${mcpError ? "error" : ""}`}
         onClick={openMcpSettings}
         title={formatMcpTooltip(mcpRunning, mcpLoading, mcpError, mcpClients)}
-        aria-label="MCP Status"
+        aria-label={t("mcpStatus")}
       >
         <Satellite size={12} />
       </button>
 
       <button
         className={`status-terminal ${terminalVisible ? "active" : ""}`}
-        title={`Toggle Terminal (${formatKeyForDisplay(terminalShortcut)})`}
-        aria-label={`Toggle Terminal (${formatKeyForDisplay(terminalShortcut)})`}
+        title={t("toggleTerminal", { shortcut: formatKeyForDisplay(terminalShortcut) })}
+        aria-label={t("toggleTerminal", { shortcut: formatKeyForDisplay(terminalShortcut) })}
         onClick={() => requestToggleTerminal()}
       >
         <Terminal size={12} />
@@ -211,7 +213,7 @@ export function StatusBarRight({
 
       <button
         className="status-mode"
-        title={sourceMode ? `Source Mode (${formatKeyForDisplay(sourceModeShortcut)})` : `Rich Text Mode (${formatKeyForDisplay(sourceModeShortcut)})`}
+        title={sourceMode ? t("sourceModeTitle", { shortcut: formatKeyForDisplay(sourceModeShortcut) }) : t("richTextModeTitle", { shortcut: formatKeyForDisplay(sourceModeShortcut) })}
         onClick={() => {
           const toastStore = useImagePasteToastStore.getState();
           /* v8 ignore next -- @preserve toastStore.isOpen true branch: toast not open during mode toggle tests */
