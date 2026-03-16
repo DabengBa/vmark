@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useCallback, useState } from "react";
-import { formatKeyForDisplay, type ShortcutDefinition } from "@/stores/shortcutsStore";
+import { useTranslation } from "react-i18next";
+import { formatKeyForDisplay, getShortcutLabel, type ShortcutDefinition } from "@/stores/shortcutsStore";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { Button } from "./components";
 
@@ -17,6 +18,7 @@ interface KeyCaptureProps {
 }
 
 export function KeyCapture({ shortcut, conflict, onCapture, onCancel }: KeyCaptureProps) {
+  const { t } = useTranslation("settings");
   const [capturedKey, setCapturedKey] = useState<string | null>(null);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -70,10 +72,10 @@ export function KeyCapture({ shortcut, conflict, onCapture, onCancel }: KeyCaptu
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-[var(--bg-primary)] rounded-lg shadow-xl p-6 w-80 border border-[var(--border-color)]">
         <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-          Set Shortcut
+          {t("shortcuts.capture.title")}
         </h3>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Press a key combination for <strong>{shortcut.label}</strong>
+          {t("shortcuts.capture.prompt")} <strong>{getShortcutLabel(shortcut)}</strong>
         </p>
 
         {/* Key display */}
@@ -84,7 +86,7 @@ export function KeyCapture({ shortcut, conflict, onCapture, onCancel }: KeyCaptu
             </span>
           ) : (
             <span className="text-sm text-[var(--text-tertiary)]">
-              Waiting for input...
+              {t("shortcuts.capture.waiting")}
             </span>
           )}
         </div>
@@ -93,27 +95,30 @@ export function KeyCapture({ shortcut, conflict, onCapture, onCancel }: KeyCaptu
         {conflict && (
           <div className="bg-[var(--warning-bg)] text-[var(--warning-color)] border border-[var(--warning-border)]
                           rounded-lg p-3 mb-4 text-sm">
-            <strong>Conflict:</strong> This key is already used by{" "}
-            <strong>{conflict.label}</strong>
+            <strong>{t("shortcuts.capture.conflict")}</strong>{" "}
+            {t("shortcuts.capture.conflictUsedBy")}{" "}
+            <strong>{getShortcutLabel(conflict)}</strong>
           </div>
         )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Button onClick={onCancel}>
-            Cancel
+            {t("shortcuts.capture.cancel")}
           </Button>
           <Button
             variant="primary"
             onClick={handleConfirm}
             disabled={!capturedKey}
           >
-            {conflict ? "Assign Anyway" : "Assign"}
+            {conflict ? t("shortcuts.capture.assignAnyway") : t("shortcuts.capture.assign")}
           </Button>
         </div>
 
         <p className="text-xs text-[var(--text-tertiary)] mt-4 text-center">
-          Press <kbd className="px-1 bg-[var(--bg-secondary)] rounded">Esc</kbd> to cancel
+          {t("shortcuts.capture.pressEsc")}{" "}
+          <kbd className="px-1 bg-[var(--bg-secondary)] rounded">Esc</kbd>{" "}
+          {t("shortcuts.capture.toCancel")}
         </p>
       </div>
     </div>

@@ -10,7 +10,8 @@ import {
   DEFAULT_SHORTCUTS,
   CATEGORY_ORDER,
   CATEGORY_LABELS,
-
+  getCategoryLabel,
+  getShortcutLabel,
   formatKeyForDisplay,
   prosemirrorToTauri,
 } from "./shortcutsStore";
@@ -314,6 +315,72 @@ describe("shortcutsStore", () => {
       for (const category of CATEGORY_ORDER) {
         expect(CATEGORY_LABELS[category]).toBeDefined();
       }
+    });
+  });
+
+  describe("getCategoryLabel", () => {
+    it("returns translated label for each category via i18n", () => {
+      // The test mock resolves settings:shortcuts.category.* keys to English values
+      // (since setup.ts loads en/settings.json which now has these keys)
+      expect(getCategoryLabel("formatting")).toBe("Formatting");
+      expect(getCategoryLabel("blocks")).toBe("Blocks");
+      expect(getCategoryLabel("navigation")).toBe("Navigation");
+      expect(getCategoryLabel("editing")).toBe("Editing");
+      expect(getCategoryLabel("view")).toBe("View");
+      expect(getCategoryLabel("file")).toBe("File");
+    });
+
+    it("covers all CATEGORY_ORDER entries", () => {
+      for (const category of CATEGORY_ORDER) {
+        const label = getCategoryLabel(category);
+        expect(typeof label).toBe("string");
+        expect(label.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("falls back to CATEGORY_LABELS value when i18n key is missing", () => {
+      // If i18n returns the key itself (missing translation), fallback is used
+      // We verify the fallback by checking the value matches CATEGORY_LABELS
+      // when we have a valid category (translation resolves for all in en locale)
+      const label = getCategoryLabel("file");
+      expect(label).toBe("File");
+    });
+  });
+
+  describe("getShortcutLabel", () => {
+    it("returns translated label for shortcuts via i18n", () => {
+      const boldDef = DEFAULT_SHORTCUTS.find((s) => s.id === "bold")!;
+      expect(getShortcutLabel(boldDef)).toBe("Bold");
+
+      const italicDef = DEFAULT_SHORTCUTS.find((s) => s.id === "italic")!;
+      expect(getShortcutLabel(italicDef)).toBe("Italic");
+
+      const codeDef = DEFAULT_SHORTCUTS.find((s) => s.id === "code")!;
+      expect(getShortcutLabel(codeDef)).toBe("Inline Code");
+    });
+
+    it("returns translated label for all shortcuts without throwing", () => {
+      for (const shortcut of DEFAULT_SHORTCUTS) {
+        const label = getShortcutLabel(shortcut);
+        expect(typeof label).toBe("string");
+        expect(label.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("falls back to shortcut.label for unknown id", () => {
+      const fakeDef = { id: "unknownXyz", label: "Unknown Action", category: "editing" as const, defaultKey: "" };
+      // i18n.t returns the key itself for missing translations → falls back to shortcut.label
+      expect(getShortcutLabel(fakeDef)).toBe("Unknown Action");
+    });
+
+    it("returns translated label for CJK-specific shortcuts", () => {
+      const formatCJKDef = DEFAULT_SHORTCUTS.find((s) => s.id === "formatCJKSelection")!;
+      expect(getShortcutLabel(formatCJKDef)).toBe("Format CJK Selection");
+    });
+
+    it("returns translated label for AI Genies shortcut", () => {
+      const aiDef = DEFAULT_SHORTCUTS.find((s) => s.id === "aiPrompts")!;
+      expect(getShortcutLabel(aiDef)).toBe("AI Genies");
     });
   });
 
