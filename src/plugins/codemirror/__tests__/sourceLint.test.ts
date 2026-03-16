@@ -74,10 +74,11 @@ describe("diagnosticToCM", () => {
     expect(result.severity).toBe("warning");
   });
 
-  it("sets message to messageKey", () => {
-    const d = makeDiag({ messageKey: "lint.W03" });
+  it("translates messageKey to localized string", () => {
+    const d = makeDiag({ messageKey: "lint.W03", messageParams: { ref: "foo" } });
     const result = diagnosticToCM(100, d);
-    expect(result.message).toBe("lint.W03");
+    // i18n mock resolves keys to their English translation
+    expect(result.message).toContain("definition");
   });
 
   it("handles docLength = 0 gracefully", () => {

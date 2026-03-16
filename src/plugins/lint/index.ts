@@ -26,33 +26,31 @@ import "./lint.css";
 const pluginKey = new PluginKey("markdownLint");
 
 /**
- * Map a 1-based line number to the ProseMirror block node that contains it.
+ * Map a 1-based markdown line number to a ProseMirror top-level block node.
  * Returns the node position and node, or null if out of range.
  *
- * Strategy: iterate top-level blocks, counting content lines.
+ * Strategy: treat each top-level block as occupying 1 "virtual line" for
+ * mapping purposes. This is imprecise but avoids counting WYSIWYG text
+ * newlines (which don't correspond to markdown line numbers). Decorations
+ * are block-level only, so a best-effort mapping is acceptable.
+ *
+ * Blocks are accumulated into a line→block index during a single pass.
+ * A diagnostic at line N maps to the (N-1)th block (0-indexed). If the
+ * block doesn't exist, the diagnostic is skipped.
  */
 function findBlockForLine(
   doc: PMNode,
   targetLine: number
 ): { pos: number; node: PMNode } | null {
-  let currentLine = 1;
-  let result: { pos: number; node: PMNode } | null = null;
-
+  // Build a simple array of top-level blocks on demand
+  const blocks: Array<{ pos: number; node: PMNode }> = [];
   doc.forEach((node, pos) => {
-    if (result) return; // Already found
-
-    // Count lines in this block's text content
-    const text = node.textContent;
-    const lineCount = (text.match(/\n/g) ?? []).length + 1;
-
-    if (targetLine >= currentLine && targetLine < currentLine + lineCount) {
-      result = { pos, node };
-    }
-
-    currentLine += lineCount;
+    blocks.push({ pos, node });
   });
 
-  return result;
+  // Map 1-based line to 0-based block index
+  const blockIndex = targetLine - 1;
+  return blocks[blockIndex] ?? null;
 }
 
 /**

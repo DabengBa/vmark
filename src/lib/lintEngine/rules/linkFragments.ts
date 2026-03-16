@@ -14,8 +14,9 @@ import { generateSlug, makeUniqueSlug } from "@/utils/headingSlug";
 function extractHeadingText(children: PhrasingContent[]): string {
   let text = "";
   for (const child of children) {
-    if (child.type === "text") {
-      text += child.value;
+    if ("value" in child && typeof (child as { value?: unknown }).value === "string") {
+      // Covers text nodes, inlineCode, and any other leaf with .value
+      text += (child as { value: string }).value;
     } else if ("children" in child && Array.isArray((child as { children?: PhrasingContent[] }).children)) {
       text += extractHeadingText((child as { children: PhrasingContent[] }).children);
     }

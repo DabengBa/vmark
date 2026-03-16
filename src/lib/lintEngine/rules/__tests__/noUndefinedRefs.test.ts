@@ -53,6 +53,27 @@ describe("E01 noUndefinedRefs", () => {
       input: "[text](https://example.com)",
       expected: 0,
     },
+    // Issue 5: collapsed and shortcut reference forms
+    {
+      name: "clean: collapsed reference [label][] with matching definition",
+      input: "[ref][]\n\n[ref]: https://example.com",
+      expected: 0,
+    },
+    {
+      name: "flagged: collapsed reference [label][] with no definition",
+      input: "[broken][]",
+      expected: 1,
+    },
+    {
+      name: "clean: shortcut reference [label] with matching definition",
+      input: "[ref]\n\n[ref]: https://example.com",
+      expected: 0,
+    },
+    {
+      name: "clean: shortcut reference with no definition is not flagged (inline text)",
+      input: "[notaref]",
+      expected: 0,
+    },
   ])("$name → $expected E01 diagnostic(s)", ({ input, expected }) => {
     const result = lintMarkdown(input);
     const matches = result.filter((d) => d.ruleId === "E01");

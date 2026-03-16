@@ -13,9 +13,12 @@ export class CodeBlockTracker {
     const match = trimmed.match(/^(`{3,}|~{3,})/);
 
     if (this.inFence) {
-      // Check for closing fence: same char, at least same length
+      // Check for closing fence: same char, at least same length, rest of line whitespace only
       if (match && match[1][0] === this.fenceChar && match[1].length >= this.fenceLen) {
-        this.inFence = false;
+        const rest = trimmed.slice(match[1].length);
+        if (rest.trim() === "") {
+          this.inFence = false;
+        }
       }
       return true; // This line is inside the fence
     }

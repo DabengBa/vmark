@@ -63,4 +63,19 @@ describe("E08 unclosedFencedCode", () => {
     const result = lintMarkdown("# Title\n\nNormal paragraph.");
     expect(result.some((d) => d.ruleId === "E08")).toBe(false);
   });
+
+  // Issue 6: closing fence must be fence chars + optional whitespace only
+  it("does NOT close fence when closing line has trailing non-whitespace (permissive bug)", () => {
+    // ``` followed by language tag should NOT be treated as a closing fence
+    const source = "```\nsome code\n```js\nmore text";
+    const result = lintMarkdown(source);
+    // The ``` on line 3 has "js" after it — NOT a valid closing fence
+    expect(result.some((d) => d.ruleId === "E08")).toBe(true);
+  });
+
+  it("DOES close fence when closing line has only trailing whitespace", () => {
+    const source = "```\nsome code\n```   \n";
+    const result = lintMarkdown(source);
+    expect(result.some((d) => d.ruleId === "E08")).toBe(false);
+  });
 });

@@ -50,15 +50,37 @@ function findReferencedLabels(source: string): Set<string> {
       continue;
     }
 
-    // Strip inline code spans before scanning
-    const strippedLine = lineText.replace(/`[^`]*`/g, (match) => " ".repeat(match.length));
+    // Skip definition lines: `[label]: url` — these are not references
+    if (/^ {0,3}\[[^\]]+\]:[ \t]/.test(trimmed)) continue;
 
-    // Match [text][label] or ![alt][label]
-    const refPattern = /(!?\[(?:[^\]\\]|\\.)*?\])\[([^\]]+?)\]/g;
+    // Strip inline code spans before scanning
+    const strippedLine = lineText.replace(/`[^`]*`/g, (s) => " ".repeat(s.length));
+
+    // Match all reference forms:
+    //   Full:      [text][label]  — group 1 = "[text]", group 3 = "[label]", group 4 = "label"
+    //   Collapsed: [text][]       — group 1 = "[text]", group 3 = "[]",      group 4 = ""
+    //   Shortcut:  [text]         — group 1 = "[text]", group 3 = undefined
+    const refPattern = /(!?\[([^\]\\]|\\.)*?\])(\[([^\]]*?)\])?/g;
     let match: RegExpExecArray | null;
 
     while ((match = refPattern.exec(strippedLine)) !== null) {
-      const label = match[2];
+      const fullBracket = match[1]; // "[text]" or "![alt]"
+      const hasBracket = match[3] !== undefined; // second [...] present
+      const bracketContent = match[4]; // content; "" for collapsed
+
+      let label: string;
+
+      if (!hasBracket) {
+        // Shortcut reference — link text is the label
+        label = fullBracket.replace(/^!?\[/, "").replace(/\]$/, "");
+      } else if (bracketContent === "") {
+        // Collapsed reference [text][] — link text is the label
+        label = fullBracket.replace(/^!?\[/, "").replace(/\]$/, "");
+      } else {
+        // Full reference [text][label]
+        label = bracketContent;
+      }
+
       if (label) {
         usedLabels.add(normalizeLabel(label));
       }
