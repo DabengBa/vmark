@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -24,6 +25,7 @@ import { formatSnapshotTime, groupByDay } from "@/utils/dateUtils";
 
 /** Renders the document version history sidebar with revert and delete actions. */
 export function HistoryView() {
+  const { t } = useTranslation("sidebar");
   const filePath = useDocumentFilePath();
   const { getContent, loadContent } = useDocumentActions();
   const historyEnabled = useSettingsStore((state) => state.general.historyEnabled);
@@ -92,9 +94,9 @@ export function HistoryView() {
 
     try {
       const confirmed = await ask(
-        `Revert to version from ${formatSnapshotTime(snapshot.timestamp)}?\n\nYour current changes will be saved as a new history entry first.`,
+        t("history.revertMessage", { time: formatSnapshotTime(snapshot.timestamp) }),
         {
-          title: "Revert to Earlier Version",
+          title: t("history.revertTitle"),
           kind: "warning",
         }
       );
@@ -130,7 +132,7 @@ export function HistoryView() {
   if (!filePath) {
     return (
       <div className="sidebar-view">
-        <div className="sidebar-empty">Save document to enable history</div>
+        <div className="sidebar-empty">{t("history.saveToEnable")}</div>
       </div>
     );
   }
@@ -138,7 +140,7 @@ export function HistoryView() {
   if (!historyEnabled) {
     return (
       <div className="sidebar-view">
-        <div className="sidebar-empty">History is disabled in settings</div>
+        <div className="sidebar-empty">{t("history.disabled")}</div>
       </div>
     );
   }
@@ -146,7 +148,7 @@ export function HistoryView() {
   if (loading) {
     return (
       <div className="sidebar-view">
-        <div className="sidebar-empty">Loading...</div>
+        <div className="sidebar-empty">{t("loading")}</div>
       </div>
     );
   }
@@ -154,7 +156,7 @@ export function HistoryView() {
   if (snapshots.length === 0) {
     return (
       <div className="sidebar-view">
-        <div className="sidebar-empty">No history yet</div>
+        <div className="sidebar-empty">{t("history.noHistory")}</div>
       </div>
     );
   }
@@ -181,14 +183,14 @@ export function HistoryView() {
                 <button
                   className="history-revert-btn"
                   onClick={() => handleRevert(snapshot)}
-                  title="Revert to this version"
+                  title={t("history.revertButton")}
                 >
                   <RotateCcw size={12} />
                 </button>
                 <button
                   className="history-delete-btn"
                   onClick={() => handleDeleteSnapshot(snapshot)}
-                  title="Delete this snapshot"
+                  title={t("history.deleteSnapshot")}
                 >
                   <Trash2 size={12} />
                 </button>

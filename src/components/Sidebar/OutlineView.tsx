@@ -5,6 +5,7 @@
  */
 
 import { useState, useDeferredValue, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindowLabel } from "@/utils/workspaceStorage";
@@ -32,6 +33,7 @@ function OutlineItem({
   onToggle: (index: number) => void;
   onClick: (headingIndex: number) => void;
 }) {
+  const { t } = useTranslation("sidebar");
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsedSet.has(node.index);
   const isActive = node.index === activeIndex;
@@ -55,7 +57,7 @@ function OutlineItem({
         {hasChildren ? (
           <button
             className="outline-toggle"
-            aria-label={isCollapsed ? "Expand section" : "Collapse section"}
+            aria-label={isCollapsed ? t("outline.expandSection") : t("outline.collapseSection")}
             onClick={(e) => {
               e.stopPropagation();
               onToggle(node.index);
@@ -92,6 +94,7 @@ const MAX_HEADING_COUNT = 1000; // Safety cap for heading count
 
 /** Renders the document heading structure as a collapsible tree in the sidebar. */
 export function OutlineView() {
+  const { t } = useTranslation("sidebar");
   const content = useDocumentContent();
   const deferredContent = useDeferredValue(content);
   const activeHeadingIndex = useUIStore((state) => state.activeHeadingLine);
@@ -176,7 +179,7 @@ export function OutlineView() {
   if (isTooLarge) {
     return (
       <div className="sidebar-view outline-view">
-        <div className="sidebar-empty">Document too large for outline</div>
+        <div className="sidebar-empty">{t("outline.tooLarge")}</div>
       </div>
     );
   }
@@ -184,7 +187,7 @@ export function OutlineView() {
   return (
     <div className="sidebar-view outline-view">
       {headings.length > 0 ? (
-        <ul className="outline-tree" role="tree" aria-label="Document outline">
+        <ul className="outline-tree" role="tree" aria-label={t("outline.documentOutline")}>
           {tree.map((node) => (
             <OutlineItem
               key={node.index}
@@ -197,7 +200,7 @@ export function OutlineView() {
           ))}
         </ul>
       ) : (
-        <div className="sidebar-empty">No headings</div>
+        <div className="sidebar-empty">{t("outline.noHeadings")}</div>
       )}
     </div>
   );
