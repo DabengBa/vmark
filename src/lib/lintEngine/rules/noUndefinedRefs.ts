@@ -70,30 +70,45 @@ export function noUndefinedRefs(source: string, mdast: Root): LintDiagnostic[] {
       continue;
     }
 
-    // Strip inline code spans before scanning for refs
-    const strippedLine = lineText.replace(/`[^`]*`/g, (match) => " ".repeat(match.length));
+    // Skip definition lines: `[label]: url` — not a reference usage
+    if (/^ {0,3}\[[^\]]+\]:[ \t]/.test(trimmed)) continue;
 
-    // Regex: !?[...][label] — match full-reference and image-reference patterns
-    // Group 1: optional ! (image)
-    // Group 2: link text or alt (ignored for position)
-    // Group 3: reference label
-    const refPattern = /(!?\[(?:[^\]\\]|\\.)*?\])\[([^\]]*?)\]/g;
+    // Strip inline code spans before scanning for refs
+    const strippedLine = lineText.replace(/`[^`]*`/g, (m) => " ".repeat(m.length));
+
+    // Regex matches all reference forms:
+    //   Full:      [text][label]  — group 1 = "[text]", group 3 = "[label]", group 4 = "label"
+    //   Collapsed: [text][]       — group 1 = "[text]", group 3 = "[]",      group 4 = ""
+    //   Shortcut:  [text]         — group 1 = "[text]", group 3 = undefined
+    // Also matches image variants: ![alt][label], ![alt][], ![alt]
+    const refPattern = /(!?\[([^\]\\]|\\.)*?\])(\[([^\]]*?)\])?/g;
     let match: RegExpExecArray | null;
 
     while ((match = refPattern.exec(strippedLine)) !== null) {
-      const fullMatch = match[0];
-      const label = match[2];
+      const fullBracket = match[1]; // e.g. "[text]" or "![alt]"
+      const hasBracket = match[3] !== undefined; // second [...] present
+      const bracketContent = match[4]; // content of second [...]; "" for collapsed
 
-      // Collapsed ref [text][] uses the link text itself as the label
-      // We only flag non-empty labels here (collapsed refs use link text)
-      if (label === "") {
-        // Collapsed reference — uses link text as label, harder to validate
-        // Skip for now; these are rare and hard to validate without full parsing
+      let label: string;
+
+      if (!hasBracket) {
+        // Shortcut reference [label]: only a reference when a definition exists.
+        // If no definition, CommonMark treats it as literal text — skip it.
+        const textContent = fullBracket.replace(/^!?\[/, "").replace(/\]$/, "");
+        if (!definedLabels.has(normalizeLabel(textContent))) continue;
+        // Definition found → it IS a valid shortcut reference, no error.
         continue;
+      } else if (bracketContent === "") {
+        // Collapsed reference [text][] — link text is the label
+        label = fullBracket.replace(/^!?\[/, "").replace(/\]$/, "");
+      } else {
+        // Full reference [text][label]
+        label = bracketContent;
       }
 
       const normalizedLabel = normalizeLabel(label);
       if (!definedLabels.has(normalizedLabel)) {
+        const fullMatch = match[0];
         const column = match.index + 1;
         const offset = offsetFromLineCol(source, lineNum, column);
         const endOffset = offset + fullMatch.length;

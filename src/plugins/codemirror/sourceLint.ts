@@ -15,10 +15,12 @@
  * @module plugins/codemirror/sourceLint
  */
 
-import { linter, type Diagnostic } from "@codemirror/lint";
+import { linter, forceLinting, type Diagnostic } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
 import { useLintStore } from "@/stores/lintStore";
 import type { LintDiagnostic } from "@/lib/lintEngine/types";
+import i18n from "@/i18n";
+import { useActiveEditorStore } from "@/stores/activeEditorStore";
 
 /**
  * Convert a LintDiagnostic (0-based offset) to a CodeMirror Diagnostic.
@@ -35,7 +37,7 @@ export function diagnosticToCM(docLength: number, d: LintDiagnostic): Diagnostic
     from,
     to: Math.max(to, from),
     severity: d.severity === "error" ? "error" : "warning",
-    message: d.messageKey,
+    message: i18n.t(`editor:${d.messageKey}`, d.messageParams as Record<string, unknown>),
   };
 }
 
@@ -61,4 +63,16 @@ export function createSourceLintExtension(tabId: string) {
   });
 
   return [lintSource, clearOnEdit];
+}
+
+/**
+ * Force the active CodeMirror source view to re-run its linter immediately.
+ * Call this after runLint() to surface new diagnostics without waiting for
+ * the next document change event.
+ */
+export function triggerLintRefresh(): void {
+  const view = useActiveEditorStore.getState().activeSourceView;
+  if (view) {
+    forceLinting(view);
+  }
 }

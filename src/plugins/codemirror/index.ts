@@ -46,4 +46,4 @@ export {
 export { structuralBackspaceKeymap, structuralDeleteKeymap } from "./structuralCharProtection";
 export { listSmartIndentKeymap, listSmartOutdentKeymap } from "./listSmartIndent";
 export { createSourceCopyOnSelectPlugin } from "./sourceCopyOnSelect";
-export { createSourceLintExtension, diagnosticToCM } from "./sourceLint";
+export { createSourceLintExtension, diagnosticToCM, triggerLintRefresh } from "./sourceLint";

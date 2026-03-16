@@ -31,6 +31,49 @@ import { useLintStore } from "@/stores/lintStore";
 import { getActiveDocument, getActiveTabId } from "@/utils/activeDocument";
 import { toast } from "sonner";
 import i18n from "@/i18n";
+import { triggerLintRefresh } from "@/plugins/codemirror/sourceLint";
+import { useActiveEditorStore } from "@/stores/activeEditorStore";
+import { EditorView as CMEditorView } from "@codemirror/view";
+import { useTiptapEditorStore } from "@/stores/tiptapEditorStore";
+import { serializeMarkdown } from "@/utils/markdownPipeline";
+
+/**
+ * Scroll the active Source mode editor to the currently selected lint diagnostic.
+ * In WYSIWYG mode with sourceOnly diagnostics, switch to Source mode first.
+ * No-op if no diagnostic is selected or no active editor is available.
+ */
+function scrollToSelectedDiagnostic(tabId: string): void {
+  const { diagnosticsByTab, selectedIndex } = useLintStore.getState();
+  const diagnostics = diagnosticsByTab[tabId];
+  if (!diagnostics || diagnostics.length === 0) return;
+
+  const diag = diagnostics[selectedIndex];
+  if (!diag) return;
+
+  const { activeSourceView } = useActiveEditorStore.getState();
+  const sourceMode = useEditorStore.getState().sourceMode;
+
+  if (activeSourceView && sourceMode) {
+    // Source mode: scroll CodeMirror to the diagnostic offset
+    activeSourceView.dispatch({
+      effects: CMEditorView.scrollIntoView(
+        Math.min(diag.offset, activeSourceView.state.doc.length)
+      ),
+    });
+    return;
+  }
+
+  // WYSIWYG mode: if diagnostic is sourceOnly, switch to Source mode
+  if (!sourceMode && diag.uiHint === "sourceOnly") {
+    const windowLabel = getCurrentWindowLabel();
+    cleanupBeforeModeSwitch();
+    toggleSourceModeWithCheckpoint(windowLabel);
+    // After switching, scroll will happen on the next render cycle when the
+    // source view becomes active; we can't scroll here yet.
+  }
+  // For non-sourceOnly WYSIWYG diagnostics, the PM decoration already marks
+  // the block — no programmatic scroll needed.
+}
 
 /** Hook that handles keyboard shortcuts for view-mode toggles (source, focus, typewriter, wrap, line numbers, terminal, sidebar panels). */
 export function useViewShortcuts() {
@@ -112,9 +155,35 @@ export function useViewShortcuts() {
         if (!lintEnabled) return;
         const windowLabel = getCurrentWindowLabel();
         const tabId = getActiveTabId(windowLabel);
-        const doc = getActiveDocument(windowLabel);
-        if (tabId && doc) {
-          const diagnostics = useLintStore.getState().runLint(tabId, doc.content);
+        if (!tabId) return;
+
+        // Prefer fresh content from the active editor over potentially stale doc store.
+        // In Source mode: read from CM view. In WYSIWYG mode: serialize Tiptap content.
+        let content: string | undefined;
+        const editorStoreState = useEditorStore.getState();
+        const { activeSourceView } = useActiveEditorStore.getState();
+
+        if (editorStoreState.sourceMode && activeSourceView) {
+          // Source mode — read directly from CM document
+          content = activeSourceView.state.doc.toString();
+        } else {
+          // WYSIWYG mode — serialize Tiptap editor to markdown
+          const tiptapEditor = useTiptapEditorStore.getState().editor;
+          if (tiptapEditor) {
+            content = serializeMarkdown(tiptapEditor.state.schema, tiptapEditor.state.doc);
+          }
+        }
+
+        // Fall back to persisted doc content if live content unavailable
+        if (content === undefined) {
+          const doc = getActiveDocument(windowLabel);
+          content = doc?.content;
+        }
+
+        if (content !== undefined) {
+          const diagnostics = useLintStore.getState().runLint(tabId, content);
+          // Refresh CM linter so it picks up the new diagnostics immediately
+          triggerLintRefresh();
           if (diagnostics.length === 0) {
             toast.success(i18n.t("statusbar:lint.clean.toast"));
           }
@@ -130,6 +199,7 @@ export function useViewShortcuts() {
         const tabId = getActiveTabId(windowLabel);
         if (tabId) {
           useLintStore.getState().selectNext(tabId);
+          scrollToSelectedDiagnostic(tabId);
         }
         return;
       }
@@ -142,6 +212,7 @@ export function useViewShortcuts() {
         const tabId = getActiveTabId(windowLabel);
         if (tabId) {
           useLintStore.getState().selectPrev(tabId);
+          scrollToSelectedDiagnostic(tabId);
         }
         return;
       }

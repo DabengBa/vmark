@@ -29,11 +29,14 @@ export const unclosedFencedCode: LintRule = (source) => {
 
     if (inFence) {
       if (match && match[2][0] === fenceChar && match[2].length >= fenceLen) {
-        // Closing fence found
-        inFence = false;
-        fenceChar = "";
-        fenceLen = 0;
-        openLine = -1;
+        // Closing fence: rest of line after fence chars must be only whitespace
+        const rest = line.slice(match[1].length + match[2].length);
+        if (rest.trim() === "") {
+          inFence = false;
+          fenceChar = "";
+          fenceLen = 0;
+          openLine = -1;
+        }
       }
     } else if (match) {
       inFence = true;

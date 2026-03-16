@@ -53,6 +53,22 @@ describe("W03 noUnusedDefs", () => {
       input: "# Just a heading\n\nSome text.",
       expected: 0,
     },
+    // Issue 5: collapsed and shortcut reference forms
+    {
+      name: "clean: collapsed reference [label][] counts as usage",
+      input: "[ref][]\n\n[ref]: https://example.com",
+      expected: 0,
+    },
+    {
+      name: "clean: shortcut reference [label] counts as usage",
+      input: "[ref]\n\n[ref]: https://example.com",
+      expected: 0,
+    },
+    {
+      name: "flagged: definition not reached by collapsed ref with wrong label",
+      input: "[wrong][]\n\n[ref]: https://example.com",
+      expected: 1,
+    },
   ])("$name → $expected W03 diagnostic(s)", ({ input, expected }) => {
     const result = lintMarkdown(input);
     const matches = result.filter((d) => d.ruleId === "W03");

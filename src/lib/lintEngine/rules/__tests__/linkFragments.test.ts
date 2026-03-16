@@ -53,6 +53,17 @@ describe("W04 linkFragments", () => {
       input: "# Hello (World)!\n\n[link](#hello-world)",
       expected: 0,
     },
+    // Issue 7: inline code nodes in headings
+    {
+      name: "clean: heading with inline code — fragment matches",
+      input: "# Hello `world`\n\n[link](#hello-world)",
+      expected: 0,
+    },
+    {
+      name: "flagged: heading with inline code — wrong fragment",
+      input: "# Hello `world`\n\n[link](#hello)",
+      expected: 1,
+    },
   ])("$name → $expected W04 diagnostic(s)", ({ input, expected }) => {
     const result = lintMarkdown(input);
     const matches = result.filter((d) => d.ruleId === "W04");
