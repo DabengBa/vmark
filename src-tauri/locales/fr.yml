@@ -1,4 +1,4 @@
-# VMark French locale — translated from en.yml.
+# VMark French locale — translation of the English source file.
 # Keys follow the convention: menu.<section>.<item>
 # Dynamic menu items (recent files, genies) have their structural labels here too.
 
@@ -17,8 +17,8 @@ menu:
   file.quickOpen: "Ouverture rapide"
   file.openFile: "Ouvrir un fichier..."
   file.openWorkspace: "Ouvrir un espace de travail..."
-  file.openRecent: "Ouvrir un fichier récent"
-  file.openRecentWorkspace: "Ouvrir un espace de travail récent"
+  file.openRecent: "Ouvrir récent"
+  file.openRecentWorkspace: "Espace de travail récent"
   file.close: "Fermer"
   file.closeWorkspace: "Fermer l'espace de travail"
   file.save: "Enregistrer"
@@ -94,7 +94,7 @@ menu:
   format.superscript: "Exposant"
   format.lists: "Listes"
   format.lists.ordered: "Liste numérotée"
-  format.lists.unordered: "Liste non ordonnée"
+  format.lists.unordered: "Liste à puces"
   format.lists.task: "Liste de tâches"
   format.lists.indent: "Augmenter le retrait"
   format.lists.outdent: "Diminuer le retrait"
@@ -106,7 +106,7 @@ menu:
   format.transform: "Transformer"
   format.transform.uppercase: "MAJUSCULES"
   format.transform.lowercase: "minuscules"
-  format.transform.titleCase: "Casse de Titre"
+  format.transform.titleCase: "Casse de titre"
   format.transform.toggleCase: "Basculer la casse"
   format.transform.toggleQuoteStyle: "Changer le style de guillemets"
   format.cjk: "CJK"
@@ -116,10 +116,10 @@ menu:
   format.cleanup.trailingSpaces: "Supprimer les espaces en fin de ligne"
   format.cleanup.collapseBlankLines: "Fusionner les lignes vides"
   format.cleanup.images: "Nettoyer les images inutilisées..."
-  format.clearFormat: "Effacer le format"
+  format.clearFormat: "Effacer la mise en forme"
 
   # === Insert menu ===
-  insert: "Insérer"
+  insert: "Insertion"
   insert.links: "Liens"
   insert.links.link: "Lien"
   insert.links.wikiLink: "Lien wiki"
