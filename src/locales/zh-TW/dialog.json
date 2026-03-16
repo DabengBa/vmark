@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "未儲存的變更",
+    "single": "是否要儲存對「{{title}}」的變更？",
+    "multiple": "您有 {{count}} 份未儲存的文件：\n\n• {{list}}",
+    "multiple_plural": "您有 {{count}} 份未儲存的文件：\n\n• {{list}}",
+    "newDocsHint": "{{count}} 份新文件需要指定儲存位置。",
+    "newDocsHint_plural": "{{count}} 份新文件需要指定儲存位置。",
+    "openInNewWindow": "此視窗有未儲存的變更。是否改為在新視窗開啟工作區？",
+    "restartUnsaved": "您有 {{count}} 份未儲存的文件。是否重新啟動並在重新開啟時還原？"
+  },
+  "fileChanged": {
+    "title": "檔案已變更",
+    "message": "「{{fileName}}」已被外部程式修改。\n\n您想要怎麼做？",
+    "multipleTitle": "多個檔案已變更",
+    "multipleMessage": "{{count}} 個檔案已被外部程式修改：\n{{fileNames}}\n\n您想要怎麼做？"
+  },
+  "revertToSaved": {
+    "title": "還原至已儲存版本",
+    "message": "捨棄所有變更並從磁碟重新載入「{{title}}」？"
+  },
+  "clearRecentFiles": {
+    "title": "清除最近使用的檔案",
+    "message": "清除最近開啟的檔案清單？"
+  },
+  "clearRecentWorkspaces": {
+    "title": "清除最近使用的工作區",
+    "message": "清除最近開啟的工作區清單？"
+  },
+  "fileNotFound": {
+    "title": "找不到檔案",
+    "message": "無法開啟此檔案，它可能已被移動或刪除。\n\n從最近使用的檔案中移除？"
+  },
+  "workspaceNotFound": {
+    "title": "找不到工作區",
+    "message": "找不到此工作區資料夾，它可能已被移動或刪除。\n\n從最近使用的工作區中移除？"
+  },
+  "unsavedDocument": {
+    "title": "未儲存的文件",
+    "message": "請先儲存文件以變更圖片。",
+    "messageCopyPath": "必須先儲存文件才能複製圖片路徑。",
+    "messageReveal": "必須先儲存文件才能顯示圖片。"
+  },
+  "saveVersionAs": {
+    "title": "將您的版本另存新檔..."
+  },
+  "chooseFolderForDocs": "選擇 {{count}} 份新文件的儲存資料夾",
+  "toast": {
+    "saveDialogFailed": "儲存對話框失敗：{{error}}",
+    "failedToMoveToNewWindow": "無法將檔案移至新視窗",
+    "failedToSaveDocuments": "無法儲存文件",
+    "fileMovedCantDeleteOriginal": "檔案已儲存至新位置，但無法刪除原始檔案",
+    "failedToOpenFile": "無法開啟檔案：{{error}}",
+    "failedToOpen": "無法開啟 {{filename}}",
+    "failedToOpenFilesInNewWindow": "無法在新視窗開啟檔案",
+    "onlyMarkdownViaDropDrop": "拖曳放置只能開啟 Markdown 檔案",
+    "restored": "已還原：{{filename}}",
+    "reloaded": "已重新載入：{{filename}}",
+    "recoveredDocuments": "已從意外結束中還原 {{count}} 份文件",
+    "pandocExportFailed": "Pandoc 匯出失敗",
+    "pandocUnknownFormat": "未知的匯出格式：{{format}}",
+    "pandocNoContent": "沒有可匯出的內容！",
+    "pandocNotInstalled": "未安裝 Pandoc。請從 pandoc.org 安裝",
+    "pandocExportSuccess": "匯出成功",
+    "pandocExportError": "Pandoc 匯出失敗：{{error}}",
+    "exportNoContent": "沒有可匯出的內容！",
+    "exportHtmlSuccess": "已匯出至資料夾",
+    "exportHtmlResourceWarning_one": "1 個資源無法包含",
+    "exportHtmlResourceWarning_other": "{{count}} 個資源無法包含",
+    "printRequiresMac": "列印需要 macOS。",
+    "nativePdfRequiresMac": "原生 PDF 匯出需要 macOS。請改用列印。",
+    "failedToPreparePdf": "無法準備 PDF 匯出",
+    "noEditorContentToPrint": "沒有可列印的編輯器內容",
+    "failedToOpenPrintDialog": "無法開啟列印對話框",
+    "htmlCopied": "HTML 已複製至剪貼簿",
+    "pdfExportSuccess": "PDF 匯出成功",
+    "pdfExportFailed": "PDF 匯出失敗：{{error}}",
+    "cannotMoveTabNoDoc": "無法移動標籤頁：文件未載入。",
+    "cannotMoveLastTab": "無法移動主視窗中最後一個標籤頁。",
+    "tabMoved": "已將「{{title}}」移至新視窗",
+    "tabDetached": "已分離「{{title}}」",
+    "tabMovedToWindow": "已移動「{{title}}」",
+    "undoTabMoveFailed": "復原標籤頁移動失敗。",
+    "failedToMoveTabToNewWindow": "無法將標籤頁移至新視窗。",
+    "fileRestoredToDisk": "檔案已還原至磁碟。",
+    "failedToRestoreToDisk": "無法將檔案還原至磁碟。",
+    "revertedToSaved": "已還原至已儲存版本。",
+    "failedToRevert": "無法還原至已儲存版本。",
+    "pathCopied": "路徑已複製至剪貼簿。",
+    "failedToCopyPath": "複製路徑失敗。",
+    "relativePathCopied": "相對路徑已複製至剪貼簿。",
+    "failedToCopyRelativePath": "複製相對路徑失敗。",
+    "failedToRevealInFileManager": "無法在檔案管理員中顯示檔案。",
+    "pathCopiedExplorer": "路徑已複製至剪貼簿",
+    "failedToOpenWithDefaultApp": "無法以預設應用程式開啟「{{name}}」",
+    "terminalNeedsWorkspace": "請開啟資料夾或儲存檔案以使用終端機。",
+    "noFormattingActions": "無可用的格式化動作",
+    "genieNotInSourceMode": "原始碼模式下無法使用精靈",
+    "genieNoProvider": "沒有可用的 AI 提供者。請在設定中配置。",
+    "genieCliNotFound": "找不到 {{name}} CLI。請安裝它或在設定中選擇其他提供者。",
+    "genieApiKeyRequired": "需要 {{name}} API 金鑰。請在「設定 → 整合」中配置。",
+    "updateReady": "v{{version}} 已準備好安裝",
+    "updateUpToDate": "已是最新版本！",
+    "imagePathCopied": "圖片路徑已複製至剪貼簿",
+    "failedToChangeImage": "變更圖片失敗。",
+    "failedToCopyImagePath": "複製圖片路徑失敗。",
+    "failedToRevealImage": "無法在 Finder 中顯示圖片。"
+  }
+}
