@@ -10,7 +10,7 @@
 
 저는 2025년 8월 17일에 *바이브 코딩*이라고 알려진 새로운 프로그래밍 트렌드를 실험하기 시작했습니다. *바이브 코딩*이라는 용어 자체는 2025년 2월 2일에 처음 만들어지고 유통되었으며, Andrej Karpathy가 [X](https://x.com/karpathy/status/1886192184808149383) (구 Twitter)에 올린 글에서 비롯되었습니다.
 
-![Andrej Karpathy의 "vibe coding" 용어를 만든 트윗](./images/karpathy-vibe-coding.png)
+![Andrej Karpathy의 "vibe coding" 용어를 만든 트윗](/guide/users-as-developers/images/karpathy-vibe-coding.png)
 
 Andrej Karpathy는 머신러닝 분야에서 매우 영향력 있는 연구자이자 교육자입니다. OpenAI와 Tesla 같은 회사에서 중요한 직책을 맡았으며, 이후 AI 네이티브 교육에 집중하는 Eureka Labs를 설립했습니다. 그의 트윗은 "바이브 코딩"이라는 개념을 소개했을 뿐 아니라 기술 커뮤니티를 통해 빠르게 퍼져 광범위한 후속 논의를 불러일으켰습니다.
 
@@ -226,7 +226,7 @@ Claude Code의 `/audit` 명령어를 발견했을 때 (10월 초쯤), 즉시 `/c
 
 그래서 VMark 웹사이트에는 이런 크레딧이 포함되어 있습니다:
 
-<img src="./images/vmark-credits.png" alt="VMark credits — Producer and Coders" style="max-width: 480px;" />
+<img src="/guide/users-as-developers/images/vmark-credits.png" alt="VMark credits — Producer and Coders" style="max-width: 480px;" />
 
 매우 독단적이라는 것의 또 다른 결과: VMark가 오픈 소스화되더라도 커뮤니티 기여는 가능성이 낮습니다. 순전히 제 워크플로우를 위해 만들어졌으며; 많은 기능은 다른 사람들에게 거의 가치가 없습니다. 더 중요한 것은, 마크다운 에디터는 최첨단 기술이 아닙니다. 친숙한 도구의 무수한 구현 중 하나입니다. AI는 그것과 관련된 거의 모든 문제를 해결할 수 있습니다.
 

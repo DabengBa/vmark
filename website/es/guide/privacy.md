@@ -38,7 +38,7 @@ Puedes verificarlo tú mismo — el endpoint está en [`tauri.conf.json`](https:
 
 ## Cómo Usamos los Datos
 
-Agregamos los registros de verificación de actualizaciones para producir las estadísticas en vivo que se muestran en nuestra [página de inicio](/es):
+Agregamos los registros de verificación de actualizaciones para producir las estadísticas en vivo que se muestran en nuestra [página de inicio](/es/):
 
 | Métrica | Cómo se calcula |
 |---------|-----------------|

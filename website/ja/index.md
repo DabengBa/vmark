@@ -39,17 +39,17 @@ features:
 ---
 
 <script setup>
-import CJKFormatDemo from './.vitepress/components/demos/CJKFormatDemo.vue'
-import CJKSpacingDemo from './.vitepress/components/demos/CJKSpacingDemo.vue'
-import ThemePicker from './.vitepress/components/demos/ThemePicker.vue'
-import TypographyDemo from './.vitepress/components/demos/TypographyDemo.vue'
-import AlertBlockDemo from './.vitepress/components/demos/AlertBlockDemo.vue'
-import FocusModeDemo from './.vitepress/components/demos/FocusModeDemo.vue'
-import DetailsBlockDemo from './.vitepress/components/demos/DetailsBlockDemo.vue'
-import ModeSwitcherDemo from './.vitepress/components/demos/ModeSwitcherDemo.vue'
-import MultiCursorDemo from './.vitepress/components/demos/MultiCursorDemo.vue'
-import TabEscapeDemo from './.vitepress/components/demos/TabEscapeDemo.vue'
-import UserStats from './.vitepress/theme/UserStats.vue'
+import CJKFormatDemo from '../.vitepress/components/demos/CJKFormatDemo.vue'
+import CJKSpacingDemo from '../.vitepress/components/demos/CJKSpacingDemo.vue'
+import ThemePicker from '../.vitepress/components/demos/ThemePicker.vue'
+import TypographyDemo from '../.vitepress/components/demos/TypographyDemo.vue'
+import AlertBlockDemo from '../.vitepress/components/demos/AlertBlockDemo.vue'
+import FocusModeDemo from '../.vitepress/components/demos/FocusModeDemo.vue'
+import DetailsBlockDemo from '../.vitepress/components/demos/DetailsBlockDemo.vue'
+import ModeSwitcherDemo from '../.vitepress/components/demos/ModeSwitcherDemo.vue'
+import MultiCursorDemo from '../.vitepress/components/demos/MultiCursorDemo.vue'
+import TabEscapeDemo from '../.vitepress/components/demos/TabEscapeDemo.vue'
+import UserStats from '../.vitepress/theme/UserStats.vue'
 </script>
 
 <style>
