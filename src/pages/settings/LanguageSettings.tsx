@@ -1,21 +1,59 @@
 /**
  * Language Settings Section
  *
- * CJK formatting configuration.
+ * UI language picker and CJK formatting configuration.
  */
 
+import i18n from "@/i18n";
 import { useSettingsStore, type QuoteStyle } from "@/stores/settingsStore";
 import { SettingRow, Toggle, SettingsGroup, Select } from "./components";
 
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "zh-CN", label: "简体中文" },
+  { value: "zh-TW", label: "繁體中文" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "it", label: "Italiano" },
+  { value: "pt-BR", label: "Português (Brasil)" },
+] as const;
+
+type LanguageValue = (typeof LANGUAGE_OPTIONS)[number]["value"];
+
 export function LanguageSettings() {
+  const language = useSettingsStore((s) => s.general.language) as LanguageValue;
+  const updateGeneralSetting = useSettingsStore((s) => s.updateGeneralSetting);
   const cjkFormatting = useSettingsStore((state) => state.cjkFormatting);
   const updateCJKSetting = useSettingsStore((state) => state.updateCJKFormattingSetting);
+
+  const handleLanguageChange = (value: string) => {
+    updateGeneralSetting("language", value);
+    i18n.changeLanguage(value);
+    // Rust menu rebuild will be wired in Task 13
+  };
 
   const selectClass = `px-2 py-1 rounded border border-[var(--border-color)]
                        bg-[var(--bg-primary)] text-sm text-[var(--text-primary)]`;
 
   return (
     <div>
+      {/* UI Language */}
+      <SettingsGroup title="Language">
+        <SettingRow
+          label="Interface language"
+          description="Language used for menus and UI text"
+        >
+          <Select<LanguageValue>
+            value={language}
+            options={LANGUAGE_OPTIONS as unknown as { value: LanguageValue; label: string }[]}
+            onChange={handleLanguageChange}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
       {/* CJK Formatting */}
       <SettingsGroup title="CJK Formatting">
         <p className="text-xs text-[var(--text-tertiary)] -mt-2 mb-3">
