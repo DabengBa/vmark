@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "未保存的更改",
+    "single": "要保存对\"{{title}}\"的更改吗？",
+    "multiple": "您有 {{count}} 个未保存的文档：\n\n• {{list}}",
+    "multiple_plural": "您有 {{count}} 个未保存的文档：\n\n• {{list}}",
+    "newDocsHint": "{{count}} 个新文档需要选择保存位置。",
+    "newDocsHint_plural": "{{count}} 个新文档需要选择保存位置。",
+    "openInNewWindow": "此窗口有未保存的更改。改为在新窗口中打开工作区？",
+    "restartUnsaved": "您有 {{count}} 个未保存的文档。重启后恢复？"
+  },
+  "fileChanged": {
+    "title": "文件已更改",
+    "message": "\"{{fileName}}\"已在外部被修改。\n\n您想做什么？",
+    "multipleTitle": "多个文件已更改",
+    "multipleMessage": "{{count}} 个文件已在外部被修改：\n{{fileNames}}\n\n您想做什么？"
+  },
+  "revertToSaved": {
+    "title": "恢复到已保存版本",
+    "message": "放弃所有更改并从磁盘重新加载\"{{title}}\"？"
+  },
+  "clearRecentFiles": {
+    "title": "清除最近文件",
+    "message": "清除最近打开的文件列表？"
+  },
+  "clearRecentWorkspaces": {
+    "title": "清除最近工作区",
+    "message": "清除最近打开的工作区列表？"
+  },
+  "fileNotFound": {
+    "title": "文件未找到",
+    "message": "无法打开此文件。它可能已被移动或删除。\n\n从最近文件中移除？"
+  },
+  "workspaceNotFound": {
+    "title": "工作区未找到",
+    "message": "找不到此工作区文件夹。它可能已被移动或删除。\n\n从最近工作区中移除？"
+  },
+  "unsavedDocument": {
+    "title": "未保存的文档",
+    "message": "请先保存文档后再更改图像。",
+    "messageCopyPath": "必须保存文档才能复制图像路径。",
+    "messageReveal": "必须保存文档才能显示图像。"
+  },
+  "saveVersionAs": {
+    "title": "另存为..."
+  },
+  "chooseFolderForDocs": "为 {{count}} 个新文档选择文件夹",
+  "toast": {
+    "saveDialogFailed": "保存对话框失败：{{error}}",
+    "failedToMoveToNewWindow": "无法将文件移动到新窗口",
+    "failedToSaveDocuments": "无法保存文档",
+    "fileMovedCantDeleteOriginal": "文件已保存到新位置，但无法删除原始文件",
+    "failedToOpenFile": "无法打开文件：{{error}}",
+    "failedToOpen": "无法打开 {{filename}}",
+    "failedToOpenFilesInNewWindow": "无法在新窗口中打开文件",
+    "onlyMarkdownViaDropDrop": "只能通过拖放打开 Markdown 文件",
+    "restored": "已恢复：{{filename}}",
+    "reloaded": "已重新加载：{{filename}}",
+    "recoveredDocuments": "从意外退出中恢复了 {{count}} 个文档",
+    "pandocExportFailed": "Pandoc 导出失败",
+    "pandocUnknownFormat": "未知导出格式：{{format}}",
+    "pandocNoContent": "没有要导出的内容！",
+    "pandocNotInstalled": "Pandoc 未安装。请从 pandoc.org 安装",
+    "pandocExportSuccess": "导出成功",
+    "pandocExportError": "Pandoc 导出失败：{{error}}",
+    "exportNoContent": "没有要导出的内容！",
+    "exportHtmlSuccess": "已导出到文件夹",
+    "exportHtmlResourceWarning_one": "1 个资源无法包含",
+    "exportHtmlResourceWarning_other": "{{count}} 个资源无法包含",
+    "printRequiresMac": "打印需要 macOS。",
+    "nativePdfRequiresMac": "原生 PDF 导出需要 macOS。请改用打印。",
+    "failedToPreparePdf": "无法准备 PDF 导出",
+    "noEditorContentToPrint": "没有要打印的编辑器内容",
+    "failedToOpenPrintDialog": "无法打开打印对话框",
+    "htmlCopied": "HTML 已复制到剪贴板",
+    "pdfExportSuccess": "PDF 导出成功",
+    "pdfExportFailed": "PDF 导出失败：{{error}}",
+    "cannotMoveTabNoDoc": "无法移动标签页：文档未加载。",
+    "cannotMoveLastTab": "无法移动主窗口中的最后一个标签页。",
+    "tabMoved": "已将\"{{title}}\"移动到新窗口",
+    "tabDetached": "已分离\"{{title}}\"",
+    "tabMovedToWindow": "已将\"{{title}}\"移动",
+    "undoTabMoveFailed": "无法撤销标签页移动。",
+    "failedToMoveTabToNewWindow": "无法将标签页移动到新窗口。",
+    "fileRestoredToDisk": "文件已恢复到磁盘。",
+    "failedToRestoreToDisk": "无法将文件恢复到磁盘。",
+    "revertedToSaved": "已恢复到已保存版本。",
+    "failedToRevert": "无法恢复到已保存版本。",
+    "pathCopied": "路径已复制到剪贴板。",
+    "failedToCopyPath": "无法复制路径。",
+    "relativePathCopied": "相对路径已复制到剪贴板。",
+    "failedToCopyRelativePath": "无法复制相对路径。",
+    "failedToRevealInFileManager": "无法在文件管理器中显示文件。",
+    "pathCopiedExplorer": "路径已复制到剪贴板",
+    "failedToOpenWithDefaultApp": "无法使用默认应用打开\"{{name}}\"",
+    "terminalNeedsWorkspace": "打开文件夹或保存您的文件以使用终端。",
+    "noFormattingActions": "没有可用的格式化操作",
+    "genieNotInSourceMode": "Genie 在源代码模式下不可用",
+    "genieNoProvider": "没有可用的 AI 提供程序。请在设置中配置。",
+    "genieCliNotFound": "{{name}} CLI 未找到。请安装它或在设置中选择另一个提供程序。",
+    "genieApiKeyRequired": "需要 {{name}} API 密钥。请在设置 → 集成中配置。",
+    "updateReady": "v{{version}} 已准备安装",
+    "updateUpToDate": "您已是最新版本！",
+    "imagePathCopied": "图像路径已复制到剪贴板",
+    "failedToChangeImage": "无法更改图像。",
+    "failedToCopyImagePath": "无法复制图像路径。",
+    "failedToRevealImage": "无法在 Finder 中显示图像。"
+  }
+}
