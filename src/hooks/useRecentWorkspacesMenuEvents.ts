@@ -28,6 +28,7 @@ import { withReentryGuard } from "@/utils/reentryGuard";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
+import i18n from "@/i18n";
 import { workspaceWarn } from "@/utils/debug";
 
 /** Hook that handles native menu events for the "Open Recent Workspace" submenu. */
@@ -56,9 +57,9 @@ export function useRecentWorkspacesMenuEvents(): void {
 
           await withReentryGuard(windowLabel, "clear-recent-workspaces", async () => {
             const confirmed = await ask(
-              "Clear the list of recently opened workspaces?",
+              i18n.t("dialog:clearRecentWorkspaces.message"),
               {
-                title: "Clear Recent Workspaces",
+                title: i18n.t("dialog:clearRecentWorkspaces.title"),
                 kind: "warning",
               }
             );
@@ -84,8 +85,8 @@ export function useRecentWorkspacesMenuEvents(): void {
             const pathExists = await exists(workspacePath);
             if (!pathExists) {
               const remove = await ask(
-                "This workspace folder could not be found. It may have been moved or deleted.\n\nRemove from recent workspaces?",
-                { title: "Workspace Not Found", kind: "warning" }
+                i18n.t("dialog:workspaceNotFound.message"),
+                { title: i18n.t("dialog:workspaceNotFound.title"), kind: "warning" }
               );
               if (remove) {
                 useRecentWorkspacesStore.getState().removeWorkspace(workspacePath);
@@ -102,9 +103,9 @@ export function useRecentWorkspacesMenuEvents(): void {
 
             if (dirtyTabs.length > 0) {
               const confirmed = await ask(
-                "This window has unsaved changes. Open the workspace in a new window instead?",
+                i18n.t("dialog:unsavedChanges.openInNewWindow"),
                 {
-                  title: "Unsaved Changes",
+                  title: i18n.t("dialog:unsavedChanges.title"),
                   kind: "warning",
                   okLabel: "Open in New Window",
                   cancelLabel: "Cancel",

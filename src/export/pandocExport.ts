@@ -14,7 +14,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-
+import i18n from "@/i18n";
 import { joinPath } from "@/utils/pathUtils";
 
 /** Pandoc detection result from Rust backend. */
@@ -56,12 +56,12 @@ export async function exportViaPandoc(options: {
 
   const meta = FORMAT_META[format as PandocFormatKey];
   if (!meta) {
-    toast.error(`Unknown export format: ${format}`);
+    toast.error(i18n.t("dialog:toast.pandocUnknownFormat", { format }));
     return false;
   }
 
   if (!markdown.trim()) {
-    toast.error("No content to export!");
+    toast.error(i18n.t("dialog:toast.pandocNoContent"));
     return false;
   }
 
@@ -69,7 +69,7 @@ export async function exportViaPandoc(options: {
     const info: PandocInfo = await invoke("detect_pandoc");
 
     if (!info.available) {
-      toast.error("Pandoc is not installed. Install it from pandoc.org", {
+      toast.error(i18n.t("dialog:toast.pandocNotInstalled"), {
         duration: 5000,
       });
       return false;
@@ -94,12 +94,12 @@ export async function exportViaPandoc(options: {
       sourceDir: sourceDirectory ?? null,
     });
 
-    toast.success("Exported successfully");
+    toast.success(i18n.t("dialog:toast.pandocExportSuccess"));
     return true;
   } catch (error) {
     console.error("[Export] Pandoc export failed:", error);
     const detail = error instanceof Error ? error.message : String(error);
-    toast.error(`Pandoc export failed: ${detail}`);
+    toast.error(i18n.t("dialog:toast.pandocExportError", { error: detail }));
     return false;
   }
 }

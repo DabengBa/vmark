@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "Unsaved Changes",
+    "single": "Do you want to save changes to \"{{title}}\"?",
+    "multiple": "You have {{count}} unsaved document:\n\n• {{list}}",
+    "multiple_plural": "You have {{count}} unsaved documents:\n\n• {{list}}",
+    "newDocsHint": "{{count}} new document will need a save location.",
+    "newDocsHint_plural": "{{count}} new documents will need a save location.",
+    "openInNewWindow": "This window has unsaved changes. Open the workspace in a new window instead?",
+    "restartUnsaved": "You have {{count}} unsaved document(s). Restart and restore on relaunch?"
+  },
+  "fileChanged": {
+    "title": "File Changed",
+    "message": "\"{{fileName}}\" has been modified externally.\n\nWhat would you like to do?",
+    "multipleTitle": "Multiple Files Changed",
+    "multipleMessage": "{{count}} files have been modified externally:\n{{fileNames}}\n\nWhat would you like to do?"
+  },
+  "revertToSaved": {
+    "title": "Revert to Saved",
+    "message": "Discard all changes and reload \"{{title}}\" from disk?"
+  },
+  "clearRecentFiles": {
+    "title": "Clear Recent Files",
+    "message": "Clear the list of recently opened files?"
+  },
+  "clearRecentWorkspaces": {
+    "title": "Clear Recent Workspaces",
+    "message": "Clear the list of recently opened workspaces?"
+  },
+  "fileNotFound": {
+    "title": "File Not Found",
+    "message": "This file could not be opened. It may have been moved or deleted.\n\nRemove from recent files?"
+  },
+  "workspaceNotFound": {
+    "title": "Workspace Not Found",
+    "message": "This workspace folder could not be found. It may have been moved or deleted.\n\nRemove from recent workspaces?"
+  },
+  "unsavedDocument": {
+    "title": "Unsaved Document",
+    "message": "Please save the document first to change images.",
+    "messageCopyPath": "Document must be saved to copy image path.",
+    "messageReveal": "Document must be saved to reveal image."
+  },
+  "saveVersionAs": {
+    "title": "Save your version as..."
+  },
+  "chooseFolderForDocs": "Choose folder for {{count}} new documents",
+  "toast": {
+    "saveDialogFailed": "Save dialog failed: {{error}}",
+    "failedToMoveToNewWindow": "Failed to move file to new window",
+    "failedToSaveDocuments": "Failed to save documents",
+    "fileMovedCantDeleteOriginal": "File saved to new location, but couldn't delete original file",
+    "failedToOpenFile": "Failed to open file: {{error}}",
+    "failedToOpen": "Failed to open {{filename}}",
+    "failedToOpenFilesInNewWindow": "Failed to open files in new window",
+    "onlyMarkdownViaDropDrop": "Only markdown files can be opened via drag-drop",
+    "restored": "Restored: {{filename}}",
+    "reloaded": "Reloaded: {{filename}}",
+    "recoveredDocuments": "Recovered {{count}} document(s) from unexpected exit",
+    "pandocExportFailed": "Pandoc export failed",
+    "pandocUnknownFormat": "Unknown export format: {{format}}",
+    "pandocNoContent": "No content to export!",
+    "pandocNotInstalled": "Pandoc is not installed. Install it from pandoc.org",
+    "pandocExportSuccess": "Exported successfully",
+    "pandocExportError": "Pandoc export failed: {{error}}",
+    "exportNoContent": "No content to export!",
+    "exportHtmlSuccess": "Exported to folder",
+    "exportHtmlResourceWarning_one": "1 resource could not be included",
+    "exportHtmlResourceWarning_other": "{{count}} resources could not be included",
+    "printRequiresMac": "Print requires macOS.",
+    "nativePdfRequiresMac": "Native PDF export requires macOS. Use Print instead.",
+    "failedToPreparePdf": "Failed to prepare PDF export",
+    "noEditorContentToPrint": "No editor content to print",
+    "failedToOpenPrintDialog": "Failed to open print dialog",
+    "htmlCopied": "HTML copied to clipboard",
+    "pdfExportSuccess": "PDF exported successfully",
+    "pdfExportFailed": "PDF export failed: {{error}}",
+    "cannotMoveTabNoDoc": "Cannot move tab: document is not loaded.",
+    "cannotMoveLastTab": "Cannot move the last tab in the main window.",
+    "tabMoved": "Moved \"{{title}}\" to a new window",
+    "tabDetached": "Detached \"{{title}}\"",
+    "tabMovedToWindow": "Moved \"{{title}}\"",
+    "undoTabMoveFailed": "Failed to undo tab move.",
+    "failedToMoveTabToNewWindow": "Failed to move tab to a new window.",
+    "fileRestoredToDisk": "File restored to disk.",
+    "failedToRestoreToDisk": "Failed to restore file to disk.",
+    "revertedToSaved": "Reverted to saved version.",
+    "failedToRevert": "Failed to revert to saved version.",
+    "pathCopied": "Path copied to clipboard.",
+    "failedToCopyPath": "Failed to copy path.",
+    "relativePathCopied": "Relative path copied to clipboard.",
+    "failedToCopyRelativePath": "Failed to copy relative path.",
+    "failedToRevealInFileManager": "Failed to reveal file in file manager.",
+    "pathCopiedExplorer": "Path copied to clipboard",
+    "failedToOpenWithDefaultApp": "Failed to open \"{{name}}\" with default app",
+    "terminalNeedsWorkspace": "Open a folder or save your file to use the terminal.",
+    "noFormattingActions": "No formatting actions available",
+    "genieNotInSourceMode": "Genies are not available in Source Mode",
+    "genieNoProvider": "No AI provider available. Configure one in Settings.",
+    "genieCliNotFound": "{{name}} CLI not found. Install it or choose another provider in Settings.",
+    "genieApiKeyRequired": "{{name}} API key is required. Configure it in Settings → Integrations.",
+    "updateReady": "v{{version}} ready to install",
+    "updateUpToDate": "You're up to date!",
+    "imagePathCopied": "Image path copied to clipboard",
+    "failedToChangeImage": "Failed to change image.",
+    "failedToCopyImagePath": "Failed to copy image path.",
+    "failedToRevealImage": "Failed to reveal image in Finder."
+  }
+}

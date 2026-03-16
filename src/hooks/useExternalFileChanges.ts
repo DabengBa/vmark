@@ -26,6 +26,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { message, save } from "@tauri-apps/plugin-dialog";
 import { imeToast as toast } from "@/utils/imeToast";
+import i18n from "@/i18n";
 import { useWindowLabel } from "@/contexts/WindowContext";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -104,10 +105,9 @@ export function useExternalFileChanges(): void {
       // No = "Reload" (discard changes and load from disk)
       // Cancel = "Keep my changes" (do nothing, preserve user's work)
       const result = await message(
-        `"${fileName}" has been modified externally.\n\n` +
-          "What would you like to do?",
+        i18n.t("dialog:fileChanged.message", { fileName }),
         {
-          title: "File Changed",
+          title: i18n.t("dialog:fileChanged.title"),
           kind: "warning",
           buttons: {
             yes: dialogButtons.saveAs,
@@ -122,7 +122,7 @@ export function useExternalFileChanges(): void {
       if ((result === "Yes" || result === dialogButtons.saveAs) && doc) {
         // Open Save As dialog
         const savePath = await save({
-          title: "Save your version as...",
+          title: i18n.t("dialog:saveVersionAs.title"),
           defaultPath: filePath,
           filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
         });
@@ -178,9 +178,9 @@ export function useExternalFileChanges(): void {
         /* v8 ignore next -- @preserve || "file" fallback fires only when getFileName returns "" (path is "/"); effectively unreachable in production */
         const fileNames = pending.map((p) => getFileName(p.filePath) || "file").join(", ");
         const result = await message(
-          `${pending.length} files have been modified externally:\n${fileNames}\n\nWhat would you like to do?`,
+          i18n.t("dialog:fileChanged.multipleMessage", { count: pending.length, fileNames }),
           {
-            title: "Multiple Files Changed",
+            title: i18n.t("dialog:fileChanged.multipleTitle"),
             kind: "warning",
             buttons: {
               yes: "Reload All",
@@ -257,7 +257,7 @@ export function useExternalFileChanges(): void {
       if (doc.isMissing) {
         useDocumentStore.getState().loadContent(tabId, diskContent, changedPath, detectLinebreaks(diskContent));
         useDocumentStore.getState().clearMissing(tabId);
-        toast.info(`Restored: ${getFileName(changedPath)}`);
+        toast.info(i18n.t("dialog:toast.restored", { filename: getFileName(changedPath) }));
         return;
       }
 
@@ -276,7 +276,7 @@ export function useExternalFileChanges(): void {
         case "auto_reload":
           useDocumentStore.getState().loadContent(tabId, diskContent, changedPath, detectLinebreaks(diskContent));
           useDocumentStore.getState().clearMissing(tabId);
-          toast.info(`Reloaded: ${getFileName(changedPath)}`);
+          toast.info(i18n.t("dialog:toast.reloaded", { filename: getFileName(changedPath) }));
           break;
         case "prompt_user":
           queueDirtyChange(tabId, changedPath);

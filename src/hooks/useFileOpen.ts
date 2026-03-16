@@ -11,6 +11,7 @@
  */
 
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -74,7 +75,7 @@ export async function openFileInNewTabCore(
     // Use detachTab (not closeTab) to avoid polluting the "reopen closed tab" history.
     useTabStore.getState().detachTab(windowLabel, tabId);
     const msg = error instanceof Error ? error.message : String(error);
-    toast.error(`Failed to open file: ${msg}`);
+    toast.error(i18n.t("dialog:toast.failedToOpenFile", { error: msg }));
   }
 }
 

@@ -140,7 +140,8 @@ export function useExportMenuEvents(): void {
             } catch (error) {
               console.error(`[Menu] Failed to export via Pandoc (${fmt}):`, error);
               const { toast } = await import("sonner");
-              toast.error("Pandoc export failed");
+              const i18nMod = await import("@/i18n");
+              toast.error(i18nMod.default.t("dialog:toast.pandocExportFailed"));
             }
           });
         });
