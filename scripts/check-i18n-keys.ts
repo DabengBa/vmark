@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S node --import tsx
 /**
  * I18n Key Completeness Check
  * Verifies all language files have the same keys as the English source.
