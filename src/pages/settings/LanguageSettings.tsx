@@ -4,8 +4,14 @@
  * UI language picker and CJK formatting configuration.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import i18n from "@/i18n";
 import { useSettingsStore, type QuoteStyle } from "@/stores/settingsStore";
+import {
+  useShortcutsStore,
+  DEFAULT_SHORTCUTS,
+  prosemirrorToTauri,
+} from "@/stores/shortcutsStore";
 import { SettingRow, Toggle, SettingsGroup, Select } from "./components";
 
 const LANGUAGE_OPTIONS = [
@@ -29,10 +35,31 @@ export function LanguageSettings() {
   const cjkFormatting = useSettingsStore((state) => state.cjkFormatting);
   const updateCJKSetting = useSettingsStore((state) => state.updateCJKFormattingSetting);
 
-  const handleLanguageChange = (value: string) => {
+  const handleLanguageChange = async (value: string) => {
     updateGeneralSetting("language", value);
-    i18n.changeLanguage(value);
-    // Rust menu rebuild will be wired in Task 13
+    await i18n.changeLanguage(value);
+    try {
+      // Set the Rust-side locale so t!() returns translated strings
+      await invoke("set_locale", { locale: value });
+      // Rebuild the native menu with translated labels + current shortcut bindings
+      const allShortcuts = useShortcutsStore.getState().getAllShortcuts();
+      const menuShortcuts: Record<string, string> = {};
+      for (const def of DEFAULT_SHORTCUTS) {
+        if (def.menuId) {
+          menuShortcuts[def.menuId] = prosemirrorToTauri(
+            allShortcuts[def.id] ?? ""
+          );
+        }
+      }
+      await invoke("rebuild_menu", { shortcuts: menuShortcuts });
+      // Rebuild resets the Genies submenu — re-populate it
+      const geniesAccel = menuShortcuts["search-genies"]
+        ? { "search-genies": menuShortcuts["search-genies"] }
+        : null;
+      await invoke("refresh_genies_menu", { shortcuts: geniesAccel });
+    } catch (e) {
+      console.warn("[i18n] Failed to set Rust locale:", e);
+    }
   };
 
   const selectClass = `px-2 py-1 rounded border border-[var(--border-color)]
