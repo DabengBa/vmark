@@ -18,8 +18,8 @@
     "lint:design-tokens": "node scripts/check-design-tokens.mjs",
     "lint:emdash": "node scripts/check-emdash-spacing.mjs",
     "lint:deps": "depcruise src --config .dependency-cruiser.cjs --ignore-known",
-    "lint:i18n": "npx tsx scripts/check-i18n-keys.ts",
-    "extract-menu-ids": "npx tsx scripts/extract-menu-ids.ts",
+    "lint:i18n": "tsx scripts/check-i18n-keys.ts",
+    "extract-menu-ids": "tsx scripts/extract-menu-ids.ts",
     "check:all": "pnpm lint && pnpm lint:selection-styles && pnpm lint:design-tokens && pnpm lint:emdash && pnpm lint:deps && pnpm lint:i18n && pnpm test:coverage && pnpm build"
   },
   "dependencies": {
@@ -128,6 +128,7 @@
     "jsdom": "^26.1.0",
     "mdast-util-math": "^3.0.0",
     "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.54.0",
     "vite": "^7.3.1",

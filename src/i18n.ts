@@ -43,7 +43,7 @@ i18n
       default: ["en"],
     },
     load: "currentOnly",
-    ns: ["common", "menu", "statusbar", "sidebar", "settings", "ai", "editor", "dialog"],
+    ns: ["common", "statusbar"],  // Boot-critical only; others loaded on demand by useTranslation(ns)
     defaultNS: "common",
     interpolation: {
       escapeValue: false,

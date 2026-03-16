@@ -19,6 +19,7 @@
  * @module components/StatusBar/StatusBarRight
  */
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { AlertTriangle, Check, Code2, GitFork, Satellite, Save, Sparkles, Terminal, Type } from "lucide-react";
 import { useImagePasteToastStore } from "@/stores/imagePasteToastStore";
 import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
@@ -55,12 +56,12 @@ export function formatMcpTooltip(
   error: string | null,
   clients: McpClient[]
 ): string {
-  if (error) return `MCP error: ${error}`;
-  if (loading) return "MCP starting...";
-  if (!running) return "MCP stopped · Click to start";
+  if (error) return i18n.t("statusbar:mcpError", { error });
+  if (loading) return i18n.t("statusbar:mcpStarting");
+  if (!running) return i18n.t("statusbar:mcpStopped");
 
-  if (clients.length === 0) return "MCP ready · No AI connected";
-  return `Connected: ${clients.map(formatClientLabel).join(", ")}`;
+  if (clients.length === 0) return i18n.t("statusbar:mcpNoClients");
+  return i18n.t("statusbar:mcpConnected", { clients: clients.map(formatClientLabel).join(", ") });
 }
 
 interface StatusBarRightProps {
@@ -139,7 +140,7 @@ export function StatusBarRight({
       )}
 
       {showAutoSave && lastAutoSave && !showAutoSavePaused && !isDivergent && (
-        <span className="status-autosave" title={`Auto-saved at ${formatExactTime(lastAutoSave)}`}>
+        <span className="status-autosave" title={t("autoSavedAt", { time: formatExactTime(lastAutoSave) })}>
           <Save size={12} />
           {autoSaveTime}
         </span>
