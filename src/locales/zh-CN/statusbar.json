@@ -10,7 +10,7 @@
   "mcpError": "MCP 错误:{{error}}",
   "mcpStarting": "MCP 正在启动...",
   "mcpStopped": "MCP 已停止 · 点击启动",
-  "mcpReady": "MCP 就绪 · 未连接 AI",
+  "mcpNoClients": "MCP 就绪 · 未连接 AI",
   "mcpConnected": "已连接:{{clients}}",
   "toggleTerminal": "切换终端 ({{shortcut}})",
   "sourceModeTitle": "源码模式 ({{shortcut}})",
@@ -34,5 +34,6 @@
   "updateDownloadingPercent": "下载中:{{percent}}%",
   "updateReady": "点击重启并更新",
   "updateReadyVersion": "v{{version}} 已就绪 — 点击重启",
-  "updateError": "更新检查失败 — 点击重试"
+  "updateError": "更新检查失败 — 点击重试",
+  "autoSavedAt": "自动保存于 {{time}}"
 }

@@ -64,8 +64,9 @@ export function LanguageSettings() {
       updateGeneralSetting("language", value);
     } catch (e) {
       console.warn("[i18n] Failed to switch language:", e);
-      // Revert JS locale to previous
+      // Revert both JS and Rust locale to previous
       await i18n.changeLanguage(previousLang);
+      invoke("set_locale", { locale: previousLang }).catch(() => {});
     }
   };
 
