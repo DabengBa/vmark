@@ -86,6 +86,12 @@ for (const file of files) {
         continue;
       }
 
+      // Skip double em-dash "——" (valid CJK punctuation)
+      if (before === EM_DASH || after === EM_DASH) {
+        pos++;
+        continue;
+      }
+
       // Check for missing spaces
       const needsSpaceBefore = before && /\w/.test(before);
       const needsSpaceAfter = after && /\w/.test(after);
