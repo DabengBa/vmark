@@ -1,0 +1,35 @@
+{
+  "picker.ariaLabel": "Genios de IA",
+  "picker.searchPlaceholder": "Busca genios o describe lo que quieres...",
+  "picker.loading": "Cargando genios...",
+  "picker.empty": "No se encontraron genios. Añade archivos .md a tu directorio de genios.",
+  "picker.noMatch": "No hay genios coincidentes.",
+  "picker.freeformHintPrefix": "Presiona",
+  "picker.freeformHintSuffix": "para ejecutar como indicación de IA.",
+  "picker.freeformConfirm": "Presiona Enter de nuevo para ejecutar como indicación de IA.",
+  "picker.recentlyUsed": "Usados recientemente",
+  "picker.scopeLabel": "ámbito: {{scope}}",
+  "picker.via": "mediante {{name}}",
+  "picker.footerCycleScope": "cambiar ámbito",
+  "picker.footerNavigate": "navegar",
+
+  "chips.polish": "Pulir",
+  "chips.condense": "Condensar",
+  "chips.grammar": "Gramática",
+  "chips.rephrase": "Reformular",
+
+  "response.thinking": "Pensando... {{seconds}}s",
+  "response.accept": "Aceptar",
+  "response.reject": "Rechazar",
+  "response.retry": "Reintentar",
+  "response.cancel": "Cancelar",
+  "response.dismiss": "Descartar",
+  "response.unknownError": "Error desconocido",
+
+  "history.title": "Historial de indicaciones",
+  "history.empty": "Sin historial",
+
+  "provider.sectionCli": "CLI",
+  "provider.sectionApi": "API",
+  "provider.settings": "Ajustes..."
+}
