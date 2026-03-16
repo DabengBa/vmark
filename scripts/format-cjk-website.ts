@@ -18,8 +18,10 @@ import { formatMarkdown } from "../src/lib/cjkFormatter/formatter";
 import { containsCJK } from "../src/lib/cjkFormatter/rules";
 import type { CJKFormattingSettings } from "../src/stores/settingsStore";
 
-// Korean excluded from CJK-English spacing — Korean particles attach directly
-// to preceding words (e.g., "VMark에는" not "VMark 에는").
+// Korean excluded: although rule-level Hangul exclusions exist in rules.ts,
+// formatMarkdown()'s EOF trim and code-block boundary handling cause
+// regressions in Korean markdown files. Safe rules (ellipsis, fullwidth
+// alphanumeric) produce no meaningful changes in Korean translations.
 const CJK_LOCALES = ["zh-CN", "zh-TW", "ja"];
 const WEBSITE_DIR = path.resolve(import.meta.dirname, "../website");
 const DRY_RUN = process.argv.includes("--dry-run");
