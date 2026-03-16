@@ -316,6 +316,23 @@
   margin-left: 8px;
 }
 
+/* Reorder nav bar: nav-icons (GitHub + Theme) before language switcher */
+.VPNavBar .content .content-body {
+  .translations { order: 10; }
+  .nav-icons    { order: 5; }
+}
+
+/* Language switcher: hide redundant chevron, match theme picker dropdown style */
+.VPNavBarTranslations .vpi-chevron-down {
+  display: none;
+}
+.VPNavBarTranslations .VPMenu {
+  background-color: var(--vp-c-bg);
+}
+.VPNavBarTranslations::before {
+  display: none !important;
+}
+
 /* Nav and sidebar use theme backgrounds */
 .VPNav {
   background: var(--vp-c-bg) !important;

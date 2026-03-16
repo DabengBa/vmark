@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: The Markdown Editor That Gets It Right
-  tagline: Free. Smart. Beautiful. Yours.
+  tagline: Free · Smart · Beautiful · Yours
   image:
     src: /logo.png
     alt: VMark

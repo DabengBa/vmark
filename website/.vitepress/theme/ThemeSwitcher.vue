@@ -32,15 +32,12 @@ function setTheme(themeId: string) {
   pickRandomOther()
 }
 
-function toggleDropdown() {
-  isOpen.value = !isOpen.value
+function openDropdown() {
+  isOpen.value = true
 }
 
-function closeDropdown(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.theme-dropdown')) {
-    isOpen.value = false
-  }
+function closeDropdown() {
+  isOpen.value = false
 }
 
 onMounted(() => {
@@ -54,19 +51,18 @@ onMounted(() => {
     document.documentElement.setAttribute('data-vmark-theme', 'paper')
   }
   pickRandomOther()
-  document.addEventListener('click', closeDropdown)
 })
 </script>
 
 <template>
-  <div class="theme-dropdown">
-    <button class="theme-trigger" @click.stop="toggleDropdown" title="Switch theme">
+  <div class="theme-dropdown" @mouseenter="openDropdown" @mouseleave="closeDropdown">
+    <button class="theme-trigger" title="Switch theme">
       <span
         class="theme-dot"
         :style="{ backgroundColor: otherThemeData.bg, borderColor: otherThemeData.fg }"
       ></span>
     </button>
-    <div class="theme-menu" v-show="isOpen">
+    <div class="theme-menu">
       <button
         v-for="theme in themes"
         :key="theme.id"
@@ -125,6 +121,14 @@ onMounted(() => {
   background: var(--vp-c-bg);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s, visibility 0.25s;
+}
+
+.theme-dropdown:hover .theme-menu {
+  opacity: 1;
+  visibility: visible;
 }
 
 .theme-option {

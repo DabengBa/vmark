@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: L'éditeur Markdown qui fait les choses bien
-  tagline: Gratuit. Intelligent. Beau. À vous.
+  tagline: Gratuit · Intelligent · Beau · À vous
   image:
     src: /logo.png
     alt: VMark

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: 제대로 만든 마크다운 에디터
-  tagline: 무료. 스마트. 아름다운. 당신의 것.
+  tagline: 무료 · 스마트 · 아름다운 · 당신의 것
   image:
     src: /logo.png
     alt: VMark

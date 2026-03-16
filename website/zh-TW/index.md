@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: 恰到好處的 Markdown 編輯器
-  tagline: 免費。智慧。美觀。屬於你。
+  tagline: 免費 · 智慧 · 美觀 · 屬於你
   image:
     src: /logo.png
     alt: VMark
