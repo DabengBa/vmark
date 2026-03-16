@@ -1,0 +1,140 @@
+# Gestion de l'espace de travail
+
+Un espace de travail dans VMark est un dossier ouvert comme racine de votre projet. Lorsque vous ouvrez un espace de travail, la barre latérale affiche une arborescence de fichiers, l'Ouverture rapide indexe chaque fichier markdown, le terminal démarre dans la racine du projet et vos onglets ouverts sont mémorisés pour la prochaine fois.
+
+Sans espace de travail, vous pouvez quand même ouvrir des fichiers individuels, mais vous perdez l'explorateur de fichiers, la recherche dans le projet et la restauration de session.
+
+## Ouvrir un espace de travail
+
+| Méthode | Comment |
+|---------|---------|
+| Menu | **Fichier > Ouvrir l'espace de travail** |
+| Ouverture rapide | `Mod + O`, puis sélectionnez **Parcourir...** en bas |
+| Glisser-déposer | Glissez un fichier markdown depuis le Finder dans la fenêtre — VMark détecte sa racine de projet et ouvre l'espace de travail automatiquement |
+| Espaces de travail récents | **Fichier > Espaces de travail récents** et choisissez un projet précédent |
+
+Lorsque vous ouvrez un espace de travail, VMark affiche la barre latérale avec l'explorateur de fichiers. Si l'espace de travail a déjà été ouvert, les onglets précédemment ouverts sont restaurés.
+
+::: tip
+Si la fenêtre actuelle a des modifications non enregistrées, VMark propose d'ouvrir l'espace de travail dans une nouvelle fenêtre au lieu de remplacer votre travail.
+:::
+
+## Explorateur de fichiers
+
+L'explorateur de fichiers apparaît dans la barre latérale chaque fois qu'un espace de travail est ouvert. Il affiche une arborescence de fichiers markdown enracinée dans le dossier de l'espace de travail.
+
+### Navigation
+
+- **Clic simple** sur un dossier pour le développer ou le réduire
+- **Double-clic** ou **Entrée** sur un fichier pour l'ouvrir dans un onglet
+- Les fichiers non-markdown s'ouvrent avec l'application par défaut de votre système
+
+### Opérations sur les fichiers
+
+Cliquez avec le bouton droit sur n'importe quel fichier ou dossier pour accéder au menu contextuel :
+
+| Action | Description |
+|--------|-------------|
+| Ouvrir | Ouvrir le fichier dans un nouvel onglet |
+| Renommer | Modifier le nom du fichier ou dossier en ligne (aussi `F2`) |
+| Dupliquer | Créer une copie du fichier |
+| Déplacer vers... | Déplacer le fichier vers un autre dossier via une boîte de dialogue |
+| Supprimer | Déplacer le fichier ou dossier vers la corbeille système |
+| Copier le chemin | Copier le chemin de fichier absolu dans le presse-papiers |
+| Révéler dans le Finder | Afficher le fichier dans le Finder (macOS) |
+| Nouveau fichier | Créer un nouveau fichier markdown à cet emplacement |
+| Nouveau dossier | Créer un nouveau dossier à cet emplacement |
+
+Vous pouvez également **glisser-déposer** des fichiers entre des dossiers directement dans l'arborescence.
+
+### Bascules de visibilité
+
+Par défaut, l'explorateur affiche uniquement les fichiers markdown et masque les fichiers points. Deux bascules modifient cela :
+
+| Bascule | Raccourci | Ce qu'elle fait |
+|---------|-----------|----------------|
+| Afficher les fichiers cachés | `Mod + Shift + .` (macOS) / `Ctrl + H` (Win/Linux) | Révèle les fichiers points et dossiers cachés |
+| Afficher tous les fichiers | *(Paramètres ou menu contextuel)* | Affiche les fichiers non-markdown aux côtés de vos documents |
+
+Les deux paramètres sont sauvegardés par espace de travail et persistent entre les sessions.
+
+### Dossiers exclus
+
+Certains dossiers sont exclus de l'arborescence par défaut :
+
+- `.git`
+- `node_modules`
+
+Ces valeurs par défaut sont appliquées lors de la première ouverture d'un espace de travail.
+
+## Ouverture rapide
+
+Appuyez sur `Mod + O` pour ouvrir l'overlay d'Ouverture rapide. Il fournit une recherche floue sur trois sources :
+
+1. **Fichiers récents** que vous avez ouverts auparavant
+2. **Onglets ouverts** dans la fenêtre actuelle (marqués d'un indicateur point)
+3. **Tous les fichiers markdown** dans l'espace de travail
+
+Tapez quelques caractères pour filtrer — la correspondance est floue, donc `rme` trouve `README.md`. Utilisez les touches fléchées pour naviguer et **Entrée** pour ouvrir. Une ligne **Parcourir...** épinglée en bas ouvre une boîte de dialogue de fichier.
+
+| Action | Raccourci |
+|--------|----------|
+| Ouvrir l'Ouverture rapide | `Mod + O` |
+| Naviguer dans les résultats | `Haut / Bas` |
+| Ouvrir le fichier sélectionné | `Entrée` |
+| Fermer | `Échap` |
+
+::: tip
+Sans espace de travail, l'Ouverture rapide fonctionne quand même — elle affiche les fichiers récents et les onglets ouverts mais ne peut pas rechercher dans l'arborescence de fichiers.
+:::
+
+## Espaces de travail récents
+
+VMark mémorise jusqu'à 10 espaces de travail récemment ouverts. Accédez-y depuis **Fichier > Espaces de travail récents** dans la barre de menus.
+
+- Les espaces de travail sont triés par heure de dernière ouverture (les plus récents en premier)
+- La liste se synchronise avec le menu natif à chaque changement
+- Choisissez **Effacer les espaces de travail récents** pour réinitialiser la liste
+
+## Paramètres de l'espace de travail
+
+Chaque espace de travail a sa propre configuration qui persiste entre les sessions. Les paramètres sont stockés dans le répertoire de données de l'application VMark — pas dans le dossier du projet — afin que votre espace de travail reste propre.
+
+Les paramètres suivants sont sauvegardés par espace de travail :
+
+| Paramètre | Description |
+|-----------|-------------|
+| Dossiers exclus | Dossiers masqués de l'explorateur de fichiers |
+| Afficher les fichiers cachés | Si les fichiers points sont visibles |
+| Afficher tous les fichiers | Si les fichiers non-markdown sont visibles |
+| Derniers onglets ouverts | Chemins de fichiers pour la restauration de session à la prochaine ouverture |
+
+::: tip
+La configuration de l'espace de travail est liée au chemin du dossier. Ouvrir le même dossier sur la même machine restaure toujours vos paramètres, même depuis une fenêtre différente.
+:::
+
+## Restauration de session
+
+Lorsque vous fermez une fenêtre qui a un espace de travail ouvert, VMark sauvegarde la liste des onglets ouverts dans la configuration de l'espace de travail. La prochaine fois que vous ouvrez le même espace de travail, ces onglets sont restaurés automatiquement.
+
+- Seuls les onglets avec un chemin de fichier sauvegardé sont restaurés (les onglets sans titre ne sont pas persistés)
+- Si un fichier a été déplacé ou supprimé depuis la dernière session, il est ignoré silencieusement
+- Les données de session sont sauvegardées à la fermeture de la fenêtre et à la fermeture de l'espace de travail (`Fichier > Fermer l'espace de travail`)
+
+## Multi-fenêtres
+
+Chaque fenêtre VMark peut avoir son propre espace de travail indépendant. Cela vous permet de travailler sur plusieurs projets simultanément.
+
+- **Fichier > Nouvelle fenêtre** ouvre une nouvelle fenêtre
+- Ouvrir un espace de travail dans une nouvelle fenêtre n'affecte pas les autres fenêtres
+- La taille et la position des fenêtres sont mémorisées par fenêtre
+
+Lorsque vous glissez un fichier markdown depuis le Finder et que la fenêtre actuelle a déjà du travail non enregistré, VMark ouvre automatiquement le projet du fichier dans une nouvelle fenêtre.
+
+## Intégration du terminal
+
+Le terminal intégré utilise automatiquement la racine de l'espace de travail comme répertoire de travail. Lorsque vous ouvrez ou changez d'espace de travail, toutes les sessions du terminal effectuent `cd` vers la nouvelle racine.
+
+La variable d'environnement `VMARK_WORKSPACE` est définie sur le chemin de l'espace de travail dans chaque session de terminal, de sorte que vos scripts peuvent référencer la racine du projet.
+
+[En savoir plus sur le terminal →](/fr/guide/terminal)
