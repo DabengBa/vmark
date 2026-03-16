@@ -59,14 +59,6 @@ export const ja = {
               text: "CJK フォーマット",
               link: "/ja/guide/cjk-formatting",
             },
-            { text: "設定", link: "/ja/guide/settings" },
-            { text: "プライバシー", link: "/ja/guide/privacy" },
-            { text: "ライセンス", link: "/ja/guide/license" },
-          ],
-        },
-        {
-          text: "AI 連携",
-          items: [
             { text: "AI ジーニー", link: "/ja/guide/ai-genies" },
             {
               text: "AI プロバイダー",
@@ -77,39 +69,45 @@ export const ja = {
               text: "MCP ツールリファレンス",
               link: "/ja/guide/mcp-tools",
             },
+            { text: "設定", link: "/ja/guide/settings" },
+            { text: "プライバシー", link: "/ja/guide/privacy" },
+            { text: "ライセンス", link: "/ja/guide/license" },
+          ],
+        },
+        {
+          text: "ユーザーとしての開発者",
+          items: [
             {
-              text: "ユーザーとしての開発者",
+              text: "概要",
               link: "/ja/guide/users-as-developers/",
-              items: [
-                {
-                  text: "VMark を開発した理由",
-                  link: "/ja/guide/users-as-developers/why-i-built-vmark",
-                },
-                {
-                  text: "AI が代替できない5つのスキル",
-                  link: "/ja/guide/users-as-developers/what-are-indispensable",
-                },
-                {
-                  text: "高価なモデルがなぜ安いのか",
-                  link: "/ja/guide/users-as-developers/why-expensive-models-are-cheaper",
-                },
-                {
-                  text: "サブスクリプション vs API 料金",
-                  link: "/ja/guide/users-as-developers/subscription-vs-api",
-                },
-                {
-                  text: "英語プロンプトが効果的な理由",
-                  link: "/ja/guide/users-as-developers/prompt-refinement",
-                },
-                {
-                  text: "クロスモデル検証",
-                  link: "/ja/guide/users-as-developers/cross-model-verification",
-                },
-                {
-                  text: "PR ではなく Issue を出す理由",
-                  link: "/ja/guide/users-as-developers/why-issues-not-prs",
-                },
-              ],
+            },
+            {
+              text: "VMark を開発した理由",
+              link: "/ja/guide/users-as-developers/why-i-built-vmark",
+            },
+            {
+              text: "AI が代替できない5つのスキル",
+              link: "/ja/guide/users-as-developers/what-are-indispensable",
+            },
+            {
+              text: "高価なモデルがなぜ安いのか",
+              link: "/ja/guide/users-as-developers/why-expensive-models-are-cheaper",
+            },
+            {
+              text: "サブスクリプション vs API 料金",
+              link: "/ja/guide/users-as-developers/subscription-vs-api",
+            },
+            {
+              text: "英語プロンプトが効果的な理由",
+              link: "/ja/guide/users-as-developers/prompt-refinement",
+            },
+            {
+              text: "クロスモデル検証",
+              link: "/ja/guide/users-as-developers/cross-model-verification",
+            },
+            {
+              text: "PR ではなく Issue を出す理由",
+              link: "/ja/guide/users-as-developers/why-issues-not-prs",
             },
           ],
         },
