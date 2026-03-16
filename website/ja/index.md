@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: 正しく作られたMarkdownエディタ
-  tagline: 無料。スマート。美しい。あなたのもの。
+  tagline: 無料 · スマート · 美しい · あなたのもの
   image:
     src: /logo.png
     alt: VMark

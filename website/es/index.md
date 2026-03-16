@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: El Editor Markdown Que Lo Hace Bien
-  tagline: Gratuito. Inteligente. Hermoso. Tuyo.
+  tagline: Gratuito · Inteligente · Hermoso · Tuyo
   image:
     src: /logo.png
     alt: VMark

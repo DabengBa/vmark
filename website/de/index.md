@@ -4,7 +4,7 @@ layout: home
 hero:
   name: VMark
   text: Der Markdown-Editor, der es richtig macht
-  tagline: Kostenlos. Intelligent. Schön. Deins.
+  tagline: Kostenlos · Intelligent · Schön · Deins
   image:
     src: /logo.png
     alt: VMark
