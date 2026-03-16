@@ -1,0 +1,35 @@
+{
+  "picker.ariaLabel": "Génies IA",
+  "picker.searchPlaceholder": "Rechercher des génies ou décrivez ce que vous souhaitez...",
+  "picker.loading": "Chargement des génies...",
+  "picker.empty": "Aucun génie trouvé. Ajoutez des fichiers .md dans votre répertoire de génies.",
+  "picker.noMatch": "Aucun génie correspondant.",
+  "picker.freeformHintPrefix": "Appuyez sur",
+  "picker.freeformHintSuffix": "pour exécuter comme invite IA.",
+  "picker.freeformConfirm": "Appuyez à nouveau sur Entrée pour exécuter comme invite IA.",
+  "picker.recentlyUsed": "Récemment utilisés",
+  "picker.scopeLabel": "portée : {{scope}}",
+  "picker.via": "via {{name}}",
+  "picker.footerCycleScope": "changer de portée",
+  "picker.footerNavigate": "naviguer",
+
+  "chips.polish": "Peaufiner",
+  "chips.condense": "Condenser",
+  "chips.grammar": "Grammaire",
+  "chips.rephrase": "Reformuler",
+
+  "response.thinking": "Réflexion... {{seconds}}s",
+  "response.accept": "Accepter",
+  "response.reject": "Rejeter",
+  "response.retry": "Réessayer",
+  "response.cancel": "Annuler",
+  "response.dismiss": "Ignorer",
+  "response.unknownError": "Erreur inconnue",
+
+  "history.title": "Historique des invites",
+  "history.empty": "Aucun historique",
+
+  "provider.sectionCli": "CLI",
+  "provider.sectionApi": "API",
+  "provider.settings": "Paramètres..."
+}
