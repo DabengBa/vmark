@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "Cambios sin guardar",
+    "single": "¿Deseas guardar los cambios en \"{{title}}\"?",
+    "multiple": "Tienes {{count}} documento sin guardar:\n\n• {{list}}",
+    "multiple_plural": "Tienes {{count}} documentos sin guardar:\n\n• {{list}}",
+    "newDocsHint": "{{count}} documento nuevo necesitará una ubicación de guardado.",
+    "newDocsHint_plural": "{{count}} documentos nuevos necesitarán una ubicación de guardado.",
+    "openInNewWindow": "Esta ventana tiene cambios sin guardar. ¿Abrir el espacio de trabajo en una nueva ventana?",
+    "restartUnsaved": "Tienes {{count}} documento(s) sin guardar. ¿Reiniciar y restaurar al relanzar?"
+  },
+  "fileChanged": {
+    "title": "Archivo modificado",
+    "message": "\"{{fileName}}\" ha sido modificado externamente.\n\n¿Qué deseas hacer?",
+    "multipleTitle": "Varios archivos modificados",
+    "multipleMessage": "{{count}} archivos han sido modificados externamente:\n{{fileNames}}\n\n¿Qué deseas hacer?"
+  },
+  "revertToSaved": {
+    "title": "Revertir a guardado",
+    "message": "¿Descartar todos los cambios y recargar \"{{title}}\" desde el disco?"
+  },
+  "clearRecentFiles": {
+    "title": "Borrar archivos recientes",
+    "message": "¿Borrar la lista de archivos abiertos recientemente?"
+  },
+  "clearRecentWorkspaces": {
+    "title": "Borrar espacios de trabajo recientes",
+    "message": "¿Borrar la lista de espacios de trabajo abiertos recientemente?"
+  },
+  "fileNotFound": {
+    "title": "Archivo no encontrado",
+    "message": "No se pudo abrir este archivo. Puede que haya sido movido o eliminado.\n\n¿Eliminar de los archivos recientes?"
+  },
+  "workspaceNotFound": {
+    "title": "Espacio de trabajo no encontrado",
+    "message": "No se encontró esta carpeta de espacio de trabajo. Puede que haya sido movida o eliminada.\n\n¿Eliminar de los espacios de trabajo recientes?"
+  },
+  "unsavedDocument": {
+    "title": "Documento sin guardar",
+    "message": "Por favor, guarda el documento antes de cambiar las imágenes.",
+    "messageCopyPath": "El documento debe estar guardado para copiar la ruta de la imagen.",
+    "messageReveal": "El documento debe estar guardado para mostrar la imagen."
+  },
+  "saveVersionAs": {
+    "title": "Guardar tu versión como..."
+  },
+  "chooseFolderForDocs": "Elegir carpeta para {{count}} documentos nuevos",
+  "toast": {
+    "saveDialogFailed": "Error en el cuadro de diálogo de guardado: {{error}}",
+    "failedToMoveToNewWindow": "Error al mover el archivo a una nueva ventana",
+    "failedToSaveDocuments": "Error al guardar documentos",
+    "fileMovedCantDeleteOriginal": "Archivo guardado en nueva ubicación, pero no se pudo eliminar el archivo original",
+    "failedToOpenFile": "Error al abrir el archivo: {{error}}",
+    "failedToOpen": "Error al abrir {{filename}}",
+    "failedToOpenFilesInNewWindow": "Error al abrir archivos en una nueva ventana",
+    "onlyMarkdownViaDropDrop": "Solo se pueden abrir archivos markdown mediante arrastrar y soltar",
+    "restored": "Restaurado: {{filename}}",
+    "reloaded": "Recargado: {{filename}}",
+    "recoveredDocuments": "Se recuperaron {{count}} documento(s) de una salida inesperada",
+    "pandocExportFailed": "Error en la exportación con Pandoc",
+    "pandocUnknownFormat": "Formato de exportación desconocido: {{format}}",
+    "pandocNoContent": "¡No hay contenido para exportar!",
+    "pandocNotInstalled": "Pandoc no está instalado. Instálalo desde pandoc.org",
+    "pandocExportSuccess": "Exportado correctamente",
+    "pandocExportError": "Error en la exportación con Pandoc: {{error}}",
+    "exportNoContent": "¡No hay contenido para exportar!",
+    "exportHtmlSuccess": "Exportado a la carpeta",
+    "exportHtmlResourceWarning_one": "1 recurso no pudo incluirse",
+    "exportHtmlResourceWarning_other": "{{count}} recursos no pudieron incluirse",
+    "printRequiresMac": "La impresión requiere macOS.",
+    "nativePdfRequiresMac": "La exportación nativa a PDF requiere macOS. Usa Imprimir en su lugar.",
+    "failedToPreparePdf": "Error al preparar la exportación a PDF",
+    "noEditorContentToPrint": "No hay contenido del editor para imprimir",
+    "failedToOpenPrintDialog": "Error al abrir el cuadro de diálogo de impresión",
+    "htmlCopied": "HTML copiado al portapapeles",
+    "pdfExportSuccess": "PDF exportado correctamente",
+    "pdfExportFailed": "Error al exportar PDF: {{error}}",
+    "cannotMoveTabNoDoc": "No se puede mover la pestaña: el documento no está cargado.",
+    "cannotMoveLastTab": "No se puede mover la última pestaña de la ventana principal.",
+    "tabMoved": "Se movió \"{{title}}\" a una nueva ventana",
+    "tabDetached": "Se separó \"{{title}}\"",
+    "tabMovedToWindow": "Se movió \"{{title}}\"",
+    "undoTabMoveFailed": "Error al deshacer el movimiento de pestaña.",
+    "failedToMoveTabToNewWindow": "Error al mover la pestaña a una nueva ventana.",
+    "fileRestoredToDisk": "Archivo restaurado en el disco.",
+    "failedToRestoreToDisk": "Error al restaurar el archivo en el disco.",
+    "revertedToSaved": "Revertido a la versión guardada.",
+    "failedToRevert": "Error al revertir a la versión guardada.",
+    "pathCopied": "Ruta copiada al portapapeles.",
+    "failedToCopyPath": "Error al copiar la ruta.",
+    "relativePathCopied": "Ruta relativa copiada al portapapeles.",
+    "failedToCopyRelativePath": "Error al copiar la ruta relativa.",
+    "failedToRevealInFileManager": "Error al mostrar el archivo en el gestor de archivos.",
+    "pathCopiedExplorer": "Ruta copiada al portapapeles",
+    "failedToOpenWithDefaultApp": "Error al abrir \"{{name}}\" con la aplicación predeterminada",
+    "terminalNeedsWorkspace": "Abre una carpeta o guarda tu archivo para usar la terminal.",
+    "noFormattingActions": "No hay acciones de formato disponibles",
+    "genieNotInSourceMode": "Los genios no están disponibles en el modo fuente",
+    "genieNoProvider": "No hay proveedor de IA disponible. Configura uno en Ajustes.",
+    "genieCliNotFound": "CLI de {{name}} no encontrado. Instálalo o elige otro proveedor en Ajustes.",
+    "genieApiKeyRequired": "Se requiere la clave API de {{name}}. Configúrala en Ajustes → Integraciones.",
+    "updateReady": "v{{version}} listo para instalar",
+    "updateUpToDate": "¡Estás al día!",
+    "imagePathCopied": "Ruta de imagen copiada al portapapeles",
+    "failedToChangeImage": "Error al cambiar la imagen.",
+    "failedToCopyImagePath": "Error al copiar la ruta de la imagen.",
+    "failedToRevealImage": "Error al mostrar la imagen en Finder."
+  }
+}
