@@ -46,6 +46,11 @@ Shared instructions for all AI agents (Claude, Codex, etc.).
 
   - For E2E, use Tauri MCP tools. **Never use Chrome DevTools MCP** — VMark is a Tauri app, not a browser app.
 
+  - **Internationalization (i18n)**: All user-facing strings must use `t()` (React) or `t!()` (Rust).
+    Never hardcode English strings in UI code. Translation keys use flat dot-separated camelCase
+    (e.g., `sidebar.newFile`, `dialog.save.title`). New strings require adding keys to
+    `src/locales/en/*.json` (React) or `src-tauri/locales/en.yml` (Rust).
+
 - AI coding tool auth:
 
   - **Prefer subscription auth over API keys** for all AI coding tools (Claude Code, Codex CLI, Gemini CLI). Subscription plans are dramatically cheaper for sustained coding sessions — API billing can cost 10–30x more.
@@ -113,7 +118,7 @@ Shared instructions for all AI agents (Claude, Codex, etc.).
 
   - **Menu events**: Generic dispatcher in `menu_events.rs` emits `menu:{id}` to the focused window — no per-item handling needed for simple events.
 
-  - **Menu builders**: `menu.rs` has TWO menu creation functions (`create_menu` + `create_menu_with_shortcuts`) — both MUST be updated when changing menus.
+  - **Menu builders**: `menu/localized.rs` has ONE function (`create_localized_menu`) that handles both default and custom shortcuts with rust-i18n translated labels. When changing menus, update this function and the corresponding keys in `src-tauri/locales/en.yml`.
 
   - **Menu icons**: Every menu item MUST have an SF Symbol icon mapped in `macos_menu.rs` (`MENU_ICONS` array). Use real SF Symbol names only — verify names exist in the SF Symbols app before adding. Never invent symbol names.
 

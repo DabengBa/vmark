@@ -20,6 +20,12 @@ Choose one of five color themes. The active theme is indicated by a ring around 
 | Sepia | `#F9F0DB` | Warm yellowish, book-like |
 | Night | `#23262B` | Dark mode |
 
+### Language
+
+| Setting | Description | Default | Options |
+|---------|-------------|---------|---------|
+| Language | Changes the UI language for menus, labels, and messages. Takes effect immediately | English | English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Italiano, Português (Brasil) |
+
 ### Window
 
 | Setting | Description | Default |
