@@ -12,10 +12,13 @@ pub mod validation;
 
 // Re-export commonly used types
 
-// Event names (used by coordinator)
+/// Tauri event emitted to request session state capture from all windows.
 pub const EVENT_CAPTURE_REQUEST: &str = "hot-exit:capture-request";
+/// Tauri event emitted by each window with its captured state.
 pub const EVENT_CAPTURE_RESPONSE: &str = "hot-exit:capture-response";
+/// Tauri event emitted when the capture timeout expires.
 pub const EVENT_CAPTURE_TIMEOUT: &str = "hot-exit:capture-timeout";
+/// Tauri event emitted to signal a window to pull its restore state.
 pub const EVENT_RESTORE_START: &str = "hot-exit:restore-start";
 // Note: EVENT_RESTORE_COMPLETE, EVENT_RESTORE_FAILED, EVENT_TRIGGER_RESTART
 // are defined in TypeScript (src/utils/hotExit/types.ts) and emitted from frontend

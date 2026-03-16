@@ -10,6 +10,7 @@ import { LinkCreatePopupView } from "./LinkCreatePopupView";
 
 const linkCreatePopupPluginKey = new PluginKey("linkCreatePopup");
 
+/** Tiptap extension that shows a popup for creating new links from selected text. */
 export const linkCreatePopupExtension = Extension.create({
   name: "linkCreatePopup",
 

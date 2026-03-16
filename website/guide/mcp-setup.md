@@ -73,7 +73,7 @@ Ask Claude a question and have it write the answer directly to your VMark docume
 
 <div class="screenshot-container">
   <img src="/screenshots/mcp-claude.png" alt="Claude Desktop using VMark MCP" />
-  <p class="screenshot-caption">Claude Desktop calls <code>document_set_content</code> to write to VMark</p>
+  <p class="screenshot-caption">Claude Desktop calls <code>document</code> → <code>set_content</code> to write to VMark</p>
 </div>
 
 <div class="screenshot-container">
@@ -168,7 +168,9 @@ The status bar shows an **MCP** indicator on the right side:
 |-------|--------|
 | Green | Connected and running |
 | Gray | Disconnected or stopped |
-| Pulsing | Starting up |
+| Pulsing (animated) | Starting up |
+
+Startup typically completes within 1-2 seconds.
 
 Click the indicator to open the detailed status dialog.
 

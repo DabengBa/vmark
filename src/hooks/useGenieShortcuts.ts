@@ -55,6 +55,7 @@ function detectScope(): GenieScope | undefined {
   return editor.state.selection.empty ? undefined : "selection";
 }
 
+/** Hook that manages the AI Genie keyboard shortcut, loads genie definitions, and handles direct genie invocation from the menu. */
 export function useGenieShortcuts() {
   const { invokeGenie } = useGenieInvocation();
 

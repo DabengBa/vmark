@@ -26,8 +26,10 @@ const AUTO_SCROLL_MAX_STEP = 14;
 const TOUCH_HOLD_DELAY_MS = 180;
 const TOUCH_HOLD_CANCEL_PX = 8;
 
+/** Current phase of a tab drag interaction. */
 export type DragMode = "idle" | "hold" | "pending" | "reorder" | "dragout";
 
+/** Screen and viewport coordinates captured at the moment a tab is dragged out. */
 export interface DragOutPoint {
   clientX: number;
   clientY: number;
@@ -35,6 +37,7 @@ export interface DragOutPoint {
   screenY: number;
 }
 
+/** Payload emitted on each pointer move during a tab drag. */
 export interface DragMovePayload {
   tabId: string;
   mode: Exclude<DragMode, "idle" | "hold">;
@@ -108,6 +111,7 @@ function toPoint(ev: PointerEvent): DragOutPoint {
   };
 }
 
+/** Hook that manages tab drag interactions -- reorder within the bar or drag out to detach. */
 export function useTabDragOut({ tabBarRef, onDragOut, onReorder, onDragMove }: UseTabDragOptions): UseTabDragResult {
   const [isDragging, setIsDragging] = useState(false);
   const [isReordering, setIsReordering] = useState(false);

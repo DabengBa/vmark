@@ -95,7 +95,7 @@ const DEFAULT_REST_PROVIDERS: RestProviderConfig[] = [
   },
 ];
 
-/** REST provider types (need API key). CLI types are everything else. */
+/** REST provider type identifiers that require API key configuration. CLI types are everything else. */
 export const REST_TYPES = new Set<string>(["anthropic", "openai", "google-ai", "ollama-api"]);
 
 /** Ollama API doesn't require an API key. */
@@ -108,6 +108,7 @@ let _detectId = 0;
 // Store
 // ============================================================================
 
+/** Manages available AI providers (CLI and REST), detection, and active selection with persistence. Use selectors, not destructuring. */
 export const useAiProviderStore = create<AiProviderState & AiProviderActions>()(
   persist(
     (set, get) => ({

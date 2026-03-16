@@ -17,6 +17,7 @@ import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { confirmQuitWarn } from "@/utils/debug";
+/** Hook that syncs the confirmQuit setting from Zustand to Rust's AtomicBool on mount and on change. */
 export function useConfirmQuitSync() {
   const confirmQuit = useSettingsStore((state) => state.general.confirmQuit);
 

@@ -40,6 +40,7 @@ const initialState: SourceCursorContextState = {
   editorView: null,
 };
 
+/** Manages Source mode cursor context — formatting state at cursor position for toolbar display. Use selectors, not destructuring. */
 export const useSourceCursorContextStore = create<SourceCursorContextStore>(
   (set) => ({
     ...initialState,

@@ -35,6 +35,7 @@ const markdownPastePluginKey = new PluginKey("markdownPaste");
 
 const MAX_MARKDOWN_PASTE_CHARS = 200_000;
 
+/** Decision parameters controlling whether a paste should be handled as markdown. */
 export interface MarkdownPasteDecision {
   pasteMode: MarkdownPasteMode;
   /** Raw HTML from clipboard, if any */
@@ -56,6 +57,7 @@ function hasValidUrl(text: string): boolean {
   return /^https?:\/\//i.test(text.trim());
 }
 
+/** Parses markdown text into a ProseMirror Slice suitable for insertion. */
 export function createMarkdownPasteSlice(
   state: EditorState,
   markdown: string,
@@ -66,6 +68,7 @@ export function createMarkdownPasteSlice(
   return Slice.maxOpen(content);
 }
 
+/** Creates a ProseMirror transaction that replaces the current selection with parsed markdown. */
 export function createMarkdownPasteTransaction(
   state: EditorState,
   markdown: string,
@@ -80,6 +83,7 @@ export function createMarkdownPasteTransaction(
   }
 }
 
+/** Determines whether clipboard text should be parsed as markdown based on heuristics and settings. */
 export function shouldHandleMarkdownPaste(
   state: EditorState,
   text: string,
@@ -150,6 +154,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
 }
 
 
+/** Reads plain text from the clipboard and inserts it without markdown parsing. */
 export async function triggerPastePlainText(view: EditorView): Promise<void> {
   if (view.state.selection.ranges.length > 1) return;
 
@@ -160,6 +165,7 @@ export async function triggerPastePlainText(view: EditorView): Promise<void> {
   view.dispatch(tr.scrollIntoView());
 }
 
+/** Tiptap extension that intercepts paste events and parses markdown-formatted plain text. */
 export const markdownPasteExtension = Extension.create({
   name: "markdownPaste",
   addProseMirrorPlugins() {

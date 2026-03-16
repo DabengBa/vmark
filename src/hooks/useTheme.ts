@@ -285,6 +285,7 @@ function applyTypography(
   });
 }
 
+/** Hook that applies CSS design tokens (fonts, sizes, colors, dark/light mode) from appearance settings. */
 export function useTheme() {
   const appearance = useSettingsStore((state) => state.appearance);
   const blockFontSize = useSettingsStore((state) => state.markdown.blockFontSize);

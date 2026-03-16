@@ -26,8 +26,10 @@ import { isImeKeyEvent } from "@/utils/imeGuard";
 import { getRevealInFileManagerLabel } from "@/utils/pathUtils";
 import "./ContextMenu.css";
 
+/** Determines which menu items are shown: file actions, folder actions, or empty-area actions. */
 export type ContextMenuType = "file" | "folder" | "empty";
 
+/** Viewport coordinates for context menu placement. */
 export interface ContextMenuPosition {
   x: number;
   y: number;
@@ -88,6 +90,7 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
+/** Renders a macOS-style context menu with viewport-aware positioning. */
 export function ContextMenu({ type, position, onAction, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   // Get platform-appropriate label once (stable across renders)

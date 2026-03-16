@@ -70,6 +70,7 @@ interface QuickOpenProps {
   windowLabel: string;
 }
 
+/** Spotlight-style centered overlay for quickly opening files via fuzzy search. */
 export function QuickOpen({ windowLabel }: QuickOpenProps) {
   const isOpen = useQuickOpenStore((s) => s.isOpen);
   const [filter, setFilter] = useState("");

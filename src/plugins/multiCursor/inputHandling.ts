@@ -288,6 +288,7 @@ export function handleMultiCursorArrow(
   return state.tr.setSelection(newSel);
 }
 
+/** Subset of KeyboardEvent properties needed for multi-cursor key handling. */
 export type MultiCursorKeyEvent = Pick<
   KeyboardEvent,
   "key" | "shiftKey" | "isComposing" | "keyCode" | "altKey" | "ctrlKey" | "metaKey"

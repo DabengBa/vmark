@@ -33,7 +33,7 @@ pub struct ConfigPreview {
     pub backup_path: String,
 }
 
-/// Result of config installation
+/// Result of MCP config installation (success, message, optional backup path).
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InstallResult {
     pub success: bool,
@@ -42,7 +42,7 @@ pub struct InstallResult {
     pub backup_path: Option<String>,
 }
 
-/// Result of config uninstallation
+/// Result of MCP config uninstallation (success and message).
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UninstallResult {
     pub success: bool,

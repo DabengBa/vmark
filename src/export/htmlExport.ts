@@ -57,6 +57,7 @@ import { getEditorContentCSS } from "./htmlExportStyles";
 // Re-export getEditorContentCSS so existing imports from "./htmlExport" still work
 export { getEditorContentCSS } from "./htmlExportStyles";
 
+/** Configuration for HTML folder export. */
 export interface HtmlExportOptions {
   /** Document title */
   title?: string;
@@ -75,6 +76,7 @@ export interface HtmlExportOptions {
   includeReader?: boolean;
 }
 
+/** Result of an HTML export operation including paths, counts, and diagnostics. */
 export interface HtmlExportResult {
   /** Whether export succeeded */
   success: boolean;

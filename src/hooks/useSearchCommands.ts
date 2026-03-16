@@ -16,6 +16,7 @@ import { useSearchStore } from "@/stores/searchStore";
 import { useUIStore } from "@/stores/uiStore";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
 
+/** Hook that handles Find/Replace menu events (open, next, prev, use-selection) for the current window. */
 export function useSearchCommands() {
   const unlistenRefs = useRef<UnlistenFn[]>([]);
 

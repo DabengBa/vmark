@@ -49,6 +49,7 @@ function createFocusDecoration(state: EditorState): DecorationSet | null {
   }
 }
 
+/** Tiptap extension that dims non-focused paragraphs in focus mode. */
 export const focusModeExtension = Extension.create({
   name: "focusMode",
   addProseMirrorPlugins() {

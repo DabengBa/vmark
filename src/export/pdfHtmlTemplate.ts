@@ -34,6 +34,7 @@ export function getSharedContentCSS(): string {
   return sharedContentCSS();
 }
 
+/** Configuration for PDF page layout, typography, and header/footer options. */
 export interface PdfOptions {
   pageSize: "a4" | "letter" | "a3" | "legal";
   orientation: "portrait" | "landscape";

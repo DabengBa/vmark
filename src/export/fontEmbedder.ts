@@ -7,6 +7,7 @@
 
 import { exportWarn } from "@/utils/debug";
 
+/** Configuration for a font to embed in exported HTML. */
 export interface FontConfig {
   /** Font family name */
   family: string;
@@ -20,6 +21,7 @@ export interface FontConfig {
   format?: string;
 }
 
+/** Result of font embedding including generated CSS, successes, and failures. */
 export interface FontEmbedResult {
   /** CSS @font-face declarations */
   css: string;

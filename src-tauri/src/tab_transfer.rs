@@ -23,7 +23,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::window_manager;
 
-/// Data transferred when a tab is dragged out to a new window.
+/// Document state transferred when a tab is dragged between windows.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TabTransferData {

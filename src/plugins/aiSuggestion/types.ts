@@ -9,6 +9,7 @@
  * @module plugins/aiSuggestion/types
  */
 
+/** The kind of modification an AI suggestion represents. */
 export type SuggestionType = "insert" | "replace" | "delete";
 
 /**

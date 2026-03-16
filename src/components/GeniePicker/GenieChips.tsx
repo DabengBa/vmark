@@ -18,6 +18,7 @@ interface GenieChipsProps {
   onSelect: (genie: GenieDefinition) => void;
 }
 
+/** Renders quick-action chip buttons for common AI genies (Polish, Condense, Grammar, Rephrase). */
 export function GenieChips({ genies, onSelect }: GenieChipsProps) {
   const available = QUICK_ACTIONS.filter((action) =>
     genies.some((g) => g.metadata.name === action.genieName)

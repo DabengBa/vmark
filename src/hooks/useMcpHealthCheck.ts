@@ -25,6 +25,7 @@ interface SidecarHealthInfo {
   error?: string;
 }
 
+/** Result of an MCP server health check including version, tool/resource counts, and bridge status. */
 export interface HealthCheckResult {
   success: boolean;
   version: string;

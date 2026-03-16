@@ -51,6 +51,7 @@ function positionDropCursor(view: EditorView, cursor: HTMLElement, pos: number):
 /** Per-view cleanup reference so each editor instance has its own drag state. */
 const activeCleanupMap = new WeakMap<EditorView, () => void>();
 
+/** Tiptap extension that enables drag-and-drop text reordering within the editor. */
 export const textDragDropExtension = Extension.create({
   name: "textDragDrop",
 

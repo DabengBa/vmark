@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 
+/// A discovered genie file with name, path, source, and optional category.
 #[derive(Debug, Serialize, Clone)]
 pub struct GenieEntry {
     pub name: String,
@@ -10,12 +11,14 @@ pub struct GenieEntry {
     pub category: Option<String>,
 }
 
+/// Parsed genie file: metadata from frontmatter and prompt template body.
 #[derive(Debug, Serialize)]
 pub struct GenieContent {
     pub metadata: GenieMetadata,
     pub template: String,
 }
 
+/// Genie metadata extracted from YAML frontmatter (name, scope, model, etc.).
 #[derive(Debug, Serialize)]
 pub struct GenieMetadata {
     pub name: String,

@@ -100,6 +100,7 @@ interface UseFileTreeOptions {
   watchId?: string;
 }
 
+/** Hook that loads and maintains a recursive file tree for a workspace directory with fs-event auto-refresh. */
 export function useFileTree(
   rootPath: string | null,
   options: UseFileTreeOptions = {}

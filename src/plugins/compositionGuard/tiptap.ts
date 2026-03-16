@@ -36,6 +36,7 @@ import {
 } from "@/utils/imeGuard";
 import { fixCompositionSplitBlock } from "./splitBlockFix";
 
+/** Tiptap extension that guards against IME composition artifacts in ProseMirror. */
 export const compositionGuardExtension = Extension.create({
   name: "compositionGuard",
   priority: 1200,

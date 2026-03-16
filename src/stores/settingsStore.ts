@@ -71,6 +71,7 @@ export type {
   SettingsActions,
 } from "./settingsTypes";
 
+/** Color palettes for each available theme. */
 export const themes: Record<ThemeId, ThemeColors> = {
   white: {
     background: "#FFFFFF",
@@ -254,6 +255,7 @@ const createSectionUpdater = <T extends ObjectSections>(
     [section]: { ...state[section], [key]: value },
   }));
 
+/** Central persistent store for all user-configurable settings with deep-merge migration. Use selectors, not destructuring. */
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
   persist(
     (set) => ({

@@ -42,13 +42,12 @@ static EXIT_ALLOWED: AtomicBool = AtomicBool::new(false);
 static QUIT_TARGETS: LazyLock<Mutex<HashSet<String>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));
 
-/// Determine whether a window label is a document window.
+/// Return `true` if the label identifies a document window (`main` or `doc-*`).
 pub fn is_document_window_label(label: &str) -> bool {
     label == "main" || label.starts_with("doc-")
 }
 
-/// Check if a coordinated quit is in progress.
-/// Whether ExitRequested should be allowed through.
+/// Return `true` when the app is ready to terminate (set just before `app.exit(0)`).
 pub fn is_exit_allowed() -> bool {
     EXIT_ALLOWED.load(Ordering::SeqCst)
 }

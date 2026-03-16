@@ -187,6 +187,7 @@ function handleTabInsertSpaces(state: EditorState, dispatch: (tr: Transaction) =
   return true;
 }
 
+/** Tiptap extension for Tab/Shift+Tab indent, list navigation, and mark escape. */
 export const tabIndentExtension = Extension.create({
   name: "tabIndent",
   // Low priority — runs AFTER autoPairExtension's Tab/Shift+Tab handlers.

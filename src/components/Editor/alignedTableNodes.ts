@@ -16,6 +16,7 @@
 import { TableCell, TableHeader } from "@tiptap/extension-table";
 import { sourceLineAttr } from "@/plugins/shared/sourceLineAttr";
 
+/** Tiptap TableCell extension with text alignment and source-line tracking attributes. */
 export const AlignedTableCell = TableCell.extend({
   addAttributes() {
     return {
@@ -38,6 +39,7 @@ export const AlignedTableCell = TableCell.extend({
   },
 });
 
+/** Tiptap TableHeader extension with text alignment and source-line tracking attributes. */
 export const AlignedTableHeader = TableHeader.extend({
   addAttributes() {
     return {

@@ -108,7 +108,9 @@ export const EXPORT_CSS_VARS = [
   "--list-indent",
 ] as const;
 
+/** Union of all CSS variable names captured during export. */
 export type CSSVarName = (typeof EXPORT_CSS_VARS)[number];
+/** A snapshot mapping each CSS variable name to its computed value at export time. */
 export type ThemeSnapshot = Record<CSSVarName, string>;
 
 /**

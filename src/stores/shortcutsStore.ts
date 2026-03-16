@@ -35,6 +35,7 @@ import { shortcutsWarn } from "@/utils/debug";
 // Types
 // ============================================================================
 
+/** Shortcut category for grouping in the settings UI. */
 export type ShortcutCategory =
   | "formatting"  // Bold, Italic, Code, etc.
   | "blocks"      // Headings, Lists, Quote, Table
@@ -50,6 +51,7 @@ export type ShortcutCategory =
  */
 export type ShortcutScope = "global" | "editor";
 
+/** A single keyboard shortcut entry with ID, label, category, default key, and optional menu binding. */
 export interface ShortcutDefinition {
   id: string;
   label: string;
@@ -68,6 +70,7 @@ export interface ShortcutDefinition {
 // Default Shortcuts Registry
 // ============================================================================
 
+/** Complete registry of built-in keyboard shortcuts with default key bindings. */
 export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   // === Formatting ===
   { id: "bold", label: "Bold", category: "formatting", defaultKey: "Mod-b", menuId: "bold" },
@@ -259,6 +262,7 @@ const initialState: ShortcutsState = {
   version: 1,
 };
 
+/** Manages user keyboard shortcut customizations with conflict detection and native menu sync. Use selectors, not destructuring. */
 export const useShortcutsStore = create<ShortcutsState & ShortcutsActions>()(
   persist(
     (set, get) => ({
@@ -481,6 +485,7 @@ export function formatKeyForDisplay(key: string): string {
 // Category Helpers
 // ============================================================================
 
+/** Human-readable labels for each shortcut category. */
 export const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   formatting: "Formatting",
   blocks: "Blocks",
@@ -490,6 +495,7 @@ export const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   file: "File",
 };
 
+/** Display order for shortcut categories in the settings UI. */
 export const CATEGORY_ORDER: ShortcutCategory[] = [
   "formatting",
   "blocks",

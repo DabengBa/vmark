@@ -19,7 +19,7 @@
 
 import { create } from "zustand";
 
-/** Callback interface for NodeView to implement */
+/** Callback interface for inline math NodeView — force exit and position lookup. */
 export interface InlineMathEditingCallbacks {
   /** Force exit: commit changes but don't reposition cursor */
   forceExit: () => void;
@@ -60,6 +60,7 @@ interface InlineMathEditingActions {
 
 type InlineMathEditingStore = InlineMathEditingState & InlineMathEditingActions;
 
+/** Coordinates inline math editing state between multiple NodeViews — only one can be active at a time. Use selectors, not destructuring. */
 export const useInlineMathEditingStore = create<InlineMathEditingStore>((set, get) => ({
   editingNodePos: null,
   activeCallbacks: null,

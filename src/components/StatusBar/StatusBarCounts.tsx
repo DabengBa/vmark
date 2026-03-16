@@ -19,6 +19,7 @@ import { memo, useDeferredValue, useMemo } from "react";
 import { useDocumentContent } from "@/hooks/useDocumentState";
 import { countCharsFromPlain, countWordsFromPlain, stripMarkdown } from "./statusTextMetrics";
 
+/** Isolated component computing and displaying word/character counts to avoid parent re-renders. */
 export const StatusBarCounts = memo(function StatusBarCounts() {
   const content = useDocumentContent();
   const deferredContent = useDeferredValue(content);

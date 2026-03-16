@@ -45,6 +45,7 @@ import "./terminal-panel.css";
 
 const NULL_REF: RefObject<HTMLDivElement | null> = { current: null };
 
+/** Container for the integrated terminal with resize handle, tab bar, search bar, and context menu. */
 export function TerminalPanel() {
   const visible = useUIStore((s) => s.terminalVisible);
   const height = useUIStore((s) => s.terminalHeight);

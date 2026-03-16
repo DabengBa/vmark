@@ -1,5 +1,6 @@
 import type { DirectoryEntry } from "./types";
 
+/** Options controlling which file tree entries are visible. */
 export interface FileTreeFilterOptions {
   showHidden: boolean;
   showAllFiles: boolean;
@@ -7,6 +8,7 @@ export interface FileTreeFilterOptions {
   filter: (name: string, isFolder: boolean) => boolean;
 }
 
+/** Determine whether a directory entry should be shown based on visibility and filter options. */
 export function shouldIncludeEntry(
   entry: DirectoryEntry,
   options: FileTreeFilterOptions

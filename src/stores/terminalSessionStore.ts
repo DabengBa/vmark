@@ -20,6 +20,7 @@
 
 import { create } from "zustand";
 
+/** A terminal tab session with ID, display label, and alive/dead state. */
 export interface TerminalSession {
   id: string;
   label: string;
@@ -63,6 +64,7 @@ function generateLabel(sessions: TerminalSession[]): string {
   return `Terminal ${n}`;
 }
 
+/** Manages terminal tab sessions — creation (max 5), removal, activation, and dead-marking. Use selectors, not destructuring. */
 export const useTerminalSessionStore = create<
   TerminalSessionState & TerminalSessionActions
 >()((set, get) => {

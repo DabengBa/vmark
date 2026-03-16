@@ -18,6 +18,7 @@
  */
 import type { Tab } from "@/stores/tabStore";
 
+/** Result of a tab reorder validity check. */
 export interface ReorderPlan {
   allowed: boolean;
   toIndex: number;
@@ -35,6 +36,7 @@ export function normalizeInsertionIndex(fromIndex: number, dropIndex: number, ta
   return Math.max(0, Math.min(toIndex, tabCount - 1));
 }
 
+/** Return the index of the last pinned tab, or -1 if none are pinned. */
 export function getLastPinnedIndex(tabs: Tab[]): number {
   return tabs.reduce((last, tab, index) => (tab.isPinned ? index : last), -1);
 }

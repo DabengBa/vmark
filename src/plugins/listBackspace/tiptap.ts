@@ -42,6 +42,7 @@ function handleListBackspace(
   return liftListItem(listItemType)(state, dispatch);
 }
 
+/** Tiptap extension that handles backspace at the start of list items to unwrap them. */
 export const listBackspaceExtension = Extension.create({
   name: "listBackspace",
   priority: 1000,

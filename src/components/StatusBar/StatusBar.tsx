@@ -84,6 +84,7 @@ function preventSelectAllOnButtons(event: KeyboardEvent) {
   }
 }
 
+/** Bottom bar combining tab strip, word/char counts, auto-save indicator, AI status, and mode toggle. */
 export function StatusBar() {
   const isDocumentWindow = useIsDocumentWindow();
   const windowLabel = useWindowLabel();

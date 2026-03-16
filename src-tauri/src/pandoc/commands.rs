@@ -19,7 +19,7 @@ const ALLOWED_EXTENSIONS: &[&str] = &["docx", "epub", "tex", "odt", "rtf", "txt"
 /// Maximum time to wait for Pandoc to finish (2 minutes).
 const PANDOC_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// Result of Pandoc detection.
+/// Pandoc detection result: availability, absolute path, and version string.
 #[derive(serde::Serialize)]
 pub struct PandocInfo {
     pub available: bool,

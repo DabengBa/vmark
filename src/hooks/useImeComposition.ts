@@ -42,6 +42,7 @@ export interface ImeCompositionResult {
   isComposing: () => boolean;
 }
 
+/** Hook that tracks IME composition state via refs, with a grace period guard for post-composition keydown events. */
 export function useImeComposition(): ImeCompositionResult {
   const composingRef = useRef(false);
   const compositionEndTimeRef = useRef<number | null>(null);

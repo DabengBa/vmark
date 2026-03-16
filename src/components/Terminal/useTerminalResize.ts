@@ -26,8 +26,10 @@ import { useUIStore } from "@/stores/uiStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { pixelsToRatio, getAvailableDimension } from "./useTerminalPosition";
 
+/** Drag direction for the terminal resize handle. */
 export type ResizeDirection = "vertical" | "horizontal";
 
+/** Hook providing drag-to-resize behavior for the terminal panel edge. */
 export function useTerminalResize(
   direction: ResizeDirection,
   onResize?: () => void

@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import { getFileName, normalizePath } from "@/utils/paths";
 import { stripMarkdownExtension } from "@/utils/dropPaths";
 
-// Tab representation
+/** A single editor tab with ID, optional file path, display title, and pin state. */
 export interface Tab {
   id: string;
   filePath: string | null; // null = untitled
@@ -96,6 +96,7 @@ const getTabTitle = (filePath: string | null, untitledNum?: number): string => {
   return stripMarkdownExtension(name);
 };
 
+/** Manages per-window tab lifecycle — creation, closing, pinning, reordering, and reopen history. Use selectors, not destructuring. */
 export const useTabStore = create<TabState & TabActions>((set, get) => ({
   tabs: {},
   activeTabId: {},

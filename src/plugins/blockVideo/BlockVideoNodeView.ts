@@ -41,6 +41,7 @@ const VIDEO_LOAD_CONFIG: MediaLoadConfig = {
   errorClass: "media-error",
 };
 
+/** ProseMirror NodeView that renders a block video player with controls. */
 export class BlockVideoNodeView implements NodeView {
   dom: HTMLElement;
   private video: HTMLVideoElement;

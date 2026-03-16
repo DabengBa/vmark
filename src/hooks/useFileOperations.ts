@@ -21,6 +21,7 @@ import { useFileShortcuts } from "./useFileShortcuts";
 export { moveTabToNewWorkspaceWindow } from "./useFileSave";
 export { openFileInNewTabCore } from "./useFileOpen";
 
+/** Hook that wires up file menu events (Open, Save, Save As, New Tab, Close Tab) for the current window. */
 export function useFileOperations() {
   const windowLabel = useWindowLabel();
   useFileShortcuts(windowLabel);

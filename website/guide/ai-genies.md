@@ -81,6 +81,10 @@ Each genie operates on one of three scopes:
 
 The scope determines what text is extracted and passed to the AI as `{{content}}`.
 
+::: tip
+If scope is **Selection** but nothing is selected, the genie operates on the current paragraph.
+:::
+
 ## Reviewing Suggestions
 
 After a genie runs, the suggestion appears inline:

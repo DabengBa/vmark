@@ -21,6 +21,7 @@
 import { create } from "zustand";
 import type { GenieScope } from "@/types/aiGenies";
 
+/** State machine mode for the AI genie picker: search, freeform input, processing, preview, or error. */
 export type PickerMode =
   | "search"
   | "freeform"
@@ -57,6 +58,7 @@ const initialState: GeniePickerState = {
   pickerError: null,
 };
 
+/** Manages AI genie picker overlay state — mode transitions, scope filter, and streaming response. Use selectors, not destructuring. */
 export const useGeniePickerStore = create<
   GeniePickerState & GeniePickerActions
 >((set) => ({

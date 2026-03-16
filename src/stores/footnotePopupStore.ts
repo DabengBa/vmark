@@ -42,6 +42,7 @@ interface FootnotePopupActions {
   closePopup: () => void;
 }
 
+/** Manages footnote popup state — open/close, label, content, and bidirectional position tracking. Use selectors, not destructuring. */
 export const useFootnotePopupStore = create<FootnotePopupState & FootnotePopupActions>(
   (set) => ({
     isOpen: false,

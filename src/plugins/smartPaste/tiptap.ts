@@ -46,6 +46,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   return true;
 }
 
+/** Tiptap extension that wraps selected text with a pasted URL as a markdown link. */
 export const smartPasteExtension = Extension.create({
   name: "smartPaste",
   addProseMirrorPlugins() {

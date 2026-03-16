@@ -14,7 +14,7 @@ use tauri::Manager;
 // Constants
 // ============================================================================
 
-/// MCP port file name
+/// Filename of the MCP bridge port discovery file in app data.
 pub const MCP_PORT_FILE: &str = "mcp-port";
 
 /// Bootstrap file name — legacy, only used for cleanup

@@ -42,6 +42,7 @@ const IMAGE_LOAD_CONFIG: MediaLoadConfig = {
   errorClass: "image-error",
 };
 
+/** ProseMirror NodeView that renders a block image with loading/error states. */
 export class BlockImageNodeView implements NodeView {
   dom: HTMLElement;
   private img: HTMLImageElement;

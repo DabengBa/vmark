@@ -232,131 +232,163 @@ export const wikiLinkPopupWarn = isDev
   ? (...args: unknown[]) => console.warn("[WikiLinkPopup]", ...args)
   : () => {};
 
+/** Debug logger for History warnings. */
 export const historyWarn = isDev
   ? (...args: unknown[]) => console.warn("[History]", ...args)
   : () => {};
 
+/** Debug logger for Window Close operations. */
 export const windowCloseLog = isDev
   ? (...args: unknown[]) => console.log("[WindowClose]", ...args)
   : () => {};
 
+/** Debug logger for Window Close warnings. */
 export const windowCloseWarn = isDev
   ? (...args: unknown[]) => console.warn("[WindowClose]", ...args)
   : () => {};
 
+/** Debug logger for Unified Menu Dispatcher operations. */
 export const menuDispatcherLog = isDev
   ? (...args: unknown[]) => console.debug("[UnifiedMenuDispatcher]", ...args)
   : () => {};
 
+/** Debug logger for Unified Menu Dispatcher warnings. */
 export const menuDispatcherWarn = isDev
   ? (...args: unknown[]) => console.warn("[UnifiedMenuDispatcher]", ...args)
   : () => {};
 
+/** Debug logger for File Watcher warnings. */
 export const watcherWarn = isDev
   ? (...args: unknown[]) => console.warn("[Watcher]", ...args)
   : () => {};
 
+/** Debug logger for Export warnings. */
 export const exportWarn = isDev
   ? (...args: unknown[]) => console.warn("[Export]", ...args)
   : () => {};
 
+/** Debug logger for MCP Bridge operations. */
 export const mcpBridgeLog = isDev
   ? (...args: unknown[]) => console.debug("[MCP Bridge]", ...args)
   : () => {};
 
+/** Debug logger for Markdown Pipeline warnings. */
 export const mdPipelineWarn = isDev
   ? (...args: unknown[]) => console.warn("[MarkdownPipeline]", ...args)
   : () => {};
 
+/** Debug logger for Workspace warnings. */
 export const workspaceWarn = isDev
   ? (...args: unknown[]) => console.warn("[Workspace]", ...args)
   : () => {};
 
+/** Debug logger for Title Bar warnings. */
 export const titleBarWarn = isDev
   ? (...args: unknown[]) => console.warn("[TitleBar]", ...args)
   : () => {};
 
+/** Debug logger for Genie (AI inline) warnings. */
 export const genieWarn = isDev
   ? (...args: unknown[]) => console.warn("[Genie]", ...args)
   : () => {};
 
+/** Debug logger for Image Context Menu warnings. */
 export const imageContextMenuWarn = isDev
   ? (...args: unknown[]) => console.warn("[ImageContextMenu]", ...args)
   : () => {};
 
+/** Debug logger for Orphan Image Cleanup warnings. */
 export const orphanCleanupWarn = isDev
   ? (...args: unknown[]) => console.warn("[OrphanCleanup]", ...args)
   : () => {};
 
+/** Debug logger for Confirm Quit warnings. */
 export const confirmQuitWarn = isDev
   ? (...args: unknown[]) => console.warn("[ConfirmQuit]", ...args)
   : () => {};
 
+/** Debug logger for Finder File Open warnings. */
 export const finderFileOpenWarn = isDev
   ? (...args: unknown[]) => console.warn("[FinderFileOpen]", ...args)
   : () => {};
 
+/** Debug logger for Image Hash Registry warnings. */
 export const imageHashWarn = isDev
   ? (...args: unknown[]) => console.warn("[ImageHashRegistry]", ...args)
   : () => {};
 
+/** Debug logger for Image Resize operations. */
 export const imageResizeLog = isDev
   ? (...args: unknown[]) => console.log("[ImageResize]", ...args)
   : () => {};
 
+/** Debug logger for Workspace Storage warnings. */
 export const workspaceStorageWarn = isDev
   ? (...args: unknown[]) => console.warn("[WorkspaceStorage]", ...args)
   : () => {};
 
+/** Debug logger for Clipboard warnings. */
 export const clipboardWarn = isDev
   ? (...args: unknown[]) => console.warn("[Clipboard]", ...args)
   : () => {};
 
+/** Debug logger for Render warnings. */
 export const renderWarn = isDev
   ? (...args: unknown[]) => console.warn("[Render]", ...args)
   : () => {};
 
+/** Debug logger for Cleanup warnings. */
 export const cleanupWarn = isDev
   ? (...args: unknown[]) => console.warn("[Cleanup]", ...args)
   : () => {};
 
+/** Debug logger for Status Bar warnings. */
 /* v8 ignore next 3 -- @preserve debug logger: production branch tree-shakes to no-op */
 export const statusBarWarn = isDev
   ? (...args: unknown[]) => console.warn("[StatusBar]", ...args)
   : () => {};
 
+/** Debug logger for List Click Fix warnings. */
 export const listClickFixLog = isDev
   ? (...args: unknown[]) => console.warn("[ListClickFix]", ...args)
   : () => {};
 
+/** Debug logger for Window Context errors. */
 export const windowContextError = isDev
   ? (...args: unknown[]) => console.error("[WindowContext]", ...args)
   : () => {};
 
+/** Debug logger for Source Link errors. */
 export const sourceLinkError = isDev
   ? (...args: unknown[]) => console.error("[SourceLink]", ...args)
   : () => {};
 
+/** Debug logger for Resolve Media errors. */
 export const resolveMediaError = isDev
   ? (...args: unknown[]) => console.error("[ResolveMedia]", ...args)
   : () => {};
 
+/** Debug logger for Source Peek errors. */
 export const sourcePeekError = isDev
   ? (...args: unknown[]) => console.error("[SourcePeek]", ...args)
   : () => {};
 
+/** Debug logger for Save errors. */
 export const saveError = isDev
   ? (...args: unknown[]) => console.error("[Save]", ...args)
   : () => {};
 
+/** Debug logger for Table Actions errors. */
 export const tableActionsError = isDev
   ? (...args: unknown[]) => console.error("[TableActions]", ...args)
   : () => {};
 
+/** Debug logger for Image Hash Registry errors. */
 export const imageHashError = isDev
   ? (...args: unknown[]) => console.error("[ImageHashRegistry]", ...args)
   : () => {};
 
+/** Debug logger for WYSIWYG Adapter errors. */
 export const wysiwygAdapterError = isDev
   ? (...args: unknown[]) => console.error("[wysiwygAdapter]", ...args)
   : () => {};

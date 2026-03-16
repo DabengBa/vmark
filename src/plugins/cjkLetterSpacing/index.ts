@@ -26,6 +26,7 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 import { useSettingsStore } from "@/stores/settingsStore";
 import "./cjk-letter-spacing.css";
 
+/** Configuration options for the CJK letter spacing extension. */
 export interface CJKLetterSpacingOptions {
   /**
    * CSS class applied to CJK text runs
@@ -149,6 +150,7 @@ interface PluginState {
   wasEnabled: boolean;
 }
 
+/** Tiptap extension that adds letter-spacing decorations to CJK text runs. */
 export const CJKLetterSpacing = Extension.create<CJKLetterSpacingOptions>({
   name: "cjkLetterSpacing",
 
@@ -211,4 +213,5 @@ export const CJKLetterSpacing = Extension.create<CJKLetterSpacingOptions>({
   },
 });
 
+/** Default export of the CJK letter spacing extension. */
 export default CJKLetterSpacing;

@@ -22,6 +22,7 @@ use super::{RECENT_FILES_SUBMENU_ID, RECENT_WORKSPACES_SUBMENU_ID};
 // - About in App menu (macOS) or Help menu (others); updates are automatic
 // ============================================================================
 
+/// Build the default application menu with standard keyboard accelerators.
 pub fn create_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     // ========================================================================
     // App menu (macOS only)

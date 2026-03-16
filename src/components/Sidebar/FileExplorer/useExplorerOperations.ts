@@ -40,6 +40,7 @@ import { showError, FileErrors } from "@/utils/errorDialog";
 const isCreatingRef = { current: false };
 const isDeletingRef = { current: false };
 
+/** Hook providing file system CRUD operations (create, rename, delete, move, duplicate) for the file explorer. */
 export function useExplorerOperations() {
   const isRenamingRef = useRef(false);
 

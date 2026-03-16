@@ -49,6 +49,7 @@ impl From<CliInstallError> for String {
     }
 }
 
+/// Status of the `/usr/local/bin/vmark` shell command installation.
 #[derive(Serialize)]
 pub struct CliStatus {
     pub installed: bool,

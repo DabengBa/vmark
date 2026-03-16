@@ -30,6 +30,7 @@ const startTimes = new Map<string, number>();
 // Session start time for absolute timestamps
 let sessionStart = 0;
 
+/** Reset the perf session timer and clear all pending start times. */
 export function perfReset(): void {
   sessionStart = performance.now();
   startTimes.clear();
@@ -38,11 +39,13 @@ export function perfReset(): void {
   }
 }
 
+/** Record the start time for a labeled performance measurement. */
 export function perfStart(label: string): void {
   if (!PERF_ENABLED()) return;
   startTimes.set(label, performance.now());
 }
 
+/** End a labeled measurement and log the elapsed time with color-coded output. */
 export function perfEnd(label: string, details?: Record<string, unknown>): void {
   if (!PERF_ENABLED()) return;
   const start = startTimes.get(label);
@@ -64,6 +67,7 @@ export function perfEnd(label: string, details?: Record<string, unknown>): void 
   startTimes.delete(label);
 }
 
+/** Log a point-in-time performance marker with session-relative timestamp. */
 export function perfMark(label: string, details?: Record<string, unknown>): void {
   if (!PERF_ENABLED()) return;
   const now = performance.now();

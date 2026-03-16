@@ -36,7 +36,7 @@ import type { HardBreakStyle, LineEnding } from "@/utils/linebreakDetection";
 // Re-export for backwards compatibility
 export type { NodeType, CursorInfo } from "@/types/cursorSync";
 
-// Per-tab document state
+/** Per-tab document state — content snapshots, dirty tracking, file path, and external-change flags. */
 export interface DocumentState {
   content: string;
   savedContent: string;
@@ -136,6 +136,7 @@ function buildPostSaveState(doc: DocumentState, lastDiskContent: string | undefi
   };
 }
 
+/** Manages per-tab document content, dirty tracking, and external-change detection. Use selectors, not destructuring. */
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
   documents: {},
 

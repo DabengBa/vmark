@@ -18,6 +18,7 @@ import { Mark, markInputRule, markPasteRule, mergeAttributes } from "@tiptap/cor
 export const boldStarInputRegex =
   /(?<=^|[^*])(\*\*(?!\s+\*\*)((?:[^*]+))\*\*(?!\s+\*\*))$/;
 
+/** Paste rule regex for `**text**` bold with CJK-aware lookbehind. */
 export const boldStarPasteRegex =
   /(?<=^|[^*])(\*\*(?!\s+\*\*)((?:[^*]+))\*\*(?!\s+\*\*))/g;
 
@@ -25,6 +26,7 @@ export const boldStarPasteRegex =
 export const boldUnderscoreInputRegex =
   /(?<=^|[^_])(__(?!\s+__)((?:[^_]+))__(?!\s+__))$/;
 
+/** Paste rule regex for `__text__` bold with CJK-aware lookbehind. */
 export const boldUnderscorePasteRegex =
   /(?<=^|[^_])(__(?!\s+__)((?:[^_]+))__(?!\s+__))/g;
 
@@ -34,6 +36,7 @@ export const boldUnderscorePasteRegex =
 export const italicStarInputRegex =
   /(?<=^|[^*])(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))$/;
 
+/** Paste rule regex for `*text*` italic with CJK-aware lookbehind. */
 export const italicStarPasteRegex =
   /(?<=^|[^*])(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))/g;
 
@@ -41,6 +44,7 @@ export const italicStarPasteRegex =
 export const italicUnderscoreInputRegex =
   /(?<=^|[^_])(_(?!\s+_)((?:[^_]+))_(?!\s+_))$/;
 
+/** Paste rule regex for `_text_` italic with CJK-aware lookbehind. */
 export const italicUnderscorePasteRegex =
   /(?<=^|[^_])(_(?!\s+_)((?:[^_]+))_(?!\s+_))/g;
 

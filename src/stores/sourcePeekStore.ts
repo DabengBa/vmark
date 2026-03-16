@@ -21,11 +21,13 @@
 
 import { create } from "zustand";
 
+/** Document position range (from, to) for the block being edited. */
 export interface SourcePeekRange {
   from: number;
   to: number;
 }
 
+/** Viewport rectangle for positioning the Source Peek popup. */
 export interface SourcePeekAnchorRect {
   top: number;
   left: number;
@@ -123,6 +125,7 @@ const initialState: SourcePeekState = {
   blockTypeName: null,
 };
 
+/** Manages Source Peek popup state — open/close, markdown content, live preview, and parse errors. Use selectors, not destructuring. */
 export const useSourcePeekStore = create<SourcePeekState & SourcePeekActions>((set, get) => ({
   ...initialState,
 

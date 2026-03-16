@@ -35,6 +35,7 @@ import "./title-bar.css";
 
 const DEFAULT_DISPLAY_NAME = "Untitled";
 
+/** macOS-style title bar displaying the document filename with inline rename on double-click. */
 export function TitleBar() {
   const filePath = useDocumentFilePath();
   const isDirty = useDocumentIsDirty();

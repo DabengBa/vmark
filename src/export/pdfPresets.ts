@@ -14,6 +14,7 @@ import { MARGIN_PRESETS } from "./pdfHtmlTemplate";
 
 // --- Style presets ---
 
+/** A named style preset bundling typography and margin settings for PDF export. */
 export interface StylePreset {
   label: string;
   fontSize: number;
@@ -26,6 +27,7 @@ export interface StylePreset {
   marginLeft: number;
 }
 
+/** Built-in style presets: Default, Academic, Compact, and Elegant. */
 export const STYLE_PRESETS: Record<string, StylePreset> = {
   default: {
     label: "Default",
@@ -53,6 +55,7 @@ export const STYLE_PRESETS: Record<string, StylePreset> = {
   },
 };
 
+/** Select options for the style preset dropdown (includes "Custom"). */
 export const STYLE_PRESET_OPTIONS = [
   ...Object.entries(STYLE_PRESETS).map(([value, p]) => ({ value, label: p.label })),
   { value: "custom", label: "Custom" },
@@ -92,6 +95,7 @@ export function detectStylePreset(options: PdfOptions): string {
 
 // --- Select option arrays ---
 
+/** Select options for page size (A4, Letter, A3, Legal). */
 export const PAGE_SIZE_OPTIONS = [
   { value: "a4" as const, label: "A4" },
   { value: "letter" as const, label: "Letter" },
@@ -99,11 +103,13 @@ export const PAGE_SIZE_OPTIONS = [
   { value: "legal" as const, label: "Legal" },
 ];
 
+/** Select options for page orientation. */
 export const ORIENTATION_OPTIONS = [
   { value: "portrait" as const, label: "Portrait" },
   { value: "landscape" as const, label: "Landscape" },
 ];
 
+/** Select options for margin presets (Normal, Narrow, Wide, Custom). */
 export const MARGIN_PRESET_OPTIONS = [
   { value: "normal", label: "Normal" },
   { value: "narrow", label: "Narrow" },
@@ -111,6 +117,7 @@ export const MARGIN_PRESET_OPTIONS = [
   { value: "custom", label: "Custom" },
 ];
 
+/** Select options for font size (10pt to 14pt). */
 export const FONT_SIZE_OPTIONS = [
   { value: "10", label: "10pt" },
   { value: "11", label: "11pt" },
@@ -119,6 +126,7 @@ export const FONT_SIZE_OPTIONS = [
   { value: "14", label: "14pt" },
 ];
 
+/** Select options for line height. */
 export const LINE_HEIGHT_OPTIONS = [
   { value: "1.4", label: "1.4" },
   { value: "1.6", label: "1.6" },
@@ -126,6 +134,7 @@ export const LINE_HEIGHT_OPTIONS = [
   { value: "2.0", label: "2.0" },
 ];
 
+/** Select options for CJK inter-character spacing. */
 export const CJK_SPACING_OPTIONS = [
   { value: "0", label: "Off" },
   { value: "0.02", label: "0.02em" },
@@ -133,6 +142,7 @@ export const CJK_SPACING_OPTIONS = [
   { value: "0.08", label: "0.08em" },
 ];
 
+/** Select options for Latin font family. */
 export const LATIN_FONT_OPTIONS = [
   { value: "system", label: "System Default" },
   { value: "athelas", label: "Athelas" },
@@ -141,6 +151,7 @@ export const LATIN_FONT_OPTIONS = [
   { value: "charter", label: "Charter" },
 ];
 
+/** Select options for CJK font family. */
 export const CJK_FONT_OPTIONS = [
   { value: "system", label: "System Default" },
   { value: "pingfang", label: "PingFang SC" },

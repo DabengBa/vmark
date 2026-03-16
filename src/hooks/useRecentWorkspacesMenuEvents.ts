@@ -30,6 +30,7 @@ import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
 import { workspaceWarn } from "@/utils/debug";
 
+/** Hook that handles native menu events for the "Open Recent Workspace" submenu. */
 export function useRecentWorkspacesMenuEvents(): void {
   const unlistenRefs = useRef<UnlistenFn[]>([]);
 

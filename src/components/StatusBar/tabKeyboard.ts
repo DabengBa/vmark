@@ -26,6 +26,7 @@ interface HandleTabKeyboardOptions {
   onActivate: (tabId: string) => void;
 }
 
+/** Handle keyboard events on a tab: Alt+Shift+Arrow for reorder, Enter/Space to activate. */
 export function handleTabKeyboard({ tabId, event, tabs, onReorder, onActivate }: HandleTabKeyboardOptions): void {
   if (event.nativeEvent.isComposing) return;
 

@@ -30,7 +30,7 @@ Type a fenced code block with the `markmap` language identifier:
 
 ### Using MCP Tool
 
-Call `insert_markmap` from your AI coding assistant with the `code` parameter containing Markdown headings.
+Use the `media` MCP tool with `action: "markmap"` and the `code` parameter containing Markdown headings.
 
 ## Editing Modes
 

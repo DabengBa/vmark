@@ -40,6 +40,7 @@ function HeadingItem({ heading, isSelected, onSelect }: HeadingItemProps) {
   );
 }
 
+/** Renders a popup for selecting a document heading to create bookmark links. */
 export function HeadingPicker() {
   const isOpen = useHeadingPickerStore((s) => s.isOpen);
   const headings = useHeadingPickerStore((s) => s.headings);

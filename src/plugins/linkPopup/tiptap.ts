@@ -25,6 +25,7 @@ interface MarkRange {
   to: number;
 }
 
+/** Finds the range of a link mark at the given document position, or null. */
 export function findLinkMarkRange(view: EditorView, pos: number): MarkRange | null {
   const { state } = view;
   const $pos = state.doc.resolve(pos);
@@ -223,6 +224,7 @@ class LinkPopupPluginView {
   }
 }
 
+/** Tiptap extension that shows a popup when the cursor is on a link. */
 export const linkPopupExtension = Extension.create({
   name: "linkPopup",
   addProseMirrorPlugins() {

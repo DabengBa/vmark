@@ -35,6 +35,7 @@ function getTabDisplay(label: string): string {
   return m ? m[1] : (label.charAt(0).toUpperCase() || "?");
 }
 
+/** Renders numbered buttons for switching between terminal sessions plus create/close/restart controls. */
 export function TerminalTabBar({ onClose, onRestart, orientation = "vertical" }: TerminalTabBarProps) {
   const sessions = useTerminalSessionStore((s) => s.sessions);
   const activeId = useTerminalSessionStore((s) => s.activeSessionId);

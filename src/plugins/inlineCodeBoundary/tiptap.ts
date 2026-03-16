@@ -8,6 +8,7 @@
 import { Extension } from "@tiptap/core";
 import { createInlineCodeBoundaryPlugin } from "./plugin";
 
+/** Tiptap extension that improves cursor behavior at inline code mark boundaries. */
 export const inlineCodeBoundaryExtension = Extension.create({
   name: "inlineCodeBoundary",
 

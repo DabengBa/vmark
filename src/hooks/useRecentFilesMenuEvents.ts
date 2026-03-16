@@ -33,6 +33,7 @@ import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
 import { getFileName } from "@/utils/pathUtils";
 
+/** Hook that handles native menu events for the "Open Recent" file submenu. */
 export function useRecentFilesMenuEvents(): void {
   const unlistenRefs = useRef<UnlistenFn[]>([]);
 

@@ -47,6 +47,7 @@ function formatClientLabel(client: McpClient): string {
   return client.version ? `${display} v${client.version}` : display;
 }
 
+/** Build a tooltip string for the MCP status indicator based on server and client state. */
 export function formatMcpTooltip(
   running: boolean,
   loading: boolean,
@@ -87,6 +88,7 @@ interface StatusBarRightProps {
   onToggleSourceMode: () => void;
 }
 
+/** Right-hand section of the status bar with counts, AI/MCP status, terminal toggle, and mode toggle. */
 export function StatusBarRight({
   aiRunning,
   elapsedSeconds,

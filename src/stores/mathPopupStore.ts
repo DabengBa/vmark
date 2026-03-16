@@ -32,6 +32,7 @@ const initialState: MathPopupState = {
   nodePos: null,
 };
 
+/** Manages inline math edit popup state — anchor rect, LaTeX content, and node position. Use selectors, not destructuring. */
 export const useMathPopupStore = create<MathPopupStore>((set) => ({
   ...initialState,
 

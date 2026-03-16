@@ -126,6 +126,7 @@ async function renderMarkdownToHtml(
   });
 }
 
+/** Options for the exportToHtml operation. */
 export interface ExportToHtmlOptions {
   /** Markdown content */
   markdown: string;
@@ -225,6 +226,7 @@ export async function exportToHtml(
   }
 }
 
+/** Options for the exportToPdf (print) operation. */
 export interface ExportToPdfOptions {
   /** Markdown content */
   markdown: string;

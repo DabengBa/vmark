@@ -19,13 +19,16 @@
 
 import { parseYoutubeUrl } from "./youtubeUrlParser";
 
+/** Supported video embed provider identifiers. */
 export type VideoProvider = "youtube" | "vimeo" | "bilibili";
 
+/** Result of parsing a video URL: the matched provider and extracted video ID. */
 export interface VideoParseResult {
   provider: VideoProvider;
   videoId: string;
 }
 
+/** Full configuration for a video provider: URL parsing, embed generation, and defaults. */
 export interface ProviderConfig {
   /** Human-readable provider name */
   name: VideoProvider;

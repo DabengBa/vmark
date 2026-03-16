@@ -44,6 +44,7 @@ function createDetailsBlockNode(state: EditorState, open: boolean) {
   return detailsType.create({ open }, [summaryNode, contentNode]);
 }
 
+/** Tiptap node extension for the summary element inside a details block. */
 export const detailsSummaryExtension = Node.create({
   name: "detailsSummary",
   content: "inline*",
@@ -65,6 +66,7 @@ export const detailsSummaryExtension = Node.create({
   },
 });
 
+/** Tiptap node extension for collapsible details/summary blocks. */
 export const detailsBlockExtension = Node.create({
   name: "detailsBlock",
   group: "block",

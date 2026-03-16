@@ -25,6 +25,7 @@ import { isImeKeyEvent } from "@/utils/imeGuard";
 import { isMacPlatform } from "@/utils/shortcutMatch";
 import { clipboardWarn } from "@/utils/debug";
 
+/** Callbacks provided to the terminal key handler for non-shell actions. */
 export interface KeyHandlerCallbacks {
   onSearch: () => void;
 }

@@ -16,6 +16,7 @@ pub const MAX_SESSION_AGE_DAYS: i64 = 7;
 const SECONDS_PER_DAY: i64 = 86_400;
 
 /// Complete application session state
+/// Complete application session state for hot exit persistence.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionData {
     pub version: u32,
@@ -25,6 +26,7 @@ pub struct SessionData {
     pub workspace: Option<WorkspaceState>,
 }
 
+/// State of a single window including tabs, UI layout, and geometry.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WindowState {
     pub window_label: String,
@@ -35,6 +37,7 @@ pub struct WindowState {
     pub geometry: Option<WindowGeometry>,
 }
 
+/// State of a single tab including its document content and metadata.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TabState {
     pub id: String,
@@ -44,6 +47,7 @@ pub struct TabState {
     pub document: DocumentState,
 }
 
+/// Document content, dirty state, cursor position, and undo history.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DocumentState {
     pub content: String,
@@ -74,6 +78,7 @@ pub struct HistoryCheckpoint {
     pub timestamp: i64,
 }
 
+/// Cursor position context for cross-mode cursor restoration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CursorInfo {
     pub source_line: u32,
@@ -86,6 +91,7 @@ pub struct CursorInfo {
     pub block_anchor: Option<serde_json::Value>, // Polymorphic - can be TableAnchor or CodeBlockAnchor
 }
 
+/// UI layout state: sidebar, outline, mode toggles, and terminal visibility.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UiState {
     pub sidebar_visible: bool,
@@ -106,6 +112,7 @@ fn default_terminal_height() -> u32 {
     250
 }
 
+/// Window position and size in screen coordinates.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WindowGeometry {
     pub x: i32,
@@ -114,6 +121,7 @@ pub struct WindowGeometry {
     pub height: u32,
 }
 
+/// Workspace root path and display preferences.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkspaceState {
     pub root_path: Option<String>,

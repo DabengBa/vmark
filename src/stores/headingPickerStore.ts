@@ -48,6 +48,7 @@ const initialState: HeadingPickerState = {
   onSelect: null,
 };
 
+/** Manages heading picker popup state for bookmark link insertion. Use selectors, not destructuring. */
 export const useHeadingPickerStore = create<HeadingPickerStore>((set, get) => ({
   ...initialState,
 

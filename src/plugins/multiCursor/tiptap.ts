@@ -11,6 +11,7 @@ import { multiCursorKeymap } from "./keymap";
 // Import CSS for styling
 import "./multi-cursor.css";
 
+/** Configuration options for the multi-cursor extension. */
 export interface MultiCursorOptions {
   /** Enable keyboard shortcuts (default: true) */
   enableKeymap: boolean;

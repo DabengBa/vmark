@@ -66,6 +66,7 @@ export function resolveTerminalCwd(): string | undefined {
   return undefined;
 }
 
+/** Options for spawning a PTY process connected to an xterm instance. */
 export interface SpawnOptions {
   term: Terminal;
   cwd?: string;
@@ -75,7 +76,9 @@ export interface SpawnOptions {
 
 /** Flow control constants — exported for tests. */
 export const CALLBACK_BYTE_LIMIT = 100_000;
+/** Number of pending write callbacks that triggers PTY pause. */
 export const HIGH_WATERMARK = 5;
+/** Number of pending write callbacks that triggers PTY resume. */
 export const LOW_WATERMARK = 2;
 
 /**
@@ -94,6 +97,7 @@ export interface FlowControlPty {
   resume(): void;
 }
 
+/** Wire PTY data to xterm with watermark-based flow control to prevent output lag. */
 export function wirePtyFlowControl(
   pty: FlowControlPty,
   term: Pick<Terminal, "write">,

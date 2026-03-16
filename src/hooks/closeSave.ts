@@ -23,6 +23,7 @@ import { getDefaultSaveFolderWithFallback } from "@/hooks/useDefaultSaveFolder";
 import { saveToPath } from "@/utils/saveToPath";
 import { joinPath, getDirectory } from "@/utils/pathUtils";
 
+/** Context describing a dirty document that may need saving before close. */
 export interface CloseSaveContext {
   windowLabel: string;
   tabId: string;
@@ -31,16 +32,19 @@ export interface CloseSaveContext {
   content: string;
 }
 
+/** Result of a single-document save prompt: saved (with path), discarded, or cancelled. */
 export type CloseSaveResult =
   | { action: "saved"; path: string }
   | { action: "discarded" }
   | { action: "cancelled" };
 
+/** Result of a multi-document save prompt: all saved, all discarded, or cancelled. */
 export type MultiSaveResult =
   | { action: "saved-all" }
   | { action: "discarded-all" }
   | { action: "cancelled" };
 
+/** Options for multi-document save operations. */
 export interface MultiSaveOptions {
   /** Called before saving each document, 1-indexed */
   onProgress?: (current: number, total: number, title: string) => void;

@@ -41,6 +41,7 @@ interface ImageContextMenuProps {
   onAction: (action: string) => void;
 }
 
+/** Renders a right-click context menu for image nodes (change, delete, copy path, reveal). */
 export function ImageContextMenu({ onAction }: ImageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const isOpen = useImageContextMenuStore((s) => s.isOpen);

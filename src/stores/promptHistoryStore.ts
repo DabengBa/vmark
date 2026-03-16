@@ -25,6 +25,7 @@ interface PromptHistoryActions {
   getFilteredEntries(prefix: string): string[];
 }
 
+/** Manages persisted freeform AI prompt history (max 100) with MRU ordering and deduplication. Use selectors, not destructuring. */
 export const usePromptHistoryStore = create<
   PromptHistoryState & PromptHistoryActions
 >()(

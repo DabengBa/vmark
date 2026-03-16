@@ -65,6 +65,7 @@ const initialState: MediaPopupState = {
   anchorRect: null,
 };
 
+/** Manages unified media editing popup state for image, video, and audio nodes. Use selectors, not destructuring. */
 export const useMediaPopupStore = create<MediaPopupStore>((set) => ({
   ...initialState,
 

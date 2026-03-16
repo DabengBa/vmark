@@ -9,6 +9,7 @@ import { getFileName } from "./pathUtils";
 
 // Types
 
+/** A single point-in-time snapshot of a document's content. */
 export interface Snapshot {
   id: string; // Timestamp + random suffix (e.g. "1700000000000-a1b2c3")
   timestamp: number;
@@ -17,6 +18,7 @@ export interface Snapshot {
   preview: string;
 }
 
+/** Per-document history metadata including snapshots and settings. */
 export interface HistoryIndex {
   documentPath: string;
   documentName: string;
@@ -27,6 +29,7 @@ export interface HistoryIndex {
   settings: HistorySettings;
 }
 
+/** Configuration for snapshot retention, merge windows, and file size limits. */
 export interface HistorySettings {
   maxSnapshots: number;
   maxAgeDays: number;
@@ -36,9 +39,13 @@ export interface HistorySettings {
 
 // Constants
 
+/** Folder name for storing document history snapshots. */
 export const HISTORY_FOLDER = "history";
+/** Filename for the per-document history index JSON. */
 export const INDEX_FILE = "index.json";
+/** Maximum character length for snapshot preview text. */
 export const PREVIEW_LENGTH = 200;
+/** Custom event name dispatched when history is cleared. */
 export const HISTORY_CLEARED_EVENT = "vmark:history-cleared";
 
 /** Dispatch the history-cleared CustomEvent on the current window */

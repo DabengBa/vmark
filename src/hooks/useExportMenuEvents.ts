@@ -29,6 +29,7 @@ import { flushActiveWysiwygNow } from "@/utils/wysiwygFlush";
 import { withReentryGuard } from "@/utils/reentryGuard";
 import { getActiveDocument } from "@/utils/activeDocument";
 
+/** Hook that handles export menu events (HTML, PDF, Pandoc, copy-as-HTML) for the current window. */
 export function useExportMenuEvents(): void {
   const unlistenRefs = useRef<UnlistenFn[]>([]);
 

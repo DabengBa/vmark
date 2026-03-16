@@ -10,8 +10,10 @@ import { fuzzyMatch, type FuzzyMatchResult } from "./fuzzyMatch";
 import type { FileNode } from "@/components/Sidebar/FileExplorer/types";
 import { getFileName } from "@/utils/pathUtils";
 
+/** Tier indicating the source of a Quick Open item: recent file, open tab, or workspace tree. */
 export type QuickOpenTier = "recent" | "open" | "workspace";
 
+/** A file entry in the Quick Open list with its display metadata. */
 export interface QuickOpenItem {
   path: string;
   filename: string;
@@ -20,6 +22,7 @@ export interface QuickOpenItem {
   isOpenTab: boolean;
 }
 
+/** A Quick Open item paired with its fuzzy match result for ranked display. */
 export interface RankedItem {
   item: QuickOpenItem;
   tier: QuickOpenTier;
@@ -36,6 +39,7 @@ function getRelativePath(path: string, rootPath: string | null): string {
   return path;
 }
 
+/** Recursively flatten a file tree into an array of file paths (excludes folders). */
 export function flattenFileTree(nodes: FileNode[]): string[] {
   const paths: string[] = [];
   const walk = (items: FileNode[]) => {
@@ -48,6 +52,7 @@ export function flattenFileTree(nodes: FileNode[]): string[] {
   return paths;
 }
 
+/** Build deduplicated Quick Open items from recent files, open tabs, and workspace paths. */
 export function buildQuickOpenItems(
   windowLabel: string,
   workspaceFilePaths: string[],
@@ -106,6 +111,7 @@ export function buildQuickOpenItems(
   return items;
 }
 
+/** Filter items by fuzzy query and rank by tier priority then match score. */
 export function filterAndRankItems(
   items: QuickOpenItem[],
   query: string,

@@ -14,6 +14,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { safeUnlistenAsync } from "@/utils/safeUnlisten";
 
+/** A connected MCP client with its name and optional version. */
 export interface McpClient {
   name: string;
   version: string | null;

@@ -54,6 +54,7 @@ interface SourceEditorProps {
   hidden?: boolean;
 }
 
+/** CodeMirror-based markdown source editor with syntax highlighting and bidirectional cursor sync. */
 export function SourceEditor({ hidden = false }: SourceEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);

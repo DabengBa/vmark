@@ -20,6 +20,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { BlockImageNodeView } from "./BlockImageNodeView";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 
+/** Tiptap node extension for block-level images with custom NodeView. */
 export const blockImageExtension = Node.create({
   name: "block_image",
   group: "block",

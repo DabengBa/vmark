@@ -90,6 +90,7 @@ function OutlineItem({
 const MAX_CONTENT_FOR_OUTLINE = 100000; // 100KB threshold
 const MAX_HEADING_COUNT = 1000; // Safety cap for heading count
 
+/** Renders the document heading structure as a collapsible tree in the sidebar. */
 export function OutlineView() {
   const content = useDocumentContent();
   const deferredContent = useDeferredValue(content);

@@ -24,6 +24,7 @@ interface GenieResponseViewProps {
   onCancel: () => void;
 }
 
+/** Renders the AI response area within the GeniePicker (processing, preview, or error state). */
 export function GenieResponseView({
   mode,
   responseText,

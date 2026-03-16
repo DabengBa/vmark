@@ -7,6 +7,7 @@ interface QuickOpenState {
   toggle: () => void;
 }
 
+/** Store managing Quick Open overlay visibility. */
 export const useQuickOpenStore = create<QuickOpenState>((set, get) => ({
   isOpen: false,
   open: () => set({ isOpen: true }),

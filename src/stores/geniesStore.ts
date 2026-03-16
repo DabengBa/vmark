@@ -71,6 +71,7 @@ let _loadId = 0;
 // Store
 // ============================================================================
 
+/** Manages loaded AI genie definitions with persisted recent/favorite lists. Use selectors, not destructuring. */
 export const useGeniesStore = create<GeniesState & GeniesActions>()(
   persist(
     (set, get) => ({

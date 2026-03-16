@@ -30,6 +30,7 @@ import {
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 import { mediaBlockKeyboardShortcuts } from "../shared/mediaNodeViewHelpers";
 
+/** Tiptap node extension for embedded video players (YouTube, Vimeo, Bilibili). */
 export const videoEmbedExtension = Node.create({
   name: "video_embed",
   group: "block",

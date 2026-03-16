@@ -22,8 +22,6 @@ CLI providers use locally installed AI tools. VMark runs them as subprocesses an
 | Claude | `claude` | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) |
 | Codex | `codex` | [OpenAI Codex CLI](https://github.com/openai/codex) |
 | Gemini | `gemini` | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) |
-| Ollama | `ollama` | [Ollama](https://ollama.com) |
-
 ### How CLI Detection Works
 
 Click **Detect** in Settings > Integrations. VMark searches your `$PATH` for each CLI command and reports availability. If a CLI is found, its radio button becomes selectable.
@@ -33,8 +31,6 @@ Click **Detect** in Settings > Integrations. VMark searches your `$PATH` for eac
 - **No API key needed** — the CLI handles authentication using your existing login
 - **Dramatically cheaper** — CLI tools use your subscription plan (e.g., Claude Max, ChatGPT Plus/Pro, Google One AI Premium), which costs a fixed monthly fee. REST API providers charge per token and can cost 10–30x more for heavy usage
 - **Uses your CLI config** — model preferences, system prompts, and billing are managed by the CLI itself
-- **Works offline** — Ollama runs entirely on your machine
-
 ::: tip Subscription vs API for Developers
 If you're also using these tools for vibe-coding (Claude Code, Codex CLI, Gemini CLI), the same subscription covers both VMark's AI Genies and your coding sessions — no extra cost.
 :::
@@ -50,14 +46,6 @@ If you're also using these tools for vibe-coding (Claude Code, Codex CLI, Gemini
 1. Install Gemini CLI: `npm install -g @google/gemini-cli` (or via the [official repo](https://github.com/google-gemini/gemini-cli))
 2. Run `gemini` once to authenticate with your Google account
 3. In VMark, click **Detect**, then select **Gemini**
-
-### Setup: Ollama (CLI)
-
-1. Install Ollama from [ollama.com](https://ollama.com)
-2. Pull a model: `ollama pull llama3.2`
-3. In VMark, click **Detect**, then select **Ollama**
-
-Ollama runs models locally — no internet needed, no API key, complete privacy.
 
 ## REST API Providers
 

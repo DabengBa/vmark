@@ -2,6 +2,7 @@ import { EditorView } from "@codemirror/view";
 import { useSourceCursorContextStore } from "@/stores/sourceCursorContextStore";
 import { computeSourceCursorContext } from "@/plugins/sourceContextDetection/cursorContext";
 
+/** Creates a CodeMirror plugin that updates the source cursor context store on selection changes. */
 export function createSourceCursorContextPlugin() {
   return EditorView.updateListener.of((update) => {
     const store = useSourceCursorContextStore.getState();

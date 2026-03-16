@@ -72,6 +72,7 @@ const initialState: EditorState = {
   lastAutoSave: null,
 };
 
+/** Manages per-window editor mode flags — focus mode, source mode, word wrap, line numbers, and diagram preview. Use selectors, not destructuring. */
 export const useEditorStore = create<EditorState & EditorActions>((set) => ({
   ...initialState,
 

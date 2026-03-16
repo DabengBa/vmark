@@ -115,6 +115,7 @@ interface TiptapEditorInnerProps {
   hidden?: boolean;
 }
 
+/** WYSIWYG rich-text editor built on Tiptap/ProseMirror with adaptive debounced serialization. */
 export function TiptapEditorInner({ hidden = false }: TiptapEditorInnerProps) {
   const content = useDocumentContent();
   const cursorInfo = useDocumentCursorInfo();

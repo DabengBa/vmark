@@ -15,6 +15,7 @@ import { numberWithDefault, optionalString, optionalArray, optionalObject } from
 
 // ── Shared Types ──────────────────────────────────────────────────────
 
+/** Serialized representation of a ProseMirror node for MCP AST responses. */
 export interface AstNode {
   id: string;
   type: string;
@@ -24,6 +25,7 @@ export interface AstNode {
   children?: AstNode[];
 }
 
+/** Filter criteria for querying document blocks by type, level, content, or marks. */
 export interface BlockQuery {
   type?: string | string[];
   level?: number;
@@ -31,6 +33,7 @@ export interface BlockQuery {
   hasMarks?: string[];
 }
 
+/** Summary of a matched block node including its text, preview, and position range. */
 export interface BlockInfo {
   id: string;
   type: string;
