@@ -30,6 +30,7 @@ import { getInitialFocusIndex } from "./toolbarFocus";
 import { getNextFocusableIndex, getPrevFocusableIndex } from "./toolbarNavigation";
 import { GroupDropdown } from "./GroupDropdown";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { icons } from "@/utils/icons";
 import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import "./universal-toolbar.css";
@@ -41,6 +42,7 @@ import "./universal-toolbar.css";
  * Visibility is controlled by the `universalToolbarVisible` state in uiStore.
  */
 export function UniversalToolbar() {
+  const { t } = useTranslation("dialog");
   const visible = useUIStore((state) => state.universalToolbarVisible);
   const toolbarHasFocus = useUIStore((state) => state.universalToolbarHasFocus);
   const sessionFocusIndex = useUIStore((state) => state.toolbarSessionFocusIndex);
@@ -360,7 +362,7 @@ export function UniversalToolbar() {
       // If no enabled buttons, close toolbar immediately
       if (initialIndex < 0) {
         useUIStore.getState().clearToolbarSession();
-        toast.info("No formatting actions available");
+        toast.info(t("toast.noFormattingActions"));
         return;
       }
 
@@ -372,7 +374,7 @@ export function UniversalToolbar() {
     }
 
     wasVisibleRef.current = true;
-  }, [visible, buttonStates, setFocusedIndex, closeMenu, sessionFocusIndex]);
+  }, [visible, buttonStates, setFocusedIndex, closeMenu, sessionFocusIndex, t]);
 
   // Handle click outside dropdown
   useEffect(() => {

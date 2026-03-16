@@ -24,6 +24,7 @@ import { useImageContextMenuStore } from "@/stores/imageContextMenuStore";
 import { copyImageToAssets } from "@/hooks/useImageOperations";
 import { useDocumentFilePath } from "@/hooks/useDocumentState";
 import { imageContextMenuWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 
 type GetEditorView = () => EditorView | null;
 
@@ -86,8 +87,8 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
 
             if (!filePath) {
               await message(
-                "Please save the document first to change images.",
-                { title: "Unsaved Document", kind: "warning" }
+                i18n.t("dialog:unsavedDocument.message"),
+                { title: i18n.t("dialog:unsavedDocument.title"), kind: "warning" }
               );
               return;
             }
@@ -115,7 +116,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
             dispatch(tr);
           } catch (error) {
             console.error("Failed to change image:", error);
-            await message("Failed to change image.", { kind: "error" });
+            await message(i18n.t("dialog:toast.failedToChangeImage"), { kind: "error" });
           } finally {
             isChangingImage = false;
           }
@@ -138,7 +139,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
 
         case "copyPath": {
           if (!filePath) {
-            await message("Document must be saved to copy image path.", {
+            await message(i18n.t("dialog:unsavedDocument.messageCopyPath"), {
               kind: "warning",
             });
             return;
@@ -148,10 +149,10 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
           if (absolutePath) {
             try {
               await navigator.clipboard.writeText(absolutePath);
-              toast.success("Image path copied to clipboard");
+              toast.success(i18n.t("dialog:toast.imagePathCopied"));
             } catch (error) {
               console.error("Failed to copy path:", error);
-              await message("Failed to copy image path.", { kind: "error" });
+              await message(i18n.t("dialog:toast.failedToCopyImagePath"), { kind: "error" });
             }
           }
           break;
@@ -159,7 +160,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
 
         case "revealInFinder": {
           if (!filePath) {
-            await message("Document must be saved to reveal image.", {
+            await message(i18n.t("dialog:unsavedDocument.messageReveal"), {
               kind: "warning",
             });
             return;
@@ -171,7 +172,7 @@ export function useImageContextMenu(getEditorView: GetEditorView) {
               await revealItemInDir(absolutePath);
             } catch (error) {
               console.error("Failed to reveal in Finder:", error);
-              await message("Failed to reveal image in Finder.", {
+              await message(i18n.t("dialog:toast.failedToRevealImage"), {
                 kind: "error",
               });
             }

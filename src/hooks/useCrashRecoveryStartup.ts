@@ -22,6 +22,7 @@ import {
   type RecoverySnapshot,
 } from "@/utils/crashRecovery";
 import { crashRecoveryLog } from "@/utils/debug";
+import i18n from "@/i18n";
 
 /**
  * Restore documents from crash recovery snapshots on startup.
@@ -90,7 +91,7 @@ async function runCrashRecovery(windowLabel: string): Promise<void> {
 
     if (restoredCount > 0) {
       toast.info(
-        `Recovered ${restoredCount} document(s) from unexpected exit`
+        i18n.t("dialog:toast.recoveredDocuments", { count: restoredCount })
       );
       crashRecoveryLog(`Restored ${restoredCount} document(s)`);
     }

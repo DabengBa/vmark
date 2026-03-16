@@ -13,6 +13,7 @@ import React from "react";
 
 import { ExportSurface, type ExportSurfaceRef } from "./ExportSurface";
 import { exportWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 import { exportHtml } from "./htmlExport";
 import { waitForAssets } from "./waitForAssets";
 import { captureThemeCSS } from "./themeSnapshot";
@@ -159,7 +160,7 @@ export async function exportToHtml(
   // Check for empty content
   const trimmedContent = markdown.trim();
   if (!trimmedContent) {
-    toast.error("No content to export!");
+    toast.error(i18n.t("dialog:toast.exportNoContent"));
     return false;
   }
 
@@ -209,14 +210,10 @@ export async function exportToHtml(
     if (result.warnings.length > 0) {
       exportWarn("Warnings:", result.warnings);
       const count = result.warnings.length;
-      toast.warning(
-        count === 1
-          ? "1 resource could not be included"
-          : `${count} resources could not be included`
-      );
+      toast.warning(i18n.t("dialog:toast.exportHtmlResourceWarning", { count }));
     }
 
-    toast.success("Exported to folder");
+    toast.success(i18n.t("dialog:toast.exportHtmlSuccess"));
     return true;
   } catch (error) {
     console.error("[Export] Failed to export HTML:", error);
@@ -245,12 +242,12 @@ export async function exportToPdf(options: ExportToPdfOptions): Promise<void> {
 
   const trimmedContent = markdown.trim();
   if (!trimmedContent) {
-    toast.error("No content to export!");
+    toast.error(i18n.t("dialog:toast.exportNoContent"));
     return;
   }
 
   if (!isMacPlatform()) {
-    toast.error("Print requires macOS.");
+    toast.error(i18n.t("dialog:toast.printRequiresMac"));
     return;
   }
 
@@ -266,12 +263,12 @@ export async function exportToPdfNative(options: ExportToPdfOptions): Promise<vo
 
   const trimmedContent = markdown.trim();
   if (!trimmedContent) {
-    toast.error("No content to export!");
+    toast.error(i18n.t("dialog:toast.exportNoContent"));
     return;
   }
 
   if (!isMacPlatform()) {
-    toast.error("Native PDF export requires macOS. Use Print instead.");
+    toast.error(i18n.t("dialog:toast.nativePdfRequiresMac"));
     return;
   }
 
@@ -299,7 +296,7 @@ export async function exportToPdfNative(options: ExportToPdfOptions): Promise<vo
     });
   } catch (error) {
     console.error("[PDF] Failed to open PDF dialog:", error);
-    toast.error("Failed to prepare PDF export");
+    toast.error(i18n.t("dialog:toast.failedToPreparePdf"));
   }
 }
 
@@ -326,7 +323,7 @@ async function exportToPdfBrowser(_markdown: string): Promise<void> {
     // can resolve via file URL access. For visual-parity export, use Export PDF.
     const editorEl = document.querySelector(".ProseMirror");
     if (!editorEl) {
-      toast.error("No editor content to print");
+      toast.error(i18n.t("dialog:toast.noEditorContentToPrint"));
       return;
     }
 
@@ -367,7 +364,7 @@ ${html}
     await invoke("print_document", { html: fullHtml });
   } catch (error) {
     console.error("[Print] Failed to print:", error);
-    toast.error("Failed to open print dialog");
+    toast.error(i18n.t("dialog:toast.failedToOpenPrintDialog"));
   }
 }
 
@@ -390,7 +387,7 @@ export async function copyAsHtml(
       await writeText(html);
     }
 
-    toast.success("HTML copied to clipboard");
+    toast.success(i18n.t("dialog:toast.htmlCopied"));
     return true;
   } catch (error) {
     console.error("[Export] Failed to copy HTML:", error);

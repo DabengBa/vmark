@@ -31,6 +31,7 @@ import { emit } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { useTabStore } from "@/stores/tabStore";
 import { reconcilePathChange } from "@/utils/pathReconciliation";
 import { applyPathReconciliation } from "@/hooks/commands";
@@ -256,7 +257,7 @@ export function useExplorerOperations() {
     } catch (error) {
       console.error("[Explorer] Failed to open with default app:", error);
       const name = await basename(path);
-      toast.error(`Failed to open "${name}" with default app`);
+      toast.error(i18n.t("dialog:toast.failedToOpenWithDefaultApp", { name }));
     }
   }, []);
 
@@ -301,7 +302,7 @@ export function useExplorerOperations() {
   const copyPath = useCallback(async (path: string): Promise<void> => {
     try {
       await writeText(path);
-      toast.success("Path copied to clipboard");
+      toast.success(i18n.t("dialog:toast.pathCopiedExplorer"));
     } catch (error) {
       console.error("[Explorer] Failed to copy path:", error);
       await showError(FileErrors.copyFailed);

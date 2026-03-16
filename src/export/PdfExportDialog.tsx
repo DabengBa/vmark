@@ -19,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-
+import { useTranslation } from "react-i18next";
 import { buildPdfHtml, buildPdfExportHtml, type PdfOptions } from "./pdfHtmlTemplate";
 import { captureThemeCSS } from "./themeSnapshot";
 import { getEditorContentCSS } from "./htmlExportStyles";
@@ -60,6 +60,7 @@ export function PdfExportContent({
 }: PdfExportContentProps) {
   // Font choices inherited from user's editor settings
   const appearance = useSettingsStore.getState().appearance;
+  const { t } = useTranslation("dialog");
 
   const [options, setOptions] = useState<PdfOptions>({
     pageSize: "a4",
@@ -236,15 +237,15 @@ export function PdfExportContent({
       const html = buildExportHtml();
       const headings = extractHeadings();
       await invoke("export_pdf", { html, outputPath, headings });
-      toast.success("PDF exported successfully");
+      toast.success(t("toast.pdfExportSuccess"));
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`PDF export failed: ${msg}`);
+      toast.error(t("toast.pdfExportFailed", { error: msg }));
       setExporting(false);
       setExportStage("");
     }
-  }, [buildExportHtml, extractHeadings, options.title, onClose]);
+  }, [buildExportHtml, extractHeadings, options.title, onClose, t]);
 
   // Update a single option
   const setOption = useCallback(

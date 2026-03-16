@@ -19,6 +19,7 @@
  */
 
 import { message, save, open } from "@tauri-apps/plugin-dialog";
+import i18n from "@/i18n";
 import { getDefaultSaveFolderWithFallback } from "@/hooks/useDefaultSaveFolder";
 import { saveToPath } from "@/utils/saveToPath";
 import { joinPath, getDirectory } from "@/utils/pathUtils";
@@ -97,9 +98,9 @@ export async function promptSaveForDirtyDocument(
   // ask() only returns boolean, so dismiss/escape = "Don't Save" which loses work.
   // message() with yes/no/cancel buttons returns distinct values for each action.
   const result = await message(
-    `Do you want to save changes to "${title}"?`,
+    i18n.t("dialog:unsavedChanges.single", { title }),
     {
-      title: "Unsaved Changes",
+      title: i18n.t("dialog:unsavedChanges.title"),
       kind: "warning",
       buttons: {
         yes: CLOSE_SAVE_BUTTONS.save,
@@ -195,13 +196,13 @@ export async function promptSaveForMultipleDocuments(
   const docCount = contexts.length;
 
   // Build message with untitled count hint
-  let msg = `You have ${docCount} unsaved document${docCount > 1 ? "s" : ""}:\n\n• ${docList}`;
+  let msg = i18n.t("dialog:unsavedChanges.multiple", { count: docCount, list: docList });
   if (untitledDocs.length > 0) {
-    msg += `\n\n${untitledDocs.length} new document${untitledDocs.length > 1 ? "s" : ""} will need a save location.`;
+    msg += `\n\n${i18n.t("dialog:unsavedChanges.newDocsHint", { count: untitledDocs.length })}`;
   }
 
   const result = await message(msg, {
-    title: "Unsaved Changes",
+    title: i18n.t("dialog:unsavedChanges.title"),
     kind: "warning",
     buttons: {
       yes: MULTI_SAVE_BUTTONS.saveAll,
@@ -275,7 +276,7 @@ export async function promptSaveForMultipleDocuments(
         directory: true,
         multiple: false,
         defaultPath: defaultFolder,
-        title: `Choose folder for ${untitledDocs.length} new documents`,
+        title: i18n.t("dialog:chooseFolderForDocs", { count: untitledDocs.length }),
       });
 
       if (!folderPath || typeof folderPath !== "string") {
@@ -369,7 +370,7 @@ export async function saveAllDocuments(
         directory: true,
         multiple: false,
         defaultPath: defaultFolder,
-        title: `Choose folder for ${untitledDocs.length} new documents`,
+        title: i18n.t("dialog:chooseFolderForDocs", { count: untitledDocs.length }),
       });
 
       if (!folderPath || typeof folderPath !== "string") {

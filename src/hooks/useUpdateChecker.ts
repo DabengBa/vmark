@@ -31,6 +31,7 @@ import { useDocumentStore } from "@/stores/documentStore";
 import { useUpdateOperationHandler, clearPendingUpdate } from "./useUpdateOperations";
 import { restartWithHotExit } from "@/utils/hotExit/restartWithHotExit";
 import { updateCheckerLog } from "@/utils/debug";
+import i18n from "@/i18n";
 import { safeUnlistenAsync } from "@/utils/safeUnlisten";
 
 // Time constants in milliseconds
@@ -125,7 +126,7 @@ export function useUpdateChecker() {
       case "ready":
         // Actionable: user can restart to apply update
         if (updateInfo) {
-          toast.success(`v${updateInfo.version} ready to install`, {
+          toast.success(i18n.t("dialog:toast.updateReady", { version: updateInfo.version }), {
             duration: 5000,
           });
         }
@@ -133,7 +134,7 @@ export function useUpdateChecker() {
       case "up-to-date":
         // Only show if user manually triggered the check
         if (prevStatus === "checking" && isManualCheck.current) {
-          toast.success("You're up to date!", {
+          toast.success(i18n.t("dialog:toast.updateUpToDate"), {
             duration: 3000,
           });
         }
@@ -286,9 +287,9 @@ export function useUpdateChecker() {
 
           // Ask user for confirmation
           const confirmed = await ask(
-            `You have ${dirtyTabs.length} unsaved document(s). Restart and restore on relaunch?`,
+            i18n.t("dialog:unsavedChanges.restartUnsaved", { count: dirtyTabs.length }),
             {
-              title: "Unsaved Changes",
+              title: i18n.t("dialog:unsavedChanges.title"),
               kind: "info",
               okLabel: "Restart",
               cancelLabel: "Cancel",

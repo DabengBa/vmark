@@ -21,6 +21,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useRecentFilesStore } from "@/stores/recentFilesStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -57,9 +58,9 @@ export function useRecentFilesMenuEvents(): void {
 
         await withReentryGuard(windowLabel, "clear-recent", async () => {
           const confirmed = await ask(
-            "Clear the list of recently opened files?",
+            i18n.t("dialog:clearRecentFiles.message"),
             {
-              title: "Clear Recent Files",
+              title: i18n.t("dialog:clearRecentFiles.title"),
               kind: "warning",
             }
           );
@@ -108,8 +109,8 @@ export function useRecentFilesMenuEvents(): void {
               } catch (error) {
                 console.error("[Menu] Failed to open recent file:", error);
                 const remove = await ask(
-                  "This file could not be opened. It may have been moved or deleted.\n\nRemove from recent files?",
-                  { title: "File Not Found", kind: "warning" }
+                  i18n.t("dialog:fileNotFound.message"),
+                  { title: i18n.t("dialog:fileNotFound.title"), kind: "warning" }
                 );
                 if (remove) {
                   useRecentFilesStore.getState().removeFile(file.path);
@@ -132,8 +133,8 @@ export function useRecentFilesMenuEvents(): void {
               } catch (error) {
                 console.error("[Menu] Failed to replace tab with recent file:", error);
                 const remove = await ask(
-                  "This file could not be opened. It may have been moved or deleted.\n\nRemove from recent files?",
-                  { title: "File Not Found", kind: "warning" }
+                  i18n.t("dialog:fileNotFound.message"),
+                  { title: i18n.t("dialog:fileNotFound.title"), kind: "warning" }
                 );
                 if (remove) {
                   useRecentFilesStore.getState().removeFile(file.path);
@@ -150,7 +151,7 @@ export function useRecentFilesMenuEvents(): void {
               } catch (error) {
                 console.error("[Menu] Failed to open workspace in new window:", error);
                 const filename = getFileName(file.path) || file.path;
-                toast.error(`Failed to open ${filename}`);
+                toast.error(i18n.t("dialog:toast.failedToOpen", { filename }));
               }
               break;
 

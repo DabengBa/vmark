@@ -26,6 +26,7 @@ import { detectLinebreaks } from "@/utils/linebreakDetection";
 import { openWorkspaceWithConfig } from "@/hooks/openWorkspaceWithConfig";
 import { safeUnlistenAll } from "@/utils/safeUnlisten";
 import { workspaceWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 
 /**
  * Hook to handle workspace-related menu events
@@ -70,9 +71,9 @@ export function useWorkspaceMenuEvents() {
 
           if (dirtyTabs.length > 0) {
             const confirmed = await ask(
-              "This window has unsaved changes. Open the workspace in a new window instead?",
+              i18n.t("dialog:unsavedChanges.openInNewWindow"),
               {
-                title: "Unsaved Changes",
+                title: i18n.t("dialog:unsavedChanges.title"),
                 kind: "warning",
                 okLabel: "Open in New Window",
                 cancelLabel: "Cancel",

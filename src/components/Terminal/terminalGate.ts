@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useTabStore } from "@/stores/tabStore";
@@ -24,7 +25,7 @@ export function canOpenTerminal(): boolean {
 export function requestToggleTerminal(): void {
   const isVisible = useUIStore.getState().terminalVisible;
   if (!isVisible && !canOpenTerminal()) {
-    toast.info("Open a folder or save your file to use the terminal.");
+    toast.info(i18n.t("dialog:toast.terminalNeedsWorkspace"));
     return;
   }
   useUIStore.getState().toggleTerminal();

@@ -10,6 +10,7 @@
  */
 
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -73,7 +74,7 @@ export async function moveTabToNewWorkspaceWindow(
     });
   } catch (error) {
     console.error("[FileOps] Failed to open workspace in new window:", error);
-    toast.error("Failed to move file to new window");
+    toast.error(i18n.t("dialog:toast.failedToMoveToNewWindow"));
     return;
   }
 
@@ -153,7 +154,7 @@ export async function handleSave(windowLabel: string): Promise<void> {
       } catch (error) {
         console.error("[FileOps] Save dialog threw:", error);
         toast.error(
-          `Save dialog failed: ${error instanceof Error ? error.message : String(error)}`
+          i18n.t("dialog:toast.saveDialogFailed", { error: error instanceof Error ? error.message : String(error) })
         );
         return;
       }
@@ -222,7 +223,7 @@ export async function handleSaveAs(windowLabel: string): Promise<void> {
     } catch (error) {
       console.error("[FileOps] Save As dialog threw:", error);
       toast.error(
-        `Save dialog failed: ${error instanceof Error ? error.message : String(error)}`
+        i18n.t("dialog:toast.saveDialogFailed", { error: error instanceof Error ? error.message : String(error) })
       );
       return;
     }
@@ -258,7 +259,7 @@ export async function handleMoveTo(windowLabel: string): Promise<void> {
     } catch (error) {
       console.error("[FileOps] Move To dialog threw:", error);
       toast.error(
-        `Save dialog failed: ${error instanceof Error ? error.message : String(error)}`
+        i18n.t("dialog:toast.saveDialogFailed", { error: error instanceof Error ? error.message : String(error) })
       );
       return;
     }
@@ -276,7 +277,7 @@ export async function handleMoveTo(windowLabel: string): Promise<void> {
       } catch (error) {
         console.error("[FileOps] Failed to delete old file during move:", error);
         // File was saved to new location, but old file couldn't be deleted
-        toast.warning("File saved to new location, but couldn't delete original file");
+        toast.warning(i18n.t("dialog:toast.fileMovedCantDeleteOriginal"));
       }
     }
 
@@ -343,7 +344,7 @@ export async function handleSaveAllQuit(windowLabel: string): Promise<void> {
       // If cancelled, do nothing (stay in app)
     } catch (error) {
       console.error("[SaveAllQuit] Failed:", error);
-      toast.error("Failed to save documents");
+      toast.error(i18n.t("dialog:toast.failedToSaveDocuments"));
     }
   });
 }

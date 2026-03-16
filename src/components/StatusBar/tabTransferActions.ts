@@ -28,6 +28,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { DragOutPoint } from "@/hooks/useTabDragOut";
 import type { TabTransferPayload } from "@/types/tabTransfer";
 import { windowCloseWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 
 interface DragOutTransferOptions {
   tabId: string;
@@ -107,7 +108,7 @@ export async function transferTabFromDragOut({
         targetWindowLabel,
         data: transferData,
       });
-      toast.message(`Moved "${tab.title}"`, {
+      toast.message(i18n.t("dialog:toast.tabMovedToWindow", { title: tab.title }), {
         action: {
           label: "Undo",
           onClick: () => {
@@ -122,7 +123,7 @@ export async function transferTabFromDragOut({
       const createdWindowLabel = await invoke<string>("detach_tab_to_new_window", {
         data: transferData,
       });
-      toast.message(`Detached "${tab.title}"`, {
+      toast.message(i18n.t("dialog:toast.tabDetached", { title: tab.title }), {
         action: {
           label: "Undo",
           onClick: () => {

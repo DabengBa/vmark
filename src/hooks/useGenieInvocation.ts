@@ -30,6 +30,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import type { GenieDefinition, GenieScope, GenieAction, AiResponseChunk } from "@/types/aiGenies";
 import { useAiSuggestionStore } from "@/stores/aiSuggestionStore";
 import { useAiProviderStore, REST_TYPES, KEY_OPTIONAL_REST } from "@/stores/aiProviderStore";
@@ -202,7 +203,7 @@ export function useGenieInvocation() {
       if (!REST_TYPES.has(provider)) {
         const cliInfo = providerState.cliProviders.find((p) => p.type === provider);
         if (cliInfo && !cliInfo.available) {
-          toast.error(`${cliInfo.name} CLI not found. Install it or choose another provider in Settings.`);
+          toast.error(i18n.t("dialog:toast.genieCliNotFound", { name: cliInfo.name }));
           return;
         }
       }
@@ -216,7 +217,7 @@ export function useGenieInvocation() {
       if (REST_TYPES.has(provider) && !KEY_OPTIONAL_REST.has(provider)) {
         if (!restConfig?.apiKey) {
           const name = restConfig?.name ?? provider;
-          toast.error(`${name} API key is required. Configure it in Settings → Integrations.`);
+          toast.error(i18n.t("dialog:toast.genieApiKeyRequired", { name }));
           return;
         }
       }
@@ -348,14 +349,14 @@ export function useGenieInvocation() {
     async (genie: GenieDefinition, scopeOverride?: GenieScope) => {
       // Block in Source Mode — suggestions can only apply via Tiptap
       if (useEditorStore.getState().sourceMode) {
-        toast.info("Genies are not available in Source Mode");
+        toast.info(i18n.t("dialog:toast.genieNotInSourceMode"));
         return;
       }
 
       // Auto-detect provider if none selected
       const hasProvider = await useAiProviderStore.getState().ensureProvider();
       if (!hasProvider) {
-        toast.error("No AI provider available. Configure one in Settings.");
+        toast.error(i18n.t("dialog:toast.genieNoProvider"));
         return;
       }
 
@@ -392,14 +393,14 @@ export function useGenieInvocation() {
     async (userPrompt: string, scope: GenieScope) => {
       // Block in Source Mode — suggestions can only apply via Tiptap
       if (useEditorStore.getState().sourceMode) {
-        toast.info("Genies are not available in Source Mode");
+        toast.info(i18n.t("dialog:toast.genieNotInSourceMode"));
         return;
       }
 
       // Auto-detect provider if none selected
       const hasProvider = await useAiProviderStore.getState().ensureProvider();
       if (!hasProvider) {
-        toast.error("No AI provider available. Configure one in Settings.");
+        toast.error(i18n.t("dialog:toast.genieNoProvider"));
         return;
       }
 

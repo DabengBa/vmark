@@ -36,6 +36,7 @@ import { getRelativePath, isWithinRoot } from "@/utils/paths";
 import { restoreTransferredTab } from "@/components/StatusBar/tabTransferActions";
 import type { TabTransferPayload } from "@/types/tabTransfer";
 import { windowCloseWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 
 /** Definition for a single item in the tab context menu. */
 export interface TabMenuItem {
@@ -115,13 +116,13 @@ export function useTabContextMenuActions({
 
   const handleMoveToNewWindow = useCallback(async () => {
     if (!doc) {
-      toast.error("Cannot move tab: document is not loaded.");
+      toast.error(i18n.t("dialog:toast.cannotMoveTabNoDoc"));
       onClose();
       return;
     }
 
     if (windowLabel === "main" && tabs.length <= 1) {
-      toast.error("Cannot move the last tab in the main window.");
+      toast.error(i18n.t("dialog:toast.cannotMoveLastTab"));
       onClose();
       return;
     }
@@ -141,13 +142,13 @@ export function useTabContextMenuActions({
       useTabStore.getState().detachTab(windowLabel, tab.id);
       useDocumentStore.getState().removeDocument(tab.id);
 
-      toast.message(`Moved "${tab.title}" to a new window`, {
+      toast.message(i18n.t("dialog:toast.tabMoved", { title: tab.title }), {
         action: {
           label: "Undo",
           onClick: () => {
             void restoreTransferredTab(windowLabel, createdWindowLabel, transferData).catch((error) => {
               console.error("[TabContextMenu] Undo move-to-new-window failed:", error);
-              toast.error("Failed to undo tab move.");
+              toast.error(i18n.t("dialog:toast.undoTabMoveFailed"));
             });
           },
         },
@@ -162,7 +163,7 @@ export function useTabContextMenuActions({
       }
     } catch (error) {
       console.error("[TabContextMenu] Move to new window failed:", error);
-      toast.error("Failed to move tab to a new window.");
+      toast.error(i18n.t("dialog:toast.failedToMoveTabToNewWindow"));
     } finally {
       onClose();
     }
@@ -174,9 +175,9 @@ export function useTabContextMenuActions({
     const saved = await saveToPath(tab.id, filePath, doc.content, "manual");
     if (saved) {
       useDocumentStore.getState().clearMissing(tab.id);
-      toast.success("File restored to disk.");
+      toast.success(i18n.t("dialog:toast.fileRestoredToDisk"));
     } else {
-      toast.error("Failed to restore file to disk.");
+      toast.error(i18n.t("dialog:toast.failedToRestoreToDisk"));
     }
     onClose();
   }, [doc, filePath, onClose, tab.id]);
@@ -185,15 +186,15 @@ export function useTabContextMenuActions({
     /* v8 ignore next -- @preserve defensive guard; item only appears when filePath and doc are both present */
     if (!filePath || !doc) { onClose(); return; }
     const confirmed = await ask(
-      `Discard all changes and reload "${tab.title}" from disk?`,
-      { title: "Revert to Saved", kind: "warning" }
+      i18n.t("dialog:revertToSaved.message", { title: tab.title }),
+      { title: i18n.t("dialog:revertToSaved.title"), kind: "warning" }
     );
     if (!confirmed) { onClose(); return; }
     try {
       await reloadTabFromDisk(tab.id, filePath);
-      toast.success("Reverted to saved version.");
+      toast.success(i18n.t("dialog:toast.revertedToSaved"));
     } catch {
-      toast.error("Failed to revert to saved version.");
+      toast.error(i18n.t("dialog:toast.failedToRevert"));
     }
     onClose();
   }, [doc, filePath, onClose, tab.id, tab.title]);
@@ -208,10 +209,10 @@ export function useTabContextMenuActions({
     if (!filePath) return;
     try {
       await writeText(filePath);
-      toast.success("Path copied to clipboard.");
+      toast.success(i18n.t("dialog:toast.pathCopied"));
     } catch (error) {
       console.error("[TabContextMenu] Failed to copy path:", error);
-      toast.error("Failed to copy path.");
+      toast.error(i18n.t("dialog:toast.failedToCopyPath"));
     }
     onClose();
   }, [filePath, onClose]);
@@ -224,10 +225,10 @@ export function useTabContextMenuActions({
 
     try {
       await writeText(relativePath);
-      toast.success("Relative path copied to clipboard.");
+      toast.success(i18n.t("dialog:toast.relativePathCopied"));
     } catch (error) {
       console.error("[TabContextMenu] Failed to copy relative path:", error);
-      toast.error("Failed to copy relative path.");
+      toast.error(i18n.t("dialog:toast.failedToCopyRelativePath"));
     }
     onClose();
   }, [filePath, onClose, workspaceRoot]);
@@ -238,7 +239,7 @@ export function useTabContextMenuActions({
       await revealItemInDir(filePath);
     } catch (error) {
       console.error("[TabContextMenu] Failed to reveal file:", error);
-      toast.error("Failed to reveal file in file manager.");
+      toast.error(i18n.t("dialog:toast.failedToRevealInFileManager"));
     }
     onClose();
   }, [filePath, onClose]);
