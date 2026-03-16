@@ -10,7 +10,7 @@
   "mcpError": "MCP error: {{error}}",
   "mcpStarting": "MCP starting...",
   "mcpStopped": "MCP stopped · Click to start",
-  "mcpReady": "MCP ready · No AI connected",
+  "mcpNoClients": "MCP ready · No AI connected",
   "mcpConnected": "Connected: {{clients}}",
   "toggleTerminal": "Toggle Terminal ({{shortcut}})",
   "sourceModeTitle": "Source Mode ({{shortcut}})",
@@ -34,5 +34,6 @@
   "updateDownloadingPercent": "Downloading: {{percent}}%",
   "updateReady": "Click to restart and update",
   "updateReadyVersion": "v{{version}} ready — click to restart",
-  "updateError": "Update check failed — click to retry"
+  "updateError": "Update check failed — click to retry",
+  "autoSavedAt": "Auto-saved at {{time}}"
 }

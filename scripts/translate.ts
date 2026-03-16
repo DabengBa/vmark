@@ -228,7 +228,7 @@ function computeHash(content: string): string {
 function getHashFilePath(targetFile: string): string {
   const dir = path.dirname(targetFile);
   const base = path.basename(targetFile);
-  return path.join(dir, `.translate-hash-${base}`);
+  return path.join(dir, `.translate-hash-${base}.sha256`);
 }
 
 function readStoredHash(targetFile: string): string | null {

@@ -261,7 +261,7 @@ function checkYamlLocales(): boolean {
 
   // Find other .yml files (not en.yml)
   const otherYmls = readdirSync(tauriLocalesDir)
-    .filter((f) => f.endsWith(".yml") && f !== "en.yml")
+    .filter((f) => f.endsWith(".yml") && f !== "en.yml" && !f.startsWith("."))
     .sort();
 
   if (otherYmls.length === 0) {

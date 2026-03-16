@@ -38,9 +38,10 @@ export function LanguageSettings() {
   const updateCJKSetting = useSettingsStore((state) => state.updateCJKFormattingSetting);
 
   const handleLanguageChange = async (value: string) => {
-    updateGeneralSetting("language", value);
-    await i18n.changeLanguage(value);
+    const previousLang = useSettingsStore.getState().general.language;
     try {
+      // Change JS locale first (synchronous re-render)
+      await i18n.changeLanguage(value);
       // Set the Rust-side locale so t!() returns translated strings
       await invoke("set_locale", { locale: value });
       // Rebuild the native menu with translated labels + current shortcut bindings
@@ -59,8 +60,12 @@ export function LanguageSettings() {
         ? { "search-genies": menuShortcuts["search-genies"] }
         : null;
       await invoke("refresh_genies_menu", { shortcuts: geniesAccel });
+      // Only persist after everything succeeds
+      updateGeneralSetting("language", value);
     } catch (e) {
-      console.warn("[i18n] Failed to set Rust locale:", e);
+      console.warn("[i18n] Failed to switch language:", e);
+      // Revert JS locale to previous
+      await i18n.changeLanguage(previousLang);
     }
   };
 
