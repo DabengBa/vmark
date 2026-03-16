@@ -8,7 +8,7 @@ When modifying shortcuts, update ALL of these files:
 
 | File | Purpose | Format |
 |------|---------|--------|
-| `src-tauri/src/menu.rs` | Menu accelerators (2 places) | `Some("Alt+CmdOrCtrl+L")` |
+| `src-tauri/src/menu/localized.rs` | Menu accelerators — single `create_localized_menu` function | `Some("Alt+CmdOrCtrl+L")` |
 | `src/stores/shortcutsStore.ts` | Frontend defaults | `defaultKey: "Alt-Mod-l"` |
 | `website/guide/shortcuts.md` | Documentation | `Alt + Mod + L` |
 
@@ -25,8 +25,8 @@ When modifying shortcuts, update ALL of these files:
 ### 1. Check for Conflicts
 
 ```bash
-# Check menu.rs for existing accelerators
-grep -i "Some(\".*YourKey" src-tauri/src/menu.rs
+# Check localized.rs for existing accelerators
+grep -i "Some(\".*YourKey" src-tauri/src/menu/localized.rs
 
 # Check shortcutsStore.ts for existing defaults
 grep -i "defaultKey.*your-key" src/stores/shortcutsStore.ts
@@ -44,12 +44,13 @@ grep -oE 'defaultKey: "[^"]*"' src/stores/shortcutsStore.ts | sort | uniq -c | s
 
 ## Update Procedure
 
-### Step 1: Update menu.rs (TWO places)
+### Step 1: Update localized.rs (ONE place)
 
-The file has two menu creation functions that must both be updated:
+The file has a single menu creation function that handles both default and custom shortcuts with i18n labels:
 
-1. `create_menu()` - Default menu (~line 60-600)
-2. `create_menu_with_shortcuts()` - Custom shortcuts menu (~line 700-1180)
+1. `create_localized_menu()` — in `src-tauri/src/menu/localized.rs`
+
+Also update the corresponding label keys in `src-tauri/locales/en.yml` if the menu item text changes.
 
 ### Step 2: Update shortcutsStore.ts
 
@@ -95,9 +96,9 @@ Some shortcuts are handled by frontend hooks that call `e.preventDefault()`:
 
 If you add a shortcut to the menu but the frontend intercepts it first, the menu event won't fire.
 
-### 3. Forgetting the Second Menu Function
+### 3. Forgetting to Update Locale Keys
 
-`menu.rs` has TWO places where menus are defined. Missing one causes inconsistent behavior between default and customized shortcuts.
+`menu/localized.rs` uses rust-i18n translated labels. If you add or rename a menu item without updating `src-tauri/locales/en.yml` (and other locale files), the menu item will show a missing-key placeholder instead of its label.
 
 ## Standard Shortcut Conventions
 
