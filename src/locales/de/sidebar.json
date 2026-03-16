@@ -1,0 +1,45 @@
+{
+  "viewFiles": "DATEIEN",
+  "viewOutline": "GLIEDERUNG",
+  "viewHistory": "VERLAUF",
+  "showFiles": "Dateien anzeigen",
+  "showOutline": "Gliederung anzeigen",
+  "showHistory": "Verlauf anzeigen",
+  "newFile": "Neue Datei",
+  "newFolder": "Neuer Ordner",
+  "clearDocumentHistory": "Dokumentverlauf löschen",
+  "closeSidebar": "Seitenleiste schließen",
+  "clearHistoryMessage": "Gesamten Verlauf für dieses Dokument löschen? Dies kann nicht rückgängig gemacht werden.",
+  "noWorkspace": "Kein Arbeitsbereich geöffnet",
+  "loading": "Wird geladen...",
+  "defaultFileName": "Ohne Titel",
+  "defaultFolderName": "Neuer Ordner",
+  "workspaceFallback": "Arbeitsbereich",
+  "contextMenu": {
+    "open": "Öffnen",
+    "rename": "Umbenennen",
+    "duplicate": "Duplizieren",
+    "moveTo": "Verschieben nach...",
+    "delete": "Löschen",
+    "copyPath": "Pfad kopieren",
+    "revealInFinder": "Im Finder anzeigen",
+    "showInExplorer": "Im Explorer anzeigen",
+    "showInFileManager": "Im Dateimanager anzeigen"
+  },
+  "outline": {
+    "documentOutline": "Dokumentgliederung",
+    "expandSection": "Abschnitt erweitern",
+    "collapseSection": "Abschnitt reduzieren",
+    "noHeadings": "Keine Überschriften",
+    "tooLarge": "Dokument zu groß für Gliederung"
+  },
+  "history": {
+    "saveToEnable": "Dokument speichern, um Verlauf zu aktivieren",
+    "disabled": "Verlauf ist in den Einstellungen deaktiviert",
+    "noHistory": "Noch kein Verlauf",
+    "revertTitle": "Zu früherer Version zurücksetzen",
+    "revertMessage": "Auf Version von {{time}} zurücksetzen?\n\nIhre aktuellen Änderungen werden zuerst als neuer Verlaufseintrag gespeichert.",
+    "revertButton": "Auf diese Version zurücksetzen",
+    "deleteSnapshot": "Diesen Schnappschuss löschen"
+  }
+}

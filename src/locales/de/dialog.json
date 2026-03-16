@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "Nicht gespeicherte Änderungen",
+    "single": "Möchten Sie die Änderungen an \"{{title}}\" speichern?",
+    "multiple": "Sie haben {{count}} nicht gespeichertes Dokument:\n\n• {{list}}",
+    "multiple_plural": "Sie haben {{count}} nicht gespeicherte Dokumente:\n\n• {{list}}",
+    "newDocsHint": "{{count}} neues Dokument benötigt einen Speicherort.",
+    "newDocsHint_plural": "{{count}} neue Dokumente benötigen einen Speicherort.",
+    "openInNewWindow": "Dieses Fenster hat nicht gespeicherte Änderungen. Den Arbeitsbereich stattdessen in einem neuen Fenster öffnen?",
+    "restartUnsaved": "Sie haben {{count}} nicht gespeicherte(s) Dokument(e). Neu starten und beim Neustart wiederherstellen?"
+  },
+  "fileChanged": {
+    "title": "Datei geändert",
+    "message": "\"{{fileName}}\" wurde extern geändert.\n\nWas möchten Sie tun?",
+    "multipleTitle": "Mehrere Dateien geändert",
+    "multipleMessage": "{{count}} Dateien wurden extern geändert:\n{{fileNames}}\n\nWas möchten Sie tun?"
+  },
+  "revertToSaved": {
+    "title": "Zur gespeicherten Version zurücksetzen",
+    "message": "Alle Änderungen verwerfen und \"{{title}}\" vom Datenträger neu laden?"
+  },
+  "clearRecentFiles": {
+    "title": "Zuletzt geöffnete Dateien löschen",
+    "message": "Die Liste der zuletzt geöffneten Dateien löschen?"
+  },
+  "clearRecentWorkspaces": {
+    "title": "Zuletzt geöffnete Arbeitsbereiche löschen",
+    "message": "Die Liste der zuletzt geöffneten Arbeitsbereiche löschen?"
+  },
+  "fileNotFound": {
+    "title": "Datei nicht gefunden",
+    "message": "Diese Datei konnte nicht geöffnet werden. Sie wurde möglicherweise verschoben oder gelöscht.\n\nAus zuletzt geöffneten Dateien entfernen?"
+  },
+  "workspaceNotFound": {
+    "title": "Arbeitsbereich nicht gefunden",
+    "message": "Dieser Arbeitsbereichsordner wurde nicht gefunden. Er wurde möglicherweise verschoben oder gelöscht.\n\nAus zuletzt geöffneten Arbeitsbereichen entfernen?"
+  },
+  "unsavedDocument": {
+    "title": "Nicht gespeichertes Dokument",
+    "message": "Bitte speichern Sie das Dokument zuerst, um Bilder zu ändern.",
+    "messageCopyPath": "Das Dokument muss gespeichert werden, um den Bildpfad zu kopieren.",
+    "messageReveal": "Das Dokument muss gespeichert werden, um das Bild anzuzeigen."
+  },
+  "saveVersionAs": {
+    "title": "Ihre Version speichern unter..."
+  },
+  "chooseFolderForDocs": "Ordner für {{count}} neue Dokumente auswählen",
+  "toast": {
+    "saveDialogFailed": "Speicherdialog fehlgeschlagen: {{error}}",
+    "failedToMoveToNewWindow": "Datei konnte nicht in neues Fenster verschoben werden",
+    "failedToSaveDocuments": "Dokumente konnten nicht gespeichert werden",
+    "fileMovedCantDeleteOriginal": "Datei am neuen Speicherort gespeichert, aber Originaldatei konnte nicht gelöscht werden",
+    "failedToOpenFile": "Datei konnte nicht geöffnet werden: {{error}}",
+    "failedToOpen": "{{filename}} konnte nicht geöffnet werden",
+    "failedToOpenFilesInNewWindow": "Dateien konnten nicht in neuem Fenster geöffnet werden",
+    "onlyMarkdownViaDropDrop": "Nur Markdown-Dateien können per Drag-and-Drop geöffnet werden",
+    "restored": "Wiederhergestellt: {{filename}}",
+    "reloaded": "Neu geladen: {{filename}}",
+    "recoveredDocuments": "{{count}} Dokument(e) nach unerwartetem Beenden wiederhergestellt",
+    "pandocExportFailed": "Pandoc-Export fehlgeschlagen",
+    "pandocUnknownFormat": "Unbekanntes Exportformat: {{format}}",
+    "pandocNoContent": "Kein Inhalt zum Exportieren!",
+    "pandocNotInstalled": "Pandoc ist nicht installiert. Von pandoc.org installieren",
+    "pandocExportSuccess": "Erfolgreich exportiert",
+    "pandocExportError": "Pandoc-Export fehlgeschlagen: {{error}}",
+    "exportNoContent": "Kein Inhalt zum Exportieren!",
+    "exportHtmlSuccess": "In Ordner exportiert",
+    "exportHtmlResourceWarning_one": "1 Ressource konnte nicht eingeschlossen werden",
+    "exportHtmlResourceWarning_other": "{{count}} Ressourcen konnten nicht eingeschlossen werden",
+    "printRequiresMac": "Drucken erfordert macOS.",
+    "nativePdfRequiresMac": "Nativer PDF-Export erfordert macOS. Verwenden Sie stattdessen Drucken.",
+    "failedToPreparePdf": "PDF-Export konnte nicht vorbereitet werden",
+    "noEditorContentToPrint": "Kein Editor-Inhalt zum Drucken",
+    "failedToOpenPrintDialog": "Druckdialog konnte nicht geöffnet werden",
+    "htmlCopied": "HTML in Zwischenablage kopiert",
+    "pdfExportSuccess": "PDF erfolgreich exportiert",
+    "pdfExportFailed": "PDF-Export fehlgeschlagen: {{error}}",
+    "cannotMoveTabNoDoc": "Tab kann nicht verschoben werden: Dokument ist nicht geladen.",
+    "cannotMoveLastTab": "Der letzte Tab im Hauptfenster kann nicht verschoben werden.",
+    "tabMoved": "\"{{title}}\" in ein neues Fenster verschoben",
+    "tabDetached": "\"{{title}}\" abgetrennt",
+    "tabMovedToWindow": "\"{{title}}\" verschoben",
+    "undoTabMoveFailed": "Tab-Verschiebung konnte nicht rückgängig gemacht werden.",
+    "failedToMoveTabToNewWindow": "Tab konnte nicht in ein neues Fenster verschoben werden.",
+    "fileRestoredToDisk": "Datei auf Datenträger wiederhergestellt.",
+    "failedToRestoreToDisk": "Datei konnte nicht auf Datenträger wiederhergestellt werden.",
+    "revertedToSaved": "Auf gespeicherte Version zurückgesetzt.",
+    "failedToRevert": "Rücksetzung auf gespeicherte Version fehlgeschlagen.",
+    "pathCopied": "Pfad in Zwischenablage kopiert.",
+    "failedToCopyPath": "Pfad konnte nicht kopiert werden.",
+    "relativePathCopied": "Relativer Pfad in Zwischenablage kopiert.",
+    "failedToCopyRelativePath": "Relativer Pfad konnte nicht kopiert werden.",
+    "failedToRevealInFileManager": "Datei konnte im Dateimanager nicht angezeigt werden.",
+    "pathCopiedExplorer": "Pfad in Zwischenablage kopiert",
+    "failedToOpenWithDefaultApp": "\"{{name}}\" konnte nicht mit der Standard-App geöffnet werden",
+    "terminalNeedsWorkspace": "Öffnen Sie einen Ordner oder speichern Sie Ihre Datei, um das Terminal zu verwenden.",
+    "noFormattingActions": "Keine Formatierungsaktionen verfügbar",
+    "genieNotInSourceMode": "Genies sind im Quellcode-Modus nicht verfügbar",
+    "genieNoProvider": "Kein KI-Anbieter verfügbar. Konfigurieren Sie einen in den Einstellungen.",
+    "genieCliNotFound": "{{name}} CLI nicht gefunden. Installieren Sie es oder wählen Sie einen anderen Anbieter in den Einstellungen.",
+    "genieApiKeyRequired": "{{name}} API-Schlüssel ist erforderlich. Konfigurieren Sie ihn in Einstellungen → Integrationen.",
+    "updateReady": "v{{version}} zur Installation bereit",
+    "updateUpToDate": "Sie sind auf dem neuesten Stand!",
+    "imagePathCopied": "Bildpfad in Zwischenablage kopiert",
+    "failedToChangeImage": "Bild konnte nicht geändert werden.",
+    "failedToCopyImagePath": "Bildpfad konnte nicht kopiert werden.",
+    "failedToRevealImage": "Bild konnte im Finder nicht angezeigt werden."
+  }
+}

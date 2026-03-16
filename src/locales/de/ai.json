@@ -1,0 +1,35 @@
+{
+  "picker.ariaLabel": "KI-Genies",
+  "picker.searchPlaceholder": "Genies suchen oder beschreiben, was Sie möchten...",
+  "picker.loading": "Genies werden geladen...",
+  "picker.empty": "Keine Genies gefunden. Fügen Sie .md-Dateien in Ihr Genies-Verzeichnis ein.",
+  "picker.noMatch": "Keine passenden Genies.",
+  "picker.freeformHintPrefix": "Drücken Sie",
+  "picker.freeformHintSuffix": "um als KI-Prompt auszuführen.",
+  "picker.freeformConfirm": "Erneut Enter drücken, um als KI-Prompt auszuführen.",
+  "picker.recentlyUsed": "Zuletzt verwendet",
+  "picker.scopeLabel": "Bereich: {{scope}}",
+  "picker.via": "über {{name}}",
+  "picker.footerCycleScope": "Bereich wechseln",
+  "picker.footerNavigate": "navigieren",
+
+  "chips.polish": "Polieren",
+  "chips.condense": "Zusammenfassen",
+  "chips.grammar": "Grammatik",
+  "chips.rephrase": "Umformulieren",
+
+  "response.thinking": "Denkt nach... {{seconds}}s",
+  "response.accept": "Akzeptieren",
+  "response.reject": "Ablehnen",
+  "response.retry": "Erneut versuchen",
+  "response.cancel": "Abbrechen",
+  "response.dismiss": "Schließen",
+  "response.unknownError": "Unbekannter Fehler",
+
+  "history.title": "Prompt-Verlauf",
+  "history.empty": "Kein Verlauf",
+
+  "provider.sectionCli": "CLI",
+  "provider.sectionApi": "API",
+  "provider.settings": "Einstellungen..."
+}
