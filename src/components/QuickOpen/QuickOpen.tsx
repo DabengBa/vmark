@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { useQuickOpenStore } from "./quickOpenStore";
 import { useGeniePickerStore } from "@/stores/geniePickerStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -72,6 +73,7 @@ interface QuickOpenProps {
 
 /** Spotlight-style centered overlay for quickly opening files via fuzzy search. */
 export function QuickOpen({ windowLabel }: QuickOpenProps) {
+  const { t } = useTranslation("editor");
   const isOpen = useQuickOpenStore((s) => s.isOpen);
   const [filter, setFilter] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -215,7 +217,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
 
   if (!isOpen) return null;
 
-  const placeholder = isWorkspaceMode ? "Open file..." : "Open recent file...";
+  const placeholder = isWorkspaceMode ? t("quickOpen.placeholder") : t("quickOpen.recentPlaceholder");
 
   return createPortal(
     <div className="quick-open-backdrop">
@@ -225,7 +227,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
         onKeyDown={handleKeyDown}
         role="dialog"
         aria-modal="true"
-        aria-label="Quick Open"
+        aria-label={t("quickOpen.ariaLabel")}
       >
         <div className="quick-open-header">
           <input
@@ -252,7 +254,7 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
 
         <div className="quick-open-list" ref={listRef} id="quick-open-list" role="listbox">
           {rankedItems.length === 0 && filter && (
-            <div className="quick-open-empty">No files found</div>
+            <div className="quick-open-empty">{t("quickOpen.noFiles")}</div>
           )}
 
           {rankedItems.map((ranked, index) => (
@@ -294,15 +296,15 @@ export function QuickOpen({ windowLabel }: QuickOpenProps) {
             onMouseEnter={() => setSelectedIndex(rankedItems.length)}
           >
             <FolderIcon />
-            <span className="quick-open-item-name">Browse...</span>
+            <span className="quick-open-item-name">{t("quickOpen.browse")}</span>
           </div>
         </div>
 
         <div className="quick-open-footer">
           <span className="quick-open-footer-hint">
-            <kbd className="quick-open-kbd">&uarr;&darr;</kbd> navigate{" "}
-            <kbd className="quick-open-kbd">Enter</kbd> open{" "}
-            <kbd className="quick-open-kbd">Esc</kbd> close
+            <kbd className="quick-open-kbd">&uarr;&darr;</kbd> {t("quickOpen.hintNavigate")}{" "}
+            <kbd className="quick-open-kbd">Enter</kbd> {t("quickOpen.hintOpen")}{" "}
+            <kbd className="quick-open-kbd">Esc</kbd> {t("quickOpen.hintClose")}
           </span>
         </div>
       </div>

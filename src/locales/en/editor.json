@@ -153,5 +153,17 @@
   "popup.sourceWikiLink.browse": "Browse for file",
   "popup.sourceWikiLink.open": "Open linked file",
   "popup.sourceWikiLink.copy": "Copy target",
-  "popup.sourceWikiLink.remove": "Remove wiki link"
+  "popup.sourceWikiLink.remove": "Remove wiki link",
+
+  "quickOpen.placeholder": "Open file...",
+  "quickOpen.recentPlaceholder": "Open recent file...",
+  "quickOpen.ariaLabel": "Quick Open",
+  "quickOpen.noFiles": "No files found",
+  "quickOpen.browse": "Browse...",
+  "quickOpen.hintNavigate": "navigate",
+  "quickOpen.hintOpen": "open",
+  "quickOpen.hintClose": "close",
+
+  "toolbar.ariaLabel": "Formatting toolbar",
+  "toolbar.aiPrompts": "AI Prompts"
 }

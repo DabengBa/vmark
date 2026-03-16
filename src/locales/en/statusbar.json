@@ -35,5 +35,15 @@
   "updateReady": "Click to restart and update",
   "updateReadyVersion": "v{{version}} ready — click to restart",
   "updateError": "Update check failed — click to retry",
-  "autoSavedAt": "Auto-saved at {{time}}"
+  "autoSavedAt": "Auto-saved at {{time}}",
+
+  "terminal.search.placeholder": "Search...",
+  "terminal.search.previous": "Previous (Shift+Enter)",
+  "terminal.search.next": "Next (Enter)",
+  "terminal.search.close": "Close (Escape)",
+
+  "terminal.newSession": "New Terminal",
+  "terminal.maxSessions": "Maximum 5 sessions",
+  "terminal.closeSession": "Close",
+  "terminal.restartSession": "Restart"
 }

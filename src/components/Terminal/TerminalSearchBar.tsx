@@ -26,6 +26,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { SearchAddon } from "@xterm/addon-search";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { useImeComposition } from "@/hooks/useImeComposition";
@@ -38,6 +39,7 @@ interface TerminalSearchBarProps {
 
 /** Renders an inline search bar for finding text in terminal output with IME-aware input. */
 export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBarProps) {
+  const { t } = useTranslation("statusbar");
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const { composingRef, onCompositionStart, onCompositionEnd: onCompositionEndBase, isComposing } = useImeComposition();
@@ -132,7 +134,7 @@ export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBar
         ref={inputRef}
         className="terminal-search-input"
         type="text"
-        placeholder="Search..."
+        placeholder={t("terminal.search.placeholder")}
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -142,8 +144,8 @@ export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBar
       <button
         className="terminal-search-btn"
         onClick={findPrevious}
-        title="Previous (Shift+Enter)"
-        aria-label="Previous (Shift+Enter)"
+        title={t("terminal.search.previous")}
+        aria-label={t("terminal.search.previous")}
         disabled={!query}
       >
         <ChevronUp size={14} />
@@ -151,13 +153,13 @@ export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBar
       <button
         className="terminal-search-btn"
         onClick={findNext}
-        title="Next (Enter)"
-        aria-label="Next (Enter)"
+        title={t("terminal.search.next")}
+        aria-label={t("terminal.search.next")}
         disabled={!query}
       >
         <ChevronDown size={14} />
       </button>
-      <button className="terminal-search-btn" onClick={handleClose} title="Close (Escape)" aria-label="Close (Escape)">
+      <button className="terminal-search-btn" onClick={handleClose} title={t("terminal.search.close")} aria-label={t("terminal.search.close")}>
         <X size={14} />
       </button>
     </div>

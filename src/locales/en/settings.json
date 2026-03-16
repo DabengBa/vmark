@@ -285,6 +285,25 @@
   "integrations.aiProviders.notFound": "Not found",
   "integrations.healthCheck.error": "Health check: {{error}}",
 
+  "integrations.apiEndpoint": "API Endpoint",
+  "integrations.apiKey": "API Key",
+  "integrations.showApiKey": "Show API key",
+  "integrations.hideApiKey": "Hide API key",
+  "integrations.copyApiKey": "Copy API key",
+  "integrations.testApiKey": "Test API key",
+  "integrations.testModel": "Test model",
+
+  "integrations.modelPlaceholder": "Model",
+  "integrations.showModels": "Show models",
+  "integrations.refreshModels": "Refresh models",
+  "integrations.loadingModels": "Loading models...",
+  "integrations.noModels": "No models found",
+
+  "removeTag": "Remove {{tag}}",
+  "copied": "Copied!",
+  "copy": "Copy",
+  "close": "Close",
+
   "terminal.group.terminal": "Terminal",
   "terminal.shell.label": "Shell",
   "terminal.shell.description": "Which shell to use. Requires terminal restart.",

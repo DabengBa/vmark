@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Copy, Check, X, Zap, Loader2, FlaskConical } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import type { RestProviderType } from "@/types/aiGenies";
 import { useAiProviderStore } from "@/stores/aiProviderStore";
 import { ModelComboBox } from "./ModelComboBox";
@@ -36,6 +37,7 @@ export function RestProviderConfigFields({
   apiKey,
   model,
 }: RestProviderConfigFieldsProps) {
+  const { t } = useTranslation("settings");
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [testState, setTestState] = useState<"idle" | "testing" | "success" | "failed">("idle");
@@ -120,7 +122,7 @@ export function RestProviderConfigFields({
       {type !== "google-ai" && (
         <input
           className={inputClass}
-          placeholder="API Endpoint"
+          placeholder={t("integrations.apiEndpoint")}
           value={endpoint}
           onChange={(e) => handleChange("endpoint", e.target.value)}
         />
@@ -128,7 +130,7 @@ export function RestProviderConfigFields({
       <div className="flex items-center gap-1">
         <input
           className={inputClass}
-          placeholder="API Key"
+          placeholder={t("integrations.apiKey")}
           type={revealed ? "text" : "password"}
           value={apiKey}
           onChange={(e) => handleChange("apiKey", e.target.value)}
@@ -136,7 +138,7 @@ export function RestProviderConfigFields({
         <button
           className={iconBtnClass}
           onClick={() => setRevealed((r) => !r)}
-          title={revealed ? "Hide API key" : "Show API key"}
+          title={revealed ? t("integrations.hideApiKey") : t("integrations.showApiKey")}
           tabIndex={-1}
         >
           {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -144,7 +146,7 @@ export function RestProviderConfigFields({
         <button
           className={iconBtnClass}
           onClick={handleCopy}
-          title="Copy API key"
+          title={t("integrations.copyApiKey")}
           tabIndex={-1}
           disabled={!apiKey}
         >
@@ -153,7 +155,7 @@ export function RestProviderConfigFields({
         <button
           className={iconBtnClass}
           onClick={handleTest}
-          title="Test API key"
+          title={t("integrations.testApiKey")}
           tabIndex={-1}
           disabled={testDisabled || testState === "testing"}
         >
@@ -180,7 +182,7 @@ export function RestProviderConfigFields({
         <button
           className={iconBtnClass}
           onClick={handleModelTest}
-          title="Test model"
+          title={t("integrations.testModel")}
           tabIndex={-1}
           disabled={modelTestDisabled || modelTestState === "testing"}
         >

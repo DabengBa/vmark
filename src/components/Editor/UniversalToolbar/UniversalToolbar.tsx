@@ -42,7 +42,8 @@ import "./universal-toolbar.css";
  * Visibility is controlled by the `universalToolbarVisible` state in uiStore.
  */
 export function UniversalToolbar() {
-  const { t } = useTranslation("dialog");
+  const { t: tDialog } = useTranslation("dialog");
+  const { t } = useTranslation("editor");
   const visible = useUIStore((state) => state.universalToolbarVisible);
   const toolbarHasFocus = useUIStore((state) => state.universalToolbarHasFocus);
   const sessionFocusIndex = useUIStore((state) => state.toolbarSessionFocusIndex);
@@ -362,7 +363,7 @@ export function UniversalToolbar() {
       // If no enabled buttons, close toolbar immediately
       if (initialIndex < 0) {
         useUIStore.getState().clearToolbarSession();
-        toast.info(t("toast.noFormattingActions"));
+        toast.info(tDialog("toast.noFormattingActions"));
         return;
       }
 
@@ -374,7 +375,7 @@ export function UniversalToolbar() {
     }
 
     wasVisibleRef.current = true;
-  }, [visible, buttonStates, setFocusedIndex, closeMenu, sessionFocusIndex, t]);
+  }, [visible, buttonStates, setFocusedIndex, closeMenu, sessionFocusIndex, tDialog]);
 
   // Handle click outside dropdown
   useEffect(() => {
@@ -425,7 +426,7 @@ export function UniversalToolbar() {
     <div
       ref={containerRef}
       role="toolbar"
-      aria-label="Formatting toolbar"
+      aria-label={t("toolbar.ariaLabel")}
       aria-orientation="horizontal"
       className="universal-toolbar"
       onKeyDown={handleKeyDown}
@@ -495,8 +496,8 @@ export function UniversalToolbar() {
       <button
         type="button"
         className="universal-toolbar-btn"
-        title="AI Prompts (⌘Y)"
-        aria-label="AI Prompts"
+        title={`${t("toolbar.aiPrompts")} (⌘Y)`}
+        aria-label={t("toolbar.aiPrompts")}
         tabIndex={-1}
         data-action="genie"
         onClick={() => useGeniePickerStore.getState().openPicker({ filterScope: "selection" })}

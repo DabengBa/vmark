@@ -112,6 +112,7 @@ export function Select<T extends string>({
 
 import { useState, useRef } from "react";
 import { ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { useImeComposition } from "@/hooks/useImeComposition";
 
@@ -165,6 +166,7 @@ export function TagInput({
   onChange: (v: string[]) => void;
   placeholder?: string;
 }) {
+  const { t } = useTranslation("settings");
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const ime = useImeComposition();
@@ -212,7 +214,7 @@ export function TagInput({
             }}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]
                        focus:outline-none"
-            aria-label={`Remove ${tag}`}
+            aria-label={t("removeTag", { tag })}
           >
             ×
           </button>
@@ -319,6 +321,7 @@ interface CopyButtonProps {
 }
 
 export function CopyButton({ text, size = "sm", className = "" }: CopyButtonProps) {
+  const { t } = useTranslation("settings");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (e: React.MouseEvent) => {
@@ -337,7 +340,7 @@ export function CopyButton({ text, size = "sm", className = "" }: CopyButtonProp
       className={`p-0.5 rounded hover:bg-[var(--hover-bg)] text-[var(--text-tertiary)]
                   hover:text-[var(--text-primary)] transition-colors flex-shrink-0
                   ${className}`}
-      title={copied ? "Copied!" : "Copy"}
+      title={copied ? t("copied") : t("copy")}
     >
       {copied ? (
         <svg className={`${iconSize} text-[var(--success-color)]`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -363,12 +366,13 @@ interface CloseButtonProps {
 }
 
 export function CloseButton({ onClick, className = "" }: CloseButtonProps) {
+  const { t } = useTranslation("settings");
   return (
     <button
       onClick={onClick}
       className={`p-1 rounded hover:bg-[var(--hover-bg)] text-[var(--text-tertiary)]
                   hover:text-[var(--text-primary)] transition-colors ${className}`}
-      title="Close"
+      title={t("close")}
     >
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <line x1="18" y1="6" x2="6" y2="18" />

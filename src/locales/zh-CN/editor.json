@@ -133,5 +133,17 @@
   "popup.sourceWikiLink.browse": "浏览文件",
   "popup.sourceWikiLink.open": "打开链接的文件",
   "popup.sourceWikiLink.copy": "复制目标",
-  "popup.sourceWikiLink.remove": "移除维基链接"
+  "popup.sourceWikiLink.remove": "移除维基链接",
+
+  "quickOpen.placeholder": "打开文件...",
+  "quickOpen.recentPlaceholder": "打开最近文件...",
+  "quickOpen.ariaLabel": "快速打开",
+  "quickOpen.noFiles": "未找到文件",
+  "quickOpen.browse": "浏览...",
+  "quickOpen.hintNavigate": "导航",
+  "quickOpen.hintOpen": "打开",
+  "quickOpen.hintClose": "关闭",
+
+  "toolbar.ariaLabel": "格式工具栏",
+  "toolbar.aiPrompts": "AI 提示"
 }
