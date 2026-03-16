@@ -21,6 +21,8 @@ import { useTabStore } from "@/stores/tabStore";
 import { useLintStore } from "@/stores/lintStore";
 import "../../plugins/lint/lint.css";
 
+const EMPTY: readonly never[] = [];
+
 /** Status bar badge for lint diagnostics. Returns null when there are no issues. */
 export function LintBadge() {
   const { t } = useTranslation("statusbar");
@@ -29,8 +31,10 @@ export function LintBadge() {
     (state) => state.activeTabId[windowLabel] ?? null
   );
 
+  // Use a stable empty array reference to avoid infinite re-render from
+  // Zustand's reference-equality check creating a new [] on every call.
   const diagnostics = useLintStore((state) =>
-    activeTabId ? (state.diagnosticsByTab[activeTabId] ?? []) : []
+    activeTabId ? (state.diagnosticsByTab[activeTabId] ?? EMPTY) : EMPTY
   );
 
   const count = diagnostics.length;
