@@ -30,6 +30,7 @@
  * @module components/StatusBar/StatusBar
  */
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { PanelLeft, Plus } from "lucide-react";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -86,6 +87,7 @@ function preventSelectAllOnButtons(event: KeyboardEvent) {
 
 /** Bottom bar combining tab strip, word/char counts, auto-save indicator, AI status, and mode toggle. */
 export function StatusBar() {
+  const { t } = useTranslation("statusbar");
   const isDocumentWindow = useIsDocumentWindow();
   const windowLabel = useWindowLabel();
   const lastAutoSave = useDocumentLastAutoSave();
@@ -220,8 +222,8 @@ export function StatusBar() {
                 type="button"
                 className="status-sidebar-toggle"
                 onClick={() => useUIStore.getState().toggleSidebar()}
-                aria-label="Open Sidebar"
-                title="Open Sidebar"
+                aria-label={t("openSidebar")}
+                title={t("openSidebar")}
               >
                 <PanelLeft size={14} />
               </button>
@@ -231,8 +233,8 @@ export function StatusBar() {
                 type="button"
                 className="status-new-tab"
                 onClick={handleNewTab}
-                aria-label="New tab"
-                title="New Tab"
+                aria-label={t("newTab")}
+                title={t("newTabTitle")}
               >
                 <Plus className="w-3 h-3" />
               </button>
@@ -271,7 +273,7 @@ export function StatusBar() {
 
             {quitMessage && (
               <span className="status-quit-message">
-                Press {navigator.platform.includes("Mac") ? "⌘Q" : "Ctrl+Q"} again to quit
+                {t("pressAgainToQuit", { key: navigator.platform.includes("Mac") ? "⌘Q" : "Ctrl+Q" })}
               </span>
             )}
           </div>
