@@ -1,0 +1,109 @@
+{
+  "unsavedChanges": {
+    "title": "Modifications non enregistrées",
+    "single": "Voulez-vous enregistrer les modifications apportées à « {{title}} » ?",
+    "multiple": "Vous avez {{count}} document non enregistré :\n\n• {{list}}",
+    "multiple_plural": "Vous avez {{count}} documents non enregistrés :\n\n• {{list}}",
+    "newDocsHint": "{{count}} nouveau document nécessitera un emplacement d'enregistrement.",
+    "newDocsHint_plural": "{{count}} nouveaux documents nécessiteront un emplacement d'enregistrement.",
+    "openInNewWindow": "Cette fenêtre contient des modifications non enregistrées. Ouvrir l'espace de travail dans une nouvelle fenêtre ?",
+    "restartUnsaved": "Vous avez {{count}} document(s) non enregistré(s). Redémarrer et restaurer au relancement ?"
+  },
+  "fileChanged": {
+    "title": "Fichier modifié",
+    "message": "« {{fileName}} » a été modifié en dehors de l'application.\n\nQue souhaitez-vous faire ?",
+    "multipleTitle": "Plusieurs fichiers modifiés",
+    "multipleMessage": "{{count}} fichiers ont été modifiés en dehors de l'application :\n{{fileNames}}\n\nQue souhaitez-vous faire ?"
+  },
+  "revertToSaved": {
+    "title": "Rétablir la version enregistrée",
+    "message": "Annuler toutes les modifications et recharger « {{title}} » depuis le disque ?"
+  },
+  "clearRecentFiles": {
+    "title": "Effacer les fichiers récents",
+    "message": "Effacer la liste des fichiers récemment ouverts ?"
+  },
+  "clearRecentWorkspaces": {
+    "title": "Effacer les espaces de travail récents",
+    "message": "Effacer la liste des espaces de travail récemment ouverts ?"
+  },
+  "fileNotFound": {
+    "title": "Fichier introuvable",
+    "message": "Ce fichier ne peut pas être ouvert. Il a peut-être été déplacé ou supprimé.\n\nSupprimer des fichiers récents ?"
+  },
+  "workspaceNotFound": {
+    "title": "Espace de travail introuvable",
+    "message": "Ce dossier d'espace de travail est introuvable. Il a peut-être été déplacé ou supprimé.\n\nSupprimer des espaces de travail récents ?"
+  },
+  "unsavedDocument": {
+    "title": "Document non enregistré",
+    "message": "Veuillez d'abord enregistrer le document pour modifier les images.",
+    "messageCopyPath": "Le document doit être enregistré pour copier le chemin de l'image.",
+    "messageReveal": "Le document doit être enregistré pour afficher l'image."
+  },
+  "saveVersionAs": {
+    "title": "Enregistrer votre version sous..."
+  },
+  "chooseFolderForDocs": "Choisir un dossier pour {{count}} nouveaux documents",
+  "toast": {
+    "saveDialogFailed": "Échec de la boîte de dialogue d'enregistrement : {{error}}",
+    "failedToMoveToNewWindow": "Impossible de déplacer le fichier vers une nouvelle fenêtre",
+    "failedToSaveDocuments": "Impossible d'enregistrer les documents",
+    "fileMovedCantDeleteOriginal": "Fichier enregistré au nouvel emplacement, mais impossible de supprimer le fichier original",
+    "failedToOpenFile": "Impossible d'ouvrir le fichier : {{error}}",
+    "failedToOpen": "Impossible d'ouvrir {{filename}}",
+    "failedToOpenFilesInNewWindow": "Impossible d'ouvrir les fichiers dans une nouvelle fenêtre",
+    "onlyMarkdownViaDropDrop": "Seuls les fichiers Markdown peuvent être ouverts par glisser-déposer",
+    "restored": "Restauré : {{filename}}",
+    "reloaded": "Rechargé : {{filename}}",
+    "recoveredDocuments": "{{count}} document(s) récupéré(s) après une fermeture inattendue",
+    "pandocExportFailed": "Échec de l'exportation Pandoc",
+    "pandocUnknownFormat": "Format d'exportation inconnu : {{format}}",
+    "pandocNoContent": "Aucun contenu à exporter !",
+    "pandocNotInstalled": "Pandoc n'est pas installé. Installez-le depuis pandoc.org",
+    "pandocExportSuccess": "Exporté avec succès",
+    "pandocExportError": "Échec de l'exportation Pandoc : {{error}}",
+    "exportNoContent": "Aucun contenu à exporter !",
+    "exportHtmlSuccess": "Exporté dans le dossier",
+    "exportHtmlResourceWarning_one": "1 ressource n'a pas pu être incluse",
+    "exportHtmlResourceWarning_other": "{{count}} ressources n'ont pas pu être incluses",
+    "printRequiresMac": "L'impression nécessite macOS.",
+    "nativePdfRequiresMac": "L'exportation PDF native nécessite macOS. Utilisez Imprimer à la place.",
+    "failedToPreparePdf": "Impossible de préparer l'exportation PDF",
+    "noEditorContentToPrint": "Aucun contenu d'éditeur à imprimer",
+    "failedToOpenPrintDialog": "Impossible d'ouvrir la boîte de dialogue d'impression",
+    "htmlCopied": "HTML copié dans le presse-papiers",
+    "pdfExportSuccess": "PDF exporté avec succès",
+    "pdfExportFailed": "Échec de l'exportation PDF : {{error}}",
+    "cannotMoveTabNoDoc": "Impossible de déplacer l'onglet : le document n'est pas chargé.",
+    "cannotMoveLastTab": "Impossible de déplacer le dernier onglet de la fenêtre principale.",
+    "tabMoved": "« {{title}} » déplacé vers une nouvelle fenêtre",
+    "tabDetached": "« {{title}} » détaché",
+    "tabMovedToWindow": "« {{title}} » déplacé",
+    "undoTabMoveFailed": "Impossible d'annuler le déplacement de l'onglet.",
+    "failedToMoveTabToNewWindow": "Impossible de déplacer l'onglet vers une nouvelle fenêtre.",
+    "fileRestoredToDisk": "Fichier restauré sur le disque.",
+    "failedToRestoreToDisk": "Impossible de restaurer le fichier sur le disque.",
+    "revertedToSaved": "Rétabli à la version enregistrée.",
+    "failedToRevert": "Impossible de rétablir la version enregistrée.",
+    "pathCopied": "Chemin copié dans le presse-papiers.",
+    "failedToCopyPath": "Impossible de copier le chemin.",
+    "relativePathCopied": "Chemin relatif copié dans le presse-papiers.",
+    "failedToCopyRelativePath": "Impossible de copier le chemin relatif.",
+    "failedToRevealInFileManager": "Impossible d'afficher le fichier dans le gestionnaire de fichiers.",
+    "pathCopiedExplorer": "Chemin copié dans le presse-papiers",
+    "failedToOpenWithDefaultApp": "Impossible d'ouvrir « {{name}} » avec l'application par défaut",
+    "terminalNeedsWorkspace": "Ouvrez un dossier ou enregistrez votre fichier pour utiliser le terminal.",
+    "noFormattingActions": "Aucune action de mise en forme disponible",
+    "genieNotInSourceMode": "Les génies ne sont pas disponibles en mode source",
+    "genieNoProvider": "Aucun fournisseur IA disponible. Configurez-en un dans les Paramètres.",
+    "genieCliNotFound": "CLI {{name}} introuvable. Installez-le ou choisissez un autre fournisseur dans les Paramètres.",
+    "genieApiKeyRequired": "La clé API {{name}} est requise. Configurez-la dans Paramètres → Intégrations.",
+    "updateReady": "v{{version}} prête à installer",
+    "updateUpToDate": "Vous êtes à jour !",
+    "imagePathCopied": "Chemin de l'image copié dans le presse-papiers",
+    "failedToChangeImage": "Impossible de modifier l'image.",
+    "failedToCopyImagePath": "Impossible de copier le chemin de l'image.",
+    "failedToRevealImage": "Impossible d'afficher l'image dans le Finder."
+  }
+}

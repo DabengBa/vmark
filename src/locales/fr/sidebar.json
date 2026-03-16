@@ -1,0 +1,45 @@
+{
+  "viewFiles": "FICHIERS",
+  "viewOutline": "PLAN",
+  "viewHistory": "HISTORIQUE",
+  "showFiles": "Afficher les fichiers",
+  "showOutline": "Afficher le plan",
+  "showHistory": "Afficher l'historique",
+  "newFile": "Nouveau fichier",
+  "newFolder": "Nouveau dossier",
+  "clearDocumentHistory": "Effacer l'historique du document",
+  "closeSidebar": "Fermer la barre latérale",
+  "clearHistoryMessage": "Supprimer tout l'historique de ce document ? Cette action est irréversible.",
+  "noWorkspace": "Aucun espace de travail ouvert",
+  "loading": "Chargement...",
+  "defaultFileName": "Sans titre",
+  "defaultFolderName": "Nouveau dossier",
+  "workspaceFallback": "Espace de travail",
+  "contextMenu": {
+    "open": "Ouvrir",
+    "rename": "Renommer",
+    "duplicate": "Dupliquer",
+    "moveTo": "Déplacer vers...",
+    "delete": "Supprimer",
+    "copyPath": "Copier le chemin",
+    "revealInFinder": "Afficher dans le Finder",
+    "showInExplorer": "Afficher dans l'Explorateur",
+    "showInFileManager": "Afficher dans le gestionnaire de fichiers"
+  },
+  "outline": {
+    "documentOutline": "Plan du document",
+    "expandSection": "Développer la section",
+    "collapseSection": "Réduire la section",
+    "noHeadings": "Aucun titre",
+    "tooLarge": "Document trop volumineux pour le plan"
+  },
+  "history": {
+    "saveToEnable": "Enregistrez le document pour activer l'historique",
+    "disabled": "L'historique est désactivé dans les paramètres",
+    "noHistory": "Aucun historique",
+    "revertTitle": "Rétablir une version antérieure",
+    "revertMessage": "Rétablir la version du {{time}} ?\n\nVos modifications actuelles seront d'abord enregistrées dans l'historique.",
+    "revertButton": "Rétablir cette version",
+    "deleteSnapshot": "Supprimer cet instantané"
+  }
+}
