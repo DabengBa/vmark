@@ -15,7 +15,8 @@ import {
 } from "@/stores/shortcutsStore";
 import { SettingRow, Toggle, SettingsGroup, Select } from "./components";
 
-const LANGUAGE_OPTIONS = [
+/** All supported languages. Labels use native script so users can always find their language. */
+const ALL_LANGUAGES = [
   { value: "en", label: "English" },
   { value: "zh-CN", label: "简体中文" },
   { value: "zh-TW", label: "繁體中文" },
@@ -28,7 +29,24 @@ const LANGUAGE_OPTIONS = [
   { value: "pt-BR", label: "Português (Brasil)" },
 ] as const;
 
-type LanguageValue = (typeof LANGUAGE_OPTIONS)[number]["value"];
+/**
+ * Detect which languages have translation files bundled.
+ * Uses import.meta.glob to find locale directories at build time.
+ */
+const availableLocales = new Set(
+  Object.keys(import.meta.glob("@/locales/*/common.json")).map((p) => {
+    // Path: "/src/locales/zh-CN/common.json" → "zh-CN"
+    const parts = p.split("/");
+    return parts[parts.length - 2];
+  })
+);
+
+/** Only show languages that have translation files shipped. */
+const LANGUAGE_OPTIONS = ALL_LANGUAGES.filter(
+  (lang) => availableLocales.has(lang.value)
+);
+
+type LanguageValue = (typeof ALL_LANGUAGES)[number]["value"];
 
 export function LanguageSettings() {
   const { t } = useTranslation("settings");

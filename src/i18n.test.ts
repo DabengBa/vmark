@@ -31,4 +31,28 @@ describe("i18n initialization", () => {
     const { default: i18n } = await import("./i18n");
     expect(i18n.options.load).toBe("currentOnly");
   });
+
+  it("sets document.documentElement.lang on language change", async () => {
+    const { default: i18n } = await import("./i18n");
+    await i18n.changeLanguage("zh-CN");
+    expect(document.documentElement.lang).toBe("zh-CN");
+    // Revert
+    await i18n.changeLanguage("en");
+    expect(document.documentElement.lang).toBe("en");
+  });
+
+  it("falls back to zh-CN then en for zh-TW missing keys", async () => {
+    const { default: i18n } = await import("./i18n");
+    // zh-TW has no files, should fall back through the chain
+    const fallback = i18n.options.fallbackLng;
+    expect(fallback).toHaveProperty("zh-TW");
+    expect((fallback as Record<string, string[]>)["zh-TW"]).toEqual(["zh-CN", "en"]);
+  });
+
+  it("falls back to en for pt-BR missing keys", async () => {
+    const { default: i18n } = await import("./i18n");
+    const fallback = i18n.options.fallbackLng;
+    expect(fallback).toHaveProperty("pt-BR");
+    expect((fallback as Record<string, string[]>)["pt-BR"]).toEqual(["en"]);
+  });
 });
