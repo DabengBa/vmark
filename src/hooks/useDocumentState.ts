@@ -20,48 +20,55 @@ import { useWindowLabel } from "../contexts/WindowContext";
 import { useDocumentStore, type CursorInfo } from "../stores/documentStore";
 import { useTabStore } from "../stores/tabStore";
 
-// Get active tab ID for current window
+/** Hook that returns the active tab ID for the current window, or null if none. */
 export function useActiveTabId(): string | null {
   const windowLabel = useWindowLabel();
   return useTabStore((state) => state.activeTabId[windowLabel] ?? null);
 }
 
-// Tab-scoped selectors (uses active tab for current window)
+/** Hook that returns the markdown content of the active tab's document. */
 export function useDocumentContent(): string {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.content : "") ?? "");
 }
 
+/** Hook that returns the file path of the active tab's document, or null if untitled. */
 export function useDocumentFilePath(): string | null {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.filePath : null) ?? null);
 }
 
+/** Hook that returns whether the active tab's document has unsaved changes. */
 export function useDocumentIsDirty(): boolean {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.isDirty : false) ?? false);
 }
 
+/** Hook that returns whether the active tab's file has been deleted from disk. */
 export function useDocumentIsMissing(): boolean {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.isMissing : false) ?? false);
 }
 
+/** Hook that returns whether the active tab's document diverged from the on-disk version. */
 export function useDocumentIsDivergent(): boolean {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.isDivergent : false) ?? false);
 }
 
+/** Hook that returns the numeric document ID of the active tab (0 if none). */
 export function useDocumentId(): number {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.documentId : 0) ?? 0);
 }
 
+/** Hook that returns the cursor position info of the active tab's editor. */
 export function useDocumentCursorInfo(): CursorInfo | null {
   const tabId = useActiveTabId();
   return useDocumentStore((state) => (tabId ? state.documents[tabId]?.cursorInfo : null) ?? null);
 }
 
+/** Hook that returns the timestamp of the last auto-save for the active tab. */
 export function useDocumentLastAutoSave(): number | null {
   const tabId = useActiveTabId();
   return useDocumentStore(
@@ -69,7 +76,7 @@ export function useDocumentLastAutoSave(): number | null {
   );
 }
 
-// Tab-scoped actions (uses active tab for current window)
+/** Hook that returns memoized actions (setContent, loadContent, markSaved, etc.) scoped to the active tab. */
 export function useDocumentActions() {
   const windowLabel = useWindowLabel();
 

@@ -66,6 +66,7 @@ function getIndicatorConfig(status: UpdateStatus) {
   }
 }
 
+/** Renders an update status icon in the StatusBar (checking, downloading, ready, or error). */
 export function UpdateIndicator() {
   const status = useUpdateStore((state) => state.status);
   const updateInfo = useUpdateStore((state) => state.updateInfo);

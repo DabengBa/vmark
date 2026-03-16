@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import { useRecentFilesStore } from "@/stores/recentFilesStore";
 
+/** Hook that syncs the recent files list to the native macOS menu on mount. */
 export function useRecentFilesSync() {
   useEffect(() => {
     // Sync recent files to native menu on mount

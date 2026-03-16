@@ -36,6 +36,7 @@ interface TerminalSearchBarProps {
   onClose: () => void;
 }
 
+/** Renders an inline search bar for finding text in terminal output with IME-aware input. */
 export function TerminalSearchBar({ getSearchAddon, onClose }: TerminalSearchBarProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);

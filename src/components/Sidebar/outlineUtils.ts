@@ -10,6 +10,7 @@ export interface HeadingItem {
   line: number; // 0-based line number in content
 }
 
+/** A heading node in the outline tree, with child headings. */
 export interface HeadingNode extends HeadingItem {
   children: HeadingNode[];
   index: number; // Original index in flat list

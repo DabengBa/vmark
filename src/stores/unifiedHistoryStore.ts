@@ -31,6 +31,7 @@
 import { create } from "zustand";
 import type { CursorInfo } from "@/types/cursorSync";
 
+/** A cross-mode undo checkpoint — captures markdown, editor mode, and cursor position at a mode switch. */
 export interface HistoryCheckpoint {
   /** The markdown content at this checkpoint */
   markdown: string;
@@ -116,6 +117,7 @@ const MAX_CHECKPOINTS = 50;
 
 const emptyHistory: DocumentHistory = { undoStack: [], redoStack: [] };
 
+/** Manages cross-mode undo/redo checkpoints for seamless history across WYSIWYG and Source modes. Use selectors, not destructuring. */
 export const useUnifiedHistoryStore = create<UnifiedHistoryState & UnifiedHistoryActions>(
   (set, get) => ({
     documents: {},

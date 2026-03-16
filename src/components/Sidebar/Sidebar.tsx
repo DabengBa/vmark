@@ -30,6 +30,7 @@ const VIEW_CONFIG: Record<SidebarViewMode, {
   history: { icon: History, title: "HISTORY", next: "files" },
 };
 
+/** Navigation sidebar with switchable Files, Outline, and History views. */
 export function Sidebar() {
   const viewMode = useUIStore((state) => state.sidebarViewMode);
   const filePath = useDocumentFilePath();

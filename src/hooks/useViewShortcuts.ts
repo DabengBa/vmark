@@ -28,6 +28,7 @@ import { toggleSourceModeWithCheckpoint } from "@/hooks/useUnifiedHistory";
 import { requestToggleTerminal } from "@/components/Terminal/terminalGate";
 import { useSettingsStore } from "@/stores/settingsStore";
 
+/** Hook that handles keyboard shortcuts for view-mode toggles (source, focus, typewriter, wrap, line numbers, terminal, sidebar panels). */
 export function useViewShortcuts() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -20,6 +20,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { cleanTextForClipboard } from "@/plugins/markdownCopy/tiptap";
 import { clipboardWarn } from "@/utils/debug";
 
+/** Creates a CodeMirror plugin that auto-copies selected text to clipboard. */
 export function createSourceCopyOnSelectPlugin(): Extension {
   return ViewPlugin.fromClass(
     class {

@@ -63,17 +63,20 @@ export interface CursorContext {
 
 // Info types for each context
 
+/** Info about a code block at the cursor position. */
 export interface CodeBlockInfo {
   language?: string;
   from: number;
   to: number;
 }
 
+/** Info about a block math environment at the cursor position. */
 export interface BlockMathInfo {
   from: number;
   to: number;
 }
 
+/** Info about the table cell at the cursor position. */
 export interface TableInfo {
   row: number;
   col: number;
@@ -81,22 +84,26 @@ export interface TableInfo {
   totalCols: number;
 }
 
+/** Info about the list item at the cursor position. */
 export interface ListInfo {
   listType: "bullet" | "ordered" | "task";
   depth: number;
   checked?: boolean;
 }
 
+/** Info about the blockquote at the cursor position. */
 export interface BlockquoteInfo {
   depth: number;
 }
 
+/** Info about the current text selection. */
 export interface SelectionInfo {
   from: number;
   to: number;
   text: string;
 }
 
+/** Info about an inline formatted range (bold, italic, etc.) at the cursor. */
 export interface FormattedRangeInfo {
   markType: string;
   from: number;
@@ -105,6 +112,7 @@ export interface FormattedRangeInfo {
   contentTo: number;
 }
 
+/** Info about a link at the cursor position. */
 export interface LinkInfo {
   href: string;
   text: string;
@@ -114,6 +122,7 @@ export interface LinkInfo {
   contentTo: number;
 }
 
+/** Info about an image node at the cursor position. */
 export interface ImageInfo {
   src: string;
   alt?: string;
@@ -121,6 +130,7 @@ export interface ImageInfo {
   to: number;
 }
 
+/** Info about an inline math expression at the cursor position. */
 export interface InlineMathInfo {
   from: number;
   to: number;
@@ -128,6 +138,7 @@ export interface InlineMathInfo {
   contentTo: number;
 }
 
+/** Info about a footnote reference at the cursor position. */
 export interface FootnoteInfo {
   label: string;
   from: number;
@@ -136,6 +147,7 @@ export interface FootnoteInfo {
   contentTo: number;
 }
 
+/** Info about a heading at the cursor position. */
 export interface HeadingInfo {
   level: number; // 0 = paragraph, 1-6 = heading levels
   nodePos?: number; // For WYSIWYG
@@ -143,6 +155,7 @@ export interface HeadingInfo {
   lineEnd?: number;
 }
 
+/** Info about the word at the cursor position. */
 export interface WordInfo {
   from: number;
   to: number;

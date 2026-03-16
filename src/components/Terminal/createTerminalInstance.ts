@@ -61,6 +61,7 @@ function resolveMonoFont(): string {
 
 // buildXtermTheme is imported from ./terminalTheme
 
+/** A fully-configured xterm.js terminal with its addons and container element. */
 export interface TerminalInstance {
   term: Terminal;
   fitAddon: FitAddon;
@@ -78,6 +79,7 @@ export interface TerminalInstance {
   dispose: () => void;
 }
 
+/** User-configurable settings for creating a terminal instance. */
 export interface TerminalInstanceSettings {
   fontSize: number;
   lineHeight: number;

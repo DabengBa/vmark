@@ -272,6 +272,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   return false;
 }
 
+/** Tiptap extension that handles image paste, drop, and file dialog insertion. */
 export const imageHandlerExtension = Extension.create({
   name: "imageHandler",
   addProseMirrorPlugins() {

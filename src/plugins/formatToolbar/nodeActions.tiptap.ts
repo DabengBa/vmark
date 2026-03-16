@@ -19,6 +19,7 @@ import { Selection } from "@tiptap/pm/state";
 import type { NodeContext } from "./types";
 import { liftListItem, sinkListItem, wrapInList } from "@tiptap/pm/schema-list";
 
+/** Detects the block-level node context (table, list, or blockquote) at the current cursor position. */
 export function getNodeContext(view: EditorView): NodeContext {
   const { $from } = view.state.selection;
 
@@ -84,6 +85,7 @@ export function getNodeContext(view: EditorView): NodeContext {
   return null;
 }
 
+/** Indents (sinks) the current list item one level deeper. */
 export function handleListIndent(view: EditorView) {
   const listItemType = view.state.schema.nodes.listItem;
   if (!listItemType) return;
@@ -91,6 +93,7 @@ export function handleListIndent(view: EditorView) {
   sinkListItem(listItemType)(view.state, view.dispatch);
 }
 
+/** Outdents (lifts) the current list item one level up. */
 export function handleListOutdent(view: EditorView) {
   const listItemType = view.state.schema.nodes.listItem;
   if (!listItemType) return;
@@ -98,6 +101,7 @@ export function handleListOutdent(view: EditorView) {
   liftListItem(listItemType)(view.state, view.dispatch);
 }
 
+/** Converts the current list to a bullet list, or wraps the current block in one. */
 export function handleToBulletList(view: EditorView) {
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -121,6 +125,7 @@ export function handleToBulletList(view: EditorView) {
   view.focus();
 }
 
+/** Converts the current list to an ordered list, or wraps the current block in one. */
 export function handleToOrderedList(view: EditorView) {
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -144,6 +149,7 @@ export function handleToOrderedList(view: EditorView) {
   view.focus();
 }
 
+/** Removes all list wrapping from the current selection by repeatedly lifting list items. */
 export function handleRemoveList(view: EditorView) {
   const listItemType = view.state.schema.nodes.listItem;
   if (!listItemType) return;
@@ -179,6 +185,7 @@ function convertListType(view: EditorView, listDepth: number, newListType: "bull
   dispatch(state.tr.setNodeMarkup(listPos, newType, listNode.attrs));
 }
 
+/** Nests the current blockquote one level deeper by wrapping it in another blockquote. */
 export function handleBlockquoteNest(view: EditorView) {
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -204,6 +211,7 @@ export function handleBlockquoteNest(view: EditorView) {
   }
 }
 
+/** Unnests the current blockquote by lifting it one level up. */
 export function handleBlockquoteUnnest(view: EditorView) {
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -221,6 +229,7 @@ export function handleBlockquoteUnnest(view: EditorView) {
   }
 }
 
+/** Removes all blockquote wrapping from the current position, preserving cursor position. */
 export function handleRemoveBlockquote(view: EditorView) {
   const { state, dispatch } = view;
   const { $from } = state.selection;

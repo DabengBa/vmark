@@ -73,7 +73,7 @@ pub(crate) fn scan_genies_dir(
     }
 }
 
-/// Scan a directory and return genie entries with titles derived from filenames.
+/// Scan a directory for `.md` genie files and return menu entries sorted by title.
 pub fn scan_genies_with_titles(dir: &Path) -> Vec<GenieMenuEntry> {
     let mut entries = Vec::new();
     scan_genies_recursive(dir, dir, &mut entries);

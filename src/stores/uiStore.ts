@@ -26,22 +26,26 @@
 
 import { create } from "zustand";
 
+/** Sidebar panel view: file explorer, document outline, or history. */
 export type SidebarViewMode = "files" | "outline" | "history";
 
+/** Resolved terminal panel position after "auto" evaluation. */
 export type EffectiveTerminalPosition = "bottom" | "right";
 
-// Sidebar width constraints
+/** Minimum sidebar width in pixels. */
 const SIDEBAR_MIN_WIDTH = 180;
 const SIDEBAR_MAX_WIDTH = 480;
 const SIDEBAR_DEFAULT_WIDTH = 260;
 
-// Terminal height constraints
+/** Minimum terminal panel height in pixels (bottom position). */
 export const TERMINAL_MIN_HEIGHT = 100;
+/** Maximum terminal panel height in pixels (bottom position). */
 export const TERMINAL_MAX_HEIGHT = 600;
 const TERMINAL_DEFAULT_HEIGHT = 250;
 
-// Terminal width constraints (for right-side position)
+/** Minimum terminal panel width in pixels (right position). */
 export const TERMINAL_MIN_WIDTH = 200;
+/** Maximum terminal panel width in pixels (right position). */
 export const TERMINAL_MAX_WIDTH = 800;
 const TERMINAL_DEFAULT_WIDTH = 400;
 
@@ -89,6 +93,7 @@ interface UIActions {
   setEffectiveTerminalPosition: (pos: EffectiveTerminalPosition) => void;
 }
 
+/** Manages transient UI state — sidebar, toolbar, terminal, status bar, and drag state. Use selectors, not destructuring. */
 export const useUIStore = create<UIState & UIActions>((set) => ({
   settingsOpen: false,
   sidebarVisible: false,

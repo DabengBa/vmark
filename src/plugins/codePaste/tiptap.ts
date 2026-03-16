@@ -122,6 +122,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   return true;
 }
 
+/** Tiptap extension that handles paste events inside code blocks to insert plain text. */
 export const codePasteExtension = Extension.create({
   name: "codePaste",
   addProseMirrorPlugins() {

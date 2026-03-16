@@ -39,6 +39,7 @@ const initialState: TiptapEditorState = {
   context: null,
 };
 
+/** Manages current Tiptap editor instance and cursor formatting context for toolbar display. Use selectors, not destructuring. */
 export const useTiptapEditorStore = create<TiptapEditorState & TiptapEditorActions>((set) => ({
   ...initialState,
 

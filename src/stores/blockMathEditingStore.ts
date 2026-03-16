@@ -38,6 +38,7 @@ const initialState: BlockMathEditingState = {
   originalContent: null,
 };
 
+/** Manages which math/mermaid code block is being edited in WYSIWYG mode, with original content for ESC revert. Use selectors, not destructuring. */
 export const useBlockMathEditingStore = create<BlockMathEditingStore>((set, get) => ({
   ...initialState,
 

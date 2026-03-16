@@ -117,6 +117,7 @@ function deleteAndUpdateFocus(state: AiSuggestionState, id: string): AiSuggestio
   };
 }
 
+/** Manages AI-generated content suggestions pending user approval — add, accept, reject, and navigation. Use selectors, not destructuring. */
 export const useAiSuggestionStore = create<AiSuggestionState & AiSuggestionActions>(
   (set, get) => ({
     ...initialState,

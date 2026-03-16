@@ -22,6 +22,7 @@ import { BlockVideoNodeView } from "./BlockVideoNodeView";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 import { mediaBlockKeyboardShortcuts } from "../shared/mediaNodeViewHelpers";
 
+/** Tiptap node extension for block-level video elements. */
 export const blockVideoExtension = Node.create({
   name: "block_video",
   group: "block",

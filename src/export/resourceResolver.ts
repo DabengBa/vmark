@@ -10,6 +10,7 @@ import { join, dirname, basename } from "@tauri-apps/api/path";
 import { uint8ArrayToBase64 } from "./fontEmbedder";
 import { exportWarn } from "@/utils/debug";
 
+/** Metadata for a single resource (image/asset) found during HTML export. */
 export interface ResourceInfo {
   /** Original src value from HTML */
   originalSrc: string;
@@ -25,6 +26,7 @@ export interface ResourceInfo {
   size?: number;
 }
 
+/** Summary report of all resources resolved during HTML export. */
 export interface ResourceReport {
   /** All resources found in the document */
   resources: ResourceInfo[];
@@ -36,6 +38,7 @@ export interface ResourceReport {
   totalSize: number;
 }
 
+/** Options for resource resolution during export. */
 export interface ResolveOptions {
   /** Base directory for resolving relative paths (usually document directory) */
   baseDir: string;

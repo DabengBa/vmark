@@ -33,6 +33,7 @@ const initialState: WikiLinkPopupState = {
   nodePos: null,
 };
 
+/** Manages wiki link edit popup state — target field and node position. Use selectors, not destructuring. */
 export const useWikiLinkPopupStore = create<WikiLinkPopupStore>((set) => ({
   ...initialState,
 

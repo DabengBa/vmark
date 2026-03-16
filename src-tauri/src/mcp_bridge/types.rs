@@ -21,6 +21,7 @@ pub struct McpRequest {
 }
 
 impl McpRequest {
+    /// Parse an MCP request from a JSON value, splitting `type` into `request_type`.
     pub fn from_value(value: serde_json::Value) -> Result<Self, String> {
         let obj = value.as_object().ok_or("Request must be an object")?;
 
@@ -66,7 +67,7 @@ pub struct McpRequestEvent {
     pub args_json: String,
 }
 
-/// Response from frontend via command.
+/// Response payload from frontend sent via the `mcp_bridge_respond` command.
 #[derive(Clone, Debug, Deserialize)]
 pub struct McpResponsePayload {
     pub id: String,

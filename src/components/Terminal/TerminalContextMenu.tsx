@@ -38,6 +38,7 @@ interface TerminalContextMenuProps {
   onClose: () => void;
 }
 
+/** Renders a right-click context menu for the terminal (copy, paste, select all, clear). */
 export function TerminalContextMenu({
   position,
   term,

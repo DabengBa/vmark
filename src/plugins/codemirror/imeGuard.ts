@@ -1,6 +1,7 @@
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { flushCodeMirrorCompositionQueue, markCodeMirrorCompositionEnd } from "@/utils/imeGuard";
 
+/** Creates a CodeMirror plugin that tracks IME composition state for safe key handling. */
 export function createImeGuardPlugin() {
   return ViewPlugin.fromClass(
     class {

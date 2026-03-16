@@ -134,6 +134,7 @@ export function getExpandedSourcePeekRange(state: EditorState): SourcePeekRange 
   };
 }
 
+/** Serialize a ProseMirror document range to markdown for source peek editing. */
 export function serializeSourcePeekRange(
   state: EditorState,
   range: SourcePeekRange,
@@ -144,6 +145,7 @@ export function serializeSourcePeekRange(
   return serializeMarkdown(state.schema, doc, options);
 }
 
+/** Parse markdown into a ProseMirror Slice suitable for replacing a source peek range. */
 export function createSourcePeekSlice(
   schema: Schema,
   markdown: string,
@@ -154,6 +156,7 @@ export function createSourcePeekSlice(
   return new Slice(content, 0, 0);
 }
 
+/** Replace a document range with parsed markdown and update the selection. Returns false on error. */
 export function applySourcePeekMarkdown(
   view: EditorView,
   range: SourcePeekRange,

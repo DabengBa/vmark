@@ -26,6 +26,7 @@ import {
 
 // --- Line operations ---
 
+/** Moves the current line (or selected lines) up by one position in source mode. */
 export function handleMoveLineUp(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -41,6 +42,7 @@ export function handleMoveLineUp(view: EditorView): boolean {
   return true;
 }
 
+/** Moves the current line (or selected lines) down by one position in source mode. */
 export function handleMoveLineDown(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -56,6 +58,7 @@ export function handleMoveLineDown(view: EditorView): boolean {
   return true;
 }
 
+/** Duplicates the current line (or selected lines) below the original in source mode. */
 export function handleDuplicateLine(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -69,6 +72,7 @@ export function handleDuplicateLine(view: EditorView): boolean {
   return true;
 }
 
+/** Deletes the current line (or selected lines) in source mode. */
 export function handleDeleteLine(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -82,6 +86,7 @@ export function handleDeleteLine(view: EditorView): boolean {
   return true;
 }
 
+/** Joins the current line with the next line (or all selected lines) in source mode. */
 export function handleJoinLines(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -95,6 +100,7 @@ export function handleJoinLines(view: EditorView): boolean {
   return true;
 }
 
+/** Sorts selected lines in ascending alphabetical order in source mode. */
 export function handleSortLinesAsc(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -108,6 +114,7 @@ export function handleSortLinesAsc(view: EditorView): boolean {
   return true;
 }
 
+/** Sorts selected lines in descending alphabetical order in source mode. */
 export function handleSortLinesDesc(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -121,6 +128,7 @@ export function handleSortLinesDesc(view: EditorView): boolean {
   return true;
 }
 
+/** Removes blank lines from the selected text in source mode. Requires a selection. */
 export function handleRemoveBlankLines(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
 
@@ -145,6 +153,7 @@ export function handleRemoveBlankLines(view: EditorView): boolean {
 
 // --- Text transformations ---
 
+/** Applies a text case transformation function to the selected text in source mode. */
 export function handleTransformCase(view: EditorView, transform: (text: string) => string): boolean {
   const { from, to } = view.state.selection.main;
 

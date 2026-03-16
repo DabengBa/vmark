@@ -128,6 +128,7 @@ function getSelectionText(view: EditorView): string {
   return cleanTextForClipboard(state.doc.textBetween(from, to, "\n\n"));
 }
 
+/** Tiptap extension that serializes copied content as clean markdown on the clipboard. */
 export const markdownCopyExtension = Extension.create({
   name: "markdownCopy",
   addProseMirrorPlugins() {

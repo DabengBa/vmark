@@ -21,6 +21,7 @@ import type {
   LineEndingOnSave,
 } from "@/utils/linebreakDetection";
 
+/** Resolve user preference and detected doc style into a concrete hard break style. */
 export function resolveHardBreakStyle(
   docStyle: HardBreakStyle,
   preference: HardBreakStyleOnSave
@@ -35,6 +36,7 @@ export function resolveHardBreakStyle(
   return "twoSpaces";
 }
 
+/** Resolve user preference and detected doc line ending into LF or CRLF. */
 export function resolveLineEndingOnSave(
   docLineEnding: LineEnding,
   preference: LineEndingOnSave
@@ -52,6 +54,7 @@ function isFenceLine(line: string): { fenceChar: "`" | "~"; fenceLength: number 
   return { fenceChar, fenceLength: fence.length };
 }
 
+/** Convert hard breaks between backslash and two-space styles, skipping fenced code blocks. */
 export function normalizeHardBreaks(text: string, target: "backslash" | "twoSpaces"): string {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = normalized.split("\n");
@@ -101,6 +104,7 @@ export function normalizeHardBreaks(text: string, target: "backslash" | "twoSpac
   return lines.join("\n");
 }
 
+/** Normalize all line endings in text to the target style (LF or CRLF). */
 export function normalizeLineEndings(text: string, target: "lf" | "crlf"): string {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   if (target === "crlf") {

@@ -14,6 +14,7 @@ export interface StabilityOptions {
   onProgress?: (status: StabilityStatus) => void;
 }
 
+/** Per-category readiness flags for async content (fonts, images, math, mermaid). */
 export interface StabilityStatus {
   fontsReady: boolean;
   imagesReady: boolean;
@@ -22,6 +23,7 @@ export interface StabilityStatus {
   allReady: boolean;
 }
 
+/** Result of asset stability polling with final status and any warnings. */
 export interface StabilityResult {
   success: boolean;
   status: StabilityStatus;

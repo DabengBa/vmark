@@ -128,6 +128,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent): boolean {
   return true;
 }
 
+/** Tiptap extension that converts pasted HTML to markdown before insertion. */
 export const htmlPasteExtension = Extension.create({
   name: "htmlPaste",
   addProseMirrorPlugins() {

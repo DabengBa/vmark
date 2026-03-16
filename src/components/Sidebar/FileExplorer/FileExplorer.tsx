@@ -54,6 +54,7 @@ interface ContextMenuState {
   targetIsFolder: boolean;
 }
 
+/** Imperative handle exposed by FileExplorer for programmatic file/folder creation. */
 export interface FileExplorerHandle {
   createNewFile: () => void;
   createNewFolder: () => void;
@@ -63,6 +64,7 @@ interface FileExplorerProps {
   currentFilePath: string | null;
 }
 
+/** Workspace file tree panel with virtualized rendering, drag-and-drop, and context menu support. */
 export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   function FileExplorer({ currentFilePath }, ref) {
   // Workspace-only: file tree only shows when in workspace mode

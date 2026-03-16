@@ -56,6 +56,7 @@ interface RevisionActions {
 
 const initialRevision = generateRevisionId();
 
+/** Manages document revision IDs for optimistic concurrency control in MCP operations. Use selectors, not destructuring. */
 export const useRevisionStore = create<RevisionState & RevisionActions>(
   (set, get) => ({
     currentRevision: initialRevision,

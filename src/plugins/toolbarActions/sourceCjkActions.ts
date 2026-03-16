@@ -32,6 +32,7 @@ function shouldPreserveTwoSpaceBreaks(): boolean {
   }
 }
 
+/** Formats CJK spacing in the selection, or the current block if nothing is selected. */
 export function handleFormatCJK(view: EditorView): boolean {
   const config = useSettingsStore.getState().cjkFormatting;
   const preserveTwoSpaceHardBreaks = shouldPreserveTwoSpaceBreaks();
@@ -54,6 +55,7 @@ export function handleFormatCJK(view: EditorView): boolean {
   return formatCJKCurrentBlock(view, config, { preserveTwoSpaceHardBreaks });
 }
 
+/** Formats CJK spacing in the current block (paragraph, list item, or table cell). */
 export function formatCJKCurrentBlock(
   view: EditorView,
   config: CJKFormattingSettings,
@@ -72,6 +74,7 @@ export function formatCJKCurrentBlock(
   return true;
 }
 
+/** Formats CJK spacing across the entire document, preserving cursor position. */
 export function handleFormatCJKFile(view: EditorView): boolean {
   const config = useSettingsStore.getState().cjkFormatting;
   const preserveTwoSpaceHardBreaks = shouldPreserveTwoSpaceBreaks();
@@ -119,6 +122,7 @@ function applyFullDocumentTransform(
   return true;
 }
 
+/** Removes trailing whitespace from all lines, respecting two-space hard break settings. */
 export function handleRemoveTrailingSpaces(view: EditorView): boolean {
   const preserveTwoSpaceHardBreaks = shouldPreserveTwoSpaceBreaks();
   return applyFullDocumentTransform(view, (content) =>
@@ -126,10 +130,12 @@ export function handleRemoveTrailingSpaces(view: EditorView): boolean {
   );
 }
 
+/** Collapses consecutive blank lines into a single blank line across the document. */
 export function handleCollapseBlankLines(view: EditorView): boolean {
   return applyFullDocumentTransform(view, collapseNewlines);
 }
 
+/** Normalizes all line endings to the specified style and updates document metadata. */
 export function handleLineEndings(view: EditorView, target: "lf" | "crlf"): boolean {
   const windowLabel = getWindowLabel();
   const tabId = useTabStore.getState().activeTabId[windowLabel] ?? null;

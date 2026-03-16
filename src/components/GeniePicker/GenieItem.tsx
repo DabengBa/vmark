@@ -14,6 +14,7 @@ interface GenieItemProps {
   onHover: (index: number) => void;
 }
 
+/** Renders a single genie entry in the GeniePicker list with name, description, and scope. */
 export function GenieItem({
   genie,
   index,
@@ -48,6 +49,7 @@ export function GenieItem({
   );
 }
 
+/** Convert a kebab-case genie name to Title Case (e.g. "fix-grammar" to "Fix Grammar"). */
 export function formatName(name: string): string {
   return name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

@@ -40,6 +40,7 @@ import "./genie-picker.css";
 
 const SCOPES: GenieScope[] = ["selection", "block", "document"];
 
+/** Spotlight-style overlay for browsing, searching, and invoking AI genies or freeform prompts. */
 export function GeniePicker() {
   const isOpen = useGeniePickerStore((s) => s.isOpen);
   const filterScope = useGeniePickerStore((s) => s.filterScope);

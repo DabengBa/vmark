@@ -75,9 +75,11 @@ interface SessionEntry {
   pendingRafId: number | null;
 }
 
+/** Callbacks passed to the terminal sessions hook for panel-level actions. */
 export interface UseTerminalSessionsCallbacks {
   onSearch?: () => void;
 }
+/** Hook managing the lifecycle of multiple terminal sessions (xterm + PTY) with theme and workspace sync. */
 export function useTerminalSessions(
   containerRef: React.RefObject<HTMLDivElement | null>,
   callbacks?: UseTerminalSessionsCallbacks,

@@ -45,6 +45,7 @@ interface TabProps {
   onKeyDown?: (tabId: string, e: KeyboardEvent) => void;
 }
 
+/** Renders an individual tab pill with dirty, pinned, missing, and divergent state indicators. */
 export const Tab = memo(function Tab({
   tab,
   isActive,

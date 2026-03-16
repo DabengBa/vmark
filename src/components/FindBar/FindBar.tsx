@@ -54,6 +54,7 @@ function preventSelectAllOnButtons(e: ReactKeyboardEvent) {
   }
 }
 
+/** Renders an inline search-and-replace bar with case, whole-word, and regex toggle support. */
 export function FindBar() {
   const isOpen = useSearchStore((state) => state.isOpen);
   const query = useSearchStore((state) => state.query);

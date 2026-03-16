@@ -61,6 +61,7 @@ const initialState: SearchState = {
   currentIndex: -1,
 };
 
+/** Manages Find & Replace state — query, options, match count, and editor-agnostic replace dispatch. Use selectors, not destructuring. */
 export const useSearchStore = create<SearchState & SearchActions>((set, get) => ({
   ...initialState,
 

@@ -37,6 +37,7 @@ import "./heading-picker.css";
 import "@/styles/popup-shared.css";
 // Note: katex.min.css is imported in main.tsx for consistent dev/prod cascade order
 
+/** Top-level editor container that switches between WYSIWYG and Source editing modes. */
 export function Editor() {
   const sourceMode = useEditorStore((state) => state.sourceMode);
   const tabId = useActiveTabId();

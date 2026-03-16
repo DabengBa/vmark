@@ -19,6 +19,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useDocumentFilePath, useDocumentIsDirty } from "./useDocumentState";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { getFileName } from "@/utils/pathUtils";
+/** Hook that updates the native window title with the filename and dirty indicator based on settings. */
 export function useWindowTitle() {
   const filePath = useDocumentFilePath();
   const isDirty = useDocumentIsDirty();

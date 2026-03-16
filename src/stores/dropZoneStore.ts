@@ -31,6 +31,7 @@ const initialState: DropZoneState = {
   imageCount: 0,
 };
 
+/** Manages file drag-and-drop state over the editor for visual drop zone indicators. Use selectors, not destructuring. */
 export const useDropZoneStore = create<DropZoneState & DropZoneActions>((set) => ({
   ...initialState,
 

@@ -68,6 +68,7 @@ function clearTimers() {
   }
 }
 
+/** Manages AI genie invocation concurrency — singleton guard, elapsed timer, error state, and success flash. Use selectors, not destructuring. */
 export const useAiInvocationStore = create<AiInvocationState & AiInvocationActions>(
   (set, get) => ({
     ...initialState,

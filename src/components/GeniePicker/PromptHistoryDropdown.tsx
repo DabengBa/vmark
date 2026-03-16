@@ -14,6 +14,7 @@ interface PromptHistoryDropdownProps {
   onClose(): void;
 }
 
+/** Renders a searchable dropdown of previous freeform prompts above the GeniePicker textarea. */
 export function PromptHistoryDropdown({
   entries,
   selectedIndex,

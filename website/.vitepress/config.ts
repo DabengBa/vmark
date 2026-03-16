@@ -47,7 +47,9 @@ export default withMermaid(defineConfig({
             { text: 'SVG Graphics', link: '/guide/svg' },
             { text: 'Media (Video/Audio)', link: '/guide/media-support' },
             { text: 'Integrated Terminal', link: '/guide/terminal' },
+            { text: 'Workspace Management', link: '/guide/workspace-management' },
             { text: 'CJK Formatting', link: '/guide/cjk-formatting' },
+            { text: 'Settings', link: '/guide/settings' },
             { text: 'Privacy', link: '/guide/privacy' },
             { text: 'License', link: '/guide/license' },
           ]

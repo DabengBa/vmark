@@ -52,8 +52,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Listener, Manager};
 
-/// Pending files queued during cold start before frontend is ready
-/// This solves the race condition where Finder opens a file but React hasn't mounted yet
+/// A file open request queued during cold start before the frontend is ready.
+///
+/// Solves the race condition where Finder opens a file but React hasn't mounted yet.
 #[derive(Clone, serde::Serialize)]
 pub struct PendingFileOpen {
     pub path: String,
@@ -411,6 +412,7 @@ fn machine_id_hash() -> String {
     format!("{:x}", Sha256::digest(input.as_bytes()))
 }
 
+/// Build and run the Tauri application with all plugins, commands, and event handlers.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]

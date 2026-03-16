@@ -12,6 +12,7 @@ use tauri::{Emitter, WebviewWindow};
 // Types
 // ============================================================================
 
+/// Detected CLI AI provider with availability and resolved path.
 #[derive(Debug, Serialize)]
 pub struct CliProviderEntry {
     #[serde(rename = "type")]
@@ -22,6 +23,7 @@ pub struct CliProviderEntry {
     pub path: Option<String>,
 }
 
+/// Streaming AI response chunk emitted via `ai:response` events.
 #[derive(Debug, Serialize, Clone)]
 pub struct AiResponseChunk {
     #[serde(rename = "requestId")]

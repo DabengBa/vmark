@@ -93,6 +93,7 @@ function findMatchesInDoc(
   return matches;
 }
 
+/** Tiptap extension that provides find/replace highlighting and navigation. */
 export const searchExtension = Extension.create({
   name: "search",
   addProseMirrorPlugins() {

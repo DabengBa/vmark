@@ -129,8 +129,8 @@ fn normalize_window_label(state: &mut WindowState, expected_label: &str) {
     }
 }
 
-/// Result of capture_session, including the set of expected window labels
-/// so callers can distinguish "closed window" from "timed-out window".
+/// Result of `capture_session`, including the captured session data and the
+/// set of expected window labels (to distinguish closed vs. timed-out windows).
 pub struct CaptureResult {
     pub session: SessionData,
     pub expected_labels: HashSet<String>,

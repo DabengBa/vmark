@@ -20,8 +20,11 @@ import { TextSelection } from "@tiptap/pm/state";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 import "./alert-block.css";
 
+/** All valid GitHub-style alert block types. */
 export const ALERT_TYPES = ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"] as const;
+/** Union type of valid alert block type strings. */
 export type AlertType = (typeof ALERT_TYPES)[number];
+/** Default alert type used when creating new alert blocks. */
 export const DEFAULT_ALERT_TYPE: AlertType = "NOTE";
 
 /**

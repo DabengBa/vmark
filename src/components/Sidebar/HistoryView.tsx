@@ -22,6 +22,7 @@ import {
 import { buildHistorySettings, HISTORY_CLEARED_EVENT } from "@/utils/historyTypes";
 import { formatSnapshotTime, groupByDay } from "@/utils/dateUtils";
 
+/** Renders the document version history sidebar with revert and delete actions. */
 export function HistoryView() {
   const filePath = useDocumentFilePath();
   const { getContent, loadContent } = useDocumentActions();

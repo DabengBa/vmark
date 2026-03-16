@@ -140,13 +140,16 @@ const HTML_PREVIEW_STYLE_PROPS = new Set([
   "text-decoration",
 ]);
 
+/** Whether the HTML preview allows inline-only or block-level elements. */
 export type HtmlPreviewContext = "inline" | "block";
 
+/** Options for sanitizeHtmlPreview: context level and optional style allowlist. */
 export interface HtmlPreviewOptions {
   allowStyles?: boolean;
   context?: HtmlPreviewContext;
 }
 
+/** Sanitize HTML for preview display with configurable context and optional safe style attributes. */
 export function sanitizeHtmlPreview(html: string, options?: HtmlPreviewOptions): string {
   const context = options?.context ?? "inline";
   const allowStyles = options?.allowStyles ?? false;

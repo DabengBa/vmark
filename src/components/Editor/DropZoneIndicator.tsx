@@ -10,6 +10,7 @@
 import { useDropZoneStore } from "@/stores/dropZoneStore";
 import "./drop-zone.css";
 
+/** Renders a drop overlay when images are dragged over the editor area. */
 export function DropZoneIndicator() {
   const isDragging = useDropZoneStore((state) => state.isDragging);
   const hasImages = useDropZoneStore((state) => state.hasImages);

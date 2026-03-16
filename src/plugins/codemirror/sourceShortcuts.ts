@@ -116,6 +116,7 @@ export function getSourceBlockBounds(view: EditorView): { from: number; to: numb
   return null;
 }
 
+/** Builds the full CodeMirror keymap for source mode from user-configurable shortcuts. */
 export function buildSourceShortcutKeymap(): KeyBinding[] {
   const shortcuts = useShortcutsStore.getState();
   const bindings: KeyBinding[] = [];

@@ -27,6 +27,7 @@ import { closeTabWithDirtyCheck } from "@/hooks/useTabOperations";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { matchesShortcutEvent } from "@/utils/shortcutMatch";
 
+/** Hook that handles keyboard shortcuts for new tab, close tab (with dirty check), and status bar toggle. */
 export function useTabShortcuts() {
   const windowLabel = useWindowLabel();
   const isDocumentWindow = useIsDocumentWindow();

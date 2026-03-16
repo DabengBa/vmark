@@ -102,9 +102,9 @@ Quickly change text case via Format → Transform:
 
 | Transform | Shortcut |
 |-----------|----------|
-| UPPERCASE | `Ctrl+Shift+U` |
-| lowercase | `Ctrl+Shift+L` |
-| Title Case | `Ctrl+Shift+T` |
+| UPPERCASE | `Ctrl + Shift + U` (macOS) / `Alt + Shift + U` (Win/Linux) |
+| lowercase | `Ctrl + Shift + L` (macOS) / `Alt + Shift + L` (Win/Linux) |
+| Title Case | `Ctrl + Shift + T` (macOS) / `Alt + Shift + T` (Win/Linux) |
 | Toggle Case | — |
 
 ### Block Elements
@@ -118,7 +118,7 @@ Quickly change text case via Format → Transform:
 
 ### Hard Line Breaks
 
-Press `Shift+Enter` to insert a hard line break within a paragraph.
+Press `Shift + Enter` to insert a hard line break within a paragraph.
 VMark uses two-space style by default for maximum compatibility.
 Configure in **Settings > Editor > Whitespace**.
 
@@ -128,14 +128,14 @@ Powerful line manipulation via Edit → Lines:
 
 | Action | Shortcut |
 |--------|----------|
-| Move Line Up | `Alt+Up` |
-| Move Line Down | `Alt+Down` |
-| Duplicate Line | `Shift+Alt+Down` |
-| Delete Line | `Mod+Shift+K` |
-| Join Lines | `Mod+J` |
+| Move Line Up | `Alt + Up` |
+| Move Line Down | `Alt + Down` |
+| Duplicate Line | `Shift + Alt + Down` |
+| Delete Line | `Mod + Shift + K` |
+| Join Lines | `Mod + J` |
 | Remove Blank Lines | — |
 | Sort Lines Ascending | `F4` |
-| Sort Lines Descending | `Shift+F4` |
+| Sort Lines Descending | `Shift + F4` |
 
 ## Tables
 
@@ -229,11 +229,26 @@ Built-in AI writing assistance powered by your choice of provider:
 
 ## Search & Replace
 
-- Find bar (`Cmd/Ctrl + F`)
-- Find next/previous
-- Use selection for find
-- Regular expression search
-- Replace all functionality
+Open the find bar with `Mod + F`. It appears inline at the top of the editor area and works in both WYSIWYG and Source modes.
+
+**Navigation:**
+
+| Action | Shortcut |
+|--------|----------|
+| Find next match | `Enter` or `Mod + G` |
+| Find previous match | `Shift + Enter` or `Mod + Shift + G` |
+| Use selection for find | `Mod + E` |
+| Close find bar | `Escape` |
+
+**Search options** — toggle via buttons in the find bar:
+
+- **Case sensitive** — match exact letter casing
+- **Whole word** — only match complete words, not substrings
+- **Regular expression** — use regex patterns (enable in Settings first)
+
+**Replace:**
+
+Click the expand chevron on the find bar to reveal the replace row. Type replacement text, then use **Replace** (single match) or **Replace All** (every match at once). The match counter displays the current position and total (e.g., "3 of 12") so you always know where you are.
 
 ## Export Options
 
@@ -246,7 +261,7 @@ Export to standalone HTML with two packaging modes:
 - **Folder mode** (default): Creates `Document/index.html` with assets in a subfolder
 - **Single file mode**: Creates a self-contained `.html` file with embedded images
 
-Exported HTML includes the **VMark Reader** — interactive controls for settings, table of contents, image lightbox, and more.
+Exported HTML includes the [**VMark Reader**](/guide/export#vmark-reader) — interactive controls for settings, table of contents, image lightbox, and more.
 
 [Learn more about export →](/guide/export)
 
@@ -287,15 +302,19 @@ Built-in Chinese/Japanese/Korean text formatting:
 
 ### Focus Mode (`F8`)
 
-Dim everything except the current paragraph for distraction-free writing.
+Focus Mode dims all blocks except the one you are currently editing, reducing visual noise so you can concentrate on a single paragraph. The active block is highlighted at full opacity while surrounding content fades to a muted color. Toggle it with `F8` — it works in both WYSIWYG and Source modes and persists until you toggle it off.
 
 ### Typewriter Mode (`F9`)
 
-Keep the active line centered on screen for a typewriter-like experience.
+Typewriter Mode keeps the active line vertically centered in the viewport, so your eyes stay in a fixed position while the document scrolls beneath you — just like typing on a physical typewriter. Toggle it with `F9`. It works in both editing modes and uses smooth scrolling with a small threshold to avoid jittery adjustments on minor cursor moves.
+
+### Combining Focus + Typewriter
+
+Focus Mode and Typewriter Mode can be enabled simultaneously. Together they provide a fully distraction-free writing environment: surrounding blocks are dimmed *and* the current line stays centered on screen.
 
 ### Word Wrap (`Alt + Z`)
 
-Toggle soft line wrapping in the editor.
+Toggle soft line wrapping with `Alt + Z`. When enabled, long lines wrap at the editor width instead of scrolling horizontally. The setting persists across sessions.
 
 ## Text Utilities
 
@@ -333,6 +352,8 @@ VMark automatically checks for updates and can download and install them in-app:
 - Quick file switching
 - Recent files tracking
 - Window size and position remembered across sessions
+
+[Learn more →](/guide/workspace-management)
 
 ## Customization
 

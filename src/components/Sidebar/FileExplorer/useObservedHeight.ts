@@ -7,6 +7,7 @@ function clampHeight(rawHeight: number): number {
   return Math.max(1, Math.floor(rawHeight));
 }
 
+/** Hook that tracks an element's height via ResizeObserver, returning a callback ref and the measured height. */
 export function useObservedHeight<T extends HTMLElement>(): [CallbackRef<T>, number] {
   const [height, setHeight] = useState(1);
   const observerRef = useRef<ResizeObserver | null>(null);

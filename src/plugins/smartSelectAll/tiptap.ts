@@ -143,6 +143,7 @@ function handleSelectionUndo(state: EditorState, dispatch?: (tr: Transaction) =>
   return true;
 }
 
+/** Tiptap extension that makes Cmd+A select the current block first, then the full document. */
 export const smartSelectAllExtension = Extension.create({
   name: "smartSelectAll",
   priority: 200,

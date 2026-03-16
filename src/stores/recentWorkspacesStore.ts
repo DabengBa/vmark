@@ -19,6 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getFileName } from "@/utils/pathUtils";
 import { recentWarn } from "@/utils/debug";
 
+/** A recently opened workspace entry with path, folder name, and timestamp. */
 export interface RecentWorkspace {
   path: string;       // Absolute path to workspace folder
   name: string;       // Folder name for display
@@ -43,6 +44,7 @@ async function updateNativeMenu(workspaces: RecentWorkspace[]) {
   }
 }
 
+/** Manages recently opened workspaces (max 10) with persistence and native menu sync. Use selectors, not destructuring. */
 export const useRecentWorkspacesStore = create<RecentWorkspacesState>()(
   persist(
     (set, get) => ({

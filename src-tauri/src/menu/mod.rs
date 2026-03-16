@@ -28,8 +28,11 @@ mod dynamic;
 
 use std::sync::Mutex;
 
+/// Menu ID for the Open Recent (files) submenu.
 pub const RECENT_FILES_SUBMENU_ID: &str = "recent-files-submenu";
+/// Menu ID for the Open Recent Workspace submenu.
 pub const RECENT_WORKSPACES_SUBMENU_ID: &str = "recent-workspaces-submenu";
+/// Menu ID for the Genies submenu inside Edit.
 pub const GENIES_SUBMENU_ID: &str = "genies-submenu";
 
 /// Stores the recent files list snapshot at menu build time.

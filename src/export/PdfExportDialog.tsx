@@ -52,6 +52,7 @@ interface PdfExportContentProps {
 
 // --- Component ---
 
+/** Renders the PDF export dialog with live paginated preview and settings sidebar. */
 export function PdfExportContent({
   renderedHtml,
   defaultName,

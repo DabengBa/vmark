@@ -56,6 +56,7 @@ function isComposingOrGrace(view: Parameters<typeof isProseMirrorComposing>[0]):
   return isProseMirrorComposing(view) || isProseMirrorInCompositionGrace(view);
 }
 
+/** Tiptap extension for automatic bracket and quote pairing. */
 export const autoPairExtension = Extension.create({
   name: "autoPair",
   addProseMirrorPlugins() {

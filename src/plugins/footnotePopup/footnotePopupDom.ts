@@ -10,11 +10,17 @@
 
 import { popupIcons } from "@/utils/popupComponents";
 
+/** Delay in ms before auto-focusing the textarea after popup appears. */
 export const AUTOFOCUS_DELAY_MS = 50;
+/** Delay in ms before checking if the popup should close after a blur event. */
 export const BLUR_CHECK_DELAY_MS = 100;
+/** Default width in px for the footnote popup container. */
 export const DEFAULT_POPUP_WIDTH = 280;
+/** Default height in px for the footnote popup container. */
 export const DEFAULT_POPUP_HEIGHT = 80;
+/** Gap in px between the footnote marker and the popup. */
 export const POPUP_GAP_PX = 8;
+/** Maximum height in px for the footnote content textarea. */
 export const TEXTAREA_MAX_HEIGHT = 120;
 
 interface FootnotePopupDomHandlers {
@@ -27,6 +33,7 @@ interface FootnotePopupDomHandlers {
   onDelete: () => void;
 }
 
+/** Creates the footnote popup DOM structure with textarea and action buttons. */
 export function createFootnotePopupDom(handlers: FootnotePopupDomHandlers) {
   const container = document.createElement("div");
   container.className = "footnote-popup";

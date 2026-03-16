@@ -35,7 +35,7 @@ import {
 } from "@/utils/workspaceIdentity";
 import { windowScopedStorage } from "@/utils/workspaceStorage";
 
-// Workspace configuration stored in app data (keyed by workspace root path hash)
+/** Workspace configuration — excluded folders, session restore tabs, file visibility, and trust identity. */
 export interface WorkspaceConfig {
   version: 1;
   excludeFolders: string[];
@@ -87,6 +87,7 @@ const DEFAULT_CONFIG: WorkspaceConfig = {
   showAllFiles: false,
 };
 
+/** Manages workspace folder state — open/close, config, excluded folders, and trust. Use selectors, not destructuring. */
 export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()(
   persist(
     (set, get) => ({

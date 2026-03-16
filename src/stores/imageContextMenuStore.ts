@@ -34,6 +34,7 @@ const initialState: ImageContextMenuState = {
   imageNodePos: -1,
 };
 
+/** Manages image right-click context menu state — position, source URL, and node position. Use selectors, not destructuring. */
 export const useImageContextMenuStore = create<ImageContextMenuStore>(
   (set) => ({
     ...initialState,

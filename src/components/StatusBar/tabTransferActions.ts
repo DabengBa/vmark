@@ -37,6 +37,7 @@ interface DragOutTransferOptions {
   announce: (message: string) => void;
 }
 
+/** Undo a tab transfer by removing it from the target window and recreating it in the source. */
 export async function restoreTransferredTab(
   sourceWindowLabel: string,
   targetWindowLabel: string,
@@ -62,6 +63,7 @@ export async function restoreTransferredTab(
   );
 }
 
+/** Transfer a tab to another window (or detach to a new one) after a drag-out gesture. */
 export async function transferTabFromDragOut({
   tabId,
   point,

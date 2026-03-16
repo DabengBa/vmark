@@ -193,6 +193,7 @@ export function isValidPosition(suggestion: AiSuggestion, docSize: number): bool
   return suggestion.from >= 0 && suggestion.to <= docSize && suggestion.from <= suggestion.to;
 }
 
+/** Tiptap extension that renders AI suggestion decorations and handles accept/reject shortcuts. */
 export const aiSuggestionExtension = Extension.create({
   name: "aiSuggestion",
 

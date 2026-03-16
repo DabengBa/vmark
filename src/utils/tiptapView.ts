@@ -11,6 +11,7 @@
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { EditorView } from "@tiptap/pm/view";
 
+/** Safely get the ProseMirror EditorView from a Tiptap editor, or null if destroyed. */
 export function getTiptapEditorView(editor: TiptapEditor | null): EditorView | null {
   if (!editor) return null;
   try {
@@ -20,6 +21,7 @@ export function getTiptapEditorView(editor: TiptapEditor | null): EditorView | n
   }
 }
 
+/** Safely get the connected DOM element from an EditorView, or null if detached. */
 export function getTiptapEditorDom(view: EditorView | null): HTMLElement | null {
   if (!view) return null;
   try {

@@ -37,8 +37,10 @@ export function setSelectionNear(
   tr.setSelection(selectionCtor.near(tr.doc.resolve(pos)));
 }
 
+/** Allowed column alignment values for table cells. */
 export type TableAlignment = "left" | "center" | "right";
 
+/** Metadata about the table at the current cursor position. */
 export type TableInfo = {
   tableNode: Node;
   tablePos: number;
@@ -48,6 +50,7 @@ export type TableInfo = {
   numCols: number;
 };
 
+/** Checks whether the cursor is currently inside a table node. */
 export function isInTable(view: EditorView): boolean {
   const $pos = view.state.selection.$from;
   for (let d = $pos.depth; d > 0; d--) {
@@ -56,6 +59,7 @@ export function isInTable(view: EditorView): boolean {
   return false;
 }
 
+/** Returns table metadata (position, row/column indices, dimensions) at the cursor, or null. */
 export function getTableInfo(view: EditorView): TableInfo | null {
   const $pos = view.state.selection.$from;
 
@@ -106,6 +110,7 @@ function getCellPosition(table: Node, tablePos: number, rowIndex: number, colInd
   return pos + 1;
 }
 
+/** Inserts a new table row above the current row (or below if on the header row). */
 export function addRowAbove(view: EditorView): boolean {
   const info = getTableInfo(view);
   if (!info) return false;
@@ -114,24 +119,28 @@ export function addRowAbove(view: EditorView): boolean {
   return cmd(view.state, view.dispatch);
 }
 
+/** Inserts a new table row below the current row. */
 export function addRowBelow(view: EditorView): boolean {
   if (!isInTable(view)) return false;
   view.focus();
   return addRowAfter(view.state, view.dispatch);
 }
 
+/** Inserts a new table column to the left of the current column. */
 export function addColLeft(view: EditorView): boolean {
   if (!isInTable(view)) return false;
   view.focus();
   return addColumnBefore(view.state, view.dispatch);
 }
 
+/** Inserts a new table column to the right of the current column. */
 export function addColRight(view: EditorView): boolean {
   if (!isInTable(view)) return false;
   view.focus();
   return addColumnAfter(view.state, view.dispatch);
 }
 
+/** Deletes the current table row. Deletes the entire table if only 2 rows remain. */
 export function deleteCurrentRow(view: EditorView): boolean {
   if (!isInTable(view)) return false;
   // If table only has header + 1 data row (2 rows total), delete entire table
@@ -143,12 +152,14 @@ export function deleteCurrentRow(view: EditorView): boolean {
   return deleteRow(view.state, view.dispatch);
 }
 
+/** Deletes the current table column. */
 export function deleteCurrentColumn(view: EditorView): boolean {
   if (!isInTable(view)) return false;
   view.focus();
   return deleteColumn(view.state, view.dispatch);
 }
 
+/** Deletes the entire table at the current cursor position. */
 export function deleteCurrentTable(view: EditorView): boolean {
   const info = getTableInfo(view);
   if (!info) return false;
@@ -160,6 +171,7 @@ export function deleteCurrentTable(view: EditorView): boolean {
   return true;
 }
 
+/** Sets text alignment on the current column (or all columns) of the current table. */
 export function alignColumn(view: EditorView, alignment: TableAlignment, allColumns: boolean): boolean {
   const info = getTableInfo(view);
   if (!info) return false;
@@ -256,6 +268,7 @@ function collectCellInlineContent(cell: Node, schema: { text: (s: string) => Nod
   return fragments;
 }
 
+/** Normalizes table cells to single paragraphs by flattening multi-paragraph content. */
 export function formatTable(view: EditorView): boolean {
   const info = getTableInfo(view);
   if (!info) return false;

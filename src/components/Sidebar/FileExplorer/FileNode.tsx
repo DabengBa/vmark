@@ -22,6 +22,7 @@ interface FileNodeProps extends NodeRendererProps<FileNodeType> {
   currentFilePath: string | null;
 }
 
+/** Renders a single file or folder node in the explorer tree with inline rename support. */
 export function FileNode({ node, style, dragHandle, currentFilePath }: FileNodeProps) {
   const data = node.data;
   const isActive = data.id === currentFilePath;

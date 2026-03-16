@@ -12,11 +12,13 @@ use tauri::AppHandle;
 use super::custom_menu::create_menu_with_shortcuts;
 use super::dynamic::{update_recent_files_menu, update_recent_workspaces_menu};
 
+/// Update the Open Recent submenu with the given file paths.
 #[tauri::command]
 pub fn update_recent_files(app: AppHandle, files: Vec<String>) -> Result<(), String> {
     update_recent_files_menu(&app, files).map_err(|e| e.to_string())
 }
 
+/// Update the Open Recent Workspace submenu with the given workspace paths.
 #[tauri::command]
 pub fn update_recent_workspaces(app: AppHandle, workspaces: Vec<String>) -> Result<(), String> {
     update_recent_workspaces_menu(&app, workspaces).map_err(|e| e.to_string())

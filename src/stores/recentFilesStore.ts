@@ -21,6 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getFileName } from "@/utils/pathUtils";
 import { recentWarn } from "@/utils/debug";
 
+/** A recently opened file entry with path, display name, and timestamp. */
 export interface RecentFile {
   path: string;
   name: string;
@@ -54,6 +55,7 @@ async function registerDockRecent(path: string) {
   }
 }
 
+/** Manages recently opened files (max 10) with persistence and native menu sync. Use selectors, not destructuring. */
 export const useRecentFilesStore = create<RecentFilesState>()(
   persist(
     (set, get) => ({

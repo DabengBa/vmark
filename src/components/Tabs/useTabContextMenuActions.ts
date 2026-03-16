@@ -37,6 +37,7 @@ import { restoreTransferredTab } from "@/components/StatusBar/tabTransferActions
 import type { TabTransferPayload } from "@/types/tabTransfer";
 import { windowCloseWarn } from "@/utils/debug";
 
+/** Definition for a single item in the tab context menu. */
 export interface TabMenuItem {
   id: string;
   label: string;
@@ -58,6 +59,7 @@ interface UseTabContextMenuActionsOptions {
   onClose: () => void;
 }
 
+/** Hook that builds context menu items for a tab with enable/disable logic and action callbacks. */
 export function useTabContextMenuActions({
   tab,
   tabs,

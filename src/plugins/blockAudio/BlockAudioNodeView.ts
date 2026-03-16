@@ -30,6 +30,7 @@ const AUDIO_LOAD_CONFIG: MediaLoadConfig = {
   errorClass: "media-error",
 };
 
+/** ProseMirror NodeView that renders a block audio player with controls. */
 export class BlockAudioNodeView implements NodeView {
   dom: HTMLElement;
   private audio: HTMLAudioElement;

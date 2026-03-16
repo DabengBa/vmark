@@ -1,6 +1,7 @@
 import { Mark, mergeAttributes } from "@tiptap/core";
 import "./sub-super.css";
 
+/** Tiptap mark extension for subscript text (renders as `<sub>`). */
 export const subscriptExtension = Mark.create({
   name: "subscript",
   parseHTML() {
@@ -11,6 +12,7 @@ export const subscriptExtension = Mark.create({
   },
 });
 
+/** Tiptap mark extension for superscript text (renders as `<sup>`). */
 export const superscriptExtension = Mark.create({
   name: "superscript",
   parseHTML() {

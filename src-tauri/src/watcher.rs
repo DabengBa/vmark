@@ -40,8 +40,9 @@ struct WatcherEntry {
     _watcher: RecommendedWatcher,
 }
 
-/// File system change event with watch context.
-/// Includes watchId to scope events to their originating watcher.
+/// File system change event emitted via `fs:changed` to the frontend.
+///
+/// Scoped by `watch_id` so multi-window setups can filter events.
 #[derive(Clone, Serialize)]
 pub struct FsChangeEvent {
     /// Unique identifier for this watcher (window label)

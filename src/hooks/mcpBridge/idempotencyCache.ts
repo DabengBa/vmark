@@ -151,7 +151,7 @@ class IdempotencyCache {
   }
 }
 
-// Singleton instance
+/** Singleton idempotency cache instance for global MCP request deduplication. */
 export const idempotencyCache = new IdempotencyCache();
 
 // Export class for testing

@@ -49,6 +49,7 @@ const initialState: LinkCreatePopupState = {
   showTextInput: true,
 };
 
+/** Manages link creation popup state — pre-filled text, URL input, and document range. Use selectors, not destructuring. */
 export const useLinkCreatePopupStore = create<LinkCreatePopupState & LinkCreatePopupActions>((set) => ({
   ...initialState,
 

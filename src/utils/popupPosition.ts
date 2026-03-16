@@ -20,6 +20,7 @@
  * @module utils/popupPosition
  */
 
+/** Bounding rectangle of the anchor element the popup is positioned against. */
 export interface AnchorRect {
   top: number;
   left: number;
@@ -27,16 +28,19 @@ export interface AnchorRect {
   right: number;
 }
 
+/** Separate horizontal and vertical constraint boundaries for popup placement. */
 export interface BoundaryRects {
   horizontal: { left: number; right: number };
   vertical: { top: number; bottom: number };
 }
 
+/** Width and height of the popup element to be positioned. */
 export interface PopupDimensions {
   width: number;
   height: number;
 }
 
+/** Options for calculating popup position (anchor, popup size, bounds, gap, preference). */
 export interface PositionOptions {
   anchor: AnchorRect;
   popup: PopupDimensions;
@@ -45,6 +49,7 @@ export interface PositionOptions {
   preferAbove?: boolean;
 }
 
+/** Computed top/left coordinates for the popup. */
 export interface PopupPosition {
   top: number;
   left: number;

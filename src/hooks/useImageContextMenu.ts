@@ -53,6 +53,7 @@ async function resolveImagePath(
   }
 }
 
+/** Hook that returns a handler for image context menu actions (change, delete, copy path, reveal in Finder). */
 export function useImageContextMenu(getEditorView: GetEditorView) {
   const filePath = useDocumentFilePath();
 

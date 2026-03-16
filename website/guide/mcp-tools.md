@@ -2,7 +2,7 @@
 
 This page documents all MCP tools available when Claude (or other AI assistants) connects to VMark.
 
-VMark exposes **10 composite tools**, **2 protocol tools**, and **4 resources**. Composite tools use an `action` parameter to select the operation — this reduces token overhead while keeping all capabilities accessible.
+VMark exposes a set of **composite tools**, **protocol tools**, and **resources** — all documented below. Composite tools use an `action` parameter to select the operation — this reduces token overhead while keeping all capabilities accessible.
 
 ::: tip Recommended Workflow
 For most writing tasks, you only need a handful of actions:

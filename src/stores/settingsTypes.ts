@@ -14,8 +14,10 @@ import type { HardBreakStyleOnSave, LineEndingOnSave } from "@/utils/linebreakDe
 // Theme types
 // ---------------------------------------------------------------------------
 
+/** Available theme identifiers for the editor color scheme. */
 export type ThemeId = "white" | "paper" | "mint" | "sepia" | "night";
 
+/** Color palette for a single theme — background, foreground, link, and optional dark-mode overrides. */
 export interface ThemeColors {
   background: string;
   foreground: string;
@@ -36,21 +38,20 @@ export interface ThemeColors {
 // CJK
 // ---------------------------------------------------------------------------
 
-// CJK letter spacing options (0 = off)
+/** CJK letter spacing in em units (0 = off). */
 export type CJKLetterSpacingValue = "0" | "0.02" | "0.03" | "0.05" | "0.08" | "0.10" | "0.12";
 
-// Quote style options for smart quote conversion
-// - curly: "" '' (Simplified Chinese, Western)
-// - corner: 「」『』 (Traditional Chinese, Japanese)
-// - guillemets: «» ‹› (French, Russian)
+/** Target quote style: curly (""), corner (「」), or guillemets (<<>>). */
 export type QuoteStyle = "curly" | "corner" | "guillemets";
 
+/** CJK bracket auto-pairing style: "off" disables, "auto" enables smart pairing. */
 export type AutoPairCJKStyle = "off" | "auto";
 
 // ---------------------------------------------------------------------------
 // Appearance
 // ---------------------------------------------------------------------------
 
+/** Visual appearance preferences — theme, fonts, spacing, and editor width. */
 export interface AppearanceSettings {
   theme: ThemeId;
   latinFont: string;
@@ -69,6 +70,7 @@ export interface AppearanceSettings {
 // CJK Formatting
 // ---------------------------------------------------------------------------
 
+/** Fine-grained CJK formatting toggles for spacing, normalization, dashes, and quotes. */
 export interface CJKFormattingSettings {
   // Group 1: Universal
   ellipsisNormalization: boolean;
@@ -104,13 +106,19 @@ export interface CJKFormattingSettings {
 // Media & Content
 // ---------------------------------------------------------------------------
 
+/** Border style for images and diagrams: none, always visible, or on hover. */
 export type MediaBorderStyle = "none" | "always" | "hover";
+/** Alignment for block images and tables. */
 export type MediaAlignment = "left" | "center";
+/** Alignment for headings. */
 export type HeadingAlignment = "left" | "center";
+/** Relative font size for lists, blockquotes, and tables (1 = 100%). */
 export type BlockFontSize = "0.85" | "0.9" | "0.95" | "1";
 
+/** How raw HTML blocks are rendered in WYSIWYG mode. */
 export type HtmlRenderingMode = "hidden" | "sanitized" | "sanitizedWithStyles";
 
+/** Whether pasted markdown is converted to rich text in WYSIWYG mode. */
 export type MarkdownPasteMode = "auto" | "off";
 
 /**
@@ -121,12 +129,14 @@ export type MarkdownPasteMode = "auto" | "off";
  */
 export type PasteMode = "smart" | "plain" | "rich";
 
+/** What to put in text/plain on copy: "default" (plain text) or "markdown" (markdown syntax). */
 export type CopyFormat = "default" | "markdown";
 
 // ---------------------------------------------------------------------------
 // Markdown Settings
 // ---------------------------------------------------------------------------
 
+/** Markdown editing behavior — line breaks, paste handling, auto-pair, and copy format. */
 export interface MarkdownSettings {
   preserveLineBreaks: boolean; // Don't collapse blank lines
   showBrTags: boolean; // Display <br> tags visibly
@@ -153,9 +163,10 @@ export interface MarkdownSettings {
 // Image Settings
 // ---------------------------------------------------------------------------
 
-// Image auto-resize options (0 = off, positive = max dimension in pixels)
+/** Image auto-resize max dimension in pixels (0 = disabled). */
 export type ImageAutoResizeOption = 0 | 800 | 1200 | 1920 | 2560;
 
+/** Image handling preferences — auto-resize, inline threshold, and asset management. */
 export interface ImageSettings {
   // Auto-resize: max dimension in pixels (0 = disabled)
   autoResizeMax: ImageAutoResizeOption;
@@ -174,19 +185,23 @@ export interface ImageSettings {
 // MCP & Terminal
 // ---------------------------------------------------------------------------
 
+/** MCP server configuration — port, auto-start, and edit approval policy. */
 export interface McpServerSettings {
   port: number;        // Default: 9223 (must match MCP bridge plugin port)
   autoStart: boolean;  // Start on app launch
   autoApproveEdits: boolean; // Auto-approve AI document edits without preview
 }
 
+/** Terminal panel placement: auto (based on window aspect ratio), bottom, or right. */
 export type TerminalPosition = "auto" | "bottom" | "right";
+/** Terminal cursor shape. */
 export type TerminalCursorStyle = "block" | "underline" | "bar";
 
+/** Terminal emulator preferences — shell, font, cursor, renderer, and panel layout. */
 export interface TerminalSettings {
   shell: string;       // Default: "" (empty = system default via getpwuid → $SHELL → /bin/sh)
   fontSize: number;    // Default: 13 (range: 10–24)
-  lineHeight: number;  // Default: 1.4 (range: 1.0–2.0)
+  lineHeight: number;  // Default: 1.2 (range: 1.0–2.0)
   cursorStyle: TerminalCursorStyle; // Default: "bar"
   cursorBlink: boolean; // Default: true
   copyOnSelect: boolean; // Default: false — auto-copy selected text to clipboard
@@ -199,12 +214,14 @@ export interface TerminalSettings {
 // Advanced & General
 // ---------------------------------------------------------------------------
 
+/** Advanced settings — MCP server, custom protocols, and editor optimization. */
 export interface AdvancedSettingsState {
   mcpServer: McpServerSettings;
   customLinkProtocols: string[]; // Custom URL protocols to recognize (e.g., "obsidian", "vscode")
   keepBothEditorsAlive: boolean; // Keep both editors mounted for faster mode switching (default: false)
 }
 
+/** General settings — auto-save, document history, tab size, line endings, and quit behavior. */
 export interface GeneralSettings {
   // Auto-save
   autoSaveEnabled: boolean;
@@ -226,8 +243,10 @@ export interface GeneralSettings {
 // Update Settings
 // ---------------------------------------------------------------------------
 
+/** How often the app checks for updates. */
 export type UpdateCheckFrequency = "startup" | "daily" | "weekly" | "manual";
 
+/** Update checking and download preferences. */
 export interface UpdateSettings {
   autoCheckEnabled: boolean; // Periodically check for updates
   checkFrequency: UpdateCheckFrequency; // When to check
@@ -240,6 +259,7 @@ export interface UpdateSettings {
 // Composite State
 // ---------------------------------------------------------------------------
 
+/** Composite settings state — all setting sections plus UI flags. */
 export interface SettingsState {
   general: GeneralSettings;
   appearance: AppearanceSettings;
@@ -253,6 +273,7 @@ export interface SettingsState {
   showDevSection: boolean;
 }
 
+/** Typed updater actions for each settings section, plus reset and dev toggle. */
 export interface SettingsActions {
   updateGeneralSetting: <K extends keyof GeneralSettings>(
     key: K,

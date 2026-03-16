@@ -5,6 +5,7 @@ import { createExportExtensions } from "./createExportExtensions";
 import { exportWarn } from "@/utils/debug";
 import "./exportStyles.css";
 
+/** Props for the ExportSurface component. */
 export interface ExportSurfaceProps {
   /** Markdown content to render */
   markdown: string;
@@ -18,6 +19,7 @@ export interface ExportSurfaceProps {
   className?: string;
 }
 
+/** Imperative handle for extracting rendered HTML and the container element from ExportSurface. */
 export interface ExportSurfaceRef {
   /** Get the rendered HTML content */
   getHTML: () => string;

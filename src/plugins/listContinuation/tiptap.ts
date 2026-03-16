@@ -93,6 +93,7 @@ function handleListEnter(
   return splitListItem(listItemType)(state, dispatch);
 }
 
+/** Tiptap extension that continues list items on Enter and removes empty ones. */
 export const listContinuationExtension = Extension.create({
   name: "listContinuation",
   priority: 1000,

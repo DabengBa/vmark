@@ -11,6 +11,7 @@
 
 import type { EditorState, Text } from "@codemirror/state";
 
+/** A from/to character offset range in a CodeMirror document. */
 export interface SourceSelectionRange {
   from: number;
   to: number;
@@ -21,6 +22,7 @@ function normalizeRange(range: SourceSelectionRange): SourceSelectionRange {
   return { from: range.to, to: range.from };
 }
 
+/** Return the word range at a position, or null if not inside a word. */
 export function getSourceWordRange(
   state: EditorState,
   pos: number
@@ -30,6 +32,7 @@ export function getSourceWordRange(
   return { from: range.from, to: range.to };
 }
 
+/** Return the full line range containing the given position. */
 export function getSourceLineRange(
   state: EditorState,
   pos: number
@@ -42,6 +45,7 @@ function isBlankLine(lineText: string): boolean {
   return lineText.trim().length === 0;
 }
 
+/** Expand a range to include the surrounding contiguous non-blank lines. */
 export function getSourceBlockRange(
   state: EditorState,
   from: number,
@@ -71,6 +75,7 @@ export function getSourceBlockRange(
   };
 }
 
+/** Progressively expand selection: word -> line -> block -> document, or null if already at max. */
 export function getSourceExpandedRange(
   state: EditorState,
   from: number,
@@ -102,6 +107,7 @@ export function getSourceExpandedRange(
   return null;
 }
 
+/** Return the primary selection range from the editor state, normalized (from <= to). */
 export function getSourceSelectionRange(
   state: EditorState
 ): SourceSelectionRange {
@@ -109,6 +115,7 @@ export function getSourceSelectionRange(
   return normalizeRange({ from: main.from, to: main.to });
 }
 
+/** Return a range spanning the entire document. */
 export function getSourceDocRange(doc: Text): SourceSelectionRange {
   return { from: 0, to: doc.length };
 }

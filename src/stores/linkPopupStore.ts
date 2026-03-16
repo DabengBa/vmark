@@ -40,6 +40,7 @@ const initialState: LinkPopupState = {
   anchorRect: null,
 };
 
+/** Manages link editing popup state — href, link range, and anchor rect for positioning. Use selectors, not destructuring. */
 export const useLinkPopupStore = create<LinkPopupStore>((set) => ({
   ...initialState,
 

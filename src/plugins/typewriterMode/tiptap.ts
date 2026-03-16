@@ -25,6 +25,7 @@ const typewriterPluginKey = new PluginKey("typewriterMode");
 const SCROLL_THRESHOLD = 30;
 const SKIP_INITIAL_UPDATES = 3;
 
+/** Tiptap extension that keeps the cursor line vertically centered in the viewport. */
 export const typewriterModeExtension = Extension.create({
   name: "typewriterMode",
   addProseMirrorPlugins() {

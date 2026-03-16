@@ -77,6 +77,7 @@ function toggleTaskCheckbox(state: EditorState, dispatch?: EditorView["dispatch"
   return true;
 }
 
+/** Tiptap node extension for list items with optional task checkbox support. */
 export const taskListItemExtension = Node.create({
   name: "listItem",
   content: "paragraph block*",

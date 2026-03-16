@@ -72,6 +72,7 @@ const initialState: ImagePasteToastState = {
   onDismiss: null,
 };
 
+/** Manages paste confirmation toast for detected image URLs/paths, supporting single and multi-image. Use selectors, not destructuring. */
 export const useImagePasteToastStore = create<ImagePasteToastStore>((set, get) => ({
   ...initialState,
 

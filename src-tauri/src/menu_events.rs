@@ -227,6 +227,7 @@ fn create_window_and_queue(app: &AppHandle, event: PendingMenuEvent) {
     }
 }
 
+/// Route a native menu click to the correct frontend window via Tauri events.
 pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id().as_ref();
 

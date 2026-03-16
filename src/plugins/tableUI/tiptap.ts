@@ -36,6 +36,7 @@ interface TableUIPluginState {
   contextMenu: TiptapTableContextMenu | null;
 }
 
+/** Plugin key for accessing table UI state (context menu reference). */
 export const tiptapTableUIPluginKey = new PluginKey<TableUIPluginState>("tiptapTableUI");
 
 class TiptapTableUIPluginView {
@@ -86,6 +87,7 @@ function cmdWhenInTable(fn: (view: EditorView) => boolean): Command {
   };
 }
 
+/** Tiptap extension for table UI features: context menu, column resize, and cell navigation. */
 export const tableUIExtension = Extension.create({
   name: "tableUI",
   priority: 1050,

@@ -42,6 +42,7 @@ import { toggleBlockquote as toggleBlockquoteAction } from "@/plugins/sourceCont
 
 // --- Source context builder ---
 
+/** Builds a SourceToolbarContext from the current CodeMirror view and cursor state. */
 export function buildSourceContext(view: EditorView) {
   const cursorContext = useSourceCursorContextStore.getState().context;
   const multiSelection = getSourceMultiSelectionContext(view, cursorContext);
@@ -53,6 +54,7 @@ export function buildSourceContext(view: EditorView) {
   };
 }
 
+/** Returns a CodeMirror command that executes the given toolbar action in source mode. */
 export function runSourceAction(action: string) {
   return (view: EditorView) => {
     performSourceToolbarAction(action, buildSourceContext(view));
@@ -62,6 +64,7 @@ export function runSourceAction(action: string) {
 
 // --- Block formatting helpers ---
 
+/** Returns a CodeMirror command that sets the current line to the given heading level (1-6). */
 export function setHeading(level: number) {
   return (view: EditorView) => {
     const context = buildSourceContext(view);
@@ -69,6 +72,7 @@ export function setHeading(level: number) {
   };
 }
 
+/** Increases the heading level of the current line, or converts a paragraph to H1. */
 export function increaseHeadingLevel(view: EditorView): boolean {
   const info = getHeadingInfo(view);
   if (info && info.level < 6) {
@@ -82,6 +86,7 @@ export function increaseHeadingLevel(view: EditorView): boolean {
   return false;
 }
 
+/** Decreases the heading level of the current line, or converts H1 to a paragraph. */
 export function decreaseHeadingLevel(view: EditorView): boolean {
   const info = getHeadingInfo(view);
   if (info && info.level > 1) {
@@ -96,11 +101,13 @@ export function decreaseHeadingLevel(view: EditorView): boolean {
   return false;
 }
 
+/** Toggles blockquote formatting on the current line in source mode. */
 export function toggleBlockquote(view: EditorView): boolean {
   toggleBlockquoteAction(view);
   return true;
 }
 
+/** Toggles the specified list type on the current line, converting between types or removing. */
 export function toggleList(view: EditorView, type: "bullet" | "ordered" | "task"): boolean {
   const info = getListItemInfo(view);
   if (info && info.type === type) {
@@ -136,11 +143,13 @@ export function toggleList(view: EditorView, type: "bullet" | "ordered" | "task"
 
 // --- Navigation helpers ---
 
+/** Opens the find/replace bar via the search store. */
 export function openFindBar(): boolean {
   useSearchStore.getState().open();
   return true;
 }
 
+/** Navigates to the next search match if the find bar is open. */
 export function findNextMatch(_view: EditorView): boolean {
   const store = useSearchStore.getState();
   if (!store.isOpen || store.matchCount === 0) return false;
@@ -148,6 +157,7 @@ export function findNextMatch(_view: EditorView): boolean {
   return true;
 }
 
+/** Navigates to the previous search match if the find bar is open. */
 export function findPreviousMatch(_view: EditorView): boolean {
   const store = useSearchStore.getState();
   if (!store.isOpen || store.matchCount === 0) return false;
@@ -170,6 +180,7 @@ function shouldPreserveTwoSpaceBreaks(): boolean {
   return resolveHardBreakStyle(active?.doc?.hardBreakStyle ?? "unknown", hardBreakStyleOnSave) === "twoSpaces";
 }
 
+/** Applies CJK formatting to the selection, or the current block if nothing is selected. */
 export function formatCJKSelection(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const config = useSettingsStore.getState().cjkFormatting;
@@ -193,6 +204,7 @@ export function formatCJKSelection(view: EditorView): boolean {
   return true;
 }
 
+/** Applies CJK formatting to the entire document. */
 export function formatCJKFile(view: EditorView): boolean {
   const config = useSettingsStore.getState().cjkFormatting;
   const preserveTwoSpaceHardBreaks = shouldPreserveTwoSpaceBreaks();
@@ -209,6 +221,7 @@ export function formatCJKFile(view: EditorView): boolean {
 
 // --- Copy as HTML helper ---
 
+/** Copies the current selection (or full document) as rendered HTML to the clipboard. */
 export function copySelectionAsHtml(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const markdown = from === to
@@ -238,24 +251,29 @@ function transformSelection(view: EditorView, transform: (text: string) => strin
   return true;
 }
 
+/** Transforms the selected text to UPPERCASE. */
 export function doTransformUppercase(view: EditorView): boolean {
   return transformSelection(view, toUpperCase);
 }
 
+/** Transforms the selected text to lowercase. */
 export function doTransformLowercase(view: EditorView): boolean {
   return transformSelection(view, toLowerCase);
 }
 
+/** Transforms the selected text to Title Case. */
 export function doTransformTitleCase(view: EditorView): boolean {
   return transformSelection(view, toTitleCase);
 }
 
+/** Toggles the case of each character in the selected text. */
 export function doTransformToggleCase(view: EditorView): boolean {
   return transformSelection(view, toggleCase);
 }
 
 // --- Line operation helpers ---
 
+/** Moves the current line (or selected lines) up by one position. */
 export function doMoveLineUp(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -270,6 +288,7 @@ export function doMoveLineUp(view: EditorView): boolean {
   return true;
 }
 
+/** Moves the current line (or selected lines) down by one position. */
 export function doMoveLineDown(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -284,6 +303,7 @@ export function doMoveLineDown(view: EditorView): boolean {
   return true;
 }
 
+/** Duplicates the current line (or selected lines) below the original. */
 export function doDuplicateLine(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -296,6 +316,7 @@ export function doDuplicateLine(view: EditorView): boolean {
   return true;
 }
 
+/** Deletes the current line (or selected lines). */
 export function doDeleteLine(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -308,6 +329,7 @@ export function doDeleteLine(view: EditorView): boolean {
   return true;
 }
 
+/** Joins the current line with the next line (or joins all selected lines). */
 export function doJoinLines(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   const text = view.state.doc.toString();
@@ -320,6 +342,7 @@ export function doJoinLines(view: EditorView): boolean {
   return true;
 }
 
+/** Sorts the selected lines in ascending alphabetical order. Requires a selection. */
 export function doSortLinesAsc(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   if (from === to) return false; // Need selection for sort
@@ -334,6 +357,7 @@ export function doSortLinesAsc(view: EditorView): boolean {
   return true;
 }
 
+/** Sorts the selected lines in descending alphabetical order. Requires a selection. */
 export function doSortLinesDesc(view: EditorView): boolean {
   const { from, to } = view.state.selection.main;
   if (from === to) return false; // Need selection for sort

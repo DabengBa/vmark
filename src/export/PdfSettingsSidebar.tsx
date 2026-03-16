@@ -146,6 +146,7 @@ interface PdfSettingsSidebarProps {
   exportStage: string;
 }
 
+/** Renders the PDF export settings sidebar with presets, page setup, typography, and headers. */
 export function PdfSettingsSidebar({ options, onOptionChange: set, onExport, exporting, exportStage }: PdfSettingsSidebarProps) {
   const [stylePreset, setStylePreset] = useState(() => detectStylePreset(options));
   const [marginPreset, setMarginPreset] = useState(() => detectMarginPreset(options));

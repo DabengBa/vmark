@@ -22,6 +22,7 @@ function maskKey(key: string): string {
   return `\u2022\u2022\u2022\u2022${key.slice(-4)}`;
 }
 
+/** Renders an inline popover for switching AI providers from the GeniePicker footer. */
 export function ProviderSwitcher({ onClose, onCloseAll }: ProviderSwitcherProps) {
   const cliProviders = useAiProviderStore((s) => s.cliProviders);
   const restProviders = useAiProviderStore((s) => s.restProviders);

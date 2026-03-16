@@ -66,6 +66,7 @@ interface UseStatusBarTabDragResult {
   handleTabKeyDown: (tabId: string, event: KeyboardEvent) => void;
 }
 
+/** Hook orchestrating tab drag-and-drop: reorder within strip, drag-out transfer, and keyboard reorder. */
 export function useStatusBarTabDrag({ tabs, windowLabel, tabBarRef, onActivateTab }: UseStatusBarTabDragOptions): UseStatusBarTabDragResult {
   const [dragTargetWindowLabel, setDragTargetWindowLabel] = useState<string | null>(null);
   const [isDropPreviewTarget, setIsDropPreviewTarget] = useState(false);

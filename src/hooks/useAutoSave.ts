@@ -34,6 +34,7 @@ import { autoSaveLog, saveError } from "@/utils/debug";
 
 const MIN_INTERVAL_MS = 1000;
 
+/** Hook that periodically saves all dirty documents in the current window at a configurable interval. */
 export function useAutoSave() {
   const windowLabel = useWindowLabel();
   const autoSaveEnabled = useSettingsStore((s) => s.general.autoSaveEnabled);

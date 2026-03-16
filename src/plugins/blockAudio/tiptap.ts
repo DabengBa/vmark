@@ -21,6 +21,7 @@ import { BlockAudioNodeView } from "./BlockAudioNodeView";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
 import { mediaBlockKeyboardShortcuts } from "../shared/mediaNodeViewHelpers";
 
+/** Tiptap node extension for block-level audio elements. */
 export const blockAudioExtension = Node.create({
   name: "block_audio",
   group: "block",

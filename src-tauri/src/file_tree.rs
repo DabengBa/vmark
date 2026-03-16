@@ -13,6 +13,7 @@
 use serde::Serialize;
 use std::fs;
 
+/// A single file or directory entry returned by `list_directory_entries`.
 #[derive(Debug, Serialize)]
 pub struct DirectoryEntry {
     pub name: String,

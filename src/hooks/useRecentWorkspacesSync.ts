@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import { useRecentWorkspacesStore } from "@/stores/recentWorkspacesStore";
 
+/** Hook that syncs the recent workspaces list to the native macOS menu on mount. */
 export function useRecentWorkspacesSync() {
   useEffect(() => {
     // Sync recent workspaces to native menu on mount

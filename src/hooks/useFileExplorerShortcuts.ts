@@ -22,6 +22,7 @@ import { matchesShortcutEvent } from "@/utils/shortcutMatch";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { toggleShowHiddenFiles, toggleShowAllFiles } from "@/hooks/workspaceConfig";
 
+/** Hook that handles keyboard shortcuts for toggling hidden/all files in the file explorer. */
 export function useFileExplorerShortcuts() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

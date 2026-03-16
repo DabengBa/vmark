@@ -26,6 +26,7 @@ import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { getDirectory } from "@/utils/pathUtils";
 import { watcherWarn } from "@/utils/debug";
+/** Hook that starts/stops a Rust filesystem watcher for the workspace root or active document's directory. */
 export function useWindowFileWatcher(): void {
   const windowLabel = useWindowLabel();
   const isWorkspaceMode = useWorkspaceStore((state) => state.isWorkspaceMode);

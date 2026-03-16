@@ -17,6 +17,7 @@
 import { create } from "zustand";
 import type { Update } from "@tauri-apps/plugin-updater";
 
+/** State machine status for the auto-update lifecycle. */
 export type UpdateStatus =
   | "idle"
   | "checking"
@@ -26,6 +27,7 @@ export type UpdateStatus =
   | "error"
   | "up-to-date";
 
+/** Metadata about an available update — version, release notes, and date. */
 export interface UpdateInfo {
   version: string;
   notes: string;
@@ -33,6 +35,7 @@ export interface UpdateInfo {
   currentVersion: string;
 }
 
+/** Download progress — bytes downloaded and optional total size. */
 export interface DownloadProgress {
   downloaded: number;
   total: number | null;
@@ -69,6 +72,7 @@ const initialState: UpdateState = {
   pendingUpdate: null,
 };
 
+/** Manages auto-update lifecycle state — checking, downloading, progress, and install readiness. Use selectors, not destructuring. */
 export const useUpdateStore = create<UpdateState & UpdateActions>()((set) => ({
   ...initialState,
 

@@ -15,11 +15,16 @@
  * @module utils/linebreakDetection
  */
 
+/** Detected line ending style of a document. */
 export type LineEnding = "lf" | "crlf" | "unknown";
+/** Detected hard break convention in a document. */
 export type HardBreakStyle = "backslash" | "twoSpaces" | "mixed" | "unknown";
+/** User preference for line ending normalization on save. */
 export type LineEndingOnSave = "preserve" | "lf" | "crlf";
+/** User preference for hard break style normalization on save. */
 export type HardBreakStyleOnSave = "preserve" | "backslash" | "twoSpaces";
 
+/** Combined result of line ending and hard break style detection. */
 export interface LinebreakDetectionResult {
   lineEnding: LineEnding;
   hardBreakStyle: HardBreakStyle;
@@ -92,6 +97,7 @@ function detectHardBreakStyle(text: string): HardBreakStyle {
   return "unknown";
 }
 
+/** Detect the line ending style (LF/CRLF) and hard break convention of a markdown document. */
 export function detectLinebreaks(text: string): LinebreakDetectionResult {
   return {
     lineEnding: detectLineEnding(text),

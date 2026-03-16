@@ -33,6 +33,7 @@ function isTableHeader(line: string): boolean {
   return /\|/.test(line);
 }
 
+/** Return true if plain text likely contains markdown and should be parsed on paste. */
 export function isMarkdownPasteCandidate(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;

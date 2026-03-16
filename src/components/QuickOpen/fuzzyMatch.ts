@@ -3,6 +3,7 @@
  * @coordinates-with QuickOpen UI components
  */
 
+/** Result of a fuzzy match with score, matched character indices, and optional path indices. */
 export interface FuzzyMatchResult {
   score: number;
   indices: number[];
@@ -91,6 +92,7 @@ function matchWithPathSegments(
   return { score: fileResult.score * FILENAME_WEIGHT, indices: fileResult.indices };
 }
 
+/** Perform fuzzy matching of a query against a filename and optional relative path. */
 export function fuzzyMatch(
   query: string,
   filename: string,

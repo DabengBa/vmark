@@ -24,7 +24,7 @@ use std::path::Path;
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, FilePath};
 
-/// Workspace identity and trust information
+/// Workspace identity and trust information for permission management.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceIdentity {
     /// Unique identifier for this workspace (UUID v4)

@@ -24,6 +24,7 @@ import { join, basename } from "@tauri-apps/api/path";
 import { useDocumentActions } from "@/hooks/useDocumentState";
 import { titleBarWarn } from "@/utils/debug";
 
+/** Hook that performs file rename operations triggered from the title bar. */
 export function useTitleBarRename() {
   const [isRenaming, setIsRenaming] = useState(false);
   const { setFilePath } = useDocumentActions();

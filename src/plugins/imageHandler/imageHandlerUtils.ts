@@ -64,6 +64,7 @@ export function isViewConnected(view: EditorView): boolean {
   }
 }
 
+/** Returns the file path of the active document in the current window, or null. */
 export function getActiveFilePathForCurrentWindow(): string | null {
   try {
     const windowLabel = getWindowLabel();

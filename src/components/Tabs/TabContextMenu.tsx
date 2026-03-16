@@ -39,6 +39,7 @@ import { getRevealInFileManagerLabel } from "@/utils/pathUtils";
 import { useTabContextMenuActions } from "./useTabContextMenuActions";
 import "./TabContextMenu.css";
 
+/** Viewport coordinates for tab context menu placement. */
 export interface ContextMenuPosition {
   x: number;
   y: number;
@@ -67,6 +68,7 @@ function findNextFocusable(
   return focusableIndices[startPos] ?? -1;
 }
 
+/** Renders a right-click context menu for a tab with keyboard navigation and viewport-aware positioning. */
 export function TabContextMenu({ tab, position, windowLabel, onClose }: TabContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);

@@ -32,6 +32,7 @@ class MediaPopupPluginView {
   }
 }
 
+/** Tiptap extension that shows a popup when the cursor is on an audio/video node. */
 export const mediaPopupExtension = Extension.create({
   name: "mediaPopup",
   addProseMirrorPlugins() {

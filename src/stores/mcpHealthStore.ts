@@ -15,6 +15,7 @@
 
 import { create } from "zustand";
 
+/** MCP server health diagnostics — version, tool/resource counts, and error state. */
 export interface McpHealthInfo {
   version: string | null;
   toolCount: number | null;
@@ -43,6 +44,7 @@ const initialHealth: McpHealthInfo = {
   checkError: null,
 };
 
+/** Manages MCP server health state — version info, tool counts, and polling status. Use selectors, not destructuring. */
 export const useMcpHealthStore = create<McpHealthState>((set) => ({
   health: initialHealth,
   isChecking: false,
