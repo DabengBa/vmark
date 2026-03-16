@@ -25,6 +25,7 @@ mod commands;
 mod custom_menu;
 mod default_menu;
 mod dynamic;
+pub mod localized;
 
 use std::sync::Mutex;
 
@@ -80,3 +81,6 @@ pub fn get_genie_path(index: usize) -> Option<String> {
 pub use commands::*;
 pub use default_menu::create_menu;
 pub use dynamic::*;
+// Wildcard re-export required: `#[tauri::command]` generates hidden `__cmd__*` items
+// that `generate_handler!` in `lib.rs` must resolve.
+pub use localized::*;
