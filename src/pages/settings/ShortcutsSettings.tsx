@@ -9,9 +9,10 @@ import { useTranslation } from "react-i18next";
 import {
   useShortcutsStore,
   DEFAULT_SHORTCUTS,
-  CATEGORY_LABELS,
   CATEGORY_ORDER,
   formatKeyForDisplay,
+  getCategoryLabel,
+  getShortcutLabel,
   type ShortcutDefinition,
   type ShortcutCategory,
 } from "@/stores/shortcutsStore";
@@ -45,14 +46,16 @@ export function ShortcutsSettings() {
     (s) => getShortcut(s.id) !== ""
   );
 
-  // Filter shortcuts by search (label, category, description, key format, display format)
+  // Filter shortcuts by search (label, translated label, category, description, key format, display format)
   const filteredShortcuts = search.trim()
     ? visibleShortcuts.filter((s) => {
         const q = search.trim().toLowerCase();
         const effectiveKey = getShortcut(s.id);
         const displayKey = formatKeyForDisplay(effectiveKey).toLowerCase();
+        const translatedLabel = getShortcutLabel(s).toLowerCase();
         return (
           s.label.toLowerCase().includes(q) ||
+          translatedLabel.includes(q) ||
           s.category.toLowerCase().includes(q) ||
           (s.description?.toLowerCase().includes(q) ?? false) ||
           effectiveKey.toLowerCase().includes(q) ||
@@ -106,7 +109,7 @@ export function ShortcutsSettings() {
       >
         <div className="flex-1 min-w-0">
           <div className="text-sm text-[var(--text-primary)]">
-            {shortcut.label}
+            {getShortcutLabel(shortcut)}
           </div>
           {shortcut.description && (
             <div className="text-xs text-[var(--text-tertiary)] truncate">
@@ -166,7 +169,7 @@ export function ShortcutsSettings() {
         {/* Category heading */}
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2 pb-1
                        border-b border-[var(--bg-tertiary)]">
-          {CATEGORY_LABELS[category]}
+          {getCategoryLabel(category)}
         </h3>
         {/* Indented shortcut list */}
         <div className="space-y-0.5">

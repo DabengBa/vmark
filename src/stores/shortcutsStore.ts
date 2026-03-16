@@ -30,6 +30,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isMacPlatform } from "@/utils/shortcutMatch";
 import { createSafeStorage } from "@/utils/safeStorage";
 import { shortcutsWarn } from "@/utils/debug";
+import i18n from "@/i18n";
 
 // ============================================================================
 // Types
@@ -485,7 +486,10 @@ export function formatKeyForDisplay(key: string): string {
 // Category Helpers
 // ============================================================================
 
-/** Human-readable labels for each shortcut category. */
+/**
+ * Human-readable labels for each shortcut category.
+ * These are English fallback strings — the UI should prefer getCategoryLabel().
+ */
 export const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   formatting: "Formatting",
   blocks: "Blocks",
@@ -504,3 +508,30 @@ export const CATEGORY_ORDER: ShortcutCategory[] = [
   "view",
   "file",
 ];
+
+/**
+ * Returns the translated label for a shortcut category.
+ * Falls back to CATEGORY_LABELS[category] if the translation key is missing.
+ */
+export function getCategoryLabel(category: ShortcutCategory): string {
+  const translated = i18n.t(`settings:shortcuts.category.${category}`);
+  // i18next returns the key itself if missing — detect and fall back
+  if (translated === `settings:shortcuts.category.${category}` || translated === `shortcuts.category.${category}`) {
+    return CATEGORY_LABELS[category];
+  }
+  return translated;
+}
+
+/**
+ * Returns the translated label for a shortcut by its ID.
+ * Falls back to the shortcut's `label` field if the translation key is missing.
+ */
+export function getShortcutLabel(shortcut: ShortcutDefinition): string {
+  const key = `settings:shortcuts.label.${shortcut.id}`;
+  const translated = i18n.t(key);
+  // i18next returns the key itself if missing — detect and fall back
+  if (translated === key || translated === `shortcuts.label.${shortcut.id}`) {
+    return shortcut.label;
+  }
+  return translated;
+}
