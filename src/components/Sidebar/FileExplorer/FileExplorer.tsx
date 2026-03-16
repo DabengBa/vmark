@@ -28,6 +28,7 @@
  * @module components/Sidebar/FileExplorer/FileExplorer
  */
 import { useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { useTranslation } from "react-i18next";
 import { Tree, type TreeApi } from "react-arborist";
 import { Folder } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -67,6 +68,7 @@ interface FileExplorerProps {
 /** Workspace file tree panel with virtualized rendering, drag-and-drop, and context menu support. */
 export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   function FileExplorer({ currentFilePath }, ref) {
+  const { t } = useTranslation("sidebar");
   // Workspace-only: file tree only shows when in workspace mode
   const workspaceRootPath = useWorkspaceStore((s) => s.rootPath);
   const isWorkspaceMode = useWorkspaceStore((s) => s.isWorkspaceMode);
@@ -303,7 +305,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
         targetPath = selected?.data.isFolder ? selected.data.id : rootPath;
       }
 
-      const path = await createFile(targetPath, "Untitled");
+      const path = await createFile(targetPath, t("defaultFileName"));
       if (path) {
         await refresh();
         setTimeout(() => {
@@ -326,7 +328,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
         targetPath = selected?.data.isFolder ? selected.data.id : rootPath;
       }
 
-      const path = await createFolder(targetPath, "New Folder");
+      const path = await createFolder(targetPath, t("defaultFolderName"));
       if (path) {
         await refresh();
         setTimeout(() => {
@@ -346,7 +348,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
 
   // Extract workspace name from path
   const workspaceName = workspaceRootPath
-    ? getFileName(workspaceRootPath) || "Workspace"
+    ? getFileName(workspaceRootPath) || t("workspaceFallback")
     : null;
 
   // Show empty state if no workspace is open
@@ -354,7 +356,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
     return (
       <div className="file-explorer">
         <div className="file-explorer-empty">
-          No workspace open
+          {t("noWorkspace")}
         </div>
       </div>
     );
@@ -363,7 +365,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   if (isLoading && tree.length === 0) {
     return (
       <div className="file-explorer">
-        <div className="file-explorer-empty">Loading...</div>
+        <div className="file-explorer-empty">{t("loading")}</div>
       </div>
     );
   }

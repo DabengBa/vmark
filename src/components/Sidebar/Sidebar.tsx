@@ -5,6 +5,7 @@
  */
 
 import { useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { FolderTree, TableOfContents, History, FilePlus, FolderPlus, PanelLeftClose, Trash2 } from "lucide-react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { deleteDocumentHistory } from "@/hooks/useHistoryRecovery";
@@ -19,34 +20,48 @@ import "./Sidebar.css";
 // Constants
 const TRAFFIC_LIGHTS_SPACER_PX = 28;
 
-// View mode configuration - single source of truth
+// View mode configuration - single source of truth (icon and next only; titles come from t())
 const VIEW_CONFIG: Record<SidebarViewMode, {
   icon: typeof FolderTree;
-  title: string;
   next: SidebarViewMode;
 }> = {
-  files: { icon: FolderTree, title: "FILES", next: "outline" },
-  outline: { icon: TableOfContents, title: "OUTLINE", next: "history" },
-  history: { icon: History, title: "HISTORY", next: "files" },
+  files: { icon: FolderTree, next: "outline" },
+  outline: { icon: TableOfContents, next: "history" },
+  history: { icon: History, next: "files" },
 };
 
 /** Navigation sidebar with switchable Files, Outline, and History views. */
 export function Sidebar() {
+  const { t } = useTranslation("sidebar");
   const viewMode = useUIStore((state) => state.sidebarViewMode);
   const filePath = useDocumentFilePath();
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
   const isClearingRef = useRef(false);
   const config = VIEW_CONFIG[viewMode];
   const Icon = config.icon;
-  const nextTitle = VIEW_CONFIG[config.next].title;
+
+  // Map view mode to translation keys
+  const viewTitleKey: Record<SidebarViewMode, string> = {
+    files: "viewFiles",
+    outline: "viewOutline",
+    history: "viewHistory",
+  };
+  const showNextKey: Record<SidebarViewMode, string> = {
+    files: "showFiles",
+    outline: "showOutline",
+    history: "showHistory",
+  };
+
+  const currentTitle = t(viewTitleKey[viewMode]);
+  const nextShowLabel = t(showNextKey[config.next]);
 
   const handleClearDocumentHistory = useCallback(async () => {
     if (!filePath || isClearingRef.current) return;
     isClearingRef.current = true;
     try {
       const confirmed = await ask(
-        "Delete all history for this document? This cannot be undone.",
-        { title: "Clear Document History", kind: "warning" }
+        t("clearHistoryMessage"),
+        { title: t("clearDocumentHistory"), kind: "warning" }
       );
       if (confirmed) {
         await deleteDocumentHistory(filePath);
@@ -55,7 +70,7 @@ export function Sidebar() {
     } finally {
       isClearingRef.current = false;
     }
-  }, [filePath]);
+  }, [filePath, t]);
 
   const handleToggleView = () => {
     const { sidebarViewMode, setSidebarViewMode } = useUIStore.getState();
@@ -70,28 +85,28 @@ export function Sidebar() {
         <button
           className="sidebar-btn"
           onClick={handleToggleView}
-          title={`Show ${nextTitle.charAt(0) + nextTitle.slice(1).toLowerCase()}`}
-          aria-label={`Show ${nextTitle.charAt(0) + nextTitle.slice(1).toLowerCase()}`}
+          title={nextShowLabel}
+          aria-label={nextShowLabel}
         >
           <Icon size={16} />
         </button>
-        <span className="sidebar-title">{config.title}</span>
+        <span className="sidebar-title">{currentTitle}</span>
         {/* Action buttons - files view */}
         {viewMode === "files" && (
           <div className="sidebar-header-actions">
             <button
               className="sidebar-btn"
               onClick={() => fileExplorerRef.current?.createNewFile()}
-              title="New File"
-              aria-label="New File"
+              title={t("newFile")}
+              aria-label={t("newFile")}
             >
               <FilePlus size={14} />
             </button>
             <button
               className="sidebar-btn"
               onClick={() => fileExplorerRef.current?.createNewFolder()}
-              title="New Folder"
-              aria-label="New Folder"
+              title={t("newFolder")}
+              aria-label={t("newFolder")}
             >
               <FolderPlus size={14} />
             </button>
@@ -103,8 +118,8 @@ export function Sidebar() {
             <button
               className="sidebar-btn"
               onClick={handleClearDocumentHistory}
-              title="Clear Document History"
-              aria-label="Clear Document History"
+              title={t("clearDocumentHistory")}
+              aria-label={t("clearDocumentHistory")}
             >
               <Trash2 size={14} />
             </button>
@@ -122,8 +137,8 @@ export function Sidebar() {
         <button
           className="sidebar-btn"
           onClick={() => useUIStore.getState().toggleSidebar()}
-          title="Close Sidebar"
-          aria-label="Close Sidebar"
+          title={t("closeSidebar")}
+          aria-label={t("closeSidebar")}
         >
           <PanelLeftClose size={16} />
         </button>

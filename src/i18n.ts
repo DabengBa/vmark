@@ -2,7 +2,7 @@
  * i18n initialization module.
  *
  * Purpose: Configures i18next with dynamic locale file loading via
- * import.meta.glob, namespace splitting (common/menu/statusbar),
+ * import.meta.glob, namespace splitting (common/menu/statusbar/settings),
  * and fallback chains for regional variants (zh-TW → zh-CN → en).
  *
  * Key decisions:
@@ -43,7 +43,7 @@ i18n
       default: ["en"],
     },
     load: "currentOnly",
-    ns: ["common", "menu", "statusbar"],
+    ns: ["common", "menu", "statusbar", "sidebar", "settings"],
     defaultNS: "common",
     interpolation: {
       escapeValue: false,

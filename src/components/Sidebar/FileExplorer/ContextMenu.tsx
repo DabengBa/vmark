@@ -12,6 +12,7 @@
  * @module components/Sidebar/FileExplorer/ContextMenu
  */
 import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   FolderPlus,
@@ -23,7 +24,6 @@ import {
   FolderInput,
 } from "lucide-react";
 import { isImeKeyEvent } from "@/utils/imeGuard";
-import { getRevealInFileManagerLabel } from "@/utils/pathUtils";
 import "./ContextMenu.css";
 
 /** Determines which menu items are shown: file actions, folder actions, or empty-area actions. */
@@ -43,43 +43,45 @@ interface MenuItem {
   separator?: boolean;
 }
 
-// Build menu items with platform-appropriate labels
-function buildFileMenuItems(revealLabel: string): MenuItem[] {
+// Build menu items using translated labels
+function buildFileMenuItems(labels: Record<string, string>): MenuItem[] {
   return [
-    { id: "open", label: "Open", icon: <FileText size={14} /> },
-    { id: "rename", label: "Rename", icon: <Pencil size={14} />, separator: true },
-    { id: "duplicate", label: "Duplicate", icon: <Copy size={14} /> },
-    { id: "moveTo", label: "Move to...", icon: <FolderInput size={14} /> },
-    { id: "delete", label: "Delete", icon: <Trash2 size={14} />, separator: true },
-    { id: "copyPath", label: "Copy Path", icon: <Copy size={14} /> },
-    { id: "revealInFinder", label: revealLabel, icon: <FolderOpen size={14} /> },
+    { id: "open", label: labels.open, icon: <FileText size={14} /> },
+    { id: "rename", label: labels.rename, icon: <Pencil size={14} />, separator: true },
+    { id: "duplicate", label: labels.duplicate, icon: <Copy size={14} /> },
+    { id: "moveTo", label: labels.moveTo, icon: <FolderInput size={14} /> },
+    { id: "delete", label: labels.delete, icon: <Trash2 size={14} />, separator: true },
+    { id: "copyPath", label: labels.copyPath, icon: <Copy size={14} /> },
+    { id: "revealInFinder", label: labels.revealLabel, icon: <FolderOpen size={14} /> },
   ];
 }
 
-function buildFolderMenuItems(revealLabel: string): MenuItem[] {
+function buildFolderMenuItems(labels: Record<string, string>): MenuItem[] {
   return [
-    { id: "newFile", label: "New File", icon: <FilePlus size={14} /> },
-    { id: "newFolder", label: "New Folder", icon: <FolderPlus size={14} />, separator: true },
-    { id: "rename", label: "Rename", icon: <Pencil size={14} /> },
-    { id: "delete", label: "Delete", icon: <Trash2 size={14} />, separator: true },
-    { id: "copyPath", label: "Copy Path", icon: <Copy size={14} /> },
-    { id: "revealInFinder", label: revealLabel, icon: <FolderOpen size={14} /> },
+    { id: "newFile", label: labels.newFile, icon: <FilePlus size={14} /> },
+    { id: "newFolder", label: labels.newFolder, icon: <FolderPlus size={14} />, separator: true },
+    { id: "rename", label: labels.rename, icon: <Pencil size={14} /> },
+    { id: "delete", label: labels.delete, icon: <Trash2 size={14} />, separator: true },
+    { id: "copyPath", label: labels.copyPath, icon: <Copy size={14} /> },
+    { id: "revealInFinder", label: labels.revealLabel, icon: <FolderOpen size={14} /> },
   ];
 }
 
-const EMPTY_MENU_ITEMS: MenuItem[] = [
-  { id: "newFile", label: "New File", icon: <FilePlus size={14} /> },
-  { id: "newFolder", label: "New Folder", icon: <FolderPlus size={14} /> },
-];
+function buildEmptyMenuItems(labels: Record<string, string>): MenuItem[] {
+  return [
+    { id: "newFile", label: labels.newFile, icon: <FilePlus size={14} /> },
+    { id: "newFolder", label: labels.newFolder, icon: <FolderPlus size={14} /> },
+  ];
+}
 
-function getMenuItems(type: ContextMenuType, revealLabel: string): MenuItem[] {
+function getMenuItems(type: ContextMenuType, labels: Record<string, string>): MenuItem[] {
   switch (type) {
     case "file":
-      return buildFileMenuItems(revealLabel);
+      return buildFileMenuItems(labels);
     case "folder":
-      return buildFolderMenuItems(revealLabel);
+      return buildFolderMenuItems(labels);
     case "empty":
-      return EMPTY_MENU_ITEMS;
+      return buildEmptyMenuItems(labels);
   }
 }
 
@@ -92,10 +94,30 @@ interface ContextMenuProps {
 
 /** Renders a macOS-style context menu with viewport-aware positioning. */
 export function ContextMenu({ type, position, onAction, onClose }: ContextMenuProps) {
+  const { t } = useTranslation("sidebar");
   const menuRef = useRef<HTMLDivElement>(null);
-  // Get platform-appropriate label once (stable across renders)
-  const revealLabel = useMemo(() => getRevealInFileManagerLabel(), []);
-  const items = getMenuItems(type, revealLabel);
+
+  // Resolve platform-appropriate "reveal in file manager" label via translation keys
+  const revealLabel = useMemo(() => {
+    const platform = typeof navigator !== "undefined" ? navigator.platform.toLowerCase() : "";
+    if (platform.includes("mac")) return t("contextMenu.revealInFinder");
+    if (platform.includes("win")) return t("contextMenu.showInExplorer");
+    return t("contextMenu.showInFileManager");
+  }, [t]);
+
+  const menuLabels = useMemo(() => ({
+    open: t("contextMenu.open"),
+    rename: t("contextMenu.rename"),
+    duplicate: t("contextMenu.duplicate"),
+    moveTo: t("contextMenu.moveTo"),
+    delete: t("contextMenu.delete"),
+    copyPath: t("contextMenu.copyPath"),
+    newFile: t("newFile"),
+    newFolder: t("newFolder"),
+    revealLabel,
+  }), [t, revealLabel]);
+
+  const items = getMenuItems(type, menuLabels);
 
   // Close on click outside
   useEffect(() => {
