@@ -25,6 +25,17 @@ import { useSettingsStore } from "@/stores/settingsStore";
 
 const localeModules = import.meta.glob("./locales/*/*.json");
 
+/** Supported locale codes — used to validate persisted settings and fallback to "en". */
+export const SUPPORTED_LOCALES = new Set(
+  Object.keys(localeModules)
+    .map((p) => p.split("/")[2]) // "./locales/{lang}/common.json" → lang
+    .filter(Boolean)
+);
+
+function validateLocale(lang: string): string {
+  return SUPPORTED_LOCALES.has(lang) ? lang : "en";
+}
+
 i18n
   .use(initReactI18next)
   .use(
@@ -36,7 +47,7 @@ i18n
     })
   )
   .init({
-    lng: useSettingsStore.getState().general.language,
+    lng: validateLocale(useSettingsStore.getState().general.language),
     fallbackLng: {
       "zh-TW": ["zh-CN", "en"],
       "pt-BR": ["en"],
@@ -53,8 +64,32 @@ i18n
     initImmediate: false,
   });
 
+// Set <html lang> on initial load for accessibility/spellcheck
+document.documentElement.lang = i18n.resolvedLanguage ?? i18n.language ?? "en";
+
+// Update <html lang> on subsequent language changes
 i18n.on("languageChanged", (lng) => {
   document.documentElement.lang = lng;
 });
+
+// Cross-window sync: when another window changes language via settings sync,
+// update this window's i18n instance to match.
+let lastLang = i18n.language;
+useSettingsStore.subscribe((state) => {
+  const lang = state.general.language;
+  if (lang && lang !== lastLang) {
+    lastLang = lang;
+    i18n.changeLanguage(lang);
+  }
+});
+
+// Sync Rust locale on startup if user has a non-English language saved.
+// This ensures native menus match the frontend language from the first render.
+const startupLang = useSettingsStore.getState().general.language;
+if (startupLang && startupLang !== "en") {
+  import("@tauri-apps/api/core").then(({ invoke }) => {
+    invoke("set_locale", { locale: startupLang }).catch(() => {});
+  });
+}
 
 export default i18n;
