@@ -10,7 +10,6 @@ const themes = [
 ]
 
 const currentTheme = ref('paper')
-const isOpen = ref(false)
 const randomIndex = ref(0)
 
 function pickRandomOther() {
@@ -28,16 +27,7 @@ function setTheme(themeId: string) {
   document.documentElement.setAttribute('data-vmark-theme', themeId)
   document.documentElement.classList.toggle('dark', themeId === 'night')
   localStorage.setItem('vmark-preview-theme', themeId)
-  isOpen.value = false
   pickRandomOther()
-}
-
-function openDropdown() {
-  isOpen.value = true
-}
-
-function closeDropdown() {
-  isOpen.value = false
 }
 
 onMounted(() => {
@@ -55,7 +45,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="theme-dropdown" @mouseenter="openDropdown" @mouseleave="closeDropdown">
+  <div class="theme-dropdown">
     <button class="theme-trigger" title="Switch theme">
       <span
         class="theme-dot"

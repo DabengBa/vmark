@@ -4,6 +4,7 @@
  * UI language picker and CJK formatting configuration.
  */
 
+import { useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
@@ -55,7 +56,10 @@ export function LanguageSettings() {
   const cjkFormatting = useSettingsStore((state) => state.cjkFormatting);
   const updateCJKSetting = useSettingsStore((state) => state.updateCJKFormattingSetting);
 
+  const changingRef = useRef(false);
   const handleLanguageChange = async (value: string) => {
+    if (changingRef.current) return; // Prevent reentrant calls
+    changingRef.current = true;
     const previousLang = useSettingsStore.getState().general.language;
     try {
       // Change JS locale first (synchronous re-render)
@@ -78,6 +82,11 @@ export function LanguageSettings() {
         ? { "search-genies": menuShortcuts["search-genies"] }
         : null;
       await invoke("refresh_genies_menu", { shortcuts: geniesAccel });
+      // Rebuild wipes recent files/workspaces — re-push from stores
+      const { useRecentFilesStore } = await import("@/stores/recentFilesStore");
+      const { useRecentWorkspacesStore } = await import("@/stores/recentWorkspacesStore");
+      useRecentFilesStore.getState().syncToNativeMenu();
+      useRecentWorkspacesStore.getState().syncToNativeMenu();
       // Only persist after everything succeeds
       updateGeneralSetting("language", value);
     } catch (e) {
@@ -85,6 +94,8 @@ export function LanguageSettings() {
       // Revert both JS and Rust locale to previous
       await i18n.changeLanguage(previousLang);
       invoke("set_locale", { locale: previousLang }).catch(() => {});
+    } finally {
+      changingRef.current = false;
     }
   };
 
