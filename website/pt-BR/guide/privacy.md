@@ -38,7 +38,7 @@ Você pode verificar isso por conta própria — o endpoint está em [`tauri.con
 
 ## Como Usamos os Dados
 
-Agregamos os logs de verificação de atualização para produzir as estatísticas ao vivo mostradas em nossa [página inicial](/pt-BR):
+Agregamos os logs de verificação de atualização para produzir as estatísticas ao vivo mostradas em nossa [página inicial](/pt-BR/):
 
 | Métrica | Como é calculada |
 |---------|-----------------|

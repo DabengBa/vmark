@@ -10,7 +10,7 @@
 
 我在 2025 年 8 月 17 日開始嘗試一種新興的程式設計趨勢，稱為 *Vibe Coding*。「Vibe Coding」這個詞本身最早是在 2025 年 2 月 2 日由 Andrej Karpathy 在 [X](https://x.com/karpathy/status/1886192184808149383)（前身為 Twitter）上發文時提出並廣泛流傳的。
 
-![Andrej Karpathy 提出「vibe coding」的推文](./images/karpathy-vibe-coding.png)
+![Andrej Karpathy 提出「vibe coding」的推文](/guide/users-as-developers/images/karpathy-vibe-coding.png)
 
 Andrej Karpathy 是機器學習領域極具影響力的研究者和教育者。他曾在 OpenAI 和 Tesla 等公司擔任重要職位，後來創辦了 Eureka Labs，專注於 AI 原生教育。他的這條推文不僅引入了「vibe coding」的概念，也迅速在技術社群傳播，引發了廣泛的後續討論。
 
@@ -226,7 +226,7 @@ AI 已經接管了大部分的「*執行*」，但它只能在「做什麼」、
 
 這就是為什麼 VMark 網站上有這樣的致謝：
 
-<img src="./images/vmark-credits.png" alt="VMark 致謝 — 製作人與程式設計師" style="max-width: 480px;" />
+<img src="/guide/users-as-developers/images/vmark-credits.png" alt="VMark 致謝 — 製作人與程式設計師" style="max-width: 480px;" />
 
 高度主觀的另一個後果：即使 VMark 是開源的，社群貢獻也不太可能發生。它純粹是為我自己的工作流程打造的；許多功能對其他人幾乎沒有價值。更重要的是，Markdown 編輯器並非尖端技術。它是一個熟悉工具的無數實現之一。AI 幾乎可以解決與它相關的任何問題。
 

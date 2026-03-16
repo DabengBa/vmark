@@ -10,7 +10,7 @@ En vérité, construire VMark a avant tout été un voyage d'apprentissage et d'
 
 J'ai commencé à expérimenter avec la tendance de programmation émergente connue sous le nom de *vibe coding* le 17 août 2025. Le terme *vibe coding* lui-même a été inventé et diffusé le 2 février 2025, à partir d'un post d'Andrej Karpathy sur [X](https://x.com/karpathy/status/1886192184808149383) (anciennement Twitter).
 
-![Le tweet d'Andrej Karpathy qui a inventé le « vibe coding »](./images/karpathy-vibe-coding.png)
+![Le tweet d'Andrej Karpathy qui a inventé le « vibe coding »](/guide/users-as-developers/images/karpathy-vibe-coding.png)
 
 Andrej Karpathy est un chercheur et éducateur très influent dans le domaine de l'apprentissage automatique. Il a occupé des postes importants dans des entreprises comme OpenAI et Tesla, puis a fondé Eureka Labs, axé sur l'éducation native IA. Son tweet a non seulement introduit le concept de « vibe coding », mais s'est aussi rapidement propagé dans la communauté tech, suscitant de nombreuses discussions.
 
@@ -226,7 +226,7 @@ C'est similaire à la façon dont j'investis : je *peux* lire des états financi
 
 C'est pourquoi le site VMark inclut ce crédit :
 
-<img src="./images/vmark-credits.png" alt="Crédits VMark — Producteur et Codeurs" style="max-width: 480px;" />
+<img src="/guide/users-as-developers/images/vmark-credits.png" alt="Crédits VMark — Producteur et Codeurs" style="max-width: 480px;" />
 
 Une autre conséquence d'être très opinioné : même si VMark est open source, les contributions communautaires sont peu probables. Il est construit purement pour mon propre flux de travail ; de nombreuses fonctionnalités ont peu de valeur pour les autres. Plus important encore, un éditeur Markdown n'est pas une technologie de pointe. C'est l'une des innombrables implémentations d'un outil familier. L'IA peut résoudre pratiquement n'importe quel problème lié à lui.
 
