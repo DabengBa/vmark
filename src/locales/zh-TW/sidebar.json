@@ -1,0 +1,45 @@
+{
+  "viewFiles": "檔案",
+  "viewOutline": "大綱",
+  "viewHistory": "歷史紀錄",
+  "showFiles": "顯示檔案",
+  "showOutline": "顯示大綱",
+  "showHistory": "顯示歷史紀錄",
+  "newFile": "新增檔案",
+  "newFolder": "新增資料夾",
+  "clearDocumentHistory": "清除文件歷史紀錄",
+  "closeSidebar": "關閉側邊欄",
+  "clearHistoryMessage": "刪除此文件的所有歷史紀錄？此操作無法復原。",
+  "noWorkspace": "未開啟工作區",
+  "loading": "載入中...",
+  "defaultFileName": "未命名",
+  "defaultFolderName": "新增資料夾",
+  "workspaceFallback": "工作區",
+  "contextMenu": {
+    "open": "開啟",
+    "rename": "重新命名",
+    "duplicate": "複製",
+    "moveTo": "移動至...",
+    "delete": "刪除",
+    "copyPath": "複製路徑",
+    "revealInFinder": "在 Finder 中顯示",
+    "showInExplorer": "在檔案總管中顯示",
+    "showInFileManager": "在檔案管理員中顯示"
+  },
+  "outline": {
+    "documentOutline": "文件大綱",
+    "expandSection": "展開區段",
+    "collapseSection": "收合區段",
+    "noHeadings": "無標題",
+    "tooLarge": "文件過大，無法顯示大綱"
+  },
+  "history": {
+    "saveToEnable": "請先儲存文件以啟用歷史紀錄",
+    "disabled": "歷史紀錄已在設定中停用",
+    "noHistory": "尚無歷史紀錄",
+    "revertTitle": "還原至舊版本",
+    "revertMessage": "還原至 {{time}} 的版本？\n\n您目前的變更將先儲存為新的歷史紀錄項目。",
+    "revertButton": "還原至此版本",
+    "deleteSnapshot": "刪除此快照"
+  }
+}
