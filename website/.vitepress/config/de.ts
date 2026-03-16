@@ -62,14 +62,6 @@ export const de = {
               text: "CJK-Formatierung",
               link: "/de/guide/cjk-formatting",
             },
-            { text: "Einstellungen", link: "/de/guide/settings" },
-            { text: "Datenschutz", link: "/de/guide/privacy" },
-            { text: "Lizenz", link: "/de/guide/license" },
-          ],
-        },
-        {
-          text: "KI-Integration",
-          items: [
             { text: "AI Genies", link: "/de/guide/ai-genies" },
             {
               text: "KI-Anbieter",
@@ -83,39 +75,45 @@ export const de = {
               text: "MCP-Tools-Referenz",
               link: "/de/guide/mcp-tools",
             },
+            { text: "Einstellungen", link: "/de/guide/settings" },
+            { text: "Datenschutz", link: "/de/guide/privacy" },
+            { text: "Lizenz", link: "/de/guide/license" },
+          ],
+        },
+        {
+          text: "Benutzer als Entwickler",
+          items: [
             {
-              text: "Benutzer als Entwickler",
+              text: "Übersicht",
               link: "/de/guide/users-as-developers/",
-              items: [
-                {
-                  text: "Warum ich VMark entwickelt habe",
-                  link: "/de/guide/users-as-developers/why-i-built-vmark",
-                },
-                {
-                  text: "Fünf Fähigkeiten, die KI nicht ersetzen kann",
-                  link: "/de/guide/users-as-developers/what-are-indispensable",
-                },
-                {
-                  text: "Warum teure Modelle günstiger sind",
-                  link: "/de/guide/users-as-developers/why-expensive-models-are-cheaper",
-                },
-                {
-                  text: "Abonnement vs API-Preise",
-                  link: "/de/guide/users-as-developers/subscription-vs-api",
-                },
-                {
-                  text: "Englische Prompts funktionieren besser",
-                  link: "/de/guide/users-as-developers/prompt-refinement",
-                },
-                {
-                  text: "Modellübergreifende Verifizierung",
-                  link: "/de/guide/users-as-developers/cross-model-verification",
-                },
-                {
-                  text: "Warum Issues statt PRs",
-                  link: "/de/guide/users-as-developers/why-issues-not-prs",
-                },
-              ],
+            },
+            {
+              text: "Warum ich VMark entwickelt habe",
+              link: "/de/guide/users-as-developers/why-i-built-vmark",
+            },
+            {
+              text: "Fünf Fähigkeiten, die KI nicht ersetzen kann",
+              link: "/de/guide/users-as-developers/what-are-indispensable",
+            },
+            {
+              text: "Warum teure Modelle günstiger sind",
+              link: "/de/guide/users-as-developers/why-expensive-models-are-cheaper",
+            },
+            {
+              text: "Abonnement vs API-Preise",
+              link: "/de/guide/users-as-developers/subscription-vs-api",
+            },
+            {
+              text: "Englische Prompts funktionieren besser",
+              link: "/de/guide/users-as-developers/prompt-refinement",
+            },
+            {
+              text: "Modellübergreifende Verifizierung",
+              link: "/de/guide/users-as-developers/cross-model-verification",
+            },
+            {
+              text: "Warum Issues statt PRs",
+              link: "/de/guide/users-as-developers/why-issues-not-prs",
             },
           ],
         },

@@ -53,14 +53,6 @@ export const zhTW = {
               text: "中日韓排版",
               link: "/zh-TW/guide/cjk-formatting",
             },
-            { text: "設定", link: "/zh-TW/guide/settings" },
-            { text: "隱私權政策", link: "/zh-TW/guide/privacy" },
-            { text: "授權條款", link: "/zh-TW/guide/license" },
-          ],
-        },
-        {
-          text: "AI 整合",
-          items: [
             { text: "AI 精靈", link: "/zh-TW/guide/ai-genies" },
             {
               text: "AI 服務商",
@@ -71,39 +63,45 @@ export const zhTW = {
               text: "MCP 工具參考",
               link: "/zh-TW/guide/mcp-tools",
             },
+            { text: "設定", link: "/zh-TW/guide/settings" },
+            { text: "隱私權政策", link: "/zh-TW/guide/privacy" },
+            { text: "授權條款", link: "/zh-TW/guide/license" },
+          ],
+        },
+        {
+          text: "使用者即開發者",
+          items: [
             {
-              text: "使用者即開發者",
+              text: "概覽",
               link: "/zh-TW/guide/users-as-developers/",
-              items: [
-                {
-                  text: "我為什麼開發 VMark",
-                  link: "/zh-TW/guide/users-as-developers/why-i-built-vmark",
-                },
-                {
-                  text: "AI 無法取代的五項技能",
-                  link: "/zh-TW/guide/users-as-developers/what-are-indispensable",
-                },
-                {
-                  text: "為什麼貴的模型反而更便宜",
-                  link: "/zh-TW/guide/users-as-developers/why-expensive-models-are-cheaper",
-                },
-                {
-                  text: "訂閱 vs API 定價",
-                  link: "/zh-TW/guide/users-as-developers/subscription-vs-api",
-                },
-                {
-                  text: "英文提示詞效果更好",
-                  link: "/zh-TW/guide/users-as-developers/prompt-refinement",
-                },
-                {
-                  text: "跨模型驗證",
-                  link: "/zh-TW/guide/users-as-developers/cross-model-verification",
-                },
-                {
-                  text: "為什麼提 Issue 而非 PR",
-                  link: "/zh-TW/guide/users-as-developers/why-issues-not-prs",
-                },
-              ],
+            },
+            {
+              text: "我為什麼開發 VMark",
+              link: "/zh-TW/guide/users-as-developers/why-i-built-vmark",
+            },
+            {
+              text: "AI 無法取代的五項技能",
+              link: "/zh-TW/guide/users-as-developers/what-are-indispensable",
+            },
+            {
+              text: "為什麼貴的模型反而更便宜",
+              link: "/zh-TW/guide/users-as-developers/why-expensive-models-are-cheaper",
+            },
+            {
+              text: "訂閱 vs API 定價",
+              link: "/zh-TW/guide/users-as-developers/subscription-vs-api",
+            },
+            {
+              text: "英文提示詞效果更好",
+              link: "/zh-TW/guide/users-as-developers/prompt-refinement",
+            },
+            {
+              text: "跨模型驗證",
+              link: "/zh-TW/guide/users-as-developers/cross-model-verification",
+            },
+            {
+              text: "為什麼提 Issue 而非 PR",
+              link: "/zh-TW/guide/users-as-developers/why-issues-not-prs",
             },
           ],
         },

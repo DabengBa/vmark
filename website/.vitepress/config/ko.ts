@@ -59,14 +59,6 @@ export const ko = {
               text: "CJK 서식",
               link: "/ko/guide/cjk-formatting",
             },
-            { text: "설정", link: "/ko/guide/settings" },
-            { text: "개인정보 보호", link: "/ko/guide/privacy" },
-            { text: "라이선스", link: "/ko/guide/license" },
-          ],
-        },
-        {
-          text: "AI 통합",
-          items: [
             { text: "AI 지니", link: "/ko/guide/ai-genies" },
             {
               text: "AI 제공업체",
@@ -77,39 +69,45 @@ export const ko = {
               text: "MCP 도구 참조",
               link: "/ko/guide/mcp-tools",
             },
+            { text: "설정", link: "/ko/guide/settings" },
+            { text: "개인정보 보호", link: "/ko/guide/privacy" },
+            { text: "라이선스", link: "/ko/guide/license" },
+          ],
+        },
+        {
+          text: "개발자로서의 사용자",
+          items: [
             {
-              text: "개발자로서의 사용자",
+              text: "개요",
               link: "/ko/guide/users-as-developers/",
-              items: [
-                {
-                  text: "VMark를 만든 이유",
-                  link: "/ko/guide/users-as-developers/why-i-built-vmark",
-                },
-                {
-                  text: "AI가 대체할 수 없는 5가지 기술",
-                  link: "/ko/guide/users-as-developers/what-are-indispensable",
-                },
-                {
-                  text: "비싼 모델이 더 저렴한 이유",
-                  link: "/ko/guide/users-as-developers/why-expensive-models-are-cheaper",
-                },
-                {
-                  text: "구독 vs API 요금",
-                  link: "/ko/guide/users-as-developers/subscription-vs-api",
-                },
-                {
-                  text: "영어 프롬프트가 더 효과적인 이유",
-                  link: "/ko/guide/users-as-developers/prompt-refinement",
-                },
-                {
-                  text: "교차 모델 검증",
-                  link: "/ko/guide/users-as-developers/cross-model-verification",
-                },
-                {
-                  text: "PR이 아닌 Issue를 올리는 이유",
-                  link: "/ko/guide/users-as-developers/why-issues-not-prs",
-                },
-              ],
+            },
+            {
+              text: "VMark를 만든 이유",
+              link: "/ko/guide/users-as-developers/why-i-built-vmark",
+            },
+            {
+              text: "AI가 대체할 수 없는 5가지 기술",
+              link: "/ko/guide/users-as-developers/what-are-indispensable",
+            },
+            {
+              text: "비싼 모델이 더 저렴한 이유",
+              link: "/ko/guide/users-as-developers/why-expensive-models-are-cheaper",
+            },
+            {
+              text: "구독 vs API 요금",
+              link: "/ko/guide/users-as-developers/subscription-vs-api",
+            },
+            {
+              text: "영어 프롬프트가 더 효과적인 이유",
+              link: "/ko/guide/users-as-developers/prompt-refinement",
+            },
+            {
+              text: "교차 모델 검증",
+              link: "/ko/guide/users-as-developers/cross-model-verification",
+            },
+            {
+              text: "PR이 아닌 Issue를 올리는 이유",
+              link: "/ko/guide/users-as-developers/why-issues-not-prs",
             },
           ],
         },

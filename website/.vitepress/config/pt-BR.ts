@@ -62,17 +62,6 @@ export const ptBR = {
               text: "Formatação CJK",
               link: "/pt-BR/guide/cjk-formatting",
             },
-            {
-              text: "Configurações",
-              link: "/pt-BR/guide/settings",
-            },
-            { text: "Privacidade", link: "/pt-BR/guide/privacy" },
-            { text: "Licença", link: "/pt-BR/guide/license" },
-          ],
-        },
-        {
-          text: "Integração com IA",
-          items: [
             { text: "AI Genies", link: "/pt-BR/guide/ai-genies" },
             {
               text: "Provedores de IA",
@@ -87,38 +76,47 @@ export const ptBR = {
               link: "/pt-BR/guide/mcp-tools",
             },
             {
-              text: "Usuários como desenvolvedores",
+              text: "Configurações",
+              link: "/pt-BR/guide/settings",
+            },
+            { text: "Privacidade", link: "/pt-BR/guide/privacy" },
+            { text: "Licença", link: "/pt-BR/guide/license" },
+          ],
+        },
+        {
+          text: "Usuários como desenvolvedores",
+          items: [
+            {
+              text: "Visão geral",
               link: "/pt-BR/guide/users-as-developers/",
-              items: [
-                {
-                  text: "Por que criei o VMark",
-                  link: "/pt-BR/guide/users-as-developers/why-i-built-vmark",
-                },
-                {
-                  text: "Cinco habilidades que a IA não substitui",
-                  link: "/pt-BR/guide/users-as-developers/what-are-indispensable",
-                },
-                {
-                  text: "Por que modelos caros são mais baratos",
-                  link: "/pt-BR/guide/users-as-developers/why-expensive-models-are-cheaper",
-                },
-                {
-                  text: "Assinatura vs preços de API",
-                  link: "/pt-BR/guide/users-as-developers/subscription-vs-api",
-                },
-                {
-                  text: "Prompts em inglês funcionam melhor",
-                  link: "/pt-BR/guide/users-as-developers/prompt-refinement",
-                },
-                {
-                  text: "Verificação entre modelos",
-                  link: "/pt-BR/guide/users-as-developers/cross-model-verification",
-                },
-                {
-                  text: "Por que Issues e não PRs",
-                  link: "/pt-BR/guide/users-as-developers/why-issues-not-prs",
-                },
-              ],
+            },
+            {
+              text: "Por que criei o VMark",
+              link: "/pt-BR/guide/users-as-developers/why-i-built-vmark",
+            },
+            {
+              text: "Cinco habilidades que a IA não substitui",
+              link: "/pt-BR/guide/users-as-developers/what-are-indispensable",
+            },
+            {
+              text: "Por que modelos caros são mais baratos",
+              link: "/pt-BR/guide/users-as-developers/why-expensive-models-are-cheaper",
+            },
+            {
+              text: "Assinatura vs preços de API",
+              link: "/pt-BR/guide/users-as-developers/subscription-vs-api",
+            },
+            {
+              text: "Prompts em inglês funcionam melhor",
+              link: "/pt-BR/guide/users-as-developers/prompt-refinement",
+            },
+            {
+              text: "Verificação entre modelos",
+              link: "/pt-BR/guide/users-as-developers/cross-model-verification",
+            },
+            {
+              text: "Por que Issues e não PRs",
+              link: "/pt-BR/guide/users-as-developers/why-issues-not-prs",
             },
           ],
         },
