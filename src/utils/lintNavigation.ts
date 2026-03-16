@@ -36,7 +36,7 @@ export function scrollToSelectedDiagnostic(tabId: string): void {
   const { activeSourceView } = useActiveEditorStore.getState();
   const sourceMode = useEditorStore.getState().sourceMode;
 
-  if (activeSourceView && sourceMode) {
+  if (activeSourceView && sourceMode && activeSourceView.dom?.isConnected) {
     // Source mode: scroll CodeMirror to the diagnostic offset
     activeSourceView.dispatch({
       effects: CMEditorView.scrollIntoView(
@@ -51,9 +51,24 @@ export function scrollToSelectedDiagnostic(tabId: string): void {
     const windowLabel = getCurrentWindowLabel();
     cleanupBeforeModeSwitch();
     toggleSourceModeWithCheckpoint(windowLabel);
-    // After switching, scroll will happen on the next render cycle when the
-    // source view becomes active; we can't scroll here yet.
+    // Store pending scroll target so Source editor picks it up on mount
+    pendingScrollByTab[tabId] = diag.offset;
   }
   // For non-sourceOnly WYSIWYG diagnostics, the PM decoration already marks
   // the block — no programmatic scroll needed.
+}
+
+/** Pending scroll offsets for tabs that switched to Source mode for navigation. */
+const pendingScrollByTab: Record<string, number> = {};
+
+/**
+ * Consume pending scroll for a tab. Called by Source editor on mount/activation.
+ * Returns the offset to scroll to, or undefined if none pending.
+ */
+export function consumePendingLintScroll(tabId: string): number | undefined {
+  const offset = pendingScrollByTab[tabId];
+  if (offset !== undefined) {
+    delete pendingScrollByTab[tabId];
+  }
+  return offset;
 }
