@@ -19,6 +19,7 @@
  */
 import { useCallback } from "react";
 import { Plus, Trash2, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTerminalSessionStore } from "@/stores/terminalSessionStore";
 import "./TerminalTabBar.css";
 
@@ -37,6 +38,7 @@ function getTabDisplay(label: string): string {
 
 /** Renders numbered buttons for switching between terminal sessions plus create/close/restart controls. */
 export function TerminalTabBar({ onClose, onRestart, orientation = "vertical" }: TerminalTabBarProps) {
+  const { t } = useTranslation("statusbar");
   const sessions = useTerminalSessionStore((s) => s.sessions);
   const activeId = useTerminalSessionStore((s) => s.activeSessionId);
 
@@ -68,18 +70,18 @@ export function TerminalTabBar({ onClose, onRestart, orientation = "vertical" }:
           className="terminal-tab-bar-btn"
           onClick={handleCreate}
           disabled={isMaxed}
-          title={isMaxed ? "Maximum 5 sessions" : "New Terminal"}
-          aria-label={isMaxed ? "Maximum 5 sessions" : "New Terminal"}
+          title={isMaxed ? t("terminal.maxSessions") : t("terminal.newSession")}
+          aria-label={isMaxed ? t("terminal.maxSessions") : t("terminal.newSession")}
         >
           <Plus size={12} />
         </button>
       </div>
 
       <div className="terminal-tab-bar-actions">
-        <button className="terminal-tab-bar-btn" onClick={onClose} title="Close" aria-label="Close">
+        <button className="terminal-tab-bar-btn" onClick={onClose} title={t("terminal.closeSession")} aria-label={t("terminal.closeSession")}>
           <Trash2 size={12} />
         </button>
-        <button className="terminal-tab-bar-btn" onClick={onRestart} title="Restart" aria-label="Restart">
+        <button className="terminal-tab-bar-btn" onClick={onRestart} title={t("terminal.restartSession")} aria-label={t("terminal.restartSession")}>
           <RotateCcw size={12} />
         </button>
       </div>

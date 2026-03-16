@@ -24,5 +24,10 @@
   "success": "成功",
   "noResults": "无结果",
   "selectAll": "全选",
-  "deselectAll": "取消全选"
+  "deselectAll": "取消全选",
+
+  "fileDeleted": "文件已从磁盘删除",
+  "fileDivergent": "本地内容与磁盘不同",
+  "closeTab": "关闭 {{title}}",
+  "tabActions": "标签页操作"
 }

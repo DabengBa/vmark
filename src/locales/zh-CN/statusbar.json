@@ -35,5 +35,15 @@
   "updateReady": "点击重启并更新",
   "updateReadyVersion": "v{{version}} 已就绪 — 点击重启",
   "updateError": "更新检查失败 — 点击重试",
-  "autoSavedAt": "自动保存于 {{time}}"
+  "autoSavedAt": "自动保存于 {{time}}",
+
+  "terminal.search.placeholder": "搜索...",
+  "terminal.search.previous": "上一个 (Shift+Enter)",
+  "terminal.search.next": "下一个 (Enter)",
+  "terminal.search.close": "关闭 (Escape)",
+
+  "terminal.newSession": "新建终端",
+  "terminal.maxSessions": "最多 5 个会话",
+  "terminal.closeSession": "关闭",
+  "terminal.restartSession": "重启"
 }

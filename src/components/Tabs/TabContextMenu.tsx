@@ -30,6 +30,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useShortcutsStore, formatKeyForDisplay } from "@/stores/shortcutsStore";
 import { useTabStore, type Tab } from "@/stores/tabStore";
@@ -70,6 +71,7 @@ function findNextFocusable(
 
 /** Renders a right-click context menu for a tab with keyboard navigation and viewport-aware positioning. */
 export function TabContextMenu({ tab, position, windowLabel, onClose }: TabContextMenuProps) {
+  const { t } = useTranslation("common");
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const positionRef = useRef(position);
@@ -235,7 +237,7 @@ export function TabContextMenu({ tab, position, windowLabel, onClose }: TabConte
       className="tab-context-menu"
       style={{ left: position.x, top: position.y }}
       role="menu"
-      aria-label="Tab actions"
+      aria-label={t("tabActions")}
       onKeyDown={handleMenuKeyDown}
     >
       {menuItems.map((item, index) =>

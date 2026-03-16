@@ -24,5 +24,10 @@
   "success": "Success",
   "noResults": "No results",
   "selectAll": "Select All",
-  "deselectAll": "Deselect All"
+  "deselectAll": "Deselect All",
+
+  "fileDeleted": "File deleted from disk",
+  "fileDivergent": "Local differs from disk",
+  "closeTab": "Close {{title}}",
+  "tabActions": "Tab actions"
 }

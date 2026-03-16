@@ -26,6 +26,7 @@
  */
 import { memo, useCallback, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { X, Pin, AlertTriangle, GitFork } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Tab as TabType } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
@@ -60,6 +61,7 @@ export const Tab = memo(function Tab({
   onPointerDown,
   onKeyDown,
 }: TabProps) {
+  const { t } = useTranslation("common");
   // Get dirty, missing, and divergent state from document store
   const isDirty = useDocumentStore(
     (state) => state.documents[tab.id]?.isDirty ?? false
@@ -73,9 +75,9 @@ export const Tab = memo(function Tab({
   const showDivergent = isDivergent && !isMissing;
 
   const tooltip = isMissing
-    ? "File deleted from disk"
+    ? t("fileDeleted")
     : showDivergent
-      ? "Local differs from disk"
+      ? t("fileDivergent")
       : undefined;
 
   const handleActivate = useCallback(() => {
@@ -170,7 +172,7 @@ export const Tab = memo(function Tab({
             className="tab-close"
             data-tab-close
             onClick={handleClose}
-            aria-label={`Close ${tab.title}`}
+            aria-label={t("closeTab", { title: tab.title })}
           >
             <X className="w-3 h-3" />
           </button>

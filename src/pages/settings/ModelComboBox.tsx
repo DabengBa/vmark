@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, RefreshCw, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import type { RestProviderType } from "@/types/aiGenies";
 import { isImeKeyEvent } from "@/utils/imeGuard";
 import { useImeComposition } from "@/hooks/useImeComposition";
@@ -29,6 +30,7 @@ export function ModelComboBox({
   onChange,
   className = "",
 }: ModelComboBoxProps) {
+  const { t } = useTranslation("settings");
   const ime = useImeComposition();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -173,7 +175,7 @@ export function ModelComboBox({
       <div className="flex items-center gap-0.5">
         <input
           className="w-full px-2 py-1 text-xs rounded bg-[var(--bg-tertiary)] text-[var(--text-color)] border border-[var(--border-color)] focus:border-[var(--primary-color)] outline-none font-mono"
-          placeholder="Model"
+          placeholder={t("integrations.modelPlaceholder")}
           value={value}
           onChange={handleInputChange}
           onFocus={handleOpen}
@@ -184,7 +186,7 @@ export function ModelComboBox({
         <button
           className="shrink-0 p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-color)] hover:bg-[var(--hover-bg)] cursor-pointer focus-visible:outline-none"
           onClick={() => (open ? setOpen(false) : handleOpen())}
-          title="Show models"
+          title={t("integrations.showModels")}
           tabIndex={-1}
           type="button"
         >
@@ -198,7 +200,7 @@ export function ModelComboBox({
             /* v8 ignore next -- @preserve reason: !open branch opens on refresh when closed; tests click refresh while open */
             if (!open) handleOpen();
           }}
-          title="Refresh models"
+          title={t("integrations.refreshModels")}
           tabIndex={-1}
           type="button"
           disabled={fetching}
@@ -219,12 +221,12 @@ export function ModelComboBox({
         >
           {fetching && filtered.length === 0 && (
             <li className="px-2 py-1.5 text-[var(--text-tertiary)] italic">
-              Loading models...
+              {t("integrations.loadingModels")}
             </li>
           )}
           {!fetching && filtered.length === 0 && (
             <li className="px-2 py-1.5 text-[var(--text-tertiary)] italic">
-              No models found
+              {t("integrations.noModels")}
             </li>
           )}
           {filtered.map((model, idx) => (
