@@ -14,11 +14,9 @@
  *     are handled by calling i18n.changeLanguage() elsewhere.
  *   - Sets document.documentElement.lang on languageChanged event for
  *     correct assistive-technology announcements.
- *   - On startup, if saved language is non-English, sets the Rust locale
- *     AND rebuilds the native menu bar with translated labels.
  *
  * @coordinates-with stores/settingsStore.ts — reads general.language at init
- * @coordinates-with stores/shortcutsStore.ts — reads shortcuts for menu rebuild
+ * @coordinates-with utils/startupMenuSync.ts — rebuilds native menu for non-English locales
  * @module i18n
  */
 import i18n from "i18next";
@@ -85,31 +83,5 @@ useSettingsStore.subscribe((state) => {
     i18n.changeLanguage(lang);
   }
 });
-
-// Sync Rust locale on startup if user has a non-English language saved.
-// set_locale updates the translation macro; rebuild_menu recreates the menu
-// bar with translated labels and the user's current shortcut bindings.
-const startupLang = useSettingsStore.getState().general.language;
-if (startupLang && startupLang !== "en") {
-  Promise.all([
-    import("@tauri-apps/api/core"),
-    import("@/stores/shortcutsStore"),
-  ]).then(([{ invoke }, { useShortcutsStore, DEFAULT_SHORTCUTS, prosemirrorToTauri }]) => {
-    invoke("set_locale", { locale: startupLang })
-      .then(() => {
-        const allShortcuts = useShortcutsStore.getState().getAllShortcuts();
-        const menuShortcuts: Record<string, string> = {};
-        for (const def of DEFAULT_SHORTCUTS) {
-          if (def.menuId) {
-            menuShortcuts[def.menuId] = prosemirrorToTauri(
-              allShortcuts[def.id] ?? ""
-            );
-          }
-        }
-        return invoke("rebuild_menu", { shortcuts: menuShortcuts });
-      })
-      .catch(() => {});
-  });
-}
 
 export default i18n;

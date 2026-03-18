@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./i18n";
+import "./utils/startupMenuSync";
 import App from "./App";
 import "./styles/index.css";
 // KaTeX CSS must load AFTER Tailwind (so preflight runs first).
