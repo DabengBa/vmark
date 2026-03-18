@@ -107,7 +107,7 @@ fn load_html_and_wait(
         // getter that returns a BOOL. Called on the main thread.
         let is_loading: bool = unsafe { objc2::msg_send![webview, isLoading] };
         if !is_loading && i > 2 {
-            eprintln!(
+            log::debug!(
                 "[PDF] loaded at tick {} ({:.2}s)",
                 i,
                 load_start.elapsed().as_secs_f64()
@@ -116,12 +116,12 @@ fn load_html_and_wait(
             break;
         }
         if i % 20 == 0 {
-            eprintln!("[PDF] tick {}: isLoading={}", i, is_loading);
+            log::debug!("[PDF] tick {}: isLoading={}", i, is_loading);
         }
     }
 
     if !loaded {
-        eprintln!(
+        log::debug!(
             "[PDF] load TIMEOUT after {:.2}s",
             load_start.elapsed().as_secs_f64()
         );
@@ -181,7 +181,7 @@ pub async fn render_pdf(
     std::fs::write(&temp_html, &html)
         .map_err(|e| format!("Failed to write temp HTML: {}", e))?;
 
-    eprintln!(
+    log::debug!(
         "[PDF] render_pdf: wrote {} bytes to {}, output: {}",
         html.len(),
         temp_html.display(),
@@ -200,14 +200,14 @@ pub async fn render_pdf(
     // Use Tauri's event loop dispatch (NOT GCD) — this is critical.
     // GCD dispatch causes WKWebView callback deadlock when spinning NSRunLoop.
     app.run_on_main_thread(move || {
-        eprintln!("[PDF] main thread (tao event loop) entered");
+        log::debug!("[PDF] main thread (tao event loop) entered");
         let result = render_pdf_on_main_thread(
             &app_clone,
             &temp_html_str,
             &temp_dir_str,
             &output_path_clone,
         );
-        eprintln!(
+        log::debug!(
             "[PDF] done, result: {:?}",
             result.as_ref().map(|_| "ok")
         );
@@ -236,18 +236,18 @@ fn render_pdf_on_main_thread(
         MainThreadMarker::new().ok_or("PDF export must run on the main thread")?;
 
     emit_progress(app, "loading");
-    eprintln!("[PDF] creating hidden window + WKWebView...");
+    log::debug!("[PDF] creating hidden window + WKWebView...");
 
     let ov = create_offscreen_webview(mtm);
 
-    eprintln!("[PDF] loading file: {}", html_path);
+    log::debug!("[PDF] loading file: {}", html_path);
     load_html_and_wait(&ov.webview, html_path, read_access_dir)?;
 
-    eprintln!("[PDF] creating PDF via print operation...");
+    log::debug!("[PDF] creating PDF via print operation...");
     emit_progress(app, "rendering");
     let pdf_start = std::time::Instant::now();
     let result = print_to_pdf(&ov.webview, &ov.window, output_path);
-    eprintln!(
+    log::debug!(
         "[PDF] print operation done in {:.2}s",
         pdf_start.elapsed().as_secs_f64()
     );
@@ -270,7 +270,7 @@ fn print_to_pdf(
     use objc2_app_kit::{NSPrintJobSavingURL, NSPrintSaveJob};
     use objc2_foundation::NSURL;
 
-    eprintln!("[PDF] configuring NSPrintInfo...");
+    log::debug!("[PDF] configuring NSPrintInfo...");
 
     let print_info = configure_print_info();
 
@@ -295,7 +295,7 @@ fn print_to_pdf(
     // Remove any stale file to avoid false-positive success detection
     let _ = std::fs::remove_file(output_path);
 
-    eprintln!("[PDF] creating print operation...");
+    log::debug!("[PDF] creating print operation...");
 
     // SAFETY: webview is a valid WKWebView; print_info is a valid NSPrintInfo.
     // Called on the main thread (caller verified MainThreadMarker).
@@ -305,7 +305,7 @@ fn print_to_pdf(
     print_op.setShowsPrintPanel(false);
     print_op.setShowsProgressPanel(false);
 
-    eprintln!("[PDF] running print operation (modal for hidden window)...");
+    log::debug!("[PDF] running print operation (modal for hidden window)...");
 
     // Run the print operation modally for the hidden window.
     // This is required for WKWebView — plain runOperation() produces blank PDFs.
@@ -348,7 +348,7 @@ fn print_to_pdf(
                             .map(|m| m.len())
                             .unwrap_or(0);
                         if final_size == size {
-                            eprintln!(
+                            log::debug!(
                                 "[PDF] PDF file stable at tick {} ({:.2}s), size: {} bytes",
                                 i,
                                 start.elapsed().as_secs_f64(),
@@ -365,7 +365,7 @@ fn print_to_pdf(
         }
 
         if i % 50 == 0 && i > 0 {
-            eprintln!(
+            log::debug!(
                 "[PDF] print waiting... tick {} ({:.2}s)",
                 i,
                 start.elapsed().as_secs_f64()
@@ -373,7 +373,7 @@ fn print_to_pdf(
         }
     }
 
-    eprintln!(
+    log::debug!(
         "[PDF] print operation TIMEOUT after {:.2}s",
         start.elapsed().as_secs_f64()
     );
@@ -384,10 +384,10 @@ fn print_to_pdf(
             .map(|m| m.len())
             .unwrap_or(0);
         if size > 0 {
-            eprintln!("[PDF] file exists with {} bytes (detected late)", size);
+            log::debug!("[PDF] file exists with {} bytes (detected late)", size);
             return Ok(());
         }
-        eprintln!("[PDF] file exists but is empty (0 bytes)");
+        log::debug!("[PDF] file exists but is empty (0 bytes)");
         let _ = std::fs::remove_file(output_path);
         return Err("Print operation produced empty PDF".to_string());
     }

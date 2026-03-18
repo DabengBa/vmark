@@ -37,8 +37,7 @@ pub async fn start_bridge(app: AppHandle, _port: u16) -> Result<u16, String> {
     // Write port to file for MCP sidecar discovery
     write_port_file(&app, actual_port)?;
 
-    #[cfg(debug_assertions)]
-    eprintln!(
+    log::info!(
         "[MCP Bridge] WebSocket server listening on 127.0.0.1:{}",
         actual_port
     );
@@ -56,8 +55,7 @@ pub async fn start_bridge(app: AppHandle, _port: u16) -> Result<u16, String> {
         loop {
             tokio::select! {
                 _ = &mut shutdown_rx => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[MCP Bridge] Shutdown signal received");
+                    log::debug!("[MCP Bridge] Shutdown signal received");
                     break;
                 }
                 result = listener.accept() => {
@@ -66,9 +64,8 @@ pub async fn start_bridge(app: AppHandle, _port: u16) -> Result<u16, String> {
                             let app = app_handle.clone();
                             tauri::async_runtime::spawn(handle_connection(stream, addr, app));
                         }
-                        Err(_e) => {
-                            #[cfg(debug_assertions)]
-                            eprintln!("[MCP Bridge] Accept error: {}", _e);
+                        Err(e) => {
+                            log::error!("[MCP Bridge] Accept error: {}", e);
                         }
                     }
                 }
@@ -117,9 +114,8 @@ pub async fn stop_bridge(app: &AppHandle) {
 async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) {
     let ws_stream = match accept_async(stream).await {
         Ok(ws) => ws,
-        Err(_e) => {
-            #[cfg(debug_assertions)]
-            eprintln!("[MCP Bridge] WebSocket handshake failed for {}: {}", addr, _e);
+        Err(e) => {
+            log::error!("[MCP Bridge] WebSocket handshake failed for {}: {}", addr, e);
             return;
         }
     };
@@ -150,8 +146,7 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
         client_id
     };
 
-    #[cfg(debug_assertions)]
-    eprintln!("[MCP Bridge] Client {} connected from {}", client_id, addr);
+    log::debug!("[MCP Bridge] Client {} connected from {}", client_id, addr);
 
     // Send welcome notification to client
     let welcome_msg = WsMessage {
@@ -179,31 +174,26 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
     loop {
         tokio::select! {
             _ = &mut shutdown_rx => {
-                #[cfg(debug_assertions)]
-                eprintln!("[MCP Bridge] Client {} closing due to shutdown", client_id);
+                log::debug!("[MCP Bridge] Client {} closing due to shutdown", client_id);
                 break;
             }
             result = ws_receiver.next() => {
                 match result {
                     Some(Ok(Message::Text(text))) => {
-                        if let Err(_e) = handle_message(&text, client_id, &app).await {
-                            #[cfg(debug_assertions)]
-                            eprintln!("[MCP Bridge] Error handling message from client {}: {}", client_id, _e);
+                        if let Err(e) = handle_message(&text, client_id, &app).await {
+                            log::error!("[MCP Bridge] Error handling message from client {}: {}", client_id, e);
                         }
                     }
                     Some(Ok(Message::Close(_))) => {
-                        #[cfg(debug_assertions)]
-                        eprintln!("[MCP Bridge] Client {} disconnected", client_id);
+                        log::debug!("[MCP Bridge] Client {} disconnected", client_id);
                         break;
                     }
-                    Some(Err(_e)) => {
-                        #[cfg(debug_assertions)]
-                        eprintln!("[MCP Bridge] WebSocket error from client {}: {}", client_id, _e);
+                    Some(Err(e)) => {
+                        log::error!("[MCP Bridge] WebSocket error from client {}: {}", client_id, e);
                         break;
                     }
                     None => {
-                        #[cfg(debug_assertions)]
-                        eprintln!("[MCP Bridge] Client {} stream ended", client_id);
+                        log::debug!("[MCP Bridge] Client {} stream ended", client_id);
                         break;
                     }
                     _ => {}
@@ -217,21 +207,18 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
         let state = get_bridge_state();
         let mut guard = state.lock().await;
 
-        let had_id = if let Some(_client) = guard.clients.remove(&client_id) {
-            #[cfg(debug_assertions)]
-            {
-                let name = _client
-                    .identity
-                    .as_ref()
-                    .map(|i| i.display_name())
-                    .unwrap_or_else(|| format!("Client {}", client_id));
-                eprintln!(
-                    "[MCP Bridge] {} disconnected. Remaining clients: {}",
-                    name,
-                    guard.clients.len()
-                );
-            }
-            _client.identity.is_some()
+        let had_id = if let Some(client) = guard.clients.remove(&client_id) {
+            let name = client
+                .identity
+                .as_ref()
+                .map(|i| i.display_name())
+                .unwrap_or_else(|| format!("Client {}", client_id));
+            log::debug!(
+                "[MCP Bridge] {} disconnected. Remaining clients: {}",
+                name,
+                guard.clients.len()
+            );
+            client.identity.is_some()
         } else {
             false
         };
@@ -249,9 +236,8 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
 /// Handle an incoming WebSocket message.
 async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(), String> {
     // Debug: Log raw WebSocket message to trace markdown escaping
-    #[cfg(debug_assertions)]
     if text.contains("insert") {
-        eprintln!("[MCP Bridge DEBUG] Raw WebSocket message: {}", text);
+        log::debug!("[MCP Bridge DEBUG] Raw WebSocket message: {}", text);
     }
 
     let msg: WsMessage =
@@ -264,8 +250,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
             let mut guard = state.lock().await;
 
             if let Some(client) = guard.clients.get_mut(&client_id) {
-                #[cfg(debug_assertions)]
-                eprintln!(
+                log::debug!(
                     "[MCP Bridge] Client {} identified as {}",
                     client_id,
                     identity.display_name()
@@ -287,10 +272,9 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
     let request = McpRequest::from_value(msg.payload.clone())?;
 
     // Debug: Log request args to trace markdown escaping issues
-    #[cfg(debug_assertions)]
     if request.request_type.starts_with("document.insert") || request.request_type == "selection.replace" {
-        eprintln!("[MCP Bridge DEBUG] Request type: {}", request.request_type);
-        eprintln!("[MCP Bridge DEBUG] Args: {}", serde_json::to_string_pretty(&request.args).unwrap_or_default());
+        log::debug!("[MCP Bridge DEBUG] Request type: {}", request.request_type);
+        log::debug!("[MCP Bridge DEBUG] Args: {}", serde_json::to_string_pretty(&request.args).unwrap_or_default());
     }
 
     let is_read = is_read_only_operation(&request.request_type);
@@ -310,8 +294,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
     let _write_guard = if is_read {
         None
     } else {
-        #[cfg(debug_assertions)]
-        eprintln!(
+        log::debug!(
             "[MCP Bridge] Client {} acquiring write lock for {}",
             client_id, request.request_type
         );
@@ -322,7 +305,6 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
     let (response_tx, response_rx) = oneshot::channel();
 
     let request_id = msg.id.clone();
-    #[cfg(debug_assertions)]
     let request_type_for_log = request.request_type.clone();
 
     // Store the pending request
@@ -355,8 +337,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
         return Err(format!("Failed to emit event: {}", e));
     }
 
-    #[cfg(debug_assertions)]
-    eprintln!(
+    log::debug!(
         "[MCP Bridge] Emitted mcp-bridge:request for {} (id: {})",
         request.request_type, request_id
     );
@@ -394,8 +375,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
             guard.pending.remove(&request_id);
             drop(guard);
 
-            #[cfg(debug_assertions)]
-            eprintln!(
+            log::warn!(
                 "[MCP Bridge] Client {} request {} timed out after 10s",
                 client_id, request_type_for_log
             );
@@ -417,9 +397,8 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
         }
     };
 
-    #[cfg(debug_assertions)]
     if !is_read {
-        eprintln!(
+        log::debug!(
             "[MCP Bridge] Client {} completed {} - releasing write lock",
             client_id, request_type_for_log
         );

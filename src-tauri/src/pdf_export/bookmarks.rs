@@ -25,7 +25,7 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
         return Ok(());
     }
 
-    eprintln!("[PDF] adding {} bookmarks to {}", headings.len(), pdf_path);
+    log::debug!("[PDF] adding {} bookmarks to {}", headings.len(), pdf_path);
 
     let url = objc2_foundation::NSURL::fileURLWithPath(&NSString::from_str(pdf_path));
     // SAFETY: NSURL was just constructed from a valid path string, and
@@ -40,7 +40,7 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
         return Err("PDF has no pages".to_string());
     }
 
-    eprintln!("[PDF] PDF has {} pages", page_count);
+    log::debug!("[PDF] PDF has {} pages", page_count);
 
     // Build page text index for heading lookup
     let page_texts = build_page_texts(&doc, page_count);
@@ -122,7 +122,7 @@ pub fn add_bookmarks(pdf_path: &str, headings: &[Heading]) -> Result<(), String>
         return Err("Failed to write PDF with bookmarks".to_string());
     }
 
-    eprintln!("[PDF] bookmarks added successfully");
+    log::info!("[PDF] bookmarks added successfully");
     Ok(())
 }
 

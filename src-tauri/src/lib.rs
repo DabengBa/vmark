@@ -83,7 +83,7 @@ fn get_pending_file_opens() -> Vec<PendingFileOpen> {
 #[cfg(debug_assertions)]
 #[tauri::command]
 fn debug_log(message: String) {
-    eprintln!("[Frontend] {}", message);
+    log::debug!("[Frontend] {}", message);
 }
 
 /// Write HTML content to a temp file for browser-based printing and PDF export.
@@ -555,7 +555,7 @@ pub fn run() {
 
             // Install default AI genies (no-op if already present)
             if let Err(e) = genies::install_default_genies(app.handle()) {
-                eprintln!("[Tauri] Warning: Failed to install default genies: {}", e);
+                log::warn!("[Tauri] Failed to install default genies: {}", e);
             }
 
             // Windows/Linux: handle files passed as CLI arguments
@@ -599,8 +599,7 @@ pub fn run() {
             app.listen("ready", move |event| {
                 // The payload is the window label
                 if let Ok(label) = serde_json::from_str::<String>(event.payload()) {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[Tauri] Window '{}' is ready", label);
+                    log::debug!("[Tauri] Window '{}' is ready", label);
                     menu_events::mark_window_ready(&app_handle, &label);
                 }
             });
@@ -614,15 +613,13 @@ pub fn run() {
             use tauri::Emitter;
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let label = window.label();
-                #[cfg(debug_assertions)]
-                eprintln!("[Tauri] WindowEvent::CloseRequested for window '{}'", label);
+                log::debug!("[Tauri] WindowEvent::CloseRequested for window '{}'", label);
                 // Only intercept close for document windows
                 if label == "main" || label.starts_with("doc-") {
                     api.prevent_close();
                     // Include target label in payload so frontend can filter
                     let _ = window.emit("window:close-requested", label);
-                    #[cfg(debug_assertions)]
-                    eprintln!("[Tauri] Emitted window:close-requested to '{}'", label);
+                    log::debug!("[Tauri] Emitted window:close-requested to '{}'", label);
                 }
                 // Settings and other non-document windows close normally
             }
@@ -645,22 +642,19 @@ pub fn run() {
             match event {
                 // CRITICAL: Prevent quit on last window close (macOS behavior)
                 // App should only quit via Cmd+Q or menu Quit
-                tauri::RunEvent::ExitRequested { api, code: _code, .. } => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[Tauri] ExitRequested received, code={:?}", _code);
+                tauri::RunEvent::ExitRequested { api, code, .. } => {
+                    log::debug!("[Tauri] ExitRequested received, code={:?}", code);
 
                     // If we explicitly allowed exit (we're done with coordinated quit), allow it through.
                     // IMPORTANT: Quit can be "in progress" while we still need to block OS quit requests.
                     if quit::is_exit_allowed() {
-                        #[cfg(debug_assertions)]
-                        eprintln!("[Tauri] ExitRequested: exit allowed, allowing exit");
+                        log::debug!("[Tauri] ExitRequested: exit allowed, allowing exit");
                         return;
                     }
 
                     // Prevent exit for last-window-close scenario (macOS behavior)
                     api.prevent_exit();
-                    #[cfg(debug_assertions)]
-                    eprintln!("[Tauri] ExitRequested: prevent_exit() called");
+                    log::debug!("[Tauri] ExitRequested: prevent_exit() called");
 
                     // Only start coordinated quit if there are document windows
                     let has_doc_windows = app
@@ -669,8 +663,7 @@ pub fn run() {
                         .any(|label| quit::is_document_window_label(label));
 
                     if has_doc_windows {
-                        #[cfg(debug_assertions)]
-                        eprintln!("[Tauri] ExitRequested: starting quit flow");
+                        log::debug!("[Tauri] ExitRequested: starting quit flow");
                         quit::start_quit(app);
                     }
                     // If no document windows, just stay alive (macOS dock behavior)

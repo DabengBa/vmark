@@ -48,7 +48,7 @@ pub async fn hot_exit_capture(app: AppHandle) -> Result<SessionData, String> {
             _ => true, // overflow, negative (future), or too old
         };
         if is_stale {
-            eprintln!(
+            log::debug!(
                 "[HotExit] Skipping stale merge: previous session age {:?}s (max {}s)",
                 prev_age_secs, max_merge_age_secs
             );
@@ -57,7 +57,7 @@ pub async fn hot_exit_capture(app: AppHandle) -> Result<SessionData, String> {
                 if expected_labels.contains(&prev_window.window_label)
                     && !captured_labels.contains(&prev_window.window_label)
                 {
-                    eprintln!(
+                    log::debug!(
                         "[HotExit] Merging previous state for timed-out window '{}' ({:?}s old)",
                         prev_window.window_label, prev_age_secs
                     );

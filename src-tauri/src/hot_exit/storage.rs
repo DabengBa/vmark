@@ -145,7 +145,7 @@ pub async fn read_session(
         Ok(Some(mut session)) => {
             let warnings = validate_and_repair(&mut session);
             for warning in &warnings {
-                eprintln!("[HotExit] Session repair: {}", warning);
+                log::warn!("[HotExit] Session repair: {}", warning);
             }
             return Ok(Some(session));
         }
@@ -153,7 +153,7 @@ pub async fn read_session(
             // Main file doesn't exist — check backup before giving up
         }
         Err(e) => {
-            eprintln!("[HotExit] Main session corrupt ({}), trying backup", e);
+            log::warn!("[HotExit] Main session corrupt ({}), trying backup", e);
         }
     }
 
@@ -161,16 +161,16 @@ pub async fn read_session(
     let backup_path = get_backup_session_path(app)?;
     match try_read_session_file(&backup_path).await {
         Ok(Some(mut session)) => {
-            eprintln!("[HotExit] Restored session from backup");
+            log::info!("[HotExit] Restored session from backup");
             let warnings = validate_and_repair(&mut session);
             for warning in &warnings {
-                eprintln!("[HotExit] Session repair (backup): {}", warning);
+                log::warn!("[HotExit] Session repair (backup): {}", warning);
             }
             Ok(Some(session))
         }
         Ok(None) => Ok(None),
         Err(e) => {
-            eprintln!("[HotExit] Backup session also failed: {}", e);
+            log::error!("[HotExit] Backup session also failed: {}", e);
             Ok(None) // Both files unusable — start fresh
         }
     }
@@ -193,7 +193,7 @@ pub async fn delete_session(app: &tauri::AppHandle) -> Result<(), String> {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => {
-            eprintln!("[HotExit] Failed to delete backup session: {}", e);
+            log::error!("[HotExit] Failed to delete backup session: {}", e);
         }
     }
 
