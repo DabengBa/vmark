@@ -14,8 +14,11 @@
  *     are handled by calling i18n.changeLanguage() elsewhere.
  *   - Sets document.documentElement.lang on languageChanged event for
  *     correct assistive-technology announcements.
+ *   - On startup, if saved language is non-English, sets the Rust locale
+ *     AND rebuilds the native menu bar with translated labels.
  *
  * @coordinates-with stores/settingsStore.ts — reads general.language at init
+ * @coordinates-with stores/shortcutsStore.ts — reads shortcuts for menu rebuild
  * @module i18n
  */
 import i18n from "i18next";
