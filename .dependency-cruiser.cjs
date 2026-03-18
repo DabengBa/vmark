@@ -44,6 +44,8 @@ module.exports = {
           "src/utils/workspaceBootstrap",
           // Media path resolution (needs tab/document store for relative path resolution)
           "src/utils/resolveMediaSrc",
+          // Startup wiring (rebuilds native menu with saved locale on boot)
+          "src/utils/startupMenuSync",
           // Editor services (bridge between editor internals and stores)
           "src/utils/tiptapFocus",
           "src/utils/sourcePeek",
