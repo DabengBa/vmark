@@ -94,8 +94,7 @@ pub(crate) struct ClientIdentity {
 }
 
 impl ClientIdentity {
-    /// Get display name for logging (debug only).
-    #[cfg(debug_assertions)]
+    /// Get display name for logging.
     pub fn display_name(&self) -> String {
         if let Some(ref version) = self.version {
             format!("{} v{}", self.name, version)
