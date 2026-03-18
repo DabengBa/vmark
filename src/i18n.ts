@@ -84,11 +84,28 @@ useSettingsStore.subscribe((state) => {
 });
 
 // Sync Rust locale on startup if user has a non-English language saved.
-// This ensures native menus match the frontend language from the first render.
+// set_locale updates the translation macro; rebuild_menu recreates the menu
+// bar with translated labels and the user's current shortcut bindings.
 const startupLang = useSettingsStore.getState().general.language;
 if (startupLang && startupLang !== "en") {
-  import("@tauri-apps/api/core").then(({ invoke }) => {
-    invoke("set_locale", { locale: startupLang }).catch(() => {});
+  Promise.all([
+    import("@tauri-apps/api/core"),
+    import("@/stores/shortcutsStore"),
+  ]).then(([{ invoke }, { useShortcutsStore, DEFAULT_SHORTCUTS, prosemirrorToTauri }]) => {
+    invoke("set_locale", { locale: startupLang })
+      .then(() => {
+        const allShortcuts = useShortcutsStore.getState().getAllShortcuts();
+        const menuShortcuts: Record<string, string> = {};
+        for (const def of DEFAULT_SHORTCUTS) {
+          if (def.menuId) {
+            menuShortcuts[def.menuId] = prosemirrorToTauri(
+              allShortcuts[def.id] ?? ""
+            );
+          }
+        }
+        return invoke("rebuild_menu", { shortcuts: menuShortcuts });
+      })
+      .catch(() => {});
   });
 }
 
