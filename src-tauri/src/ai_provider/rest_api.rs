@@ -155,7 +155,7 @@ pub async fn list_models(
                         .collect()
                 })
                 .unwrap_or_else(|| {
-                    eprintln!("[AI Provider] Unexpected model list response shape from Ollama (missing \"models\" key)");
+                    log::warn!("[AI Provider] Unexpected model list response shape from Ollama (missing \"models\" key)");
                     Vec::new()
                 });
             Ok(models)
@@ -191,7 +191,7 @@ pub async fn list_models(
                         .collect()
                 })
                 .unwrap_or_else(|| {
-                    eprintln!("[AI Provider] Unexpected model list response shape from OpenAI (missing \"data\" key)");
+                    log::warn!("[AI Provider] Unexpected model list response shape from OpenAI (missing \"data\" key)");
                     Vec::new()
                 });
             models.sort();
@@ -224,7 +224,7 @@ pub async fn list_models(
                         .collect()
                 })
                 .unwrap_or_else(|| {
-                    eprintln!("[AI Provider] Unexpected model list response shape from Google AI (missing \"models\" key)");
+                    log::warn!("[AI Provider] Unexpected model list response shape from Google AI (missing \"models\" key)");
                     Vec::new()
                 });
             models.sort();

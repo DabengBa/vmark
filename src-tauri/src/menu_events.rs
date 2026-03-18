@@ -53,8 +53,7 @@ impl WindowReadyState {
 fn get_state() -> std::sync::MutexGuard<'static, Option<WindowReadyState>> {
     // Recover from poisoned mutex - state may be inconsistent but app won't crash
     WINDOW_READY_STATE.lock().unwrap_or_else(|poisoned| {
-        #[cfg(debug_assertions)]
-        eprintln!("[menu_events] WARNING: Mutex was poisoned, recovering");
+        log::warn!("[menu_events] Mutex was poisoned, recovering");
         poisoned.into_inner()
     })
 }
@@ -72,8 +71,7 @@ pub fn mark_window_ready(app: &AppHandle, label: &str) {
     // Emit pending events outside the lock
     if let Some(window) = app.get_webview_window(label) {
         for event in &pending {
-            #[cfg(debug_assertions)]
-            eprintln!(
+            log::debug!(
                 "[menu_events] Flushing pending event '{}' to window '{}'",
                 event.event_name, label
             );
@@ -171,19 +169,16 @@ fn emit_event(window: &tauri::WebviewWindow, event: &PendingMenuEvent) {
 /// This is race-condition safe: check and queue happen in a single lock acquisition.
 fn emit_or_queue_atomic(window: &tauri::WebviewWindow, event: PendingMenuEvent) {
     let label = window.label();
-    #[cfg(debug_assertions)]
     let event_name = event.event_name.clone(); // For logging
 
     if check_ready_or_queue(label, event.clone()) {
-        #[cfg(debug_assertions)]
-        eprintln!(
+        log::debug!(
             "[menu_events] Window '{}' is ready, emitting '{}' directly",
             label, event_name
         );
         emit_event(window, &event);
     } else {
-        #[cfg(debug_assertions)]
-        eprintln!(
+        log::debug!(
             "[menu_events] Window '{}' not ready, queued '{}'",
             label, event_name
         );
@@ -218,8 +213,7 @@ fn make_recent_workspace_event(path: &str) -> PendingMenuEvent {
 /// The event will be emitted when the window becomes ready.
 fn create_window_and_queue(app: &AppHandle, event: PendingMenuEvent) {
     if let Ok(label) = crate::window_manager::create_document_window(app, None, None) {
-        #[cfg(debug_assertions)]
-        eprintln!(
+        log::debug!(
             "[menu_events] Created window '{}', queueing event '{}'",
             label, event.event_name
         );
@@ -373,15 +367,13 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     // - No Settings window exists
     // - No document windows exist
     if id == "preferences" {
-        #[cfg(debug_assertions)]
-        eprintln!("[menu_events] Handling 'preferences' menu event");
+        log::debug!("[menu_events] Handling 'preferences' menu event");
         match crate::window_manager::show_settings_window(app) {
-            Ok(_label) => {
-                #[cfg(debug_assertions)]
-                eprintln!("[menu_events] Settings window ready: {}", _label);
+            Ok(label) => {
+                log::debug!("[menu_events] Settings window ready: {}", label);
             }
             Err(e) => {
-                eprintln!("[menu_events] ERROR: Failed to show settings: {}", e);
+                log::error!("[menu_events] Failed to show settings: {}", e);
             }
         }
         return;
@@ -389,15 +381,13 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 
     // "about" - open Settings window at About section
     if id == "about" {
-        #[cfg(debug_assertions)]
-        eprintln!("[menu_events] Handling 'about' menu event");
+        log::debug!("[menu_events] Handling 'about' menu event");
         match crate::window_manager::show_settings_window_section(app, Some("about")) {
-            Ok(_label) => {
-                #[cfg(debug_assertions)]
-                eprintln!("[menu_events] Settings window (about) ready: {}", _label);
+            Ok(label) => {
+                log::debug!("[menu_events] Settings window (about) ready: {}", label);
             }
             Err(e) => {
-                eprintln!("[menu_events] ERROR: Failed to show about: {}", e);
+                log::error!("[menu_events] Failed to show about: {}", e);
             }
         }
         return;

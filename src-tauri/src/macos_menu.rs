@@ -21,38 +21,37 @@ use tauri::menu::MenuItemKind;
 /// Must be called after `app.set_menu()`.
 pub fn fix_help_menu() {
     let Some(mtm) = MainThreadMarker::new() else {
-        eprintln!("[macos_menu] Not on main thread, cannot fix Help menu");
+        log::warn!("[macos_menu] Not on main thread, cannot fix Help menu");
         return;
     };
 
     let app = NSApplication::sharedApplication(mtm);
     let Some(main_menu) = app.mainMenu() else {
-        eprintln!("[macos_menu] No main menu found");
+        log::warn!("[macos_menu] No main menu found");
         return;
     };
 
     // Help menu is always the last top-level menu item on macOS
     let item_count = main_menu.numberOfItems();
     if item_count == 0 {
-        eprintln!("[macos_menu] Main menu has no items");
+        log::warn!("[macos_menu] Main menu has no items");
         return;
     }
 
     let Some(help_item) = main_menu.itemAtIndex(item_count - 1) else {
-        eprintln!("[macos_menu] Could not get last menu item");
+        log::warn!("[macos_menu] Could not get last menu item");
         return;
     };
 
     let Some(help_submenu) = help_item.submenu() else {
-        eprintln!("[macos_menu] Last menu item has no submenu");
+        log::warn!("[macos_menu] Last menu item has no submenu");
         return;
     };
 
     // Register as the Help menu — this enables the native search field
     app.setHelpMenu(Some(&help_submenu));
 
-    #[cfg(debug_assertions)]
-    eprintln!("[macos_menu] Help menu registered with search field");
+    log::debug!("[macos_menu] Help menu registered with search field");
 }
 
 /// Fix the Window menu on macOS.
@@ -85,8 +84,7 @@ pub fn fix_window_menu() {
 
     app.setWindowsMenu(Some(&window_submenu));
 
-    #[cfg(debug_assertions)]
-    eprintln!("[macos_menu] Window menu registered");
+    log::debug!("[macos_menu] Window menu registered");
 }
 
 // ============================================================================
@@ -417,8 +415,7 @@ pub fn apply_menu_icons(app_handle: &tauri::AppHandle) {
 
     apply_icons_to_ns_menu(&main_menu, &title_icon_map);
 
-    #[cfg(debug_assertions)]
-    eprintln!("[macos_menu] Menu icons applied");
+    log::debug!("[macos_menu] Menu icons applied");
 }
 
 /// Fallback icon for dynamic menu items based on which submenu they're in.

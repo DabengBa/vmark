@@ -116,7 +116,7 @@ pub(crate) fn login_shell_path() -> String {
                                     let _ = child.kill();
                                     let _ = child.wait();
                                     // Reader thread will see broken pipe and exit
-                                    eprintln!("[VMark] login_shell_path timed out after {}s", timeout.as_secs());
+                                    log::warn!("[VMark] login_shell_path timed out after {}s", timeout.as_secs());
                                     return None;
                                 }
                                 std::thread::sleep(std::time::Duration::from_millis(50));

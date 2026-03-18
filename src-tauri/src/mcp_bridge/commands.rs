@@ -12,11 +12,10 @@ pub async fn mcp_bridge_respond(payload: McpResponsePayload) -> Result<(), Strin
     let state = get_bridge_state();
     let mut guard = state.lock().await;
 
-    #[cfg(debug_assertions)]
     if guard.pending.contains_key(&payload.id) {
-        eprintln!("[MCP Bridge] Response received for {}", payload.id);
+        log::debug!("[MCP Bridge] Response received for {}", payload.id);
     } else {
-        eprintln!(
+        log::debug!(
             "[MCP Bridge] Response for unknown/expired request {}",
             payload.id
         );

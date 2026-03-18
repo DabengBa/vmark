@@ -13,14 +13,12 @@ use std::path::Path;
 pub fn register_recent_document(path: &str) {
     // Validate path exists
     if !Path::new(path).exists() {
-        #[cfg(debug_assertions)]
-        eprintln!("[dock_recent] Path does not exist: {}", path);
+        log::warn!("[dock_recent] Path does not exist: {}", path);
         return;
     }
 
     let Some(mtm) = MainThreadMarker::new() else {
-        #[cfg(debug_assertions)]
-        eprintln!("[dock_recent] Not on main thread, cannot register document");
+        log::warn!("[dock_recent] Not on main thread, cannot register document");
         return;
     };
 
@@ -30,6 +28,5 @@ pub fn register_recent_document(path: &str) {
     let controller = NSDocumentController::sharedDocumentController(mtm);
     controller.noteNewRecentDocumentURL(&url);
 
-    #[cfg(debug_assertions)]
-    eprintln!("[dock_recent] Registered: {}", path);
+    log::debug!("[dock_recent] Registered: {}", path);
 }

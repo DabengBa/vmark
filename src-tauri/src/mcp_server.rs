@@ -90,8 +90,7 @@ pub async fn mcp_bridge_start(app: AppHandle, port: u16) -> Result<McpServerStat
     // Emit started event with actual port
     let _ = app.emit("mcp-server:started", actual_port);
 
-    #[cfg(debug_assertions)]
-    eprintln!(
+    log::info!(
         "[MCP] Bridge started on port {} (waiting for AI client sidecars)",
         actual_port
     );
@@ -232,17 +231,14 @@ pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStat
 
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(_line) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[MCP Server] {}", String::from_utf8_lossy(&_line));
+                CommandEvent::Stdout(line) => {
+                    log::debug!("[MCP Server] {}", String::from_utf8_lossy(&line));
                 }
-                CommandEvent::Stderr(_line) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[MCP Server Error] {}", String::from_utf8_lossy(&_line));
+                CommandEvent::Stderr(line) => {
+                    log::error!("[MCP Server Error] {}", String::from_utf8_lossy(&line));
                 }
                 CommandEvent::Terminated(payload) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!(
+                    log::debug!(
                         "[MCP Server] Process terminated with code: {:?}, signal: {:?}",
                         payload.code, payload.signal
                     );

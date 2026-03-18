@@ -86,8 +86,7 @@ pub(crate) fn write_port_file(app: &AppHandle, port: u16) -> Result<(), String> 
     // Write port atomically to prevent partial reads
     app_paths::atomic_write_file(&path, port.to_string().as_bytes())?;
 
-    #[cfg(debug_assertions)]
-    eprintln!("[MCP Bridge] Port {} written to {:?}", port, path);
+    log::debug!("[MCP Bridge] Port {} written to {:?}", port, path);
 
     Ok(())
 }
@@ -99,23 +98,22 @@ pub(crate) fn remove_port_file(app: &AppHandle) {
         Ok(path) => {
             match std::fs::remove_file(&path) {
                 Ok(()) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[MCP Bridge] Port file removed: {:?}", path);
+                    log::debug!("[MCP Bridge] Port file removed: {:?}", path);
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     // Already removed - not an error
                 }
                 Err(e) => {
                     // Real error - log it
-                    eprintln!(
-                        "[MCP Bridge] Warning: Failed to remove port file {:?}: {}",
+                    log::warn!(
+                        "[MCP Bridge] Failed to remove port file {:?}: {}",
                         path, e
                     );
                 }
             }
         }
         Err(e) => {
-            eprintln!("[MCP Bridge] Warning: Cannot determine port file path: {}", e);
+            log::warn!("[MCP Bridge] Cannot determine port file path: {}", e);
         }
     }
 }

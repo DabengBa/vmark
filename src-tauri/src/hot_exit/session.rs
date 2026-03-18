@@ -158,7 +158,7 @@ impl SessionData {
     pub fn is_stale(&self, max_age_days: i64) -> bool {
         // Guard against invalid input
         if max_age_days <= 0 {
-            eprintln!("[HotExit] Warning: max_age_days must be positive (got {})", max_age_days);
+            log::warn!("[HotExit] Warning: max_age_days must be positive (got {})", max_age_days);
             return true; // Treat as stale to be safe
         }
 
@@ -167,7 +167,7 @@ impl SessionData {
 
         // Treat future timestamps as stale (clock skew)
         if age_seconds < 0 {
-            eprintln!("[HotExit] Warning: Session timestamp is in the future (clock skew)");
+            log::warn!("[HotExit] Warning: Session timestamp is in the future (clock skew)");
             return true;
         }
 
@@ -175,7 +175,7 @@ impl SessionData {
         match max_age_days.checked_mul(SECONDS_PER_DAY) {
             Some(max_age_seconds) => age_seconds > max_age_seconds,
             None => {
-                eprintln!("[HotExit] Warning: max_age_days overflow ({})", max_age_days);
+                log::warn!("[HotExit] Warning: max_age_days overflow ({})", max_age_days);
                 true // Treat as stale on overflow
             }
         }

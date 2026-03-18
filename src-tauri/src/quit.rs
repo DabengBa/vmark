@@ -130,9 +130,8 @@ pub fn request_quit(app: &AppHandle) {
         QuitGateResult::WaitForSecondPress => {
             // Emit feedback to the focused window (if any)
             if let Some(window) = app.webview_windows().values().find(|w| w.is_focused().unwrap_or(false)) {
-                if let Err(_e) = window.emit("app:quit-first-press", ()) {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[quit] Failed to emit quit-first-press: {}", _e);
+                if let Err(e) = window.emit("app:quit-first-press", ()) {
+                    log::error!("[quit] Failed to emit quit-first-press: {}", e);
                 }
             }
         }
@@ -185,8 +184,7 @@ pub fn cancel_quit() {
 /// Handle a window being destroyed while quit is in progress.
 pub fn handle_window_destroyed(app: &AppHandle, label: &str) {
     let quit_in_progress = QUIT_IN_PROGRESS.load(Ordering::SeqCst);
-    #[cfg(debug_assertions)]
-    eprintln!("[Tauri] handle_window_destroyed: label={}, quit_in_progress={}", label, quit_in_progress);
+    log::debug!("[Tauri] handle_window_destroyed: label={}, quit_in_progress={}", label, quit_in_progress);
 
     if !quit_in_progress {
         return;
@@ -197,8 +195,7 @@ pub fn handle_window_destroyed(app: &AppHandle, label: &str) {
     }
 
     if remove_quit_target(label) {
-        #[cfg(debug_assertions)]
-        eprintln!("[Tauri] handle_window_destroyed: all targets done, calling app.exit(0)");
+        log::debug!("[Tauri] handle_window_destroyed: all targets done, calling app.exit(0)");
         finalize_quit(app);
     }
 }

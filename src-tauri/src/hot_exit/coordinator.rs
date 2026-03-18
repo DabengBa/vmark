@@ -84,7 +84,7 @@ pub(crate) fn get_pending_restore_state() -> Arc<Mutex<PendingRestoreState>> {
 /// Lock the pending restore state, recovering from poisoning
 fn lock_pending_restore(pending: &Arc<Mutex<PendingRestoreState>>) -> std::sync::MutexGuard<'_, PendingRestoreState> {
     pending.lock().unwrap_or_else(|poisoned| {
-        eprintln!("[HotExit] Recovering from poisoned mutex");
+        log::warn!("[HotExit] Recovering from poisoned mutex");
         poisoned.into_inner()
     })
 }
@@ -120,7 +120,7 @@ struct CaptureState {
 /// Normalize window state label to match expected label
 fn normalize_window_label(state: &mut WindowState, expected_label: &str) {
     if state.window_label != expected_label {
-        eprintln!(
+        log::debug!(
             "[HotExit] Normalizing mismatched window_label: {} -> {}",
             state.window_label,
             expected_label
@@ -172,13 +172,13 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
         match serde_json::from_str::<CaptureResponse>(event.payload()) {
             Ok(mut response) => {
                 let mut state = state_clone.lock().unwrap_or_else(|poisoned| {
-                    eprintln!("[HotExit] Recovering from poisoned capture state mutex");
+                    log::warn!("[HotExit] Recovering from poisoned capture state mutex");
                     poisoned.into_inner()
                 });
 
                 // Ignore responses from different capture requests (stale responses)
                 if response.capture_id != state.capture_id {
-                    eprintln!(
+                    log::warn!(
                         "[HotExit] Ignoring stale response (capture_id mismatch: {} vs {})",
                         response.capture_id,
                         state.capture_id
@@ -188,7 +188,7 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
 
                 // Only accept responses from expected windows
                 if !state.expected_windows.contains(&response.window_label) {
-                    eprintln!(
+                    log::warn!(
                         "[HotExit] Ignoring response from unexpected window: {}",
                         response.window_label
                     );
@@ -197,7 +197,7 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
 
                 // Ignore duplicate responses from the same window
                 if state.responses.contains_key(&response.window_label) {
-                    eprintln!(
+                    log::warn!(
                         "[HotExit] Ignoring duplicate response from window: {}",
                         response.window_label
                     );
@@ -210,7 +210,7 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
                 state.responses.insert(response.window_label.clone(), response.state);
             }
             Err(e) => {
-                eprintln!(
+                log::error!(
                     "[HotExit] Failed to parse capture response ({}): {}",
                     event.payload().len(),
                     e
@@ -249,14 +249,14 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
             .iter()
             .filter(|w| !final_state.responses.contains_key(*w))
             .collect();
-        eprintln!(
+        log::warn!(
             "[HotExit] Timeout: Got {}/{} window responses. Missing: {:?}",
             got_responses,
             expected_responses,
             missing
         );
         if let Err(e) = app.emit(EVENT_CAPTURE_TIMEOUT, ()) {
-            eprintln!("[HotExit] Failed to emit capture timeout event: {}", e);
+            log::error!("[HotExit] Failed to emit capture timeout event: {}", e);
         }
 
         // If we got zero responses, this is a critical failure
@@ -265,8 +265,8 @@ pub async fn capture_session(app: &AppHandle) -> Result<CaptureResult, String> {
         }
 
         // Partial capture — log warning and notify frontend
-        eprintln!(
-            "[HotExit] WARNING: Saving partial session ({}/{} windows). State for {:?} was lost.",
+        log::warn!(
+            "[HotExit] Saving partial session ({}/{} windows). State for {:?} was lost.",
             got_responses,
             expected_responses,
             missing
@@ -322,7 +322,7 @@ async fn wait_for_all_responses(state: Arc<Mutex<CaptureState>>, expected: usize
 fn prepare_session_for_restore(session: SessionData) -> Result<SessionData, String> {
     // Migrate session if needed
     let session = if needs_migration(&session) {
-        eprintln!(
+        log::info!(
             "[HotExit] Migrating session from v{} to v{}",
             session.version, SCHEMA_VERSION
         );
@@ -475,7 +475,7 @@ pub fn restore_session_multi_window(
         };
         window_states_to_store.push((MAIN_WINDOW_LABEL.to_string(), normalized));
     } else {
-        eprintln!("[HotExit] Warning: No main window state in session, main will restore empty");
+        log::warn!("[HotExit] No main window state in session, main will restore empty");
     }
 
     // Phase 1: Pre-allocate labels and store state BEFORE creating windows.
@@ -511,7 +511,7 @@ pub fn restore_session_multi_window(
                 windows_created.push(label.clone());
             }
             Err(e) => {
-                eprintln!(
+                log::error!(
                     "[HotExit] Failed to create window {}: {}",
                     label, e
                 );
@@ -566,7 +566,7 @@ fn spawn_restore_timeout(generation: u64) {
                 .filter(|l| !state.completed_windows.contains(*l))
                 .cloned()
                 .collect();
-            eprintln!(
+            log::warn!(
                 "[HotExit] Restore timeout ({}s) — clearing pending state. Incomplete windows: {:?}",
                 RESTORE_TIMEOUT_SECS,
                 incomplete
@@ -607,7 +607,7 @@ pub fn mark_window_restore_complete(window_label: &str) -> bool {
     if state.expected_labels.contains(window_label) {
         state.completed_windows.insert(window_label.to_string());
     } else {
-        eprintln!(
+        log::warn!(
             "[HotExit] Ignoring completion from unexpected window: {}",
             window_label
         );
