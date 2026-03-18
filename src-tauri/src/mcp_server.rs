@@ -235,7 +235,7 @@ pub async fn mcp_server_start(app: AppHandle, port: u16) -> Result<McpServerStat
                     log::debug!("[MCP Server] {}", String::from_utf8_lossy(&line));
                 }
                 CommandEvent::Stderr(line) => {
-                    log::error!("[MCP Server Error] {}", String::from_utf8_lossy(&line));
+                    log::warn!("[MCP Server stderr] {}", String::from_utf8_lossy(&line));
                 }
                 CommandEvent::Terminated(payload) => {
                     log::debug!(

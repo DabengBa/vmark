@@ -39,7 +39,7 @@ pub async fn export_pdf(
     if let Some(ref headings) = headings {
         if !headings.is_empty() {
             if let Err(e) = bookmarks::add_bookmarks(&output_path, headings) {
-                log::error!("[PDF] bookmark injection failed: {}", e);
+                log::warn!("[PDF] bookmark injection failed (PDF still valid): {}", e);
                 // Don't fail the export — PDF is still valid without bookmarks
             }
         }
