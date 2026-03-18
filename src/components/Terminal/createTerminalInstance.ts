@@ -68,8 +68,10 @@ export interface TerminalInstance {
   searchAddon: SearchAddon;
   serializeAddon: SerializeAddon;
   container: HTMLDivElement;
-  /** Whether an IME composition is active or in grace period (guards onData in useTerminalSessions + copy-on-select here). */
+  /** Whether an IME composition is active or in post-composition grace period. */
   composing: boolean;
+  /** Whether we are specifically in the post-composition grace period (not actively composing). */
+  inGracePeriod: boolean;
   /**
    * Callback invoked with the clean committed text after IME composition ends.
    * Set by useTerminalSessions to write directly to PTY, bypassing xterm's
@@ -140,6 +142,7 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
   // from compositionend.data and write it directly to PTY via onCompositionCommit,
   // keeping composing=true during a grace period to block xterm's garbled onData.
   let composing = false;
+  let inGracePeriod = false;
   let compositionGraceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingCommitText: string | null = null;
   let onCompositionCommit: ((text: string) => void) | null = null;
@@ -157,6 +160,7 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
       pendingCommitText = null;
     }
     composing = true;
+    inGracePeriod = false;
     terminalLog("compositionstart");
   };
   const onCompositionEnd = (e: CompositionEvent) => {
@@ -165,10 +169,13 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
     // Store committed text so compositionstart can flush it if a new
     // composition begins before the grace period expires.
     pendingCommitText = committedText;
-    // Keep composing=true during grace period to block xterm's onData
+    // Keep composing=true during grace period to block xterm's garbled ASCII onData.
+    // Non-ASCII chars (CJK punctuation) are allowed through by the onData guard.
+    inGracePeriod = true;
     compositionGraceTimer = setTimeout(() => {
       compositionGraceTimer = null;
       composing = false;
+      inGracePeriod = false;
       // Send clean committed text directly to PTY
       if (pendingCommitText && onCompositionCommit) {
         onCompositionCommit(pendingCommitText);
@@ -301,6 +308,7 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
   const instance: TerminalInstance = {
     term, fitAddon, searchAddon, serializeAddon, container, dispose,
     get composing() { return composing; },
+    get inGracePeriod() { return inGracePeriod; },
     get onCompositionCommit() { return onCompositionCommit; },
     set onCompositionCommit(cb: ((text: string) => void) | null) { onCompositionCommit = cb; },
   };

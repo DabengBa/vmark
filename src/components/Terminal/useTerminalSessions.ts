@@ -285,9 +285,15 @@ export function useTerminalSessions(
       instance.term.onData((data) => {
         const e = sessionsRef.current.get(sessionId);
         if (!e) return;
-        // Ignore preedit data leaked by xterm during IME composition (issue #59)
-        // Also blocks during post-composition grace period to prevent garbled text
-        if (instance.composing) return;
+        // Ignore preedit data leaked by xterm during IME composition (issue #59).
+        // During active composition: block everything (preedit is garbled).
+        // During grace period: only block ASCII data (garbled syllable spaces);
+        // let non-ASCII through so CJK punctuation isn't silently dropped (#454).
+        if (instance.composing) {
+          if (!instance.inGracePeriod) return; // active composition — block all
+          // eslint-disable-next-line no-control-regex
+          if (/^[\x00-\x7F]+$/.test(data)) return; // grace period — block ASCII only
+        }
         if (e.shellExited && !e.pty) {
           e.shellExited = false;
           e.instance.term.clear();
