@@ -325,8 +325,11 @@
   margin-left: 8px;
 }
 
-/* Hide built-in language switcher — replaced by custom LanguageSwitcher.vue */
+/* Hide ALL built-in language switchers — replaced by custom LanguageSwitcher.vue */
 .VPNavBarTranslations { display: none !important; }
+.VPNavScreenTranslations { display: none !important; }
+/* Hide language section inside VPNavBarExtra (tablet 768–1279px flyout) */
+.VPNavBarExtra .group:has(.vpi-languages) { display: none !important; }
 
 /* CJK typography: add letter-spacing for ideographic characters.
  * Applied to zh-CN, zh-TW, ja locale pages only.

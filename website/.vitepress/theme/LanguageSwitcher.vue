@@ -73,14 +73,8 @@ const items = computed(() => {
 <style scoped>
 .lang-dropdown {
   position: relative;
-  display: none;
-}
-
-@media (min-width: 1280px) {
-  .lang-dropdown {
-    display: flex;
-    align-items: center;
-  }
+  display: flex;
+  align-items: center;
 }
 
 .lang-trigger {
