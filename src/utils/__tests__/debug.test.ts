@@ -60,7 +60,7 @@ import {
   clipboardWarn,
   renderWarn,
   cleanupWarn,
-  listClickFixLog,
+  listClickFixWarn,
   windowContextError,
   sourceLinkError,
   resolveMediaError,
@@ -126,7 +126,7 @@ const allLoggers = {
   clipboardWarn,
   renderWarn,
   cleanupWarn,
-  listClickFixLog,
+  listClickFixWarn,
   windowContextError,
   sourceLinkError,
   resolveMediaError,
@@ -215,7 +215,7 @@ describe("debug loggers — prefix conventions", () => {
     clipboardWarn:        { prefix: "[Clipboard]",           method: "warn" },
     renderWarn:           { prefix: "[Render]",              method: "warn" },
     cleanupWarn:          { prefix: "[Cleanup]",             method: "warn" },
-    listClickFixLog:      { prefix: "[ListClickFix]",        method: "warn" },
+    listClickFixWarn:      { prefix: "[ListClickFix]",        method: "warn" },
     windowContextError:   { prefix: "[WindowContext]",        method: "error" },
     sourceLinkError:      { prefix: "[SourceLink]",           method: "error" },
     resolveMediaError:    { prefix: "[ResolveMedia]",         method: "error" },
@@ -398,25 +398,25 @@ describe("debug loggers — production mode (DEV=false)", () => {
     vi.restoreAllMocks();
   });
 
-  it("production loggers do not call console.log, console.warn, or console.debug", async () => {
+  it("production debug/log loggers are silent; warn/error loggers output to console as fallback", async () => {
     vi.stubEnv("DEV", false);
     vi.resetModules();
 
     const prodDebug = await import("../debug");
 
-    // Call every exported logger
-    const exportedNames = Object.keys(prodDebug).filter(
-      (k) => typeof (prodDebug as Record<string, unknown>)[k] === "function",
-    );
-
-    for (const name of exportedNames) {
-      (prodDebug as Record<string, (...args: unknown[]) => void>)[name]("should not appear");
-    }
-
+    // Debug/log loggers should be silent in production
+    prodDebug.historyLog("should not appear");
+    prodDebug.autoSaveLog("should not appear");
+    prodDebug.menuDispatcherLog("should not appear");
+    prodDebug.mcpBridgeLog("should not appear");
     expect(console.log).not.toHaveBeenCalled();
-    expect(console.warn).not.toHaveBeenCalled();
     expect(console.debug).not.toHaveBeenCalled();
-    expect(console.error).not.toHaveBeenCalled();
+
+    // Warn/error loggers should still output to console as fallback
+    prodDebug.hotExitWarn("disk full");
+    expect(console.warn).toHaveBeenCalledWith("[HotExit]", "disk full");
+    prodDebug.windowContextError("init failed");
+    expect(console.error).toHaveBeenCalledWith("[WindowContext]", "init failed");
 
     vi.unstubAllEnvs();
   });

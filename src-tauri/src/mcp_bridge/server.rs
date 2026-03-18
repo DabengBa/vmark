@@ -235,7 +235,8 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
 
 /// Handle an incoming WebSocket message.
 async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(), String> {
-    // Debug: Log raw WebSocket message to trace markdown escaping
+    // Debug: Log raw WebSocket message to trace markdown escaping (dev only — may contain user content)
+    #[cfg(debug_assertions)]
     if text.contains("insert") {
         log::debug!("[MCP Bridge DEBUG] Raw WebSocket message: {}", text);
     }
@@ -271,7 +272,8 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
 
     let request = McpRequest::from_value(msg.payload.clone())?;
 
-    // Debug: Log request args to trace markdown escaping issues
+    // Debug: Log request args to trace markdown escaping issues (dev only — may contain user content)
+    #[cfg(debug_assertions)]
     if request.request_type.starts_with("document.insert") || request.request_type == "selection.replace" {
         log::debug!("[MCP Bridge DEBUG] Request type: {}", request.request_type);
         log::debug!("[MCP Bridge DEBUG] Args: {}", serde_json::to_string_pretty(&request.args).unwrap_or_default());

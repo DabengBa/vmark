@@ -17,34 +17,51 @@
 const isDev = import.meta.env.DEV;
 
 // Production warn/error: forward to tauri-plugin-log for file persistence.
-// Lazy-loaded to avoid blocking startup; falls back to console if unavailable.
-let _tauriWarn: ((...args: unknown[]) => void) | null = null;
-let _tauriError: ((...args: unknown[]) => void) | null = null;
+// Lazy-loaded to avoid blocking startup; always falls back to console.
+let _tauriWarn: ((msg: string) => Promise<void>) | null = null;
+let _tauriError: ((msg: string) => Promise<void>) | null = null;
 
 if (!isDev) {
   import("@tauri-apps/plugin-log").then(({ warn, error }) => {
-    _tauriWarn = (...args: unknown[]) => warn(args.map(String).join(" "));
-    _tauriError = (...args: unknown[]) => error(args.map(String).join(" "));
+    _tauriWarn = warn;
+    _tauriError = error;
   }).catch(() => {
-    // Plugin not available (e.g., unit tests) — silent fallback
+    // Plugin not available (e.g., unit tests) — console fallback continues
   });
 }
 
-/** Warn logger that persists to file in production. */
+/** Serialize args preserving Error.stack and object structure. */
+function formatArgs(tag: string, args: unknown[]): string {
+  const parts = [tag];
+  for (const a of args) {
+    if (a instanceof Error) {
+      parts.push(a.stack ?? a.message);
+    } else if (typeof a === "object" && a !== null) {
+      try { parts.push(JSON.stringify(a)); } catch { parts.push(String(a)); }
+    } else {
+      parts.push(String(a));
+    }
+  }
+  return parts.join(" ");
+}
+
+/** Warn logger that persists to file in production. Always outputs to console as fallback. */
 function prodWarn(tag: string, ...args: unknown[]) {
   if (isDev) {
     console.warn(tag, ...args);
-  } else if (_tauriWarn) {
-    _tauriWarn(tag, ...args);
+  } else {
+    console.warn(tag, ...args); // immediate fallback for early startup
+    if (_tauriWarn) void _tauriWarn(formatArgs(tag, args)).catch(() => {});
   }
 }
 
-/** Error logger that persists to file in production. */
+/** Error logger that persists to file in production. Always outputs to console as fallback. */
 function prodError(tag: string, ...args: unknown[]) {
   if (isDev) {
     console.error(tag, ...args);
-  } else if (_tauriError) {
-    _tauriError(tag, ...args);
+  } else {
+    console.error(tag, ...args); // immediate fallback for early startup
+    if (_tauriError) void _tauriError(formatArgs(tag, args)).catch(() => {});
   }
 }
 
@@ -389,7 +406,7 @@ export const statusBarWarn = isDev
   : (...args: unknown[]) => prodWarn("[StatusBar]", ...args);
 
 /** Debug logger for List Click Fix warnings. */
-export const listClickFixLog = isDev
+export const listClickFixWarn = isDev
   ? (...args: unknown[]) => console.warn("[ListClickFix]", ...args)
   : (...args: unknown[]) => prodWarn("[ListClickFix]", ...args);
 
