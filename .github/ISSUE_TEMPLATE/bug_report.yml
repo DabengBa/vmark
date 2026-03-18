@@ -87,7 +87,9 @@ body:
     id: evidence
     attributes:
       label: Logs, Screenshots, or Repro
-      description: Paste logs in code fences and attach screenshots/video if helpful.
+      description: |
+        Paste logs in code fences and attach screenshots/video if helpful.
+        Log file location: macOS ~/Library/Logs/app.vmark/, Windows %APPDATA%\app.vmark\logs\
       placeholder: |
         ```text
         Paste logs here

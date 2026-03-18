@@ -27,6 +27,7 @@
     "process:allow-restart",
     "process:allow-exit",
     "window-state:default",
+    "log:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [
