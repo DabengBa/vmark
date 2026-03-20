@@ -25,6 +25,7 @@
 
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import type { McpRequestEvent, McpRequestEventRaw } from "./types";
 import { respond } from "./utils";
 import { useEditorStore } from "@/stores/editorStore";
@@ -520,6 +521,15 @@ export function useMcpBridge(): void {
     let unlisten: (() => void) | undefined;
     let mounted = true;
 
+    // Send heartbeat every 5 seconds to track webview health.
+    // Lets the Rust side know the webview JS event loop is alive,
+    // which is important when macOS App Nap suspends the webview.
+    const heartbeatInterval = setInterval(() => {
+      invoke("mcp_bridge_heartbeat").catch(() => {
+        // Ignore errors — bridge may not be running
+      });
+    }, 5000);
+
     listen<McpRequestEventRaw>("mcp-bridge:request", (event) => {
       // Parse args_json to avoid Tauri IPC double-encoding issues
       const raw = event.payload;
@@ -567,6 +577,7 @@ export function useMcpBridge(): void {
     return () => {
       mounted = false;
       unlisten?.();
+      clearInterval(heartbeatInterval);
     };
   }, []);
 }

@@ -56,6 +56,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(() => Promise.resolve()),
 }));
 
+import { openUrl as mockOpenUrl } from "@tauri-apps/plugin-opener";
 import { findLinkMarkRange, linkPopupExtension } from "./tiptap";
 
 // Schema with link mark
@@ -328,10 +329,9 @@ describe("linkPopupExtension", () => {
       expect(result).toBe(true);
       expect(preventDefault).toHaveBeenCalled();
 
-      // Wait for dynamic import
+      // Wait for dynamic import in source code to resolve
       await new Promise((r) => setTimeout(r, 10));
-      const { openUrl } = await import("@tauri-apps/plugin-opener");
-      expect(openUrl).toHaveBeenCalledWith("http://example.com");
+      expect(mockOpenUrl).toHaveBeenCalledWith("http://example.com");
     });
 
     it("Ctrl+click on external link opens in browser", async () => {

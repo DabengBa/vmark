@@ -36,6 +36,14 @@ pub async fn mcp_bridge_respond(payload: McpResponsePayload) -> Result<(), Strin
     Ok(())
 }
 
+/// Tauri command to receive a heartbeat from the frontend webview.
+/// Called periodically to confirm the webview is alive and responsive.
+#[tauri::command]
+pub async fn mcp_bridge_heartbeat() -> Result<(), String> {
+    super::state::set_webview_alive(true);
+    Ok(())
+}
+
 /// Get count of connected clients.
 pub async fn client_count() -> usize {
     let state = get_bridge_state();
