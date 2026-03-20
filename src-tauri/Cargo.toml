@@ -1,6 +1,6 @@
 [package]
 name = "vmark"
-version = "0.6.7"
+version = "0.6.8"
 description = "AI friendly markdown editor"
 authors = ["Xiaolai"]
 license = "ISC"
@@ -49,7 +49,7 @@ libc = "0.2"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSMenuItem", "NSImage", "NSResponder", "NSDocumentController", "NSPrintInfo", "NSPrintOperation", "NSView", "NSWindow", "NSGraphics"] }
-objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSData", "NSDate", "NSRunLoop", "NSError", "NSDictionary"] }
+objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSData", "NSDate", "NSRunLoop", "NSError", "NSDictionary", "NSProcessInfo"] }
 dispatch2 = "0.2"
 objc2-web-kit = { version = "0.3", features = ["WKWebView", "WKWebViewConfiguration", "WKNavigation", "WKNavigationDelegate", "WKPDFConfiguration", "block2", "objc2-core-foundation"] }
 objc2-pdf-kit = { version = "0.3", features = ["PDFDocument", "PDFOutline", "PDFPage", "PDFDestination"] }
