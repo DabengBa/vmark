@@ -6,8 +6,8 @@ VMark の[AI Genie](/ja/guide/ai-genies)は提案を生成するために AI プ
 
 最速で始める方法：
 
-1. **設定 > 統合**を開く
-2. **検出**をクリックしてインストールされた CLI ツールをスキャン
+1. **設定 > 統合** を開く
+2. **検出** をクリックしてインストールされた CLI ツールをスキャン
 3. CLI が見つかった場合（例: Claude、Gemini）、それを選択 — 完了
 4. CLI が利用できない場合は、REST プロバイダーを選択し、API キーを入力してモデルを選択
 
@@ -25,7 +25,7 @@ CLI プロバイダーはローカルにインストールされた AI ツール
 
 ### CLI 検出の仕組み
 
-設定 > 統合で**検出**をクリックします。VMark は各 CLI コマンドの `$PATH` を検索して可用性を報告します。CLI が見つかった場合、そのラジオボタンが選択可能になります。
+設定 > 統合で **検出** をクリックします。VMark は各 CLI コマンドの `$PATH` を検索して可用性を報告します。CLI が見つかった場合、そのラジオボタンが選択可能になります。
 
 ### メリット
 
@@ -41,13 +41,13 @@ CLI プロバイダーはローカルにインストールされた AI ツール
 
 1. Claude Code をインストール: `npm install -g @anthropic-ai/claude-code`
 2. ターミナルで `claude` を一度実行して認証
-3. VMark で**検出**をクリックして**Claude**を選択
+3. VMark で **検出** をクリックして **Claude** を選択
 
 ### セットアップ: Gemini CLI
 
 1. Gemini CLI をインストール: `npm install -g @google/gemini-cli`（または[公式リポジトリ](https://github.com/google-gemini/gemini-cli)から）
 2. `gemini` を一度実行して Google アカウントで認証
-3. VMark で**検出**をクリックして**Gemini**を選択
+3. VMark で **検出** をクリックして **Gemini** を選択
 
 ## REST API プロバイダー
 
@@ -83,21 +83,21 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ### セットアップ: Anthropic（REST）
 
 1. [console.anthropic.com](https://console.anthropic.com)から API キーを取得
-2. VMark 設定 > 統合で**Anthropic**を選択
+2. VMark 設定 > 統合で **Anthropic** を選択
 3. API キーを貼り付け
 4. モデルを選択（デフォルト: `claude-sonnet-4-5-20250929`）
 
 ### セットアップ: OpenAI（REST）
 
 1. [platform.openai.com](https://platform.openai.com)から API キーを取得
-2. VMark 設定 > 統合で**OpenAI**を選択
+2. VMark 設定 > 統合で **OpenAI** を選択
 3. API キーを貼り付け
 4. モデルを選択（デフォルト: `gpt-4o`）
 
 ### セットアップ: Google AI（REST）
 
 1. [aistudio.google.com](https://aistudio.google.com)から API キーを取得
-2. VMark 設定 > 統合で**Google AI**を選択
+2. VMark 設定 > 統合で **Google AI** を選択
 3. API キーを貼り付け
 4. モデルを選択（デフォルト: `gemini-2.0-flash`）
 
@@ -106,7 +106,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ローカルの Ollama インスタンスに REST 形式でアクセスしたい場合、または Ollama がネットワーク上の別のマシンで実行されている場合に使用します。
 
 1. Ollama が実行されていることを確認: `ollama serve`
-2. VMark 設定 > 統合で**Ollama (API)**を選択
+2. VMark 設定 > 統合で **Ollama (API)** を選択
 3. エンドポイントを `http://localhost:11434`（または Ollama ホスト）に設定
 4. API キーは空欄のまま
 5. モデルをプルしたモデル名に設定（例: `llama3.2`）
@@ -118,10 +118,10 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 | Claude Code が既にインストールされている | **Claude（CLI）** — ゼロ設定、サブスクリプションを使用 |
 | Codex または Gemini が既にインストールされている | **Codex / Gemini（CLI）** — サブスクリプションを使用 |
 | プライバシー/オフラインが必要 | Ollama をインストール → **Ollama（CLI）** |
-| カスタムまたは自己ホストモデル | エンドポイント付きの**Ollama（API）** |
+| カスタムまたは自己ホストモデル | エンドポイント付きの **Ollama（API）** |
 | 最安値のクラウドオプションが欲しい | **任意の CLI プロバイダー** — サブスクリプションは API より劇的に安価 |
 | サブスクリプションなし、軽い利用のみ | API キー環境変数を設定 → **REST プロバイダー**（トークン課金） |
-| 最高品質の出力が必要 | **Claude（CLI）**または`claude-sonnet-4-5-20250929`付きの**Anthropic（REST）** |
+| 最高品質の出力が必要 | **Claude（CLI）** または`claude-sonnet-4-5-20250929`付きの **Anthropic（REST）** |
 
 ## ジーニーごとのモデルオーバーライド
 
@@ -147,13 +147,13 @@ model: claude-haiku-4-5-20251001
 ## セキュリティノート
 
 - **API キーはエフェメラル** — メモリのみに保存、ディスクや `localStorage` には書き込まれない
-- **環境変数**は起動時に一度読み取られ、メモリにキャッシュされる
-- **CLI プロバイダー**は既存の CLI 認証を使用 — VMark は認証情報を見ない
-- **すべてのリクエストは直接**マシンからプロバイダーへ送信 — 中間に VMark サーバーはない
+- **環境変数** は起動時に一度読み取られ、メモリにキャッシュされる
+- **CLI プロバイダー** は既存の CLI 認証を使用 — VMark は認証情報を見ない
+- **すべてのリクエストは直接** マシンからプロバイダーへ送信 — 中間に VMark サーバーはない
 
 ## トラブルシューティング
 
-**「AI プロバイダーが利用できません」** — **検出**をクリックして CLI をスキャンするか、API キーで REST プロバイダーを設定してください。
+**「AI プロバイダーが利用できません」** — **検出** をクリックして CLI をスキャンするか、API キーで REST プロバイダーを設定してください。
 
 **CLI が「見つかりません」と表示される** — CLI が `$PATH` にありません。インストールするかシェルプロファイルを確認してください。macOS では、GUI アプリがターミナルの `$PATH` を継承しない場合があります — パスを `/etc/paths.d/` に追加してみてください。
 
