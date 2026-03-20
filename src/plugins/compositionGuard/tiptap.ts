@@ -12,7 +12,8 @@
  *   - Safari fix: ProseMirror's fixUpBadSafariComposition displaces cursor in table headers;
  *     this plugin uses appendTransaction to restore correct cursor position
  *   - Split-block fix: macOS WebKit can split headings during IME composition acceptance;
- *     scheduleImeCleanup detects and repairs the split via fixCompositionSplitBlock
+ *     appendTransaction detects the structural split (heading gains a new paragraph sibling),
+ *     and the rAF cleanup repairs it once the composed text has been inserted
  *   - Grace period after compositionend prevents race conditions with queued actions
  *   - Flushes queued ProseMirror actions after composition ends
  *
@@ -46,6 +47,12 @@ export const compositionGuardExtension = Extension.create({
     let compositionData = "";
     let compositionPinyin = "";
 
+    // Set to true by appendTransaction when it detects a heading→paragraph
+    // split during composition. The rAF cleanup checks this flag to know
+    // it should attempt the split-block fix (by which time the browser has
+    // inserted the composed text into the paragraph).
+    let splitDetected = false;
+
     // Set after compositionend in a tableHeader cell.
     // appendTransaction consumes this to fix cursor position after
     // ProseMirror's fixUpBadSafariComposition displaces it.
@@ -74,9 +81,7 @@ export const compositionGuardExtension = Extension.create({
         return;
       }
 
-      // Detect split-block bug: composed text landed in a different block
-      // (e.g., heading splits into heading + paragraph on macOS WebKit
-      // when Space accepts IME composition)
+      // Try split-block fix (paragraph now has composed text)
       const splitFix = fixCompositionSplitBlock(
         state, compositionStartPos, compositionData, compositionPinyin,
       );
@@ -112,6 +117,25 @@ export const compositionGuardExtension = Extension.create({
     return [
       new Plugin({
         appendTransaction(_transactions, _oldState, newState) {
+          // 1. Split-block detection: during/after composition, watch for the
+          //    heading being split into heading + paragraph. The browser does
+          //    this ~4ms BEFORE compositionend fires, so we can't fix it here
+          //    (the composed text isn't in the paragraph yet). We flag it so
+          //    the rAF cleanup knows to attempt the fix.
+          if ((isComposing || compositionStartPos !== null) &&
+              _transactions.some((tr) => tr.docChanged) &&
+              compositionStartPos !== null &&
+              !splitDetected) {
+            try {
+              const $start = newState.doc.resolve(compositionStartPos);
+              if ($start.parent.type.name === "heading" &&
+                  _oldState.doc.childCount < newState.doc.childCount) {
+                splitDetected = true;
+              }
+            } catch { /* stale pos */ }
+          }
+
+          // 2. Table header cursor fix (Safari-specific).
           if (!pendingHeaderCursorFix) return null;
 
           const { data } = pendingHeaderCursorFix;
@@ -161,8 +185,30 @@ export const compositionGuardExtension = Extension.create({
           const historyMeta = tr.getMeta("history$");
           if (historyMeta) return true;
 
-          // Allow doc-changing transactions during composition (#66).
-          if (tr.docChanged) return true;
+          // Allow doc-changing transactions during composition (#66),
+          // EXCEPT heading splits — reject those so ProseMirror resets the
+          // DOM and the composed text stays in the heading. The browser
+          // incorrectly splits headings when accepting IME candidates;
+          // by rejecting the transaction, we prevent the split entirely.
+          if (tr.docChanged) {
+            if (compositionStartPos !== null &&
+                tr.before.childCount < tr.doc.childCount) {
+              try {
+                const $start = tr.before.resolve(compositionStartPos);
+                if ($start.parent.type.name === "heading") {
+                  // Verify a paragraph appeared immediately after the heading
+                  const afterPos = $start.after($start.depth);
+                  if (afterPos < tr.doc.content.size) {
+                    const $after = tr.doc.resolve(afterPos);
+                    if ($after.nodeAfter?.type.name === "paragraph") {
+                      return false; // Reject the heading→paragraph split
+                    }
+                  }
+                }
+              } catch { /* stale pos — allow */ }
+            }
+            return true;
+          }
 
           return false;
         },
@@ -179,6 +225,7 @@ export const compositionGuardExtension = Extension.create({
               compositionStartPos = view.state.selection.from;
               compositionData = "";
               compositionPinyin = "";
+              splitDetected = false;
               return false;
             },
             compositionupdate(_view, event) {
@@ -210,7 +257,40 @@ export const compositionGuardExtension = Extension.create({
                 }
               }
 
+              // Snapshot state before scheduling rAF — a new composition
+              // session could start before the callback fires, corrupting
+              // the mutable closure variables.
+              const snapshotData = compositionData;
+              const snapshotStartPos = compositionStartPos;
+              const snapshotPinyin = compositionPinyin;
+              const snapshotSplit = splitDetected;
+
+              // Schedule cleanup via rAF as fallback for non-heading cases.
+              // The filterTransaction prevention handles heading splits
+              // synchronously, but normal pinyin cleanup still needs rAF.
               requestAnimationFrame(() => {
+                // Stale callback — a new composition started before this fired
+                if (compositionStartPos !== snapshotStartPos) return;
+
+                if (snapshotSplit) {
+                  // Heading was split but filterTransaction didn't prevent it
+                  // (shouldn't happen, but defensive fallback)
+                  splitDetected = false;
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (view as any).domObserver?.flush?.();
+                  const { state } = view;
+                  if (snapshotData && snapshotStartPos !== null) {
+                    const fix = fixCompositionSplitBlock(
+                      state, snapshotStartPos, snapshotData, snapshotPinyin,
+                    );
+                    if (fix) {
+                      view.dispatch(fix);
+                      flushProseMirrorCompositionQueue(view);
+                      return;
+                    }
+                  }
+                }
+                // Normal pinyin cleanup
                 scheduleImeCleanup(view);
                 flushProseMirrorCompositionQueue(view);
               });
@@ -223,6 +303,7 @@ export const compositionGuardExtension = Extension.create({
               compositionStartPos = null;
               compositionData = "";
               compositionPinyin = "";
+              splitDetected = false;
               markProseMirrorCompositionEnd(view);
               requestAnimationFrame(() => {
                 flushProseMirrorCompositionQueue(view);

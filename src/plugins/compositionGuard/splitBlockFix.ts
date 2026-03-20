@@ -25,9 +25,6 @@ import { type EditorState, TextSelection, type Transaction } from "@tiptap/pm/st
  * @param pinyin     The pinyin that was typed during composition (e.g., "wo kj kj")
  * @returns          A corrective Transaction, or null if no fix is needed
  */
-/** Match ASCII pinyin residue: letters, digits, spaces, apostrophes, semicolons */
-const PINYIN_CHAR_RE = /^[A-Za-z0-9;' ]+$/;
-
 export function fixCompositionSplitBlock(
   state: EditorState,
   startPos: number,
@@ -52,7 +49,10 @@ export function fixCompositionSplitBlock(
   // The original block must be a heading (this bug only affects headings)
   if (parentNode.type.name !== "heading") return null;
 
-  // The spurious block must be a paragraph with exactly the composed text
+  // The spurious block must be a paragraph containing the composed text.
+  // Note: The browser may split the heading BEFORE inserting composed text
+  // (empty paragraph). In that case, return null and let appendTransaction
+  // retry on the next transaction when the text has been inserted.
   if ($cursor.parent.type.name !== "paragraph") return null;
   if ($cursor.parent.textContent !== composed) return null;
 
@@ -68,30 +68,15 @@ export function fixCompositionSplitBlock(
   const blockEnd = $cursor.after($cursor.depth);
   tr.delete(blockStart, blockEnd);
 
-  // Remove leftover preedit text from the heading. Strategy:
-  // 1. If pinyin matches exactly at startPos, delete that exact range
-  // 2. Otherwise, scan forward from startPos and delete only ASCII
-  //    pinyin-looking characters (preserves any user content after preedit)
+  // Remove leftover preedit text from the heading.
+  // Only delete if pinyin matches exactly at startPos — never guess,
+  // as guessing (e.g., scanning for ASCII chars) risks deleting
+  // legitimate English content in mixed-language headings.
   const headingEnd = $start.end();
-  if (startPos < headingEnd) {
+  if (startPos < headingEnd && pinyin) {
     const tailText = state.doc.textBetween(startPos, headingEnd);
-
-    if (pinyin && tailText.startsWith(pinyin)) {
-      // Exact pinyin match — delete precisely
+    if (tailText.startsWith(pinyin)) {
       tr.delete(startPos, startPos + pinyin.length);
-    } else if (tailText.length > 0) {
-      // Scan forward: delete only contiguous ASCII pinyin chars
-      let pinyinLen = 0;
-      for (const ch of tailText) {
-        if (PINYIN_CHAR_RE.test(ch)) {
-          pinyinLen += ch.length;
-        } else {
-          break;
-        }
-      }
-      if (pinyinLen > 0) {
-        tr.delete(startPos, startPos + pinyinLen);
-      }
     }
   }
 
