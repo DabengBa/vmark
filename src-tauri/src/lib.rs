@@ -42,6 +42,8 @@ mod pandoc;
 mod tab_transfer;
 
 #[cfg(target_os = "macos")]
+mod app_nap;
+#[cfg(target_os = "macos")]
 mod macos_menu;
 #[cfg(target_os = "macos")]
 mod dock_recent;
@@ -498,6 +500,7 @@ pub fn run() {
             mcp_server::mcp_bridge_client_count,
             mcp_server::mcp_bridge_connected_clients,
             mcp_bridge::commands::mcp_bridge_respond,
+            mcp_bridge::commands::mcp_bridge_heartbeat,
             mcp_config::commands::mcp_config_get_status,
             mcp_config::commands::mcp_config_diagnose,
             mcp_config::commands::mcp_config_preview,
@@ -550,6 +553,11 @@ pub fn run() {
         .setup(|app| {
             let menu = menu::localized::create_localized_menu(app.handle(), None)?;
             app.set_menu(menu)?;
+
+            // Disable App Nap so the webview stays active when backgrounded
+            // (prevents MCP bridge timeouts from suspended JS)
+            #[cfg(target_os = "macos")]
+            app_nap::disable_app_nap();
 
             // Fix macOS Help/Window menus (workaround for muda bug)
             #[cfg(target_os = "macos")]

@@ -6,9 +6,24 @@
 use super::types::{ClientIdentity, McpResponse};
 use crate::app_paths;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::AppHandle;
 use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
+
+/// Tracks whether the frontend webview is alive and responsive.
+/// Updated by periodic heartbeat pings from the frontend.
+static WEBVIEW_ALIVE: AtomicBool = AtomicBool::new(true);
+
+/// Mark the webview as alive or not.
+pub(crate) fn set_webview_alive(alive: bool) {
+    WEBVIEW_ALIVE.store(alive, Ordering::Relaxed);
+}
+
+/// Check whether the webview is currently considered alive.
+pub(crate) fn is_webview_alive() -> bool {
+    WEBVIEW_ALIVE.load(Ordering::Relaxed)
+}
 
 /// Connected client information.
 pub(crate) struct ClientConnection {
@@ -244,5 +259,30 @@ mod tests {
         assert!(!is_read_only_operation(""));
         assert!(!is_read_only_operation("nonexistent.operation"));
         assert!(!is_read_only_operation("document.getContent ")); // trailing space
+    }
+
+    // -- webview heartbeat ----------------------------------------------------
+
+    #[test]
+    fn webview_alive_defaults_to_true() {
+        // Reset to known state
+        set_webview_alive(true);
+        assert!(is_webview_alive());
+    }
+
+    #[test]
+    fn set_webview_alive_false() {
+        set_webview_alive(false);
+        assert!(!is_webview_alive());
+        // Restore default
+        set_webview_alive(true);
+    }
+
+    #[test]
+    fn set_webview_alive_round_trip() {
+        set_webview_alive(false);
+        assert!(!is_webview_alive());
+        set_webview_alive(true);
+        assert!(is_webview_alive());
     }
 }

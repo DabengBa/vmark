@@ -5,15 +5,18 @@
 
 use super::state::{
     get_bridge_state, get_shutdown_holder, get_write_lock, is_read_only_operation,
-    remove_port_file, write_port_file, ClientConnection, PendingRequest,
+    is_webview_alive, remove_port_file, set_webview_alive, write_port_file, ClientConnection,
+    PendingRequest,
 };
 use super::types::{
     ClientIdentity, McpRequest, McpRequestEvent, McpResponse, WsMessage,
 };
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
+use std::time::Duration;
 use tauri::AppHandle;
 use tauri::Emitter;
+use tauri::Manager;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
@@ -233,6 +236,43 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
     send_task.abort();
 }
 
+/// Try to wake the webview by evaluating a no-op JS snippet.
+///
+/// When macOS suspends the webview (App Nap, display sleep), emitted events
+/// are queued but the frontend JS never executes. Calling the Tauri webview
+/// eval API nudges the webview process and can revive the JS event loop.
+async fn wake_webview(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        log::debug!("[MCP Bridge] Attempting to wake webview via Tauri eval API");
+        // Tauri's eval() is the official API for running JS in the webview.
+        // We use a no-op expression ("void(0)") purely to wake a suspended webview.
+        let _ = window.eval("void(0)");
+    } else {
+        log::warn!("[MCP Bridge] Cannot wake webview — main window not found");
+    }
+}
+
+/// Send an error response back to the MCP sidecar client.
+fn send_error_response(
+    client_tx: &mpsc::UnboundedSender<String>,
+    msg_id: &str,
+    error: &str,
+) {
+    let error_response = McpResponse {
+        success: false,
+        data: None,
+        error: Some(error.to_string()),
+    };
+    let ws_response = WsMessage {
+        id: msg_id.to_string(),
+        msg_type: "response".to_string(),
+        payload: serde_json::to_value(&error_response).unwrap_or_default(),
+    };
+    if let Ok(json) = serde_json::to_string(&ws_response) {
+        let _ = client_tx.send(json);
+    }
+}
+
 /// Handle an incoming WebSocket message.
 async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(), String> {
     // Debug: Log raw WebSocket message to trace markdown escaping (dev only — may contain user content)
@@ -277,6 +317,29 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
     if request.request_type.starts_with("document.insert") || request.request_type == "selection.replace" {
         log::debug!("[MCP Bridge DEBUG] Request type: {}", request.request_type);
         log::debug!("[MCP Bridge DEBUG] Args: {}", serde_json::to_string_pretty(&request.args).unwrap_or_default());
+    }
+
+    // Handle requests that Rust can answer directly (no webview needed).
+    // This prevents timeouts when the webview is suspended by macOS App Nap.
+    if let Some(response) = handle_rust_side(&request, app) {
+        let client_tx = {
+            let state = get_bridge_state();
+            let guard = state.lock().await;
+            guard.clients.get(&client_id).map(|c| c.tx.clone())
+        };
+        let client_tx = client_tx.ok_or("Client not found")?;
+
+        let ws_response = WsMessage {
+            id: msg.id,
+            msg_type: "response".to_string(),
+            payload: serde_json::to_value(&response).unwrap_or_default(),
+        };
+        let response_json = serde_json::to_string(&ws_response)
+            .map_err(|e| format!("Failed to serialize: {}", e))?;
+        client_tx
+            .send(response_json)
+            .map_err(|e| format!("Failed to send: {}", e))?;
+        return Ok(());
     }
 
     let is_read = is_read_only_operation(&request.request_type);
@@ -345,8 +408,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
     );
 
     // Wait for response with timeout (10 seconds - operations should be fast)
-    let response = match tokio::time::timeout(std::time::Duration::from_secs(10), response_rx).await
-    {
+    let response = match tokio::time::timeout(Duration::from_secs(10), response_rx).await {
         Ok(Ok(response)) => response,
         Ok(Err(_)) => {
             // Channel closed - clean up and send error to sidecar
@@ -355,47 +417,83 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
             guard.pending.remove(&request_id);
             drop(guard);
 
-            let error_response = McpResponse {
-                success: false,
-                data: None,
-                error: Some("Response channel closed".to_string()),
-            };
-            let ws_response = WsMessage {
-                id: msg.id.clone(),
-                msg_type: "response".to_string(),
-                payload: serde_json::to_value(&error_response).unwrap_or_default(),
-            };
-            if let Ok(json) = serde_json::to_string(&ws_response) {
-                let _ = client_tx.send(json);
-            }
+            send_error_response(&client_tx, &msg.id, "Response channel closed");
             return Ok(());
         }
         Err(_) => {
-            // Timeout - clean up and send error to sidecar
-            let state = get_bridge_state();
-            let mut guard = state.lock().await;
-            guard.pending.remove(&request_id);
-            drop(guard);
-
+            // First timeout — try to wake the webview and retry once.
+            // macOS App Nap or display sleep can suspend JS execution,
+            // causing the frontend to miss emitted events.
+            let webview_was_alive = is_webview_alive();
+            set_webview_alive(false);
             log::warn!(
-                "[MCP Bridge] Client {} request {} timed out after 10s",
-                client_id, request_type_for_log
+                "[MCP Bridge] Client {} request {} timed out after 10s (webview_alive={}), attempting wake + retry",
+                client_id, request_type_for_log, webview_was_alive
             );
 
-            let error_response = McpResponse {
-                success: false,
-                data: None,
-                error: Some("Request timeout after 10s".to_string()),
-            };
-            let ws_response = WsMessage {
-                id: msg.id.clone(),
-                msg_type: "response".to_string(),
-                payload: serde_json::to_value(&error_response).unwrap_or_default(),
-            };
-            if let Ok(json) = serde_json::to_string(&ws_response) {
-                let _ = client_tx.send(json);
+            wake_webview(app).await;
+
+            // Create a new oneshot channel for the retry attempt
+            let (retry_tx, retry_rx) = oneshot::channel();
+            {
+                let state = get_bridge_state();
+                let mut guard = state.lock().await;
+                // Replace the pending request with the new channel
+                guard.pending.insert(
+                    request_id.clone(),
+                    PendingRequest {
+                        response_tx: retry_tx,
+                    },
+                );
             }
-            return Ok(());
+
+            // Re-emit the event so the (now hopefully awake) frontend picks it up
+            let _ = app.emit("mcp-bridge:request", &event);
+
+            // Wait another 10 seconds for the retry
+            match tokio::time::timeout(Duration::from_secs(10), retry_rx).await {
+                Ok(Ok(response)) => {
+                    log::info!(
+                        "[MCP Bridge] Retry succeeded for client {} request {}",
+                        client_id, request_type_for_log
+                    );
+                    response
+                }
+                Ok(Err(_)) => {
+                    // Retry channel closed
+                    let state = get_bridge_state();
+                    let mut guard = state.lock().await;
+                    guard.pending.remove(&request_id);
+                    drop(guard);
+
+                    log::warn!(
+                        "[MCP Bridge] Client {} request {} retry channel closed",
+                        client_id, request_type_for_log
+                    );
+
+                    send_error_response(&client_tx, &msg.id, "Response channel closed on retry");
+                    return Ok(());
+                }
+                Err(_) => {
+                    // Final timeout after retry — give up
+                    let state = get_bridge_state();
+                    let mut guard = state.lock().await;
+                    guard.pending.remove(&request_id);
+                    drop(guard);
+
+                    log::warn!(
+                        "[MCP Bridge] Client {} request {} timed out after retry (20s total)",
+                        client_id, request_type_for_log
+                    );
+
+                    send_error_response(
+                        &client_tx,
+                        &msg.id,
+                        "Request timeout after 20s (including retry with webview wake)",
+                    );
+                    return Ok(());
+                }
+            }
         }
     };
 
@@ -423,4 +521,53 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
         .map_err(|e| format!("Failed to send response: {}", e))?;
 
     Ok(())
+}
+
+/// Handle requests directly in Rust without involving the webview.
+/// Returns `Some(response)` if handled, `None` to fall through to webview.
+///
+/// This avoids timeouts when the webview is suspended by macOS (App Nap,
+/// display sleep) for simple window queries that Tauri can answer natively.
+fn handle_rust_side(request: &McpRequest, app: &AppHandle) -> Option<McpResponse> {
+    match request.request_type.as_str() {
+        "windows.list" => {
+            let windows: Vec<serde_json::Value> = app
+                .webview_windows()
+                .iter()
+                .filter(|(label, _)| {
+                    // Only expose document windows (main, doc-*)
+                    *label == "main" || label.starts_with("doc-")
+                })
+                .map(|(label, window)| {
+                    serde_json::json!({
+                        "label": label,
+                        "title": window.title().unwrap_or_default(),
+                        "focused": window.is_focused().unwrap_or(false),
+                    })
+                })
+                .collect();
+
+            Some(McpResponse {
+                success: true,
+                data: Some(serde_json::json!({ "windows": windows })),
+                error: None,
+            })
+        }
+        "windows.getFocused" => {
+            let focused = app
+                .webview_windows()
+                .iter()
+                .find(|(_, w)| w.is_focused().unwrap_or(false))
+                .map(|(label, _)| label.clone());
+
+            Some(McpResponse {
+                success: true,
+                data: Some(serde_json::json!({
+                    "label": focused.unwrap_or_else(|| "main".to_string())
+                })),
+                error: None,
+            })
+        }
+        _ => None,
+    }
 }
