@@ -37,11 +37,11 @@ brew update && brew upgrade vmark
 
 ## Windows 與 Linux
 
-VMark 以 Tauri 構建，支援跨平台編譯。但**目前開發與測試主要聚焦於 macOS**。由於資源限制，Windows 與 Linux 的支援在可預見的將來仍屬有限。
+VMark 以 Tauri 構建，支援跨平台編譯。但 **目前開發與測試主要聚焦於 macOS**。由於資源限制，Windows 與 Linux 的支援在可預見的將來仍屬有限。
 
 如需在 Windows 或 Linux 上執行 VMark：
 
-- **預先編譯的二進位檔案**可在 [GitHub Releases](https://github.com/xiaolai/vmark/releases) 取得（按現狀提供，不保證支援）
+- **預先編譯的二進位檔案** 可在 [GitHub Releases](https://github.com/xiaolai/vmark/releases) 取得（按現狀提供，不保證支援）
 - **從原始碼構建**，請依照以下說明操作
 
 ## 驗證下載

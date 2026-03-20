@@ -37,12 +37,12 @@ brew update && brew upgrade vmark
 
 ## Windows 및 Linux
 
-VMark는 크로스 플랫폼 컴파일을 지원하는 Tauri로 구축되었습니다. 그러나 **현재 활성 개발 및 테스트는 macOS에 집중**되어 있습니다. 리소스 제약으로 인해 Windows 및 Linux 지원은 당분간 제한적입니다.
+VMark는 크로스 플랫폼 컴파일을 지원하는 Tauri로 구축되었습니다. 그러나 **현재 활성 개발 및 테스트는 macOS에 집중** 되어 있습니다. 리소스 제약으로 인해 Windows 및 Linux 지원은 당분간 제한적입니다.
 
 Windows 또는 Linux에서 VMark를 실행하려면:
 
-- **사전 빌드된 바이너리**는 [GitHub Releases](https://github.com/xiaolai/vmark/releases)에서 제공됩니다 (보장된 지원 없이 있는 그대로 제공)
-- 아래 지침에 따라 **소스에서 직접 빌드**합니다
+- **사전 빌드된 바이너리** 는 [GitHub Releases](https://github.com/xiaolai/vmark/releases)에서 제공됩니다 (보장된 지원 없이 있는 그대로 제공)
+- 아래 지침에 따라 **소스에서 직접 빌드** 합니다
 
 ## 다운로드 검증
 
