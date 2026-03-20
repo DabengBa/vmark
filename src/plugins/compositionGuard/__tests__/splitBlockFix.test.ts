@@ -52,8 +52,9 @@ describe("fixCompositionSplitBlock", () => {
     expect(tr!.selection.from).toBe(1 + "\u6211\u770B\u770B".length);
   });
 
-  it("fixes split even when pinyin in heading doesn't match compositionPinyin exactly", () => {
-    // Abbreviated pinyin: user typed "ch qi" but heading shows different preedit
+  it("fixes split but leaves preedit when pinyin doesn't match exactly", () => {
+    // Abbreviated pinyin: heading has "ch qi" but compositionPinyin was "chang qi"
+    // Pinyin mismatch → preedit stays (safe: no data loss risk)
     const state = createSplitState("ch qi", "\u957F\u671F");
     const tr = fixCompositionSplitBlock(state, 1, "\u957F\u671F", "chang qi");
 
@@ -61,7 +62,8 @@ describe("fixCompositionSplitBlock", () => {
     const result = tr!.doc;
     expect(result.childCount).toBe(1);
     expect(result.child(0).type.name).toBe("heading");
-    expect(result.child(0).textContent).toBe("\u957F\u671F");
+    // Composed text inserted at startPos, preedit "ch qi" remains after it
+    expect(result.child(0).textContent).toBe("\u957F\u671Fch qi");
   });
 
   it("fixes split when browser already cleared heading preedit", () => {
@@ -99,16 +101,30 @@ describe("fixCompositionSplitBlock", () => {
     expect(result.child(0).textContent).toBe("\u6211\u770B\u770B\u5DF2\u6709\u5185\u5BB9");
   });
 
-  it("preserves suffix when pinyin doesn't match (scan mode)", () => {
-    // Abbreviated pinyin "ch qi" but compositionPinyin was "chang qi"
-    const state = createSplitState("ch qi\u5DF2\u6709", "\u957F\u671F");
+  it("leaves preedit residue when pinyin doesn't match exactly (safe fallback)", () => {
+    // Abbreviated pinyin "ch qi" in heading, but compositionPinyin was "chang qi"
+    // Pinyin doesn't match → preedit not deleted (safe: no data loss)
+    const state = createSplitState("ch qi", "\u957F\u671F");
     const tr = fixCompositionSplitBlock(state, 1, "\u957F\u671F", "chang qi");
 
     expect(tr).not.toBeNull();
     const result = tr!.doc;
     expect(result.childCount).toBe(1);
-    // "ch qi" is ASCII pinyin → scanned and deleted, "已有" preserved
-    expect(result.child(0).textContent).toBe("\u957F\u671F\u5DF2\u6709");
+    // Paragraph deleted, composed text inserted, but preedit "ch qi" remains
+    // (filterTransaction prevents this case in practice, this is the rAF fallback)
+    expect(result.child(0).textContent).toBe("\u957F\u671Fch qi");
+  });
+
+  it("preserves English content in mixed-language heading", () => {
+    // "Chapter wo kj kj" — "Chapter " is user content, "wo kj kj" is preedit
+    const state = createSplitState("Chapter wo kj kj", "\u6211\u770B\u770B");
+    const compositionStartPos = 1 + "Chapter ".length;
+    const tr = fixCompositionSplitBlock(state, compositionStartPos, "\u6211\u770B\u770B", "wo kj kj");
+
+    expect(tr).not.toBeNull();
+    const result = tr!.doc;
+    expect(result.childCount).toBe(1);
+    expect(result.child(0).textContent).toBe("Chapter \u6211\u770B\u770B");
   });
 
   it("returns null when cursor is in the same block (no split)", () => {

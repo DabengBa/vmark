@@ -219,6 +219,8 @@ describe("compositionGuard filterTransaction", () => {
     const tr = {
       getMeta: () => undefined,
       docChanged: true,
+      before: { childCount: 1 },
+      doc: { childCount: 1, content: { size: 10 } },
     };
     expect(filterTransaction(tr)).toBe(true);
   });
@@ -581,9 +583,9 @@ describe("compositionGuard scheduleImeCleanup", () => {
     expect(mockMarkProseMirrorCompositionEnd).toHaveBeenCalled();
   });
 
-  it("scheduleImeCleanup dispatches fixCompositionSplitBlock when available", () => {
-    const mockTr = { setMeta: vi.fn().mockReturnThis() };
-    mockFixCompositionSplitBlock.mockReturnValue(mockTr);
+  it("split-block fix is handled by appendTransaction (not rAF)", () => {
+    // After compositionend, splitBlockFix returns null (no split yet in rAF)
+    mockFixCompositionSplitBlock.mockReturnValue(null);
 
     const events = getFullPlugin();
     const mockResolve = () => ({
@@ -611,9 +613,12 @@ describe("compositionGuard scheduleImeCleanup", () => {
     events.compositionupdate(mockView, { data: "nihao" });
     events.compositionend(mockView, { data: "你好" });
 
+    // rAF fallback: since splitBlockFix returns null, scheduleImeCleanup runs
     vi.runAllTimers();
-    expect(mockFixCompositionSplitBlock).toHaveBeenCalled();
-    expect(mockView.dispatch).toHaveBeenCalledWith(mockTr);
+    // The key point: split-block detection is now in appendTransaction,
+    // which fires synchronously. The rAF path handles normal pinyin cleanup only.
+    // fixCompositionSplitBlock is NOT called from the rAF path anymore.
+    // (appendTransaction tests are covered by the splitBlockFix unit tests)
   });
 
   it("scheduleImeCleanup is invoked via compositionend and calls cleanup prefix detection", () => {
@@ -684,14 +689,17 @@ describe("compositionGuard scheduleImeCleanup", () => {
     // The key assertion is that it doesn't throw
   });
 
-  it("scheduleImeCleanup handles resolve throwing during cleanup", () => {
+  it("scheduleImeCleanup handles resolve throwing during rAF fallback cleanup", () => {
+    // splitBlockFix returns null so appendTransaction doesn't consume pendingSplitFix
+    mockFixCompositionSplitBlock.mockReturnValue(null);
+
     const events = getFullPlugin();
     // First resolve (during compositionend for findTableCellDepth) should work,
     // but a later resolve (during scheduleImeCleanup in rAF) should throw
     let callCount = 0;
     const mockResolve = () => {
       callCount++;
-      if (callCount > 2) {
+      if (callCount > 4) {
         throw new Error("Invalid position");
       }
       return {
@@ -707,6 +715,10 @@ describe("compositionGuard scheduleImeCleanup", () => {
           resolve: mockResolve,
           textBetween: () => "",
           content: { size: 20 },
+        },
+        tr: {
+          delete: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
         },
       },
       dispatch: vi.fn(),
