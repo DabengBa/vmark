@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: VMark
-  text: 真正做对的 Markdown 编辑器
+  text: 恰到好处的 Markdown 编辑器
   tagline: 免费 · 智能 · 优雅 · 属于你
   image:
     src: /logo.png
