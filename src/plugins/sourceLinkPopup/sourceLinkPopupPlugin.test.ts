@@ -319,7 +319,9 @@ describe("CmdClick handler", () => {
     expect(stopProp).toHaveBeenCalled();
     expect(preventDefault).toHaveBeenCalled();
 
-    await new Promise((r) => setTimeout(r, 10));
+    // Flush the fire-and-forget import().then() chain
+    await new Promise((r) => setTimeout(r, 0));
+    await vi.dynamicImportSettled();
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     expect(openUrl).toHaveBeenCalledWith("https://example.com");
   });
