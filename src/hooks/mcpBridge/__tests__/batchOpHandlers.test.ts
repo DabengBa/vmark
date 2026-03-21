@@ -2966,4 +2966,206 @@ describe("batchOpHandlers", () => {
       );
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Coverage: validator callbacks in requireTypedArray — non-object items
+  // -------------------------------------------------------------------------
+
+  describe("handleTableBatchModify — non-object operation item (line 228)", () => {
+    it("rejects non-object item in table operations array", async () => {
+      mockGetEditor.mockReturnValue({ state: { doc: { descendants: vi.fn() } } });
+
+      await handleTableBatchModify("req-nonobj-tbl", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [42], // not an object
+      });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-nonobj-tbl",
+        success: false,
+        error: "invalid table operation at index 0: expected object",
+      });
+    });
+
+    it("rejects null item in table operations array", async () => {
+      mockGetEditor.mockReturnValue({ state: { doc: { descendants: vi.fn() } } });
+
+      await handleTableBatchModify("req-null-tbl", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [null],
+      });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-null-tbl",
+        success: false,
+        error: "invalid table operation at index 0: expected object",
+      });
+    });
+  });
+
+  describe("handleListBatchModify — non-object operation item (line 478)", () => {
+    it("rejects non-object item in list operations array", async () => {
+      mockGetEditor.mockReturnValue({ state: { doc: { descendants: vi.fn() } } });
+
+      await handleListBatchModify("req-nonobj-lst", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: ["not-an-object"],
+      });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-nonobj-lst",
+        success: false,
+        error: "invalid list operation at index 0: expected object",
+      });
+    });
+
+    it("rejects null item in list operations array", async () => {
+      mockGetEditor.mockReturnValue({ state: { doc: { descendants: vi.fn() } } });
+
+      await handleListBatchModify("req-null-lst", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [null],
+      });
+
+      expect(mockRespond).toHaveBeenCalledWith({
+        id: "req-null-lst",
+        success: false,
+        error: "invalid list operation at index 0: expected object",
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Coverage: list lost after mutation (lines 587-588)
+  // -------------------------------------------------------------------------
+
+  describe("handleListBatchModify — list lost after mutation (lines 587-588)", () => {
+    it("warns and breaks when list disappears during apply loop", async () => {
+      const listItemNode = {
+        type: { name: "listItem" },
+        nodeSize: 8,
+      };
+      const listNode = {
+        type: { name: "bulletList" },
+        nodeSize: 20,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(listItemNode, 0);
+        }),
+      };
+
+      let findListCallCount = 0;
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: vi.fn((
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              findListCallCount++;
+              if (findListCallCount <= 1) {
+                // First call: initial findList — list found
+                cb(listNode, 0);
+              }
+              // Subsequent calls: list re-search in apply loop — list gone
+            }),
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {
+          deleteNode: vi.fn(),
+        },
+        view: { dispatch: vi.fn() },
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      await handleListBatchModify("req-list-lost", {
+        baseRevision: "rev-1",
+        target: { listIndex: 0 },
+        operations: [
+          { action: "delete_item", at: 0 },
+          { action: "delete_item", at: 0 }, // second op triggers re-find, list gone
+        ],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings).toContain("List lost after mutation");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Coverage: normalizeOp throws for empty action string (lines 169, 331-332)
+  // -------------------------------------------------------------------------
+
+  describe("handleTableBatchModify — empty action string triggers normalizeOp throw (lines 169, 331-332)", () => {
+    it("warns when normalizeTableOp fails due to empty action", async () => {
+      const cellNode = {
+        type: { name: "tableCell" },
+        nodeSize: 5,
+      };
+      const tableRow = {
+        type: { name: "tableRow" },
+        childCount: 1,
+        child: () => cellNode,
+        nodeSize: 7,
+        firstChild: { type: { name: "tableHeader" } },
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(cellNode, 0);
+        }),
+      };
+      const tableNode = {
+        type: { name: "table" },
+        childCount: 1,
+        child: () => tableRow,
+        firstChild: tableRow,
+        nodeSize: 9,
+        forEach: vi.fn((cb: (node: unknown, offset: number) => void) => {
+          cb(tableRow, 0);
+        }),
+        descendants: vi.fn(),
+      };
+
+      const chainMethods = {
+        focus: vi.fn().mockReturnThis(),
+        setTextSelection: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+      };
+
+      const editor = {
+        state: {
+          doc: {
+            descendants: (
+              cb: (node: unknown, pos: number) => boolean | undefined
+            ) => {
+              cb(tableNode, 0);
+            },
+          },
+        },
+        chain: vi.fn().mockReturnValue(chainMethods),
+        commands: {},
+      };
+      mockGetEditor.mockReturnValue(editor);
+
+      // action: "" passes the validator (typeof "" === "string")
+      // but normalizeOp checks `if (!action)` where !"" is true, so it throws
+      await handleTableBatchModify("req-empty-action", {
+        baseRevision: "rev-1",
+        target: { tableIndex: 0 },
+        operations: [{ action: "" }],
+      });
+
+      const call = mockRespond.mock.calls[0][0];
+      expect(call.success).toBe(true);
+      expect(call.data.warnings.some((w: string) => w.includes("Failed to normalize"))).toBe(true);
+    });
+  });
 });
