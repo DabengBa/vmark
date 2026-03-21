@@ -315,7 +315,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
         }, 100);
       }
     },
-    [rootPath, createFile, refresh]
+    [rootPath, createFile, refresh, t]
   );
 
   // Create new folder
@@ -338,7 +338,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
         }, 100);
       }
     },
-    [rootPath, createFolder, refresh]
+    [rootPath, createFolder, refresh, t]
   );
 
   // Expose methods to parent via ref
