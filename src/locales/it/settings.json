@@ -174,6 +174,8 @@
   "markdown.mediaAlignment.description": "Allineamento orizzontale per immagini a blocco e tabelle",
   "markdown.mediaAlignment.center": "Al centro",
   "markdown.mediaAlignment.left": "A sinistra",
+  "markdown.tableFitToWidth.label": "Adatta tabelle alla larghezza",
+  "markdown.tableFitToWidth.description": "Vincola tutte le tabelle alla larghezza dell'editor invece di consentire lo scorrimento orizzontale",
   "markdown.group.htmlRendering": "Rendering HTML",
   "markdown.htmlRendering.label": "HTML grezzo in testo formattato",
   "markdown.htmlRendering.description": "Controlla se l'HTML grezzo è nascosto o renderizzato (sanitizzato)",

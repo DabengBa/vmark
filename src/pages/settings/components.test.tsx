@@ -77,6 +77,44 @@ describe("SettingRow", () => {
     const row = container.firstChild as HTMLElement;
     expect(row.className).not.toContain("opacity-50");
   });
+
+  it("injects aria-labelledby into child element", () => {
+    render(
+      <SettingRow label="My Label">
+        <button>action</button>
+      </SettingRow>,
+    );
+
+    // aria-labelledby overrides the button's text for accessible name
+    const btn = screen.getByRole("button", { name: "My Label" });
+    const labelId = btn.getAttribute("aria-labelledby");
+    expect(labelId).toBeTruthy();
+    expect(document.getElementById(labelId!)).toHaveTextContent("My Label");
+  });
+
+  it("injects aria-describedby when description is provided", () => {
+    render(
+      <SettingRow label="My Label" description="Some help text">
+        <button>action</button>
+      </SettingRow>,
+    );
+
+    const btn = screen.getByRole("button", { name: "My Label" });
+    const descId = btn.getAttribute("aria-describedby");
+    expect(descId).toBeTruthy();
+    expect(document.getElementById(descId!)).toHaveTextContent("Some help text");
+  });
+
+  it("does not inject aria-describedby when no description", () => {
+    render(
+      <SettingRow label="My Label">
+        <button>action</button>
+      </SettingRow>,
+    );
+
+    const btn = screen.getByRole("button", { name: "My Label" });
+    expect(btn.hasAttribute("aria-describedby")).toBe(false);
+  });
 });
 
 // ============================================================================

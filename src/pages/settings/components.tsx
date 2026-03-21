@@ -5,6 +5,8 @@
  * All colors use CSS variables for theme consistency.
  */
 
+import React from "react";
+
 interface SettingRowProps {
   label: string;
   description?: string;
@@ -13,20 +15,31 @@ interface SettingRowProps {
 }
 
 export function SettingRow({ label, description, children, disabled }: SettingRowProps) {
+  const id = React.useId();
+  const labelId = `${id}-label`;
+  const descId = `${id}-desc`;
+
   return (
     <div className={`flex items-center justify-between py-2.5
                      ${disabled ? "opacity-50" : ""}`}>
       <div className="flex-1">
-        <div className="text-sm font-medium text-[var(--text-primary)]">
+        <div id={labelId} className="text-sm font-medium text-[var(--text-primary)]">
           {label}
         </div>
         {description && (
-          <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+          <div id={descId} className="text-xs text-[var(--text-tertiary)] mt-0.5">
             {description}
           </div>
         )}
       </div>
-      <div className="ml-4">{children}</div>
+      <div className="ml-4">
+        {React.isValidElement(children)
+          ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+              "aria-labelledby": labelId,
+              ...(description ? { "aria-describedby": descId } : {}),
+            })
+          : children}
+      </div>
     </div>
   );
 }
@@ -35,10 +48,13 @@ export function Toggle({
   checked,
   onChange,
   disabled,
+  ...ariaProps
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 }) {
   return (
     <button
@@ -46,6 +62,7 @@ export function Toggle({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
+      {...ariaProps}
       className={`relative w-7 h-4 rounded-full transition-colors
                   focus-visible:ring-2 focus-visible:ring-[var(--primary-color)] focus-visible:ring-offset-1
                   ${checked ? "bg-[var(--accent-primary)]" : "bg-[var(--bg-tertiary)]"}
@@ -83,17 +100,21 @@ export function Select<T extends string>({
   options,
   onChange,
   disabled,
+  ...ariaProps
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   disabled?: boolean;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 }) {
   return (
     <select
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as T)}
+      {...ariaProps}
       className={`appearance-none px-2 pt-[1px] pb-0 pr-6 rounded border border-[var(--border-color)]
                  bg-[var(--bg-primary)] text-sm text-[var(--text-primary)]
                  bg-[length:16px_16px] bg-[position:right_4px_center] bg-no-repeat
