@@ -1,3 +1,11 @@
+/**
+ * Quick Open Shortcuts Hook
+ *
+ * Purpose: Listens for the Quick Open keyboard shortcut and menu event, toggling the Quick Open palette.
+ *
+ * @module hooks/useQuickOpenShortcuts
+ */
+
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { safeUnlistenAsync } from "@/utils/safeUnlisten";

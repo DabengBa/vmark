@@ -25,9 +25,11 @@
   "noResults": "Nessun risultato",
   "selectAll": "Seleziona tutto",
   "deselectAll": "Deseleziona tutto",
-
+  "untitled": "Untitled",
   "fileDeleted": "File eliminato dal disco",
   "fileDivergent": "Il file locale differisce dal disco",
   "closeTab": "Chiudi {{title}}",
-  "tabActions": "Azioni scheda"
+  "tabActions": "Azioni scheda",
+  "aria.sidebar": "Sidebar",
+  "aria.mainContent": "Main content"
 }

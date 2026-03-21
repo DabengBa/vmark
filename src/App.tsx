@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from "react";
+import { Component, lazy, Suspense, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import { CheckCircle, XCircle, Info, AlertTriangle, Loader2 } from "lucide-react";
@@ -9,8 +10,11 @@ import { FindBar } from "@/components/FindBar";
 import { TitleBar } from "@/components/TitleBar";
 import { UniversalToolbar } from "@/components/Editor/UniversalToolbar";
 import { TerminalPanel } from "@/components/Terminal";
-import { SettingsPage } from "@/pages/Settings";
-import { PdfExportPage } from "@/pages/PdfExportPage";
+
+// Lazy-load page routes so non-document windows don't evaluate stores they don't need.
+// SettingsPage → aiProviderStore (credentials); must not evaluate in pdf-export window.
+const SettingsPage = lazy(() => import("@/pages/Settings").then(m => ({ default: m.SettingsPage })));
+const PdfExportPage = lazy(() => import("@/pages/PdfExportPage").then(m => ({ default: m.PdfExportPage })));
 import { WindowProvider, useIsDocumentWindow, useWindowLabel } from "@/contexts/WindowContext";
 import { appError } from "@/utils/debug";
 
@@ -181,6 +185,7 @@ function MainWindowHooks() {
 }
 
 function MainLayout() {
+  const { t } = useTranslation();
   const focusModeEnabled = useEditorStore((state) => state.focusModeEnabled);
   const typewriterModeEnabled = useEditorStore(
     (state) => state.typewriterModeEnabled
@@ -259,6 +264,7 @@ function MainLayout() {
 
       {sidebarVisible && (
         <aside
+          aria-label={t("aria.sidebar")}
           style={{
             width: sidebarWidth,
             minWidth: sidebarWidth,
@@ -297,7 +303,7 @@ function MainLayout() {
           }}
         >
           {/* Editor column: editor + bottom bars */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
+          <div role="main" aria-label={t("aria.mainContent")} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
             {/* Editor area */}
             <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
               <Editor />
@@ -323,8 +329,8 @@ function App() {
       <WindowProvider>
         <Routes>
           <Route path="/" element={<MainLayout />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/pdf-export" element={<PdfExportPage />} />
+          <Route path="/settings" element={<Suspense fallback={null}><SettingsPage /></Suspense>} />
+          <Route path="/pdf-export" element={<Suspense fallback={null}><PdfExportPage /></Suspense>} />
         </Routes>
         <Toaster
           position="top-center"

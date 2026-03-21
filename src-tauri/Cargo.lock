@@ -5419,6 +5419,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-store"
+version = "2.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca1a8ff83c269b115e98726ffc13f9e548a10161544a92ad121d6d0a96e16ea"
+dependencies = [
+ "dunce",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tauri-plugin-updater"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6206,7 +6222,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vmark"
-version = "0.6.8"
+version = "0.6.9"
 dependencies = [
  "block2 0.6.2",
  "chrono",
@@ -6239,6 +6255,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-pty",
  "tauri-plugin-shell",
+ "tauri-plugin-store",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "tempfile",

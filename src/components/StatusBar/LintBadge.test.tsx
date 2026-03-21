@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mocks — must be before imports that use them
 vi.mock("@/contexts/WindowContext", () => ({
@@ -15,11 +16,17 @@ vi.mock("@/stores/tabStore", () => ({
     selector({ activeTabId: { main: "tab-1" } }),
 }));
 
+const mockSelectNext = vi.fn();
 const mockDiagnostics = { diagnosticsByTab: {} as Record<string, unknown[]> };
 
 vi.mock("@/stores/lintStore", () => ({
-  useLintStore: (selector: (state: typeof mockDiagnostics) => unknown) =>
-    selector(mockDiagnostics),
+  useLintStore: Object.assign(
+    (selector: (state: typeof mockDiagnostics) => unknown) =>
+      selector(mockDiagnostics),
+    {
+      getState: () => ({ selectNext: mockSelectNext }),
+    },
+  ),
 }));
 
 import { LintBadge } from "./LintBadge";
@@ -27,6 +34,7 @@ import { LintBadge } from "./LintBadge";
 beforeEach(() => {
   vi.clearAllMocks();
   mockDiagnostics.diagnosticsByTab = {};
+  mockSelectNext.mockReset();
 });
 
 describe("LintBadge", () => {
@@ -84,5 +92,19 @@ describe("LintBadge", () => {
     render(<LintBadge />);
     const badge = screen.getByRole("button");
     expect(badge.textContent).toContain("3");
+  });
+
+  it("calls selectNext on click", async () => {
+    const user = userEvent.setup();
+    mockDiagnostics.diagnosticsByTab = {
+      "tab-1": [
+        { id: "W01-1-1", severity: "warning", messageKey: "lint.W01", ruleId: "W01",
+          messageParams: {}, line: 1, column: 1, offset: 0, uiHint: "exact" },
+      ],
+    };
+    render(<LintBadge />);
+    const badge = screen.getByRole("button");
+    await user.click(badge);
+    expect(mockSelectNext).toHaveBeenCalledWith("tab-1");
   });
 });

@@ -4,9 +4,9 @@
 //! and request routing to the frontend.
 
 use super::state::{
-    get_bridge_state, get_shutdown_holder, get_write_lock, is_read_only_operation,
-    is_webview_alive, remove_port_file, set_webview_alive, write_port_file, ClientConnection,
-    PendingRequest,
+    generate_auth_token, get_bridge_state, get_shutdown_holder, get_write_lock,
+    is_read_only_operation, is_webview_alive, remove_port_file, set_webview_alive,
+    write_port_file, ClientConnection, PendingRequest,
 };
 use super::types::{
     ClientIdentity, McpRequest, McpRequestEvent, McpResponse, WsMessage,
@@ -45,11 +45,12 @@ pub async fn start_bridge(
         .map_err(|e| format!("Failed to get local address: {}", e))?
         .port();
 
-    // Write port to file for MCP sidecar discovery
-    write_port_file(&app, actual_port)?;
+    // Generate auth token and write port:token to file for MCP sidecar discovery
+    let auth_token = generate_auth_token();
+    write_port_file(&app, actual_port, &auth_token)?;
 
     log::info!(
-        "[MCP Bridge] WebSocket server listening on 127.0.0.1:{}",
+        "[MCP Bridge] WebSocket server listening on 127.0.0.1:{} (auth required)",
         actual_port
     );
 
@@ -73,7 +74,8 @@ pub async fn start_bridge(
                     match result {
                         Ok((stream, addr)) => {
                             let app = app_handle.clone();
-                            tauri::async_runtime::spawn(handle_connection(stream, addr, app));
+                            let token = auth_token.clone();
+                            tauri::async_runtime::spawn(handle_connection(stream, addr, app, token));
                         }
                         Err(e) => {
                             log::error!("[MCP Bridge] Accept error: {}", e);
@@ -125,7 +127,9 @@ pub async fn stop_bridge(app: &AppHandle) {
 }
 
 /// Handle a single WebSocket connection.
-async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) {
+/// Requires the client to send an `auth` message with a valid token before
+/// any requests are processed.
+async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle, expected_token: String) {
     let ws_stream = match accept_async(stream).await {
         Ok(ws) => ws,
         Err(e) => {
@@ -162,13 +166,14 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
 
     log::debug!("[MCP Bridge] Client {} connected from {}", client_id, addr);
 
-    // Send welcome notification to client
+    // Send welcome notification to client (includes auth_required flag)
     let welcome_msg = WsMessage {
         id: "system".to_string(),
         msg_type: "status".to_string(),
         payload: serde_json::json!({
             "connected": true,
             "clientId": client_id,
+            "authRequired": true,
         }),
     };
     if let Ok(msg_str) = serde_json::to_string(&welcome_msg) {
@@ -184,7 +189,87 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, app: AppHandle) 
         }
     });
 
-    // Process incoming messages
+    // --- Auth phase: wait for auth message before processing requests ---
+    let mut authenticated = false;
+    let auth_timeout = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        async {
+            while let Some(msg) = ws_receiver.next().await {
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        if let Ok(ws_msg) = serde_json::from_str::<WsMessage>(&text) {
+                            if ws_msg.msg_type == "auth" {
+                                let token = ws_msg.payload.get("token")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                if token == expected_token {
+                                    return Ok(true);
+                                } else {
+                                    log::warn!("[MCP Bridge] Client {} auth failed: invalid token", client_id);
+                                    return Ok(false);
+                                }
+                            }
+                            // Reject any non-auth first message (including identify)
+                            log::warn!(
+                                "[MCP Bridge] Client {} sent '{}' before auth — rejected",
+                                client_id, ws_msg.msg_type
+                            );
+                        }
+                        // Unknown first message — reject
+                        return Ok(false);
+                    }
+                    Ok(Message::Close(_)) => return Err("closed"),
+                    Err(_) => return Err("error"),
+                    _ => continue,
+                }
+            }
+            Err("stream ended")
+        }
+    ).await;
+
+    match auth_timeout {
+        Ok(Ok(true)) => {
+            authenticated = true;
+            // Send auth success response
+            let auth_ok = WsMessage {
+                id: "auth".to_string(),
+                msg_type: "auth_result".to_string(),
+                payload: serde_json::json!({ "success": true }),
+            };
+            if let Ok(msg_str) = serde_json::to_string(&auth_ok) {
+                let _ = tx.send(msg_str);
+            }
+            log::debug!("[MCP Bridge] Client {} authenticated", client_id);
+        }
+        Ok(Ok(false)) => {
+            // Auth failed — send error and disconnect
+            let auth_fail = WsMessage {
+                id: "auth".to_string(),
+                msg_type: "auth_result".to_string(),
+                payload: serde_json::json!({ "success": false, "error": "Authentication failed" }),
+            };
+            if let Ok(msg_str) = serde_json::to_string(&auth_fail) {
+                let _ = tx.send(msg_str);
+            }
+            log::warn!("[MCP Bridge] Client {} rejected: auth failed", client_id);
+        }
+        _ => {
+            log::warn!("[MCP Bridge] Client {} auth timeout or error", client_id);
+        }
+    }
+
+    if !authenticated {
+        // Give sender task a moment to flush the auth failure message
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        // Cleanup and disconnect
+        let state = get_bridge_state();
+        let mut guard = state.lock().await;
+        guard.clients.remove(&client_id);
+        send_task.abort();
+        return;
+    }
+
+    // --- Main message loop (authenticated clients only) ---
     loop {
         tokio::select! {
             _ = &mut shutdown_rx => {

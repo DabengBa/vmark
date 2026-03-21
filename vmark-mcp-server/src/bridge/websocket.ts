@@ -78,6 +78,8 @@ export interface WebSocketBridgeConfig {
   maxQueueSize?: number;
   /** Client identity for VMark to identify who is connecting */
   clientIdentity?: ClientIdentity;
+  /** Auth token resolver — called on each connect to get the latest token from port file */
+  authTokenResolver?: () => string | undefined;
 }
 
 /**
@@ -103,7 +105,7 @@ interface QueuedRequest {
  */
 interface WsMessage {
   id: string;
-  type: 'request' | 'response' | 'status' | 'identify';
+  type: 'request' | 'response' | 'status' | 'identify' | 'auth_result';
   payload: BridgeRequest | BridgeResponse;
 }
 
@@ -124,6 +126,9 @@ export class WebSocketBridge implements Bridge {
   private readonly queueWhileDisconnected: boolean;
   private readonly maxQueueSize: number;
   private readonly clientIdentity: ClientIdentity | null;
+  private readonly authTokenResolver: (() => string | undefined) | undefined;
+  private _authResolve: (() => void) | null = null;
+  private _authReject: ((reason: string) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private connected = false;
@@ -156,6 +161,7 @@ export class WebSocketBridge implements Bridge {
     this.queueWhileDisconnected = config.queueWhileDisconnected ?? false;
     this.maxQueueSize = Math.max(1, config.maxQueueSize ?? 100);
     this.clientIdentity = config.clientIdentity ?? null;
+    this.authTokenResolver = config.authTokenResolver;
 
     // Initialize rate limiter
     this.rateLimitTokens = this.maxRequestsPerSecond;
@@ -166,6 +172,22 @@ export class WebSocketBridge implements Bridge {
    * Resolve the port to connect to.
    * Uses static port if set, otherwise calls portResolver.
    */
+  /** Send client identification message. */
+  private sendIdentify(): void {
+    if (this.clientIdentity && this.ws) {
+      const identifyMsg = {
+        id: 'identify',
+        type: 'identify',
+        payload: this.clientIdentity,
+      };
+      try {
+        this.ws.send(JSON.stringify(identifyMsg));
+      } catch (error) {
+        this.logger.warn('Failed to send identify message:', error);
+      }
+    }
+  }
+
   private resolvePort(): number | undefined {
     if (this.port !== undefined) {
       return this.port;
@@ -295,32 +317,55 @@ export class WebSocketBridge implements Bridge {
 
         this.ws.on('open', () => {
           clearTimeout(connectionTimeout);
-          this.connected = true;
-          this.connecting = false;
-          this.reconnectAttempts = 0;
 
-          // Send client identification if configured
-          if (this.clientIdentity) {
-            const identifyMsg = {
-              id: 'identify',
-              type: 'identify',
-              payload: this.clientIdentity,
+          // Send auth token if available (required by VMark bridge)
+          const authToken = this.authTokenResolver?.();
+          if (authToken) {
+            const authMsg = {
+              id: 'auth',
+              type: 'auth',
+              payload: { token: authToken },
             };
             try {
-              this.ws!.send(JSON.stringify(identifyMsg));
+              this.ws!.send(JSON.stringify(authMsg));
             } catch (error) {
-              this.logger.warn('Failed to send identify message:', error);
+              this.logger.warn('Failed to send auth message:', error);
+              this.connecting = false;
+              reject(new Error('Failed to send auth message'));
+              return;
             }
+
+            // Wait for auth_result before marking connected.
+            // The message handler will call the stored callback.
+            this._authResolve = () => {
+              this.connected = true;
+              this.connecting = false;
+              this.reconnectAttempts = 0;
+
+              // Send identify after auth succeeds
+              this.sendIdentify();
+              this.notifyConnectionChange(true);
+              this.flushRequestQueue().catch((error) => {
+                this.logger.error('Failed to flush request queue:', error);
+              });
+              resolve();
+            };
+            this._authReject = (reason: string) => {
+              this.connecting = false;
+              reject(new Error(`Auth failed: ${reason}`));
+            };
+          } else {
+            // No auth token — connect immediately (legacy mode)
+            this.connected = true;
+            this.connecting = false;
+            this.reconnectAttempts = 0;
+            this.sendIdentify();
+            this.notifyConnectionChange(true);
+            this.flushRequestQueue().catch((error) => {
+              this.logger.error('Failed to flush request queue:', error);
+            });
+            resolve();
           }
-
-          this.notifyConnectionChange(true);
-
-          // Flush queued requests after reconnection
-          this.flushRequestQueue().catch((error) => {
-            this.logger.error('Failed to flush request queue:', error);
-          });
-
-          resolve();
         });
 
         this.ws.on('message', (data: WebSocket.RawData) => {
@@ -530,8 +575,24 @@ export class WebSocketBridge implements Bridge {
     try {
       const message = JSON.parse(data.toString()) as WsMessage;
 
+      // Handle auth_result from server
+      if (message.type === 'auth_result') {
+        const success = (message.payload as { success?: boolean })?.success;
+        if (success && this._authResolve) {
+          this._authResolve();
+          this._authResolve = null;
+          this._authReject = null;
+        } else if (this._authReject) {
+          const error = (message.payload as { error?: string })?.error ?? 'Unknown auth error';
+          this._authReject(error);
+          this._authResolve = null;
+          this._authReject = null;
+        }
+        return;
+      }
+
       if (message.type !== 'response') {
-        this.logger.warn('Received non-response message:', message.type);
+        // Ignore status and other non-response messages
         return;
       }
 
