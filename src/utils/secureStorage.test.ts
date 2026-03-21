@@ -27,7 +27,7 @@ describe("secureStorage", () => {
   });
 
   describe("initSecureStorage", () => {
-    it("migrates data from localStorage to Tauri store", async () => {
+    it("migrates data from localStorage to Tauri store and clears localStorage", async () => {
       localStorage.setItem("test-key", '{"apiKey":"sk-123"}');
       mockStore.get.mockResolvedValue(null); // Not in Tauri store yet
 
@@ -35,11 +35,11 @@ describe("secureStorage", () => {
 
       expect(mockStore.set).toHaveBeenCalledWith("test-key", '{"apiKey":"sk-123"}');
       expect(mockStore.save).toHaveBeenCalled();
-      // localStorage should be cleared after migration
+      // localStorage MUST be cleared after migration
       expect(localStorage.getItem("test-key")).toBeNull();
     });
 
-    it("prefers Tauri store data over localStorage", async () => {
+    it("prefers Tauri store data and clears localStorage", async () => {
       localStorage.setItem("test-key", '{"old":"data"}');
       mockStore.get.mockResolvedValue('{"new":"data"}');
 
@@ -47,8 +47,34 @@ describe("secureStorage", () => {
 
       const storage = createSecureStorage();
       expect(storage.getItem("test-key")).toBe('{"new":"data"}');
-      // localStorage should NOT be cleared when Tauri store has data
-      expect(localStorage.getItem("test-key")).toBe('{"old":"data"}');
+      // localStorage MUST be cleared even when Tauri store has data
+      expect(localStorage.getItem("test-key")).toBeNull();
+    });
+
+    it("falls back to localStorage when Tauri store fails", async () => {
+      const { load } = await import("@tauri-apps/plugin-store");
+      (load as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("not available"));
+      _resetForTesting();
+      localStorage.setItem("fallback-key", '{"data":"value"}');
+
+      await initSecureStorage(["fallback-key"]);
+
+      const storage = createSecureStorage();
+      expect(storage.getItem("fallback-key")).toBe('{"data":"value"}');
+      // In fallback mode, localStorage is the persistence layer — don't clear it
+      expect(localStorage.getItem("fallback-key")).toBe('{"data":"value"}');
+    });
+
+    it("writes to localStorage in fallback mode", async () => {
+      const { load } = await import("@tauri-apps/plugin-store");
+      (load as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("not available"));
+      _resetForTesting();
+
+      await initSecureStorage([]);
+
+      const storage = createSecureStorage();
+      storage.setItem("fb-write", "fb-value");
+      expect(localStorage.getItem("fb-write")).toBe("fb-value");
     });
   });
 
@@ -66,27 +92,41 @@ describe("secureStorage", () => {
       expect(storage.getItem("nonexistent")).toBeNull();
     });
 
-    it("setItem updates cache immediately", () => {
+    it("setItem updates cache immediately", async () => {
+      await initSecureStorage([]);
       const storage = createSecureStorage();
       storage.setItem("new-key", "new-value");
       expect(storage.getItem("new-key")).toBe("new-value");
     });
 
-    it("setItem syncs to Tauri store in background", async () => {
+    it("setItem syncs to Tauri store in background (no explicit save)", async () => {
+      await initSecureStorage([]);
       const storage = createSecureStorage();
       storage.setItem("bg-key", "bg-value");
 
       // Wait for async sync
       await new Promise((r) => setTimeout(r, 50));
       expect(mockStore.set).toHaveBeenCalledWith("bg-key", "bg-value");
-      expect(mockStore.save).toHaveBeenCalled();
+      // Plugin auto-saves — no explicit save() call on writes
+      expect(mockStore.save).not.toHaveBeenCalled();
     });
 
-    it("removeItem clears cache immediately", () => {
+    it("removeItem clears cache immediately", async () => {
+      await initSecureStorage([]);
       const storage = createSecureStorage();
       storage.setItem("del-key", "del-value");
       storage.removeItem("del-key");
       expect(storage.getItem("del-key")).toBeNull();
+    });
+
+    it("removeItem syncs to Tauri store in background", async () => {
+      await initSecureStorage([]);
+      const storage = createSecureStorage();
+      storage.setItem("rm-key", "rm-value");
+      storage.removeItem("rm-key");
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockStore.delete).toHaveBeenCalledWith("rm-key");
     });
   });
 });
