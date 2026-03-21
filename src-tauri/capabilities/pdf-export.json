@@ -1,0 +1,36 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pdf-export-window",
+  "description": "PDF Export window capability — dialog for save location, print API, read-only access to app temp files. No shell, PTY, MCP, or broad filesystem access.",
+  "windows": ["pdf-export"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-focus",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "core:window:allow-start-dragging",
+    "core:webview:allow-print",
+    "dialog:default",
+    "dialog:allow-open",
+    "log:default",
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        { "path": "$APPDATA/temp/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "$APPDATA/temp/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        { "path": "$HOME/**" },
+        { "path": "/Volumes/**" }
+      ]
+    }
+  ]
+}
