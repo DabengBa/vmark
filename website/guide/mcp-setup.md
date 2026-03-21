@@ -135,9 +135,10 @@ AI Assistant <--stdio--> MCP Server <--WebSocket--> VMark Editor
 ```
 
 1. **VMark starts a WebSocket bridge** on an available port when launched
-2. **The MCP server** connects to this WebSocket bridge
-3. **AI assistant** communicates with the MCP server via stdio
-4. **Commands are relayed** to VMark's editor through the bridge
+2. **The MCP server** reads the port and auth token from VMark's app data directory
+3. **The MCP server** connects and authenticates via the WebSocket bridge
+4. **AI assistant** communicates with the MCP server via stdio
+5. **Commands are relayed** to VMark's editor through the bridge
 
 ## Available Capabilities
 
