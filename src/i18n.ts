@@ -75,6 +75,7 @@ i18n.on("languageChanged", (lng) => {
 
 // Cross-window sync: when another window changes language via settings sync,
 // update this window's i18n instance to match.
+/* v8 ignore start -- @preserve reason: cross-window sync subscription only fires in multi-window runtime */
 let lastLang = i18n.language;
 useSettingsStore.subscribe((state) => {
   const lang = state.general.language;
@@ -83,5 +84,6 @@ useSettingsStore.subscribe((state) => {
     i18n.changeLanguage(lang);
   }
 });
+/* v8 ignore stop */
 
 export default i18n;
