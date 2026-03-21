@@ -450,3 +450,183 @@ export const wysiwygAdapterError = isDev
   ? (...args: unknown[]) => console.error("[wysiwygAdapter]", ...args)
   : (...args: unknown[]) => prodError("[wysiwygAdapter]", ...args);
 
+// --- Error loggers for plugin console.error migration ---
+
+/** Error logger for Link Popup operations. */
+export const linkPopupError = isDev
+  ? (...args: unknown[]) => console.error("[LinkPopup]", ...args)
+  : (...args: unknown[]) => prodError("[LinkPopup]", ...args);
+
+/** Error logger for Media Popup operations. */
+export const mediaPopupError = isDev
+  ? (...args: unknown[]) => console.error("[MediaPopup]", ...args)
+  : (...args: unknown[]) => prodError("[MediaPopup]", ...args);
+
+/** Error logger for Wiki Link Popup operations. */
+export const wikiLinkPopupError = isDev
+  ? (...args: unknown[]) => console.error("[WikiLinkPopup]", ...args)
+  : (...args: unknown[]) => prodError("[WikiLinkPopup]", ...args);
+
+/** Error logger for Markdown/HTML paste operations. */
+export const pasteError = isDev
+  ? (...args: unknown[]) => console.error("[Paste]", ...args)
+  : (...args: unknown[]) => prodError("[Paste]", ...args);
+
+/** Error logger for Image Handler operations. */
+export const imageHandlerError = isDev
+  ? (...args: unknown[]) => console.error("[ImageHandler]", ...args)
+  : (...args: unknown[]) => prodError("[ImageHandler]", ...args);
+
+/** Error logger for Source mode actions. */
+export const sourceActionError = isDev
+  ? (...args: unknown[]) => console.error("[SourceAction]", ...args)
+  : (...args: unknown[]) => prodError("[SourceAction]", ...args);
+
+/** Error logger for Smart Paste operations. */
+export const smartPasteError = isDev
+  ? (...args: unknown[]) => console.error("[SmartPaste]", ...args)
+  : (...args: unknown[]) => prodError("[SmartPaste]", ...args);
+
+/** Error logger for Footnote Popup operations. */
+export const footnotePopupError = isDev
+  ? (...args: unknown[]) => console.error("[FootnotePopup]", ...args)
+  : (...args: unknown[]) => prodError("[FootnotePopup]", ...args);
+
+/** Error logger for Image Preview operations. */
+export const imagePreviewError = isDev
+  ? (...args: unknown[]) => console.error("[ImagePreview]", ...args)
+  : (...args: unknown[]) => prodError("[ImagePreview]", ...args);
+
+/** Error logger for Link Commands operations. */
+export const linkCommandsError = isDev
+  ? (...args: unknown[]) => console.error("[LinkCommands]", ...args)
+  : (...args: unknown[]) => prodError("[LinkCommands]", ...args);
+
+/** Error logger for Media Handler operations. */
+export const mediaHandlerError = isDev
+  ? (...args: unknown[]) => console.error("[MediaHandler]", ...args)
+  : (...args: unknown[]) => prodError("[MediaHandler]", ...args);
+
+// --- Error loggers for component/util console.error migration ---
+
+/** Error logger for History operations. */
+export const historyError = isDev
+  ? (...args: unknown[]) => console.error("[History]", ...args)
+  : (...args: unknown[]) => prodError("[History]", ...args);
+
+/** Error logger for File Explorer operations. */
+export const fileExplorerError = isDev
+  ? (...args: unknown[]) => console.error("[FileExplorer]", ...args)
+  : (...args: unknown[]) => prodError("[FileExplorer]", ...args);
+
+/** Error logger for Tiptap Editor operations. */
+export const tiptapError = isDev
+  ? (...args: unknown[]) => console.error("[Tiptap]", ...args)
+  : (...args: unknown[]) => prodError("[Tiptap]", ...args);
+
+/** Error logger for Tab Context Menu operations. */
+export const tabContextError = isDev
+  ? (...args: unknown[]) => console.error("[TabContext]", ...args)
+  : (...args: unknown[]) => prodError("[TabContext]", ...args);
+
+/** Error logger for File Operations (open, save, rename). */
+export const fileOpsError = isDev
+  ? (...args: unknown[]) => console.error("[FileOps]", ...args)
+  : (...args: unknown[]) => prodError("[FileOps]", ...args);
+
+/** Error logger for Export operations. */
+export const exportError = isDev
+  ? (...args: unknown[]) => console.error("[Export]", ...args)
+  : (...args: unknown[]) => prodError("[Export]", ...args);
+
+/** Error logger for Hot Exit operations. */
+export const hotExitError = isDev
+  ? (...args: unknown[]) => console.error("[HotExit]", ...args)
+  : (...args: unknown[]) => prodError("[HotExit]", ...args);
+
+/** Error logger for Orphan Asset Cleanup operations. */
+export const orphanCleanupError = isDev
+  ? (...args: unknown[]) => console.error("[OrphanCleanup]", ...args)
+  : (...args: unknown[]) => prodError("[OrphanCleanup]", ...args);
+
+/** Error logger for Safe Storage operations. */
+export const safeStorageError = isDev
+  ? (...args: unknown[]) => console.error("[SafeStorage]", ...args)
+  : (...args: unknown[]) => prodError("[SafeStorage]", ...args);
+
+/** Error logger for App-level operations. */
+export const appError = isDev
+  ? (...args: unknown[]) => console.error("[App]", ...args)
+  : (...args: unknown[]) => prodError("[App]", ...args);
+
+/** Error logger for PDF Preview operations. */
+export const pdfPreviewError = isDev
+  ? (...args: unknown[]) => console.error("[PDF Preview]", ...args)
+  : (...args: unknown[]) => prodError("[PDF Preview]", ...args);
+
+/** Error logger for Print operations. */
+export const printError = isDev
+  ? (...args: unknown[]) => console.error("[Print]", ...args)
+  : (...args: unknown[]) => prodError("[Print]", ...args);
+
+/** Error logger for PDF export dialog operations. */
+export const pdfError = isDev
+  ? (...args: unknown[]) => console.error("[PDF]", ...args)
+  : (...args: unknown[]) => prodError("[PDF]", ...args);
+
+/** Warn logger for Terminal Settings operations. */
+export const terminalSettingsWarn = isDev
+  ? (...args: unknown[]) => console.warn("[TerminalSettings]", ...args)
+  : (...args: unknown[]) => prodWarn("[TerminalSettings]", ...args);
+
+/** Warn logger for i18n (language switching) operations. */
+export const i18nWarn = isDev
+  ? (...args: unknown[]) => console.warn("[i18n]", ...args)
+  : (...args: unknown[]) => prodWarn("[i18n]", ...args);
+
+// --- Loggers needed by prior migration effort on this branch ---
+
+/** Error logger for Window Close operations. */
+export const windowCloseError = isDev
+  ? (...args: unknown[]) => console.error("[WindowClose]", ...args)
+  : (...args: unknown[]) => prodError("[WindowClose]", ...args);
+
+/** Error logger for Workspace operations. */
+export const workspaceError = isDev
+  ? (...args: unknown[]) => console.error("[Workspace]", ...args)
+  : (...args: unknown[]) => prodError("[Workspace]", ...args);
+
+/** Error logger for Outline Sync operations. */
+export const outlineSyncError = isDev
+  ? (...args: unknown[]) => console.error("[OutlineSync]", ...args)
+  : (...args: unknown[]) => prodError("[OutlineSync]", ...args);
+
+/** Error logger for MCP Bridge operations. */
+export const mcpBridgeError = isDev
+  ? (...args: unknown[]) => console.error("[MCP Bridge]", ...args)
+  : (...args: unknown[]) => prodError("[MCP Bridge]", ...args);
+
+/** Error logger for Menu dispatch operations. */
+export const menuError = isDev
+  ? (...args: unknown[]) => console.error("[Menu]", ...args)
+  : (...args: unknown[]) => prodError("[Menu]", ...args);
+
+/** Error logger for Drag & Drop operations. */
+export const dragDropError = isDev
+  ? (...args: unknown[]) => console.error("[DragDrop]", ...args)
+  : (...args: unknown[]) => prodError("[DragDrop]", ...args);
+
+/** Error logger for Genie/AI operations. */
+export const genieError = isDev
+  ? (...args: unknown[]) => console.error("[Genie]", ...args)
+  : (...args: unknown[]) => prodError("[Genie]", ...args);
+
+/** Error logger for Image Context Menu operations. */
+export const imageContextMenuError = isDev
+  ? (...args: unknown[]) => console.error("[ImageContextMenu]", ...args)
+  : (...args: unknown[]) => prodError("[ImageContextMenu]", ...args);
+
+/** Error logger for Finder File Open operations. */
+export const finderFileOpenError = isDev
+  ? (...args: unknown[]) => console.error("[FinderFileOpen]", ...args)
+  : (...args: unknown[]) => prodError("[FinderFileOpen]", ...args);
