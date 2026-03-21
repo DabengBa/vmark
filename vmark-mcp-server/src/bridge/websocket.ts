@@ -78,6 +78,8 @@ export interface WebSocketBridgeConfig {
   maxQueueSize?: number;
   /** Client identity for VMark to identify who is connecting */
   clientIdentity?: ClientIdentity;
+  /** Auth token resolver — called on each connect to get the latest token from port file */
+  authTokenResolver?: () => string | undefined;
 }
 
 /**
@@ -124,6 +126,7 @@ export class WebSocketBridge implements Bridge {
   private readonly queueWhileDisconnected: boolean;
   private readonly maxQueueSize: number;
   private readonly clientIdentity: ClientIdentity | null;
+  private readonly authTokenResolver: (() => string | undefined) | undefined;
 
   private ws: WebSocket | null = null;
   private connected = false;
@@ -156,6 +159,7 @@ export class WebSocketBridge implements Bridge {
     this.queueWhileDisconnected = config.queueWhileDisconnected ?? false;
     this.maxQueueSize = Math.max(1, config.maxQueueSize ?? 100);
     this.clientIdentity = config.clientIdentity ?? null;
+    this.authTokenResolver = config.authTokenResolver;
 
     // Initialize rate limiter
     this.rateLimitTokens = this.maxRequestsPerSecond;
@@ -298,6 +302,21 @@ export class WebSocketBridge implements Bridge {
           this.connected = true;
           this.connecting = false;
           this.reconnectAttempts = 0;
+
+          // Send auth token if available (required by VMark bridge)
+          const authToken = this.authTokenResolver?.();
+          if (authToken) {
+            const authMsg = {
+              id: 'auth',
+              type: 'auth',
+              payload: { token: authToken },
+            };
+            try {
+              this.ws!.send(JSON.stringify(authMsg));
+            } catch (error) {
+              this.logger.warn('Failed to send auth message:', error);
+            }
+          }
 
           // Send client identification if configured
           if (this.clientIdentity) {

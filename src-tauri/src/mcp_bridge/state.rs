@@ -83,9 +83,30 @@ pub(crate) fn get_write_lock() -> Arc<tokio::sync::Mutex<()>> {
         .clone()
 }
 
-/// Write the port to the port file for MCP sidecar discovery.
+/// Generate a random hex auth token for MCP bridge authentication.
+/// Uses RandomState (SipHash seeded from OS entropy) for unpredictable tokens
+/// without adding a `rand` or `getrandom` dependency.
+pub(crate) fn generate_auth_token() -> String {
+    use std::collections::hash_map::RandomState;
+    use std::fmt::Write;
+    use std::hash::{BuildHasher, Hasher};
+
+    let mut hex = String::with_capacity(64);
+    // Generate 4 independent random u64s (32 bytes total)
+    for _ in 0..4 {
+        let state = RandomState::new();
+        let mut hasher = state.build_hasher();
+        hasher.write_u64(std::process::id() as u64);
+        let val = hasher.finish();
+        let _ = write!(hex, "{:016x}", val);
+    }
+    hex
+}
+
+/// Write the port and auth token to the port file for MCP sidecar discovery.
+/// Format: `{port}:{token}` — sidecar must send token in auth handshake.
 /// Uses atomic write to prevent partial reads by the sidecar.
-pub(crate) fn write_port_file(app: &AppHandle, port: u16) -> Result<(), String> {
+pub(crate) fn write_port_file(app: &AppHandle, port: u16, token: &str) -> Result<(), String> {
     let path = app_paths::get_port_file_path(app)?;
 
     // Create app data directory if it doesn't exist
@@ -98,10 +119,11 @@ pub(crate) fn write_port_file(app: &AppHandle, port: u16) -> Result<(), String> 
         })?;
     }
 
-    // Write port atomically to prevent partial reads
-    app_paths::atomic_write_file(&path, port.to_string().as_bytes())?;
+    // Write port:token atomically to prevent partial reads
+    let content = format!("{}:{}", port, token);
+    app_paths::atomic_write_file(&path, content.as_bytes())?;
 
-    log::debug!("[MCP Bridge] Port {} written to {:?}", port, path);
+    log::debug!("[MCP Bridge] Port {} written to {:?} (with auth token)", port, path);
 
     Ok(())
 }
@@ -635,5 +657,33 @@ mod tests {
         }
 
         assert_eq!(counter.load(Ordering::SeqCst), 5);
+    }
+
+    // -- auth token generation ---------------------------------------------------
+
+    #[test]
+    fn auth_token_is_64_hex_chars() {
+        let token = generate_auth_token();
+        assert_eq!(token.len(), 64, "Token should be 64 hex chars (32 bytes)");
+        assert!(
+            token.chars().all(|c| c.is_ascii_hexdigit()),
+            "Token should contain only hex chars: {}",
+            token
+        );
+    }
+
+    #[test]
+    fn auth_token_is_unique_per_call() {
+        let t1 = generate_auth_token();
+        let t2 = generate_auth_token();
+        assert_ne!(t1, t2, "Two tokens should not be identical");
+    }
+
+    #[test]
+    fn auth_token_has_sufficient_entropy() {
+        // Generate 100 tokens and verify no duplicates
+        let tokens: std::collections::HashSet<String> =
+            (0..100).map(|_| generate_auth_token()).collect();
+        assert_eq!(tokens.len(), 100, "100 tokens should all be unique");
     }
 }
