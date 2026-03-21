@@ -67,9 +67,34 @@
 
   /* Typography - Serif fonts with clear curly quotes (66/99 style) */
   --vmark-font-family: Charter, Palatino, "Book Antiqua", Georgia, serif;
-  --vmark-font-size: 18px;
+  --vmark-font-size: 17px;
   --vmark-line-height: 1.6;
   --vmark-paragraph-spacing: 1em;
+}
+
+/* CJK locales: smaller base font, no italic (CJK glyphs don't have italic variants) */
+:root:lang(zh),
+:root:lang(zh-CN),
+:root:lang(zh-TW),
+:root:lang(ja),
+:root:lang(ko) {
+  --vmark-font-size: 16px;
+}
+
+:root:lang(zh) .vp-doc em,
+:root:lang(zh) .vp-doc i,
+:root:lang(zh-CN) .vp-doc em,
+:root:lang(zh-CN) .vp-doc i,
+:root:lang(zh-TW) .vp-doc em,
+:root:lang(zh-TW) .vp-doc i,
+:root:lang(ja) .vp-doc em,
+:root:lang(ja) .vp-doc i,
+:root:lang(ko) .vp-doc em,
+:root:lang(ko) .vp-doc i {
+  font-style: normal;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
 }
 
 /* ============================================
