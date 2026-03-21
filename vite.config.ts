@@ -65,8 +65,9 @@ export default defineConfig(async () => ({
   },
 
   build: {
-    // Keep warnings meaningful but avoid noise after intentional chunking.
-    chunkSizeWarningLimit: 1200,
+    // Vendor chunks (mermaid ~1.7MB, codemirror ~1MB, index ~2.5MB) exceed
+    // default 500kB limit. These are already manually chunked — suppress noise.
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks(id) {
