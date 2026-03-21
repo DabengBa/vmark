@@ -930,4 +930,56 @@ describe("batchEditHandler", () => {
     const call = mockRespond.mock.calls[0][0];
     expect(call.data.changedNodeIds).toContain("p-0");
   });
+
+  it("throws when operation item is not an object (line 49)", async () => {
+    await handleBatchEdit("req-nonobj", {
+      baseRevision: "rev-1",
+      operations: [42], // not an object
+    });
+
+    expect(mockRespond).toHaveBeenCalledWith({
+      id: "req-nonobj",
+      success: false,
+      error: "invalid operation at index 0: expected object",
+    });
+  });
+
+  it("throws when operation item is null (line 49)", async () => {
+    await handleBatchEdit("req-null-op", {
+      baseRevision: "rev-1",
+      operations: [null],
+    });
+
+    expect(mockRespond).toHaveBeenCalledWith({
+      id: "req-null-op",
+      success: false,
+      error: "invalid operation at index 0: expected object",
+    });
+  });
+
+  it("throws when operation item has no type field (line 53)", async () => {
+    await handleBatchEdit("req-notype", {
+      baseRevision: "rev-1",
+      operations: [{ nodeId: "p-0", text: "hello" }], // object but no type
+    });
+
+    expect(mockRespond).toHaveBeenCalledWith({
+      id: "req-notype",
+      success: false,
+      error: "invalid operation at index 0: missing required field 'type'",
+    });
+  });
+
+  it("throws when operation type is not a string (line 53)", async () => {
+    await handleBatchEdit("req-badtype", {
+      baseRevision: "rev-1",
+      operations: [{ type: 123 }],
+    });
+
+    expect(mockRespond).toHaveBeenCalledWith({
+      id: "req-badtype",
+      success: false,
+      error: "invalid operation at index 0: missing required field 'type'",
+    });
+  });
 });

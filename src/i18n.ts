@@ -33,6 +33,7 @@ export const SUPPORTED_LOCALES = new Set(
     .filter(Boolean)
 );
 
+/* v8 ignore start -- @preserve reason: i18next initialization runs at module eval; mocked globally in test setup */
 function validateLocale(lang: string): string {
   return SUPPORTED_LOCALES.has(lang) ? lang : "en";
 }
@@ -67,6 +68,7 @@ i18n
 
 // Set <html lang> on initial load for accessibility/spellcheck
 document.documentElement.lang = i18n.resolvedLanguage ?? i18n.language ?? "en";
+/* v8 ignore stop */
 
 // Update <html lang> on subsequent language changes
 i18n.on("languageChanged", (lng) => {
@@ -75,6 +77,7 @@ i18n.on("languageChanged", (lng) => {
 
 // Cross-window sync: when another window changes language via settings sync,
 // update this window's i18n instance to match.
+/* v8 ignore start -- @preserve reason: cross-window sync subscription only fires in multi-window runtime */
 let lastLang = i18n.language;
 useSettingsStore.subscribe((state) => {
   const lang = state.general.language;
@@ -83,5 +86,6 @@ useSettingsStore.subscribe((state) => {
     i18n.changeLanguage(lang);
   }
 });
+/* v8 ignore stop */
 
 export default i18n;

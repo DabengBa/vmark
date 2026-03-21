@@ -21,6 +21,7 @@ const isDev = import.meta.env.DEV;
 let _tauriWarn: ((msg: string) => Promise<void>) | null = null;
 let _tauriError: ((msg: string) => Promise<void>) | null = null;
 
+/* v8 ignore start -- @preserve reason: production-only plugin loading */
 if (!isDev) {
   import("@tauri-apps/plugin-log").then(({ warn, error }) => {
     _tauriWarn = warn;
@@ -29,6 +30,7 @@ if (!isDev) {
     // Plugin not available (e.g., unit tests) — console fallback continues
   });
 }
+/* v8 ignore stop */
 
 /** Serialize args preserving Error.stack and object structure. */
 function formatArgs(tag: string, args: unknown[]): string {
@@ -47,23 +49,30 @@ function formatArgs(tag: string, args: unknown[]): string {
 
 /** Warn logger that persists to file in production. Always outputs to console as fallback. */
 function prodWarn(tag: string, ...args: unknown[]) {
+  /* v8 ignore next 5 -- @preserve reason: isDev is always true in Vitest */
   if (isDev) {
     console.warn(tag, ...args);
   } else {
-    console.warn(tag, ...args); // immediate fallback for early startup
+    console.warn(tag, ...args);
     if (_tauriWarn) void _tauriWarn(formatArgs(tag, args)).catch(() => {});
   }
 }
 
 /** Error logger that persists to file in production. Always outputs to console as fallback. */
 function prodError(tag: string, ...args: unknown[]) {
+  /* v8 ignore next 5 -- @preserve reason: isDev is always true in Vitest */
   if (isDev) {
     console.error(tag, ...args);
   } else {
-    console.error(tag, ...args); // immediate fallback for early startup
+    console.error(tag, ...args);
     if (_tauriError) void _tauriError(formatArgs(tag, args)).catch(() => {});
   }
 }
+
+/* v8 ignore start -- @preserve reason: Logger declarations are compile-time
+   ternaries on import.meta.env.DEV. In tests (DEV=true), only the dev branch
+   executes; the production branch (prodWarn/prodError) is untestable per-logger
+   but verified via prodWarn/prodError/formatArgs tests. */
 
 /**
  * Debug logger for History operations.

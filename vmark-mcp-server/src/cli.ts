@@ -163,17 +163,33 @@ function getPortFilePath(): string {
   return join(getAppDataDir(), 'mcp-port');
 }
 
+/** Cached auth token from the last port file read. */
+let _lastAuthToken: string | undefined;
+
 /**
  * Read port from the port file written by VMark.
- * Returns undefined if file doesn't exist or is invalid.
+ * Port file format: `{port}:{token}` (authenticated) or `{port}` (legacy).
+ * Returns port number or undefined. Auth token is cached in `_lastAuthToken`.
  */
 function readPortFromFile(): number | undefined {
   const portFilePath = getPortFilePath();
 
   try {
     const content = readFileSync(portFilePath, 'utf8').trim();
-    const port = parseInt(content, 10);
 
+    // Parse format: "{port}:{token}" or "{port}" (legacy)
+    const colonIndex = content.indexOf(':');
+    let portStr: string;
+
+    if (colonIndex > 0) {
+      portStr = content.substring(0, colonIndex);
+      _lastAuthToken = content.substring(colonIndex + 1);
+    } else {
+      portStr = content;
+      _lastAuthToken = undefined;
+    }
+
+    const port = parseInt(portStr, 10);
     if (!isNaN(port) && port > 0 && port < 65536) {
       return port;
     }
@@ -188,6 +204,11 @@ function readPortFromFile(): number | undefined {
   }
 
   return undefined;
+}
+
+/** Get the auth token from the last port file read. */
+function getAuthToken(): string | undefined {
+  return _lastAuthToken;
 }
 
 /**
@@ -421,6 +442,7 @@ async function main(): Promise<void> {
   const bridge = new WebSocketBridge({
     port, // May be undefined - will use portResolver
     portResolver: readPortFromFile, // Re-read port file on each connection attempt
+    authTokenResolver: getAuthToken, // Auth token parsed from port file alongside port
     autoReconnect: true,
     maxReconnectAttempts: 30, // Reasonable limit to avoid infinite reconnection storms
     reconnectDelay: 2000, // Start with 2 second delay

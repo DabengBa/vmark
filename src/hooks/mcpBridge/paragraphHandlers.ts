@@ -283,6 +283,7 @@ export async function handleParagraphWrite(
         originalContent = paragraph.text;
         break;
 
+      /* v8 ignore next 2 -- @preserve defensive fallback: requireEnum already validates operation */
       default:
         throw new Error(`Unknown operation: ${operation}`);
     }

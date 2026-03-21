@@ -25,9 +25,11 @@
   "noResults": "Sem resultados",
   "selectAll": "Selecionar tudo",
   "deselectAll": "Desmarcar tudo",
-
+  "untitled": "Untitled",
   "fileDeleted": "Arquivo excluído do disco",
   "fileDivergent": "Local difere do disco",
   "closeTab": "Fechar {{title}}",
-  "tabActions": "Ações da aba"
+  "tabActions": "Ações da aba",
+  "aria.sidebar": "Sidebar",
+  "aria.mainContent": "Main content"
 }

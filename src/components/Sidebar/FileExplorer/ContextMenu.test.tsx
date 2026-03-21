@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const mockIsImeKeyEvent = vi.fn(() => false);
+vi.mock("@/utils/imeGuard", () => ({
+  isImeKeyEvent: (...args: unknown[]) => mockIsImeKeyEvent(...args),
+}));
+
 import { ContextMenu, type ContextMenuType } from "./ContextMenu";
 
 vi.mock("react-i18next", () => ({
@@ -47,6 +53,7 @@ function renderMenu(
 describe("ContextMenu ARIA and keyboard", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockIsImeKeyEvent.mockReturnValue(false);
   });
 
   it("renders with role='menu' and aria-label", () => {
@@ -180,5 +187,116 @@ describe("ContextMenu ARIA and keyboard", () => {
     renderMenu("folder");
     const items = screen.getAllByRole("menuitem");
     expect(items.length).toBe(6); // folder menu has 6 items
+  });
+
+  it("closes on Escape key via document-level listener", async () => {
+    const onClose = vi.fn();
+    renderMenu("file", vi.fn(), onClose);
+
+    // Fire keydown at document level (not via userEvent which targets focused element)
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close on IME key events during Escape handling", () => {
+    mockIsImeKeyEvent.mockReturnValue(true);
+
+    const onClose = vi.fn();
+    renderMenu("file", vi.fn(), onClose);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    mockIsImeKeyEvent.mockReturnValue(false);
+  });
+
+  it("closes on click outside the menu", () => {
+    const onClose = vi.fn();
+    renderMenu("file", vi.fn(), onClose);
+
+    // mousedown on document body (outside menu) via capture
+    const event = new MouseEvent("mousedown", { bubbles: true });
+    document.dispatchEvent(event);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close on click inside the menu", async () => {
+    const onClose = vi.fn();
+    renderMenu("file", vi.fn(), onClose);
+
+    const menu = screen.getByRole("menu");
+    // mousedown inside the menu should not trigger close
+    const event = new MouseEvent("mousedown", { bubbles: true });
+    menu.dispatchEvent(event);
+    // onClose may be called from the menu item click, but not from handleClickOutside
+    // We verify handleClickOutside specifically did NOT fire
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("adjusts horizontal position when menu overflows viewport", () => {
+    const onAction = vi.fn();
+    const onClose = vi.fn();
+
+    // Set viewport to 200px wide
+    Object.defineProperty(window, "innerWidth", { value: 200, writable: true, configurable: true });
+
+    // Mock getBoundingClientRect to return a menu that is 150px wide
+    const originalGetBCR = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      if (this.getAttribute("role") === "menu") {
+        return { x: 180, y: 100, width: 150, height: 100, top: 100, left: 180, right: 330, bottom: 200 } as DOMRect;
+      }
+      return originalGetBCR.call(this);
+    };
+
+    render(
+      <ContextMenu
+        type="file"
+        position={{ x: 180, y: 100 }}
+        onAction={onAction}
+        onClose={onClose}
+      />
+    );
+
+    const menu = screen.getByRole("menu");
+    // position.x (180) + rect.width (150) = 330 > viewport (200) - 10 = 190
+    // So adjustedX = 200 - 150 - 10 = 40
+    expect(menu.style.left).toBe("40px");
+
+    Element.prototype.getBoundingClientRect = originalGetBCR;
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true, configurable: true });
+  });
+
+  it("adjusts vertical position when menu overflows viewport", () => {
+    const onAction = vi.fn();
+    const onClose = vi.fn();
+
+    // Set viewport to 200px tall
+    Object.defineProperty(window, "innerHeight", { value: 200, writable: true, configurable: true });
+
+    const originalGetBCR = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      if (this.getAttribute("role") === "menu") {
+        return { x: 100, y: 180, width: 100, height: 150, top: 180, left: 100, right: 200, bottom: 330 } as DOMRect;
+      }
+      return originalGetBCR.call(this);
+    };
+
+    render(
+      <ContextMenu
+        type="file"
+        position={{ x: 100, y: 180 }}
+        onAction={onAction}
+        onClose={onClose}
+      />
+    );
+
+    const menu = screen.getByRole("menu");
+    // position.y (180) + rect.height (150) = 330 > viewport (200) - 10 = 190
+    // So adjustedY = 200 - 150 - 10 = 40
+    expect(menu.style.top).toBe("40px");
+
+    Element.prototype.getBoundingClientRect = originalGetBCR;
+    Object.defineProperty(window, "innerHeight", { value: 768, writable: true, configurable: true });
   });
 });
