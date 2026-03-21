@@ -174,6 +174,8 @@
   "markdown.mediaAlignment.description": "Horizontale Ausrichtung für Block-Bilder und Tabellen",
   "markdown.mediaAlignment.center": "Zentriert",
   "markdown.mediaAlignment.left": "Links",
+  "markdown.tableFitToWidth.label": "Tabellen an Breite anpassen",
+  "markdown.tableFitToWidth.description": "Alle Tabellen auf die Editorbreite beschränken, anstatt horizontales Scrollen zu erlauben",
   "markdown.group.htmlRendering": "HTML-Darstellung",
   "markdown.htmlRendering.label": "Roh-HTML im Rich-Text",
   "markdown.htmlRendering.description": "Steuert, ob rohes HTML ausgeblendet oder gerendert (bereinigt) wird",

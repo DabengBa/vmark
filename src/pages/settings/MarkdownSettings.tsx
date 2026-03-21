@@ -106,6 +106,15 @@ export function MarkdownSettings() {
             onChange={(v) => updateSetting("mediaAlignment", v)}
           />
         </SettingRow>
+        <SettingRow
+          label={t("markdown.tableFitToWidth.label")}
+          description={t("markdown.tableFitToWidth.description")}
+        >
+          <Toggle
+            checked={markdown.tableFitToWidth}
+            onChange={(v) => updateSetting("tableFitToWidth", v)}
+          />
+        </SettingRow>
       </SettingsGroup>
 
       {/* HTML Rendering */}

@@ -169,6 +169,8 @@
   "markdown.mediaAlignment.description": "块图片和表格的水平对齐方式",
   "markdown.mediaAlignment.center": "居中",
   "markdown.mediaAlignment.left": "左对齐",
+  "markdown.tableFitToWidth.label": "表格适应宽度",
+  "markdown.tableFitToWidth.description": "将所有表格约束到编辑器宽度，而不是允许水平滚动",
   "markdown.group.htmlRendering": "HTML 渲染",
   "markdown.htmlRendering.label": "富文本中的原始 HTML",
   "markdown.htmlRendering.description": "控制原始 HTML 是否隐藏或渲染（已清理）",
