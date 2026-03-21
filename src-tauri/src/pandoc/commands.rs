@@ -122,12 +122,33 @@ pub async fn export_via_pandoc(
         return Err("Path traversal not allowed in output path".into());
     }
 
+    // Validate source_dir if provided (reject traversal, verify it exists and is a directory)
+    let validated_source_dir = match &source_dir {
+        Some(dir) => {
+            if dir.is_empty() {
+                return Err("source_dir cannot be empty".into());
+            }
+            if dir.contains("..") {
+                return Err("Path traversal not allowed in source_dir".into());
+            }
+            let path = std::path::Path::new(dir);
+            let canonical = path.canonicalize().map_err(|e| {
+                format!("Invalid source_dir '{}': {}", dir, e)
+            })?;
+            if !canonical.is_dir() {
+                return Err(format!("source_dir '{}' is not a directory", dir));
+            }
+            Some(canonical.to_string_lossy().into_owned())
+        }
+        None => None,
+    };
+
     // Resolve Pandoc path once (avoid TOCTOU with detect)
     let pandoc_exe = resolve_pandoc_path().ok_or("Pandoc not found on PATH")?;
 
     // Run blocking I/O on a dedicated thread with timeout
     let result = tokio::task::spawn_blocking(move || {
-        run_pandoc(&pandoc_exe, &markdown, &output_path, source_dir.as_deref())
+        run_pandoc(&pandoc_exe, &markdown, &output_path, validated_source_dir.as_deref())
     })
     .await
     .map_err(|e| format!("Pandoc task panicked: {}", e))?;
