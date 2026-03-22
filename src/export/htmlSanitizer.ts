@@ -18,7 +18,8 @@ export function sanitizeExportHtml(html: string): string {
   // Create a temporary DOM to manipulate
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
-  const container = doc.body.firstElementChild as HTMLElement;
+  const container = doc.body.firstElementChild;
+  if (!container) return html;
 
   // Remove ProseMirror internal elements
   container.querySelectorAll(".ProseMirror-separator, .ProseMirror-trailingBreak").forEach(el => el.remove());
