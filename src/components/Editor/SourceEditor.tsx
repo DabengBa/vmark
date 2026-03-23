@@ -50,14 +50,16 @@ import { countMatches } from "@/utils/sourceEditorSearch";
 import {
   createSourceEditorExtensions,
   shortcutKeymapCompartment,
+  readOnlyCompartment,
 } from "@/utils/sourceEditorExtensions";
 
 interface SourceEditorProps {
   hidden?: boolean;
+  readOnly?: boolean;
 }
 
 /** CodeMirror-based markdown source editor with syntax highlighting and bidirectional cursor sync. */
-export function SourceEditor({ hidden = false }: SourceEditorProps) {
+export function SourceEditor({ hidden = false, readOnly = false }: SourceEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isInternalChange = useRef(false);
@@ -166,6 +168,7 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
         initialShowBrTags,
         initialAutoPair,
         initialShowLineNumbers,
+        initialReadOnly: readOnly,
         updateListener,
         tabId: mountTabId,
         lintEnabled: initialLintEnabled,
@@ -263,6 +266,20 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
     }, 50);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hidden]);
+
+  // Toggle read-only mode when prop changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    runOrQueueCodeMirrorAction(view, () => {
+      view.dispatch({
+        effects: readOnlyCompartment.reconfigure(
+          EditorState.readOnly.of(readOnly)
+        ),
+      });
+    });
+  }, [readOnly]);
 
   // Use extracted hooks for sync and search functionality
   useSourceEditorSync({
