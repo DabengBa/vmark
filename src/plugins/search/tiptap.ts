@@ -203,6 +203,7 @@ export const searchExtension = Extension.create({
           };
 
           const handleReplaceCurrent = () => {
+            if (editorView.editable === false) return;
             const state = useSearchStore.getState();
             if (!state.isOpen || state.currentIndex < 0) return;
 
@@ -223,6 +224,7 @@ export const searchExtension = Extension.create({
           };
 
           const handleReplaceAll = () => {
+            if (editorView.editable === false) return;
             const state = useSearchStore.getState();
             if (!state.isOpen || !state.query) return;
 
