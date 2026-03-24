@@ -151,9 +151,11 @@ export function useOutlineSync(getEditorView: EditorViewGetter) {
   // Track cursor position and update active heading index
   useEffect(() => {
     let cancelled = false;
-    let animationFrameId: number | null = null;
+    let debounceTimerId: ReturnType<typeof setTimeout> | null = null;
     let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
+
+    const OUTLINE_DEBOUNCE_MS = 250;
 
     const updateActiveHeading = () => {
       const view = getEditorView();
@@ -166,8 +168,8 @@ export function useOutlineSync(getEditorView: EditorViewGetter) {
     };
 
     const handleUpdate = () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      animationFrameId = requestAnimationFrame(updateActiveHeading);
+      if (debounceTimerId) clearTimeout(debounceTimerId);
+      debounceTimerId = setTimeout(updateActiveHeading, OUTLINE_DEBOUNCE_MS);
     };
 
     const setupListeners = () => {
@@ -197,7 +199,7 @@ export function useOutlineSync(getEditorView: EditorViewGetter) {
 
     return () => {
       cancelled = true;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (debounceTimerId) clearTimeout(debounceTimerId);
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
 
       // Remove from the exact DOM we attached to
