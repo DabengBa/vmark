@@ -9,7 +9,7 @@
  * - Plugin view: event listener wiring, replace operations
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Schema } from "@tiptap/pm/model";
 import { EditorState } from "@tiptap/pm/state";
 import { DecorationSet } from "@tiptap/pm/view";
@@ -51,7 +51,7 @@ vi.mock("@/stores/searchStore", () => ({
   },
 }));
 
-import { searchExtension, SEARCH_DOC_CHANGE_DEBOUNCE_MS } from "./tiptap";
+import { searchExtension } from "./tiptap";
 
 /** Flush pending microtasks (used because setMatches is deferred via queueMicrotask) */
 const flushMicrotasks = () => new Promise<void>((r) => queueMicrotask(r));
