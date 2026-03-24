@@ -276,6 +276,16 @@ describe("createTerminalInstance composing property", () => {
     inst.onCompositionCommit = cb;
     expect(inst.onCompositionCommit).toBe(cb);
   });
+
+  it("lastCommittedText starts as null", () => {
+    const inst = makeInstance();
+    expect(inst.lastCommittedText).toBeNull();
+  });
+
+  it("lastCommitTime starts at 0", () => {
+    const inst = makeInstance();
+    expect(inst.lastCommitTime).toBe(0);
+  });
 });
 
 describe("createTerminalInstance with WebGL", () => {
@@ -623,6 +633,94 @@ describe("createTerminalInstance — IME composition with textarea", () => {
     expect(mockTerminalLog).not.toHaveBeenCalledWith(
       expect.stringContaining("xterm-helper-textarea not found"),
     );
+  });
+
+  it("flushes single CJK bracket immediately without grace period (#525)", () => {
+    vi.useFakeTimers();
+    const inst = makeInstanceWithTextarea();
+    const textarea = inst.container.querySelector(".xterm-helper-textarea")!;
+    const commitCb = vi.fn();
+    inst.onCompositionCommit = commitCb;
+
+    textarea.dispatchEvent(new Event("compositionstart"));
+
+    const compEnd = new Event("compositionend") as CompositionEvent;
+    Object.defineProperty(compEnd, "data", { value: "（" });
+    textarea.dispatchEvent(compEnd);
+
+    // Should fire immediately — no grace period
+    expect(commitCb).toHaveBeenCalledTimes(1);
+    expect(commitCb).toHaveBeenCalledWith("（");
+    expect(inst.composing).toBe(false);
+    expect(inst.inGracePeriod).toBe(false);
+
+    inst.dispose();
+    vi.useRealTimers();
+  });
+
+  it("sets lastCommittedText on immediate single-char flush (#525)", () => {
+    vi.useFakeTimers();
+    const inst = makeInstanceWithTextarea();
+    const textarea = inst.container.querySelector(".xterm-helper-textarea")!;
+    const commitCb = vi.fn();
+    inst.onCompositionCommit = commitCb;
+
+    textarea.dispatchEvent(new Event("compositionstart"));
+
+    const compEnd = new Event("compositionend") as CompositionEvent;
+    Object.defineProperty(compEnd, "data", { value: "】" });
+    textarea.dispatchEvent(compEnd);
+
+    expect(inst.lastCommittedText).toBe("】");
+    expect(inst.lastCommitTime).toBeGreaterThan(0);
+
+    inst.dispose();
+    vi.useRealTimers();
+  });
+
+  it("sets lastCommittedText after grace period commit (#525)", () => {
+    vi.useFakeTimers();
+    const inst = makeInstanceWithTextarea();
+    const textarea = inst.container.querySelector(".xterm-helper-textarea")!;
+    const commitCb = vi.fn();
+    inst.onCompositionCommit = commitCb;
+
+    textarea.dispatchEvent(new Event("compositionstart"));
+
+    const compEnd = new Event("compositionend") as CompositionEvent;
+    Object.defineProperty(compEnd, "data", { value: "你好" });
+    textarea.dispatchEvent(compEnd);
+
+    vi.advanceTimersByTime(80);
+    expect(inst.lastCommittedText).toBe("你好");
+    expect(inst.lastCommitTime).toBeGreaterThan(0);
+
+    inst.dispose();
+    vi.useRealTimers();
+  });
+
+  it("uses grace period for multi-char CJK input (not immediate)", () => {
+    vi.useFakeTimers();
+    const inst = makeInstanceWithTextarea();
+    const textarea = inst.container.querySelector(".xterm-helper-textarea")!;
+    const commitCb = vi.fn();
+    inst.onCompositionCommit = commitCb;
+
+    textarea.dispatchEvent(new Event("compositionstart"));
+
+    const compEnd = new Event("compositionend") as CompositionEvent;
+    Object.defineProperty(compEnd, "data", { value: "你好" });
+    textarea.dispatchEvent(compEnd);
+
+    // Not fired immediately for multi-char
+    expect(commitCb).not.toHaveBeenCalled();
+    expect(inst.composing).toBe(true);
+
+    vi.advanceTimersByTime(80);
+    expect(commitCb).toHaveBeenCalledWith("你好");
+
+    inst.dispose();
+    vi.useRealTimers();
   });
 });
 
