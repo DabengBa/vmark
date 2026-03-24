@@ -29,7 +29,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { DragOutPoint } from "@/hooks/useTabDragOut";
 import type { TabTransferPayload } from "@/types/tabTransfer";
 import { windowCloseWarn, tabContextError } from "@/utils/debug";
-import { cleanupTabState } from "@/utils/tabCleanup";
+import { cleanupTabState } from "@/hooks/tabCleanup";
 import i18n from "@/i18n";
 
 interface DragOutTransferOptions {

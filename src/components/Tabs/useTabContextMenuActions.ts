@@ -37,7 +37,7 @@ import { getRelativePath, isWithinRoot } from "@/utils/paths";
 import { restoreTransferredTab } from "@/components/StatusBar/tabTransferActions";
 import type { TabTransferPayload } from "@/types/tabTransfer";
 import { windowCloseWarn, tabContextError } from "@/utils/debug";
-import { cleanupTabState } from "@/utils/tabCleanup";
+import { cleanupTabState } from "@/hooks/tabCleanup";
 import i18n from "@/i18n";
 
 /** Definition for a single item in the tab context menu. */
