@@ -144,7 +144,8 @@ export function useSourceOutlineSync(
     const view = viewRef.current;
     if (!view) return;
 
-    let animFrameId: number | null = null;
+    let debounceTimerId: ReturnType<typeof setTimeout> | null = null;
+    const OUTLINE_DEBOUNCE_MS = 250;
 
     const updateActiveHeading = () => {
       const v = viewRef.current;
@@ -158,8 +159,8 @@ export function useSourceOutlineSync(
     };
 
     const handleUpdate = () => {
-      if (animFrameId) cancelAnimationFrame(animFrameId);
-      animFrameId = requestAnimationFrame(updateActiveHeading);
+      if (debounceTimerId) clearTimeout(debounceTimerId);
+      debounceTimerId = setTimeout(updateActiveHeading, OUTLINE_DEBOUNCE_MS);
     };
 
     const dom = view.dom;
@@ -170,7 +171,7 @@ export function useSourceOutlineSync(
     updateActiveHeading();
 
     return () => {
-      if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (debounceTimerId) clearTimeout(debounceTimerId);
       dom.removeEventListener("keyup", handleUpdate);
       dom.removeEventListener("mouseup", handleUpdate);
     };
