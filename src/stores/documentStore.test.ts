@@ -191,8 +191,8 @@ describe("documentStore", () => {
       const doc = getDocument(WINDOW_LABEL);
       expect(doc?.isDirty).toBe(true);
       expect(doc?.lastDiskContent).toBe("Version A");
-      // savedContent should be preserved from before the save
-      expect(doc?.savedContent).toBe("Original");
+      // savedContent should update to what was written to disk
+      expect(doc?.savedContent).toBe("Version A");
     });
 
     it("clears isDirty when content matches disk content", () => {
