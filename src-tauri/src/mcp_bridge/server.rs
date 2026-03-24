@@ -13,7 +13,7 @@ use super::types::{
 };
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Manager;
@@ -476,6 +476,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
             request_id.clone(),
             PendingRequest {
                 response_tx,
+                created_at: Instant::now(),
             },
         );
     }
@@ -539,6 +540,7 @@ async fn handle_message(text: &str, client_id: u64, app: &AppHandle) -> Result<(
                     request_id.clone(),
                     PendingRequest {
                         response_tx: retry_tx,
+                        created_at: Instant::now(),
                     },
                 );
             }
