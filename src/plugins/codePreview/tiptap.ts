@@ -26,7 +26,7 @@
  */
 
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection, Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { updateMermaidTheme } from "../mermaid";
@@ -130,9 +130,38 @@ const EDITING_STATE_CHANGED = "codePreviewEditingChanged";
 /** Meta key to signal settings changed (font size, etc.) */
 const SETTINGS_CHANGED = "codePreviewSettingsChanged";
 
+interface CodeBlockRange {
+  from: number;
+  to: number;
+}
+
 interface CodePreviewState {
   decorations: DecorationSet;
   editingPos: number | null;
+  codeBlockRanges: CodeBlockRange[];
+}
+
+/**
+ * Returns true if any step in the transaction's changed ranges (in OLD-position
+ * space) overlaps with any of the tracked code block ranges.
+ * Uses old positions because `codeBlockRanges` comes from the previous state.
+ */
+function changesIntersectRanges(tr: Transaction, ranges: CodeBlockRange[]): boolean {
+  if (ranges.length === 0) return false;
+  for (let i = 0; i < tr.steps.length; i++) {
+    let intersects = false;
+    tr.mapping.maps[i].forEach((oldFrom: number, oldTo: number) => {
+      if (intersects) return;
+      for (const range of ranges) {
+        if (oldFrom < range.to && oldTo > range.from) {
+          intersects = true;
+          return;
+        }
+      }
+    });
+    if (intersects) return true;
+  }
+  return false;
 }
 
 /** Exit editing mode */
@@ -217,7 +246,7 @@ export const codePreviewExtension = Extension.create({
         key: codePreviewPluginKey,
         state: {
           init(): CodePreviewState {
-            return { decorations: DecorationSet.empty, editingPos: null };
+            return { decorations: DecorationSet.empty, editingPos: null, codeBlockRanges: [] };
           },
           apply(tr, state, _oldState, newState): CodePreviewState {
             const storeEditingPos = useBlockMathEditingStore.getState().editingPos;
@@ -238,6 +267,29 @@ export const codePreviewExtension = Extension.create({
               return {
                 decorations: state.decorations.map(tr.mapping, tr.doc),
                 editingPos: state.editingPos,
+                codeBlockRanges: state.codeBlockRanges.map((r) => ({
+                  from: tr.mapping.map(r.from),
+                  to: tr.mapping.map(r.to),
+                })),
+              };
+            }
+
+            // Fast path: if doc changed but the change doesn't touch any code block,
+            // map existing decorations through the transaction and skip the full scan.
+            if (
+              tr.docChanged &&
+              !editingChanged &&
+              !settingsChanged &&
+              state.decorations !== DecorationSet.empty &&
+              !changesIntersectRanges(tr, state.codeBlockRanges)
+            ) {
+              return {
+                decorations: state.decorations.map(tr.mapping, tr.doc),
+                editingPos: state.editingPos,
+                codeBlockRanges: state.codeBlockRanges.map((r) => ({
+                  from: tr.mapping.map(r.from),
+                  to: tr.mapping.map(r.to),
+                })),
               };
             }
 
@@ -246,6 +298,7 @@ export const codePreviewExtension = Extension.create({
 
             const newDecorations: Decoration[] = [];
             const currentEditingPos = storeEditingPos;
+            const newCodeBlockRanges: CodeBlockRange[] = [];
 
             newState.doc.descendants((node, pos) => {
               if (node.type.name !== "codeBlock" && node.type.name !== "code_block") return;
@@ -257,6 +310,9 @@ export const codePreviewExtension = Extension.create({
               const cacheKey = `${language}:${content}`;
               const nodeStart = pos;
               const nodeEnd = pos + node.nodeSize;
+
+              // Track this code block's range for future incremental updates
+              newCodeBlockRanges.push({ from: nodeStart, to: nodeEnd });
 
               // Check if this block is being edited
               const isEditing = currentEditingPos === nodeStart;
@@ -398,6 +454,7 @@ export const codePreviewExtension = Extension.create({
             return {
               decorations: DecorationSet.create(newState.doc, newDecorations),
               editingPos: currentEditingPos,
+              codeBlockRanges: newCodeBlockRanges,
             };
           },
         },
