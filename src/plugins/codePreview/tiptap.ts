@@ -15,6 +15,8 @@
  *   - Each preview type has its own renderer (in renderers/ directory)
  *   - Block math uses a special "$$math$$" sentinel language to distinguish from regular latex
  *   - Export buttons (copy SVG, download PNG) are injected into diagram previews
+ *   - Plugin state tracks `codeBlockRanges` so the apply() fast path can skip the full
+ *     doc.descendants() scan when a transaction doesn't touch any code block
  *
  * Known limitations:
  *   - Module-level `currentEditorView` is used for button callbacks (not ideal for multi-editor)
