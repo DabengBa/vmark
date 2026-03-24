@@ -3,9 +3,14 @@
  *
  * Purpose: Bridges outline panel clicks to CodeMirror scroll position in source mode,
  *   and tracks cursor position to highlight the active heading in the outline.
+ *   Cursor tracking uses a 250ms debounce (not rAF) to limit O(cursor-line)
+ *   findHeadingIndexAtLine traversals to ≤4×/sec during rapid typing.
  *
  * Pipeline: Sidebar outline click → Tauri event "outline:scroll-to-heading" →
  *   this hook → find nth heading in CodeMirror doc → scroll to top
+ *
+ * Key decisions:
+ *   - 250ms debounce on keyup/mouseup instead of rAF — matches useOutlineSync.ts pattern
  *
  * @coordinates-with useOutlineSync.ts — same event, handles WYSIWYG mode
  * @coordinates-with uiStore.ts — writes activeHeadingLine for outline highlight
