@@ -14,7 +14,8 @@
  *   - IME composition guard: during active composition all onData is blocked;
  *     during the 80ms grace period only ASCII data is blocked (garbled spaces)
  *     while non-ASCII (CJK punctuation) passes through (#454). Clean committed
- *     text is written directly via onCompositionCommit.
+ *     text is written directly via onCompositionCommit. Late onData events
+ *     matching recently committed text are deduplicated within 150ms (#525).
  *   - Theme sync uses buildXtermThemeForId() from terminalTheme.ts for
  *     per-theme ANSI color palettes. Font size and workspace root changes
  *     are also synced across all sessions via store subscriptions.
@@ -293,6 +294,16 @@ export function useTerminalSessions(
           if (!instance.inGracePeriod) return; // active composition — block all
           // eslint-disable-next-line no-control-regex
           if (/^[\x00-\x7F]+$/.test(data)) return; // grace period — block ASCII only
+        }
+        // Deduplicate: WeChat IME may send onData with the same text that was
+        // already committed via onCompositionCommit. Skip if data matches the
+        // last committed text and arrives within 150ms of the commit (#525).
+        if (
+          instance.lastCommittedText &&
+          data === instance.lastCommittedText &&
+          Date.now() - instance.lastCommitTime < 150
+        ) {
+          return;
         }
         if (e.shellExited && !e.pty) {
           e.shellExited = false;

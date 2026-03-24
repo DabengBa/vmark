@@ -17,6 +17,10 @@
  *     Fires onCompositionCommit with clean committed text for direct
  *     PTY write (fixes macOS Chinese IME: "claude" → "cl au de").
  *     Rapid back-to-back compositions flush pending text immediately.
+ *     Single non-ASCII chars (CJK brackets/punctuation) flush immediately
+ *     without the grace period to fix WeChat IME bracket input (#525).
+ *     Tracks lastCommittedText/lastCommitTime for dedup against late
+ *     onData events from WeChat IME (#525).
  *   - WebGL renderer is optional (settings-driven); falls back silently
  *     to canvas on GPU-incompatible systems.
  *   - Web links only open safe URL schemes (http, https, mailto);
@@ -79,6 +83,10 @@ export interface TerminalInstance {
    * onData which may inject spaces (macOS Chinese IME: "claude" → "cl au de").
    */
   onCompositionCommit: ((text: string) => void) | null;
+  /** Last text committed via onCompositionCommit — used for dedup against late onData (#525). */
+  lastCommittedText: string | null;
+  /** Timestamp (Date.now()) of the last onCompositionCommit — dedup window check (#525). */
+  lastCommitTime: number;
   dispose: () => void;
 }
 
@@ -147,6 +155,8 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
   let compositionGraceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingCommitText: string | null = null;
   let onCompositionCommit: ((text: string) => void) | null = null;
+  let lastCommittedText: string | null = null;
+  let lastCommitTime = 0;
   const textarea = container.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
   const onCompositionStart = () => {
     // Flush any pending committed text from a previous compositionend before
@@ -156,6 +166,8 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
       clearTimeout(compositionGraceTimer);
       compositionGraceTimer = null;
       if (pendingCommitText && onCompositionCommit) {
+        lastCommittedText = pendingCommitText;
+        lastCommitTime = Date.now();
         onCompositionCommit(pendingCommitText);
       }
       pendingCommitText = null;
@@ -167,11 +179,30 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
   const onCompositionEnd = (e: CompositionEvent) => {
     const committedText = e.data;
     terminalLog("compositionend", committedText);
-    // Store committed text so compositionstart can flush it if a new
-    // composition begins before the grace period expires.
-    pendingCommitText = committedText;
-    // Keep composing=true during grace period to block xterm's garbled ASCII onData.
+
+    // Single non-ASCII character (CJK punctuation/bracket) — flush immediately.
+    // These don't trigger xterm's garbled space injection, so no grace period needed.
+    // Fixes CJK brackets not inputting with WeChat IME (#525).
+    // eslint-disable-next-line no-control-regex
+    if (committedText && committedText.length === 1 && !/^[\x00-\x7F]$/.test(committedText)) {
+      composing = false;
+      inGracePeriod = false;
+      if (compositionGraceTimer) {
+        clearTimeout(compositionGraceTimer);
+        compositionGraceTimer = null;
+      }
+      pendingCommitText = null;
+      lastCommittedText = committedText;
+      lastCommitTime = Date.now();
+      if (onCompositionCommit) {
+        onCompositionCommit(committedText);
+      }
+      return;
+    }
+
+    // Multi-char (or ASCII): use grace period to block xterm's garbled ASCII onData.
     // Non-ASCII chars (CJK punctuation) are allowed through by the onData guard.
+    pendingCommitText = committedText;
     inGracePeriod = true;
     compositionGraceTimer = setTimeout(() => {
       compositionGraceTimer = null;
@@ -179,6 +210,8 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
       inGracePeriod = false;
       // Send clean committed text directly to PTY
       if (pendingCommitText && onCompositionCommit) {
+        lastCommittedText = pendingCommitText;
+        lastCommitTime = Date.now();
         onCompositionCommit(pendingCommitText);
       }
       pendingCommitText = null;
@@ -312,6 +345,8 @@ export function createTerminalInstance(options: CreateOptions): TerminalInstance
     get inGracePeriod() { return inGracePeriod; },
     get onCompositionCommit() { return onCompositionCommit; },
     set onCompositionCommit(cb: ((text: string) => void) | null) { onCompositionCommit = cb; },
+    get lastCommittedText() { return lastCommittedText; },
+    get lastCommitTime() { return lastCommitTime; },
   };
 
   return instance;
