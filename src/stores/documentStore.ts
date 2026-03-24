@@ -127,11 +127,10 @@ function updateDoc(
  */
 function buildPostSaveState(doc: DocumentState, lastDiskContent: string | undefined) {
   const diskContent = lastDiskContent ?? doc.content;
-  const dirty = doc.content !== diskContent;
   return {
-    savedContent: dirty ? doc.savedContent : doc.content,
+    savedContent: diskContent,
     lastDiskContent: diskContent,
-    isDirty: dirty,
+    isDirty: doc.content !== diskContent,
     isDivergent: false,
   };
 }
