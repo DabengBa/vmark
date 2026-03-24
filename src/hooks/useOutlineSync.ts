@@ -12,6 +12,7 @@
  *   - Polls for editor readiness (100ms intervals, 5s max) for lazy-loaded editors
  *   - Scrolls heading to top of viewport using native DOM scrollIntoView
  *   - Also handles sync from outline panel toggle via uiStore
+ *   - Cursor tracking uses a 250ms debounce (not rAF) to limit O(headings) traversal to ≤4x/sec
  *
  * @coordinates-with uiStore.ts — reads outline panel visibility
  * @module hooks/useOutlineSync
