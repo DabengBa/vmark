@@ -26,7 +26,7 @@ import { useTabStore } from "@/stores/tabStore";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { findOrphanedImages, deleteOrphanedImages } from "@/utils/orphanAssetCleanup";
-import { cleanupTabState } from "@/utils/tabCleanup";
+import { cleanupTabState } from "@/hooks/tabCleanup";
 import { invoke } from "@tauri-apps/api/core";
 import { persistWorkspaceSession } from "@/hooks/workspaceSession";
 import { createUntitledTab } from "@/utils/newFile";
