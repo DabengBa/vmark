@@ -52,6 +52,7 @@ import {
   createSourceEditorExtensions,
   shortcutKeymapCompartment,
 } from "@/utils/sourceEditorExtensions";
+import { consumePendingLintScroll } from "@/hooks/lintNavigation";
 
 interface SourceEditorProps {
   hidden?: boolean;
@@ -226,6 +227,17 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
             scrollIntoView: true,
           });
         }
+        // Consume pending lint scroll (set when switching to Source mode for a sourceOnly diagnostic)
+        if (mountTabId) {
+          const pendingOffset = consumePendingLintScroll(mountTabId);
+          if (pendingOffset !== undefined) {
+            view.dispatch({
+              effects: EditorView.scrollIntoView(
+                Math.min(pendingOffset, view.state.doc.length)
+              ),
+            });
+          }
+        }
       }, 50);
     }
 
@@ -265,11 +277,24 @@ export function SourceEditor({ hidden = false }: SourceEditorProps) {
     useActiveEditorStore.getState().setActiveSourceView(view);
 
     // Focus and restore cursor
+    const { activeTabId: tabIds } = useTabStore.getState();
+    const visibleTabId = tabIds[windowLabel] ?? undefined;
     setTimeout(() => {
       if (!viewRef.current || hiddenRef.current) return;
       view.focus();
       if (cursorInfoRef.current) {
         restoreCursorInCodeMirror(view, cursorInfoRef.current);
+      }
+      // Consume pending lint scroll (set when switching to Source mode for a sourceOnly diagnostic)
+      if (visibleTabId) {
+        const pendingOffset = consumePendingLintScroll(visibleTabId);
+        if (pendingOffset !== undefined) {
+          view.dispatch({
+            effects: EditorView.scrollIntoView(
+              Math.min(pendingOffset, view.state.doc.length)
+            ),
+          });
+        }
       }
     }, 50);
   // eslint-disable-next-line react-hooks/exhaustive-deps

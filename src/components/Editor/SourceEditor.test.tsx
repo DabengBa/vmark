@@ -99,6 +99,10 @@ vi.mock("@/hooks/useSourceOutlineSync", () => ({
   useSourceOutlineSync: vi.fn(),
 }));
 
+vi.mock("@/hooks/lintNavigation", () => ({
+  consumePendingLintScroll: vi.fn(() => undefined),
+}));
+
 // Mock stores
 vi.mock("@/stores/editorStore", () => {
   const store = vi.fn((selector: (s: Record<string, unknown>) => unknown) =>
