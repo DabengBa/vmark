@@ -216,7 +216,7 @@ export const TOOL_CATEGORIES = [
   },
   {
     name: 'Media Tool',
-    description: 'Math, diagrams, media, wiki links, CJK formatting (11 actions)',
+    description: 'Math, diagrams, media, wiki links, CJK formatting (12 actions)',
     tools: ['media'],
   },
   {

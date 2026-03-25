@@ -635,7 +635,7 @@ VMark keeps track of the last 10 closed tabs per window.
 
 ## `media`
 
-Insert math, diagrams, media, wiki links, and CJK formatting. 11 actions.
+Insert math, diagrams, media, wiki links, and CJK formatting. 12 actions.
 
 All actions accept an optional `windowId` parameter.
 
@@ -736,6 +736,14 @@ Add or remove spacing between CJK and Latin characters.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `spacingAction` | string | Yes | `add` or `remove`. |
+
+### `cjk_format`
+
+Apply full CJK formatting using user settings. Applies all enabled CJK formatting rules: spacing, punctuation normalization, quote conversion, dash handling, etc. Uses markdown roundtrip to preserve inline formatting (bold, links, math).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `scope` | string | No | `selection` or `document` (default: `document`). |
 
 ---
 

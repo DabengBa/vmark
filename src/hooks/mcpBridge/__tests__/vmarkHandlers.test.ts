@@ -26,9 +26,11 @@ import {
   handleInsertMarkmap,
   handleInsertSvg,
   handleInsertWikiLink,
+} from "../vmarkHandlers";
+import {
   handleCjkPunctuationConvert,
   handleCjkSpacingFix,
-} from "../vmarkHandlers";
+} from "../cjkHandlers";
 
 function createMockEditor(overrides?: Record<string, unknown>) {
   const chainMethods = {

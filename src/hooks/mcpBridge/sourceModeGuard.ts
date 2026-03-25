@@ -77,6 +77,7 @@ const EDITOR_DEPENDENT_OPS = new Set([
   "vmark.insertWikiLink",
   "vmark.cjkPunctuationConvert",
   "vmark.cjkSpacingFix",
+  "vmark.cjkFormat",
   // Structure operations (read Tiptap AST)
   "structure.getAst",
   "structure.getDigest",

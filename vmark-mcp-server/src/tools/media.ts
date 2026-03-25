@@ -84,7 +84,8 @@ export function registerMediaTool(server: VMarkMcpServer): void {
         '- audio: Insert HTML5 audio (params: src, baseRevision, title?)\n' +
         '- video_embed: Insert iframe video embed (params: videoId, baseRevision, provider?)\n' +
         '- cjk_punctuation: Convert CJK punctuation (param: direction)\n' +
-        '- cjk_spacing: Fix CJK-Latin spacing (param: spacingAction)',
+        '- cjk_spacing: Fix CJK-Latin spacing (param: spacingAction)\n' +
+        '- cjk_format: Full CJK formatting using user settings (param: scope)',
       inputSchema: {
         type: 'object',
         required: ['action'],
@@ -94,7 +95,7 @@ export function registerMediaTool(server: VMarkMcpServer): void {
             enum: [
               'math_inline', 'math_block', 'mermaid', 'markmap', 'svg',
               'wiki_link', 'video', 'audio', 'video_embed',
-              'cjk_punctuation', 'cjk_spacing',
+              'cjk_punctuation', 'cjk_spacing', 'cjk_format',
             ],
           },
           latex: { type: 'string', description: 'LaTeX expression (for math_inline, math_block).' },
@@ -120,6 +121,11 @@ export function registerMediaTool(server: VMarkMcpServer): void {
             type: 'string',
             enum: ['add', 'remove'],
             description: 'Add or remove CJK spacing (for cjk_spacing).',
+          },
+          scope: {
+            type: 'string',
+            enum: ['selection', 'document'],
+            description: 'Format scope (for cjk_format): selection or entire document. Default: document.',
           },
           windowId: { type: 'string', description: 'Optional window identifier.' },
         },
@@ -152,6 +158,8 @@ export function registerMediaTool(server: VMarkMcpServer): void {
           return handleCjkPunctuation(server, windowId, args);
         case 'cjk_spacing':
           return handleCjkSpacing(server, windowId, args);
+        case 'cjk_format':
+          return handleCjkFormat(server, windowId, args);
         default:
           return VMarkMcpServer.errorResult(`Unknown media action: ${action}`);
       }
@@ -388,6 +396,30 @@ async function handleCjkSpacing(
   } catch (error) {
     return VMarkMcpServer.errorResult(
       `Failed to fix CJK spacing: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function handleCjkFormat(
+  server: VMarkMcpServer, windowId: string, args: Record<string, unknown>
+) {
+  const scope = args.scope === undefined ? 'document' : args.scope;
+  if (typeof scope !== 'string' || (scope !== 'selection' && scope !== 'document')) {
+    return VMarkMcpServer.errorResult('scope must be "selection" or "document"');
+  }
+
+  try {
+    await server.sendBridgeRequest<null>({
+      type: 'vmark.cjkFormat',
+      scope,
+      windowId,
+    });
+    return VMarkMcpServer.successResult(
+      scope === 'document' ? 'Formatted entire document with CJK rules' : 'Formatted selection with CJK rules'
+    );
+  } catch (error) {
+    return VMarkMcpServer.errorResult(
+      `Failed to format CJK: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
