@@ -121,9 +121,14 @@ import {
   handleInsertMarkmap,
   handleInsertSvg,
   handleInsertWikiLink,
+} from "./vmarkHandlers";
+
+// CJK formatting handlers
+import {
   handleCjkPunctuationConvert,
   handleCjkSpacingFix,
-} from "./vmarkHandlers";
+  handleCjkFormat,
+} from "./cjkHandlers";
 
 // Protocol handlers (AI-Oriented MCP Design)
 import {
@@ -407,6 +412,9 @@ async function handleRequest(event: McpRequestEvent): Promise<void> {
         break;
       case "vmark.cjkSpacingFix":
         await handleCjkSpacingFix(id, args);
+        break;
+      case "vmark.cjkFormat":
+        await handleCjkFormat(id, args);
         break;
 
       // Protocol operations (AI-Oriented MCP Design)

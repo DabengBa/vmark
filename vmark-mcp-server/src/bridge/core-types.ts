@@ -110,6 +110,7 @@ export type BridgeRequest =
   | { type: 'vmark.insertWikiLink'; target: string; displayText?: string; windowId?: WindowId }
   | { type: 'vmark.cjkPunctuationConvert'; direction: CjkDirection; windowId?: WindowId }
   | { type: 'vmark.cjkSpacingFix'; action: CjkSpacingAction; windowId?: WindowId }
+  | { type: 'vmark.cjkFormat'; scope: 'selection' | 'document'; windowId?: WindowId }
   // Suggestion commands
   | { type: 'suggestion.list'; windowId?: WindowId }
   | { type: 'suggestion.accept'; suggestionId: string; windowId?: WindowId }

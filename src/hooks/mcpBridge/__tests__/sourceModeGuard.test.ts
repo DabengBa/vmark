@@ -61,6 +61,7 @@ describe("sourceModeGuard", () => {
         "vmark.insertWikiLink",
         "vmark.cjkPunctuationConvert",
         "vmark.cjkSpacingFix",
+        "vmark.cjkFormat",
         "suggestion.accept",
         "suggestion.reject",
         "suggestion.list",
