@@ -78,7 +78,12 @@ function handleMouseOver(view: EditorView, event: MouseEvent): boolean {
     const defPos = definition?.pos ?? null;
     const refPos = findFootnoteReference(view, label);
 
-    useFootnotePopupStore.getState().openPopup(label, content, refElement.getBoundingClientRect(), defPos, refPos);
+    const domRect = refElement.getBoundingClientRect();
+    useFootnotePopupStore.getState().openPopup(
+      label, content,
+      { top: domRect.top, left: domRect.left, bottom: domRect.bottom, right: domRect.right },
+      defPos, refPos
+    );
   }, HOVER_OPEN_DELAY_MS);
 
   return false;
@@ -189,8 +194,12 @@ class FootnotePopupPluginView {
         // Get the DOM element for positioning
         const dom = this.view.nodeDOM(pos) as HTMLElement | null;
         if (dom) {
-          const rect = dom.getBoundingClientRect();
-          useFootnotePopupStore.getState().openPopup(label, content, rect, defPos, pos);
+          const domRect = dom.getBoundingClientRect();
+          useFootnotePopupStore.getState().openPopup(
+            label, content,
+            { top: domRect.top, left: domRect.left, bottom: domRect.bottom, right: domRect.right },
+            defPos, pos
+          );
         }
         return;
       }
