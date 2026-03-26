@@ -169,7 +169,7 @@ export function createSourceFootnotePopupPlugin() {
         .openPopup(
           data.label,
           data.content,
-          anchorRect as unknown as DOMRect,
+          anchorRect,
           data.definitionPos,
           data.referencePos
         );

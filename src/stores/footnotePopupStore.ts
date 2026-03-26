@@ -15,12 +15,13 @@
  */
 
 import { create } from "zustand";
+import type { AnchorRect } from "@/utils/popupPosition";
 
 interface FootnotePopupState {
   isOpen: boolean;
   label: string;
   content: string;
-  anchorRect: DOMRect | null;
+  anchorRect: AnchorRect | null;
   /** Position of the footnote definition in the document */
   definitionPos: number | null;
   /** Position of the footnote reference in the document */
@@ -33,7 +34,7 @@ interface FootnotePopupActions {
   openPopup: (
     label: string,
     content: string,
-    anchorRect: DOMRect,
+    anchorRect: AnchorRect,
     definitionPos: number | null,
     referencePos: number | null,
     autoFocus?: boolean
