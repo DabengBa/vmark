@@ -114,7 +114,7 @@ export class FootnotePopupView {
     }
   }
 
-  private show(content: string, anchorRect: DOMRect, definitionPos: number | null) {
+  private show(content: string, anchorRect: AnchorRect, definitionPos: number | null) {
     const state = useFootnotePopupStore.getState();
 
     this.textarea.value = content;
@@ -193,18 +193,14 @@ export class FootnotePopupView {
     }
   }
 
-  private updatePosition(anchorRect: DOMRect) {
+  private updatePosition(anchorRect: AnchorRect) {
     const containerEl = this.view.dom.closest(".editor-container") as HTMLElement;
     const bounds = containerEl
       ? getBoundaryRects(this.view.dom as HTMLElement, containerEl)
       : getViewportBounds();
-    const anchor: AnchorRect = {
-      top: anchorRect.top, left: anchorRect.left,
-      bottom: anchorRect.bottom, right: anchorRect.right,
-    };
     const popupRect = this.container.getBoundingClientRect();
     const position = calculatePopupPosition({
-      anchor,
+      anchor: anchorRect,
       popup: { width: popupRect.width || DEFAULT_POPUP_WIDTH, height: popupRect.height || DEFAULT_POPUP_HEIGHT },
       bounds, gap: POPUP_GAP_PX, preferAbove: true,
     });
