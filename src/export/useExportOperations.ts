@@ -353,7 +353,7 @@ ${getSharedContentCSS()}
 </head>
 <body>
   <div class="export-surface">
-    <div class="export-surface-editor">
+    <div class="export-surface-editor tiptap-editor">
 ${html}
     </div>
   </div>
