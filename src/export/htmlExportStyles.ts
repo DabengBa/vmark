@@ -1,32 +1,26 @@
 /**
- * HTML Export Styles — Composition
+ * HTML Export Styles — Single Source of Truth
  *
- * Purpose: Assemble the complete editor content CSS for HTML export by
- * combining base layout/typography, content elements, and extra blocks
- * from the split style modules.
+ * Purpose: Assemble the complete editor content CSS for export by combining
+ * the actual editor CSS bundle (imported via ?raw from the real CSS files)
+ * with export-only overrides. This eliminates style drift between the
+ * WYSIWYG editor and exported output.
  *
  * @module export/htmlExportStyles
- * @coordinates-with htmlExport.ts — provides getEditorContentCSS()
- * @coordinates-with htmlExportStylesBase.ts — base layout, typography, code, lists
- * @coordinates-with htmlExportStylesContent.ts — blockquotes, tables, images, marks, alerts
- * @coordinates-with htmlExportStylesExtra.ts — details, math, footnotes, syntax, dark theme
+ * @coordinates-with editorCSSBundle.ts — actual editor + plugin CSS
+ * @coordinates-with exportOverrides.ts — export-only layout, page breaks, print fixes
  */
 
-import { getBaseStyles } from "./htmlExportStylesBase";
-import { getContentStyles } from "./htmlExportStylesContent";
-import { getExtraStyles } from "./htmlExportStylesExtra";
+import { getEditorCSSBundle } from "./editorCSSBundle";
+import { getExportOverrides } from "./exportOverrides";
 
 /**
- * Get the base editor CSS for styled exports.
- * This includes all styles needed for content rendering.
+ * Get the complete CSS for styled exports.
  *
- * Composed from three sub-modules:
- * - Base: container layout, typography, code blocks, lists, task lists
- * - Content: blockquotes, tables, images, horizontal rules, marks, alerts
- * - Extra: details, math, footnotes, wiki links, CJK, syntax highlighting, dark theme
+ * Combines:
+ * 1. Editor CSS bundle — actual editor.css + all plugin CSS (single source of truth)
+ * 2. Export overrides — container layout, page breaks, print fixes, hide interactive elements
  */
 export function getEditorContentCSS(): string {
-  return [getBaseStyles(), getContentStyles(), getExtraStyles()]
-    .join("\n")
-    .trim();
+  return [getEditorCSSBundle(), getExportOverrides()].join("\n").trim();
 }

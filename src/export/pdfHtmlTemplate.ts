@@ -2,7 +2,8 @@
  * PDF HTML Template Builder
  *
  * Builds self-contained HTML pages for PDF preview (Paged.js) and export (native printOperationWithPrintInfo).
- * Both templates include @page CSS rules, typography overrides, and light theme forcing.
+ * Both templates include @page CSS rules and typography overrides. Light theme is forced by default
+ * but can be skipped via `useEditorTheme` to preserve the editor's current theme (including dark mode).
  *
  * @module export/pdfHtmlTemplate
  * @coordinates-with pdf_export/renderer.rs — WKWebView loads export HTML, generates PDF via printOperationWithPrintInfo
@@ -51,6 +52,8 @@ export interface PdfOptions {
   cjkLetterSpacing: string;
   latinFont: string;
   cjkFont: string;
+  /** When true, use the editor's current theme instead of forcing light. */
+  useEditorTheme: boolean;
 }
 
 /** Named margin presets (values in mm). */
@@ -248,13 +251,15 @@ export function buildPdfExportHtml(
   themeCSS: string,
   contentCSS: string,
   options: PdfOptions,
+  isDark?: boolean,
 ): string {
   const pageCSS = buildPageCSS(options);
   const typographyCSS = buildTypographyCSS(options);
-  const lightOverrides = forceLightThemeCSS();
+  const lightOverrides = options.useEditorTheme ? "" : forceLightThemeCSS();
+  const htmlClass = options.useEditorTheme && isDark ? "dark-theme" : "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="${htmlClass}">
 <head>
   <meta charset="UTF-8">
   <title>PDF Export</title>
@@ -280,7 +285,7 @@ ${sharedContentCSS()}
 </head>
 <body>
   <div class="export-surface">
-    <div class="export-surface-editor">
+    <div class="export-surface-editor tiptap-editor">
 ${content}
     </div>
   </div>
@@ -292,9 +297,10 @@ ${content}
  * Build a complete HTML document for PDF preview via Paged.js.
  *
  * @param content - Rendered HTML content (from ExportSurface)
- * @param themeCSS - Captured theme CSS variables (light theme only)
+ * @param themeCSS - Captured theme CSS variables (may include dark values if useEditorTheme is on)
  * @param contentCSS - Editor content CSS styles
  * @param options - PDF configuration options
+ * @param isDark - Whether the editor is currently in dark mode
  * @returns Complete HTML string ready for iframe preview
  */
 export function buildPdfHtml(
@@ -302,13 +308,15 @@ export function buildPdfHtml(
   themeCSS: string,
   contentCSS: string,
   options: PdfOptions,
+  isDark?: boolean,
 ): string {
   const pageCSS = buildPageCSS(options);
   const typographyCSS = buildTypographyCSS(options);
-  const lightOverrides = forceLightThemeCSS();
+  const lightOverrides = options.useEditorTheme ? "" : forceLightThemeCSS();
+  const htmlClass = options.useEditorTheme && isDark ? "dark-theme" : "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="${htmlClass}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -321,7 +329,7 @@ ${katexCSS}
 /* Theme Variables (captured from app) */
 ${themeCSS}
 
-/* Force light theme for PDF — overrides any dark values above */
+/* Light theme overrides (skipped when "Use Editor Theme" is on) */
 ${lightOverrides}
 
 /* Typography Overrides */
@@ -362,7 +370,7 @@ ${sharedContentCSS()}
 </head>
 <body>
   <div class="export-surface">
-    <div class="export-surface-editor">
+    <div class="export-surface-editor tiptap-editor">
 ${content}
     </div>
   </div>
