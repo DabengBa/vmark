@@ -65,7 +65,7 @@ ${inlineStyles}
 </head>
 <body>
   <div class="export-surface">
-    <div class="export-surface-editor">
+    <div class="export-surface-editor tiptap-editor">
 ${content}
     </div>
   </div>
@@ -118,7 +118,7 @@ ${allStyles}
 </head>
 <body>
   <div class="export-surface">
-    <div class="export-surface-editor">
+    <div class="export-surface-editor tiptap-editor">
 ${content}
     </div>
   </div>

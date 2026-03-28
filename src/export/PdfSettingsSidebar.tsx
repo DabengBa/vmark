@@ -23,7 +23,7 @@ import {
   FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS, CJK_SPACING_OPTIONS,
   LATIN_FONT_OPTIONS, CJK_FONT_OPTIONS,
 } from "./pdfPresets";
-import { ChevronRight, FileText, Type, Layers } from "lucide-react";
+import { ChevronRight, FileText, Type, Layers, Palette } from "lucide-react";
 import {
   SettingRow,
   Select,
@@ -299,6 +299,18 @@ export function PdfSettingsSidebar({ options, onOptionChange: set, onExport, exp
                 value={options.cjkFont}
                 options={CJK_FONT_OPTIONS}
                 onChange={(v) => setAndDetect("cjkFont", v)}
+              />
+            </SettingRow>
+          </PdfSettingsGroup>
+        </CollapsibleSection>
+
+        {/* Appearance — collapsible */}
+        <CollapsibleSection title="Appearance">
+          <PdfSettingsGroup icon={<Palette className="w-3.5 h-3.5" />}>
+            <SettingRow label="Use Editor Theme">
+              <Toggle
+                checked={options.useEditorTheme}
+                onChange={(v) => set("useEditorTheme", v)}
               />
             </SettingRow>
           </PdfSettingsGroup>
