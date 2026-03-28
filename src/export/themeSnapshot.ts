@@ -84,10 +84,31 @@ export const EXPORT_CSS_VARS = [
   "--editor-font-size",
   "--editor-font-size-sm",
   "--editor-font-size-mono",
+  "--editor-font-size-block",
   "--editor-line-height",
   "--editor-line-height-px",
+  "--editor-block-spacing",
   "--editor-content-padding",
   "--editor-width",
+
+  // Subtle backgrounds (used by code preview, math)
+  "--subtle-bg",
+  "--subtle-bg-hover",
+  "--source-mode-bg",
+
+  // Code layout
+  "--code-padding",
+  "--code-line-height",
+
+  // CJK
+  "--cjk-letter-spacing",
+
+  // Media colors
+  "--media-video",
+  "--media-audio",
+  "--media-youtube",
+  "--media-vimeo",
+  "--media-bilibili",
 
   // Border radius
   "--radius-sm",

@@ -21,7 +21,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { buildPdfHtml, buildPdfExportHtml, type PdfOptions } from "./pdfHtmlTemplate";
-import { captureThemeCSS } from "./themeSnapshot";
+import { captureThemeCSS, isDarkTheme } from "./themeSnapshot";
 import { getEditorContentCSS } from "./htmlExportStyles";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { PdfSettingsSidebar } from "./PdfSettingsSidebar";
@@ -79,6 +79,7 @@ export function PdfExportContent({
     cjkLetterSpacing: "0.05em",
     latinFont: appearance.latinFont,
     cjkFont: appearance.cjkFont,
+    useEditorTheme: false,
   });
 
   const [loading, setLoading] = useState(true);
@@ -113,9 +114,10 @@ export function PdfExportContent({
     return () => observer.disconnect();
   }, [pageDims.w]);
 
-  // Capture theme + content CSS once (light theme values)
+  // Capture theme + content CSS once; also capture dark mode state
   const themeCSSRef = useRef(captureThemeCSS());
   const contentCSSRef = useRef(getEditorContentCSS());
+  const isDarkRef = useRef(isDarkTheme());
 
   // Build HTML for the iframe preview (with Paged.js)
   const buildHtml = useCallback(() => {
@@ -124,6 +126,7 @@ export function PdfExportContent({
       themeCSSRef.current,
       contentCSSRef.current,
       options,
+      isDarkRef.current,
     );
   }, [renderedHtml, options]);
 
@@ -134,6 +137,7 @@ export function PdfExportContent({
       themeCSSRef.current,
       contentCSSRef.current,
       options,
+      isDarkRef.current,
     );
   }, [renderedHtml, options]);
 
