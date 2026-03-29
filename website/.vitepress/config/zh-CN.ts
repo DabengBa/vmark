@@ -108,6 +108,10 @@ export const zhCN = {
               text: "成本与工作量评估",
               link: "/zh-CN/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "插件即基础设施",
+              link: "/zh-CN/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

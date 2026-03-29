@@ -60,6 +60,26 @@ Use privacy-enhanced YouTube iframes:
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Vimeo Embeds
+
+Use Vimeo player iframes:
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+You can also paste a Vimeo URL directly (e.g., `https://vimeo.com/123456789`) and VMark will automatically convert it to an embed.
+
+### Bilibili Embeds
+
+Use the Bilibili player iframe with a BV ID:
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Paste a Bilibili video URL (e.g., `https://bilibili.com/video/BV1xxxxxxxxx`) and VMark will convert it to an embed automatically. Note that short URLs (`b23.tv`) are not supported since they require redirect resolution.
+
 ### Image Syntax Fallback
 
 You can also use image syntax with media file extensions — VMark automatically promotes them to the correct media type:
@@ -78,6 +98,7 @@ Use the Insert menu in the toolbar:
 - **Video** — opens a file picker for video files, copies to `.assets/`, inserts a `<video>` tag
 - **Audio** — opens a file picker for audio files, copies to `.assets/`, inserts an `<audio>` tag
 - **YouTube** — reads a YouTube URL from the clipboard and inserts a privacy-enhanced embed
+- **Vimeo** and **Bilibili** — paste a video URL directly into the editor and VMark auto-detects the provider
 
 ### Drag & Drop
 
@@ -93,6 +114,8 @@ In Source mode, type the HTML tags directly. Media tags are highlighted with col
 - **Video** — teal border
 - **Audio** — indigo border
 - **YouTube** — red border
+- **Vimeo** — blue border
+- **Bilibili** — pink border
 
 ## Editing Media
 
@@ -120,5 +143,5 @@ Relative paths are recommended — they keep your documents portable across mach
 ## Security
 
 - Relative paths are validated against directory traversal attacks
-- YouTube iframes are restricted to `youtube.com` and `youtube-nocookie.com` domains
+- Video embed iframes are restricted to allowed domains: `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com`, and `player.bilibili.com`
 - Other iframe sources are stripped by the sanitizer

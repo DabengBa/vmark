@@ -9,14 +9,14 @@ VMark è progettato per flussi di lavoro da tastiera. La maggior parte delle sco
 
 ## Tasti Funzione su macOS
 
-VMark usa i tasti funzione (F4–F9) per attivazioni rapide della modalità. Su macOS, questi tasti sono mappati alle funzioni di sistema (luminosità, volume, ecc.) per impostazione predefinita.
+VMark usa i tasti funzione (F4–F10) per attivazioni rapide della modalità. Su macOS, questi tasti sono mappati alle funzioni di sistema (luminosità, volume, ecc.) per impostazione predefinita.
 
 **Per usare i tasti F direttamente senza tenere premuto Fn:**
 
 1. Apri **Impostazioni di Sistema** → **Tastiera**
 2. Abilita **"Usa i tasti F1, F2, ecc. come tasti funzione standard"**
 
-In alternativa, tieni premuto il tasto **Fn** quando premi F4–F9 per attivare le scorciatoie VMark.
+In alternativa, tieni premuto il tasto **Fn** quando premi F4–F10 per attivare le scorciatoie VMark.
 
 ::: tip
 Se preferisci mantenere le funzioni di sistema sui tasti F, puoi personalizzare le scorciatoie VMark nelle Impostazioni (`Mod + ,`) per usare combinazioni di tasti diverse.
@@ -35,6 +35,7 @@ Se preferisci mantenere le funzioni di sistema sui tasti F, puoi personalizzare 
 | `F7` | Attiva/disattiva barra di stato |
 | `F8` | Modalità Focus |
 | `F9` | Modalità Macchina da Scrivere |
+| `F10` | Modalità Sola Lettura |
 
 ## Modifica
 
@@ -75,6 +76,8 @@ Se preferisci mantenere le funzioni di sistema sui tasti F, puoi personalizzare 
 | Elenco puntato | `Alt + Mod + U` |
 | Elenco numerato | `Alt + Mod + O` |
 | Elenco di attività | `Alt + Mod + X` |
+| Attiva/disattiva casella attività | `Mod + Shift + Enter` |
+| Cambia tipo di elenco | _(personalizzabile)_ |
 | Rientra | `Mod + ]` |
 | Rientra a sinistra | `Mod + [` |
 | Riga orizzontale | `Alt + Mod + -` |
@@ -151,6 +154,7 @@ Se preferisci mantenere le funzioni di sistema sui tasti F, puoi personalizzare 
 | Attiva/disattiva barra di stato | `F7` |
 | Modalità Focus | `F8` |
 | Modalità Macchina da Scrivere | `F9` |
+| Modalità Sola Lettura | `F10` |
 | Dimensione effettiva | `Mod + 0` |
 | Ingrandisci | `Mod + =` |
 | Riduci | `Mod + -` |
@@ -158,7 +162,7 @@ Se preferisci mantenere le funzioni di sistema sui tasti F, puoi personalizzare 
 | Attiva/disattiva struttura | `Ctrl + Shift + 1` |
 | Attiva/disattiva esplora file | `Ctrl + Shift + 2` |
 | Attiva/disattiva cronologia | `Ctrl + Shift + 3` |
-| Attiva/disattiva numeri di riga | `Alt + Mod + L` |
+| Attiva/disattiva numeri di riga (blocchi di codice) | `Alt + Mod + L` |
 | Attiva/disattiva terminale | Ctrl + `` ` `` |
 | Attiva/disattiva anteprima diagramma | `Alt + Mod + P` |
 | Adatta tabelle alla larghezza | _(personalizzabile)_ |

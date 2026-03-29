@@ -41,6 +41,10 @@ VMark 通过一键安装轻松连接 AI 助手。
 - **Codex CLI**——OpenAI 的编码助手
 - **Gemini CLI**——Google 的 AI 助手
 
+::: info 其他 MCP 兼容客户端
+其他 MCP 兼容客户端（如 Cursor、Windsurf 等类似工具）也可以连接到 VMark 的 MCP 服务器。通过指向 MCP 服务器二进制文件路径来手动配置它们（参见下方的[手动配置](#手动配置)）。
+:::
+
 #### 状态图标
 
 每个提供商显示状态指示器：
@@ -115,6 +119,29 @@ VMark 通过一键安装轻松连接 AI 助手。
 }
 ```
 
+### Codex CLI
+
+编辑 `~/.codex/config.toml`：
+
+```toml
+[mcp_servers.vmark]
+command = "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+```
+
+### Gemini CLI
+
+编辑 `~/.gemini/settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "vmark": {
+      "command": "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+    }
+  }
+}
+```
+
 ::: tip 查找二进制文件路径
 在 macOS 上，MCP 服务器二进制文件位于 VMark.app 内部：
 - `VMark.app/Contents/MacOS/vmark-mcp-server`
@@ -135,9 +162,10 @@ AI 助手 <--stdio--> MCP 服务器 <--WebSocket--> VMark 编辑器
 ```
 
 1. **VMark 在启动时** 在可用端口上启动 WebSocket 桥接
-2. **MCP 服务器** 连接到此 WebSocket 桥接
-3. **AI 助手** 通过 stdio 与 MCP 服务器通信
-4. **命令通过桥接** 转发到 VMark 的编辑器
+2. **MCP 服务器** 从 VMark 的应用数据目录读取端口和认证令牌
+3. **MCP 服务器** 通过 WebSocket 桥接连接并认证
+4. **AI 助手** 通过 stdio 与 MCP 服务器通信
+5. **命令通过桥接** 转发到 VMark 的编辑器
 
 ## 可用功能
 

@@ -60,6 +60,26 @@ VMark 支持在 Markdown 文档中使用标准 HTML5 标签嵌入视频、音频
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Vimeo 嵌入
+
+使用 Vimeo 播放器 iframe：
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+你也可以直接粘贴 Vimeo URL（例如 `https://vimeo.com/123456789`），VMark 会自动将其转换为嵌入代码。
+
+### Bilibili 嵌入
+
+使用带有 BV 号的 Bilibili 播放器 iframe：
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+粘贴 Bilibili 视频 URL（例如 `https://bilibili.com/video/BV1xxxxxxxxx`），VMark 会自动将其转换为嵌入代码。请注意，短链接（`b23.tv`）不受支持，因为需要重定向解析。
+
 ### 图片语法回退
 
 你也可以使用带有媒体文件扩展名的图片语法——VMark 会自动将其提升为正确的媒体类型：
@@ -78,6 +98,7 @@ VMark 支持在 Markdown 文档中使用标准 HTML5 标签嵌入视频、音频
 - **视频**——打开视频文件选择器，将文件复制到 `.assets/`，并插入 `<video>` 标签
 - **音频**——打开音频文件选择器，将文件复制到 `.assets/`，并插入 `<audio>` 标签
 - **YouTube**——从剪贴板读取 YouTube URL 并插入隐私增强型嵌入代码
+- **Vimeo** 和 **Bilibili**——直接在编辑器中粘贴视频 URL，VMark 会自动识别平台
 
 ### 拖放
 
@@ -93,6 +114,8 @@ VMark 支持在 Markdown 文档中使用标准 HTML5 标签嵌入视频、音频
 - **视频**——青色边框
 - **音频**——靛蓝色边框
 - **YouTube**——红色边框
+- **Vimeo**——蓝色边框
+- **Bilibili**——粉色边框
 
 ## 编辑媒体
 
@@ -120,5 +143,5 @@ VMark 支持三种媒体路径类型：
 ## 安全性
 
 - 相对路径会针对目录遍历攻击进行验证
-- YouTube iframe 限制为 `youtube.com` 和 `youtube-nocookie.com` 域名
+- 视频嵌入 iframe 限制为允许的域名：`youtube.com`、`youtube-nocookie.com`、`player.vimeo.com` 和 `player.bilibili.com`
 - 其他 iframe 来源会被净化器过滤掉

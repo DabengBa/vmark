@@ -123,6 +123,10 @@ export const ptBR = {
               text: "Avaliação de custo e esforço",
               link: "/pt-BR/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "Plugins como infraestrutura",
+              link: "/pt-BR/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

@@ -120,6 +120,10 @@ export const es = {
               text: "Evaluación de costos y esfuerzo",
               link: "/es/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "Plugins como infraestructura",
+              link: "/es/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

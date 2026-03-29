@@ -131,6 +131,32 @@ Cada janela do VMark pode ter sua própria área de trabalho independente. Isso 
 
 Quando você arrasta um arquivo markdown do Finder e a janela atual já tem trabalho não salvo, o VMark abre o projeto do arquivo em uma nova janela automaticamente.
 
+### Separando Abas em Novas Janelas
+
+Você pode puxar uma aba para fora da janela para criar uma nova:
+
+- **Arraste uma aba para baixo** além da barra de abas (cerca de 40 px) para separá-la em uma nova janela na posição do cursor
+- **Arraste uma aba horizontalmente** dentro da barra de abas para reordená-la entre outras abas
+- Abas fixadas não podem ser arrastadas
+
+O gesto é bloqueado por direção: movimento horizontal inicia uma reordenação, enquanto movimento vertical aciona uma separação. Você pode mudar de reordenação para separação durante o arrasto movendo o ponteiro para fora da barra de abas.
+
+## Alterações Externas
+
+O VMark monitora sua área de trabalho em busca de alterações feitas por outros programas (Git, editores externos, ferramentas de build, etc.) e mantém os documentos abertos sincronizados.
+
+- **Arquivos não modificados** são recarregados automaticamente quando seu conteúdo muda no disco. Uma breve notificação toast confirma o recarregamento.
+- **Arquivos com alterações não salvas** disparam um diálogo com três opções: **Salvar como** (salvar sua versão em um novo local), **Recarregar** (descartar suas alterações e carregar do disco) ou **Manter** (preservar suas edições e marcar o arquivo como divergente).
+- **Arquivos excluídos** são marcados como ausentes em sua aba, mas não são fechados — você ainda pode salvar o conteúdo em um novo local.
+- Quando múltiplos arquivos modificados mudam de uma vez (por exemplo, após um `git checkout`), o VMark os agrupa em um único diálogo para que você possa recarregar todos, manter todos ou revisar cada arquivo individualmente.
+- Se o conteúdo no disco de um arquivo divergente depois corresponder ao que você tem no editor (por exemplo, um `git checkout` restaura o mesmo texto), o VMark limpa automaticamente o estado divergente para que o salvamento automático normal seja retomado.
+
+O VMark filtra seus próprios salvamentos para que você nunca seja solicitado por alterações que fez dentro do aplicativo.
+
+## Documentos Recentes do Dock do macOS
+
+Os documentos que você abre no VMark são registrados no macOS, então eles aparecem no submenu **Abrir Recentes** quando você clica com o botão direito no ícone do VMark no Dock.
+
 ## Integração com Terminal
 
 O terminal integrado usa automaticamente a raiz da área de trabalho como seu diretório de trabalho. Quando você abre ou alterna áreas de trabalho, todas as sessões do terminal fazem `cd` para a nova raiz.
@@ -138,3 +164,30 @@ O terminal integrado usa automaticamente a raiz da área de trabalho como seu di
 A variável de ambiente `VMARK_WORKSPACE` é definida como o caminho da área de trabalho em cada sessão do terminal, para que seus scripts possam referenciar a raiz do projeto.
 
 [Saiba mais sobre o terminal →](/pt-BR/guide/terminal)
+
+## Comando CLI Shell
+
+O VMark pode instalar um comando shell `vmark` para que você possa abrir arquivos e pastas a partir do terminal.
+
+### Instalação
+
+Vá para **Ajuda > Instalar comando 'vmark'**. O VMark escreve um pequeno script lançador em `/usr/local/bin/vmark` e solicita sua senha de administrador (a mesma abordagem que o VS Code usa para seu comando `code`).
+
+### Uso
+
+```bash
+# Abrir um arquivo
+vmark README.md
+
+# Abrir uma pasta como área de trabalho
+vmark ~/projects/my-blog
+
+# Abrir múltiplos arquivos
+vmark chapter1.md chapter2.md
+```
+
+O comando delega para `open -b app.vmark`, então o macOS gerencia o comportamento de instância única — os arquivos abrem na sua janela VMark existente em vez de iniciar um novo processo.
+
+### Desinstalação
+
+Vá para **Ajuda > Desinstalar comando 'vmark'** para remover `/usr/local/bin/vmark`. Se o arquivo nesse caminho não foi instalado pelo VMark, a operação é bloqueada e você é solicitado a removê-lo manualmente.

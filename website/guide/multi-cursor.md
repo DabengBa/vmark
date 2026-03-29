@@ -144,6 +144,10 @@ Multi-cursor operations are **scoped to the current block** to prevent unintende
 
 Press `Escape` to collapse back to a single cursor at the primary position.
 
+::: tip Cursor Stability
+Collapsed cursors remain stable when text is inserted at the cursor position. They will not unexpectedly expand into selections after mapped insertions (fixed in v0.6.x).
+:::
+
 ## Visual Feedback
 
 - **Primary cursor** — standard blinking cursor

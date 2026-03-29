@@ -9,14 +9,14 @@ VMark ist für tastaturorientierte Workflows konzipiert. Die meisten Tastaturkü
 
 ## Funktionstaste auf macOS
 
-VMark verwendet Funktionstasten (F4–F9) für schnelle Moduswechsel. Auf macOS sind diese Tasten standardmäßig Systemfunktionen zugeordnet (Helligkeit, Lautstärke usw.).
+VMark verwendet Funktionstasten (F4–F10) für schnelle Moduswechsel. Auf macOS sind diese Tasten standardmäßig Systemfunktionen zugeordnet (Helligkeit, Lautstärke usw.).
 
 **Um F-Tasten direkt ohne Fn zu verwenden:**
 
 1. **Systemeinstellungen** → **Tastatur** öffnen
 2. **„F1, F2 usw. als Standard-Funktionstasten verwenden"** aktivieren
 
-Alternativ halten Sie die **Fn**-Taste beim Drücken von F4–F9, um VMark-Tastaturkürzel auszulösen.
+Alternativ halten Sie die **Fn**-Taste beim Drücken von F4–F10, um VMark-Tastaturkürzel auszulösen.
 
 ::: tip
 Wenn Sie die Systemfunktionen auf F-Tasten bevorzugen, können Sie VMark-Tastaturkürzel in den Einstellungen (`Mod + ,`) für andere Tastenkombinationen anpassen.
@@ -35,6 +35,7 @@ Wenn Sie die Systemfunktionen auf F-Tasten bevorzugen, können Sie VMark-Tastatu
 | `F7` | Statusleiste umschalten |
 | `F8` | Fokusmodus |
 | `F9` | Schreibmaschinenmodus |
+| `F10` | Nur-Lese-Modus |
 
 ## Bearbeiten
 
@@ -75,6 +76,8 @@ Wenn Sie die Systemfunktionen auf F-Tasten bevorzugen, können Sie VMark-Tastatu
 | Aufzählungsliste | `Alt + Mod + U` |
 | Geordnete Liste | `Alt + Mod + O` |
 | Aufgabenliste | `Alt + Mod + X` |
+| Aufgaben-Checkbox umschalten | `Mod + Umschalt + Eingabe` |
+| Listentyp durchschalten | _(anpassbar)_ |
 | Einzug erhöhen | `Mod + ]` |
 | Einzug verringern | `Mod + [` |
 | Horizontale Linie | `Alt + Mod + -` |
@@ -151,6 +154,7 @@ Wenn Sie die Systemfunktionen auf F-Tasten bevorzugen, können Sie VMark-Tastatu
 | Statusleiste umschalten | `F7` |
 | Fokusmodus | `F8` |
 | Schreibmaschinenmodus | `F9` |
+| Nur-Lese-Modus | `F10` |
 | Tatsächliche Größe | `Mod + 0` |
 | Vergrößern | `Mod + =` |
 | Verkleinern | `Mod + -` |
@@ -158,7 +162,7 @@ Wenn Sie die Systemfunktionen auf F-Tasten bevorzugen, können Sie VMark-Tastatu
 | Gliederung umschalten | `Strg + Umschalt + 1` |
 | Datei-Explorer umschalten | `Strg + Umschalt + 2` |
 | Verlauf umschalten | `Strg + Umschalt + 3` |
-| Zeilennummern umschalten | `Alt + Mod + L` |
+| Zeilennummern umschalten (Codeblöcke) | `Alt + Mod + L` |
 | Terminal umschalten | Strg + `` ` `` |
 | Diagramm-Vorschau umschalten | `Alt + Mod + P` |
 | Tabellen an Breite anpassen | _(anpassbar)_ |

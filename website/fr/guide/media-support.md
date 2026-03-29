@@ -60,6 +60,26 @@ Utilisez des iframes YouTube respectueuses de la vie privée :
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Embeds Vimeo
+
+Utilisez des iframes du lecteur Vimeo :
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+Vous pouvez également coller directement une URL Vimeo (par ex. `https://vimeo.com/123456789`) et VMark la convertira automatiquement en embed.
+
+### Embeds Bilibili
+
+Utilisez l'iframe du lecteur Bilibili avec un identifiant BV :
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Collez une URL de vidéo Bilibili (par ex. `https://bilibili.com/video/BV1xxxxxxxxx`) et VMark la convertira automatiquement en embed. Notez que les URL courtes (`b23.tv`) ne sont pas prises en charge car elles nécessitent une résolution de redirection.
+
 ### Syntaxe d'image de secours
 
 Vous pouvez également utiliser la syntaxe d'image avec des extensions de fichiers médias — VMark les promeut automatiquement vers le type de média correct :
@@ -78,6 +98,7 @@ Utilisez le menu Insérer dans la barre d'outils :
 - **Vidéo** — ouvre un sélecteur de fichiers pour les fichiers vidéo, copie dans `.assets/`, insère une balise `<video>`
 - **Audio** — ouvre un sélecteur de fichiers pour les fichiers audio, copie dans `.assets/`, insère une balise `<audio>`
 - **YouTube** — lit une URL YouTube depuis le presse-papiers et insère un embed respectueux de la vie privée
+- **Vimeo** et **Bilibili** — collez une URL de vidéo directement dans l'éditeur et VMark détecte automatiquement le fournisseur
 
 ### Glisser-déposer
 
@@ -93,6 +114,8 @@ En mode Source, tapez les balises HTML directement. Les balises médias sont mis
 - **Vidéo** — bordure sarcelle
 - **Audio** — bordure indigo
 - **YouTube** — bordure rouge
+- **Vimeo** — bordure bleue
+- **Bilibili** — bordure rose
 
 ## Modifier les médias
 
@@ -120,5 +143,5 @@ Les chemins relatifs sont recommandés — ils gardent vos documents portables e
 ## Sécurité
 
 - Les chemins relatifs sont validés contre les attaques de traversée de répertoire
-- Les iframes YouTube sont restreints aux domaines `youtube.com` et `youtube-nocookie.com`
+- Les iframes d'embeds vidéo sont restreints aux domaines autorisés : `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com` et `player.bilibili.com`
 - Les autres sources iframe sont supprimées par le désinfectant

@@ -41,6 +41,10 @@ AI アシスタント用の **インストール** をクリックします:
 - **Codex CLI** — OpenAI のコーディングアシスタント
 - **Gemini CLI** — Google の AI アシスタント
 
+::: info その他の MCP 互換クライアント
+Cursor、Windsurf などの MCP 互換クライアントも VMark の MCP サーバーに接続できます。MCP サーバーバイナリのパスを指定して手動で設定してください（下記の[手動設定](#手動設定)を参照）。
+:::
+
 #### ステータスアイコン
 
 各プロバイダーにはステータスインジケーターが表示されます:
@@ -115,6 +119,29 @@ Claude に質問し、答えを VMark ドキュメントに直接書かせてみ
 }
 ```
 
+### Codex CLI
+
+`~/.codex/config.toml`を編集します:
+
+```toml
+[mcp_servers.vmark]
+command = "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+```
+
+### Gemini CLI
+
+`~/.gemini/settings.json`を編集します:
+
+```json
+{
+  "mcpServers": {
+    "vmark": {
+      "command": "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+    }
+  }
+}
+```
+
 ::: tip バイナリパスの確認
 macOS では、MCP サーバーバイナリは VMark.app 内にあります:
 - `VMark.app/Contents/MacOS/vmark-mcp-server`
@@ -135,9 +162,10 @@ AI Assistant <--stdio--> MCP Server <--WebSocket--> VMark Editor
 ```
 
 1. **VMark が WebSocket ブリッジを起動** し、起動時に利用可能なポートで待機します
-2. **MCP サーバー** がこの WebSocket ブリッジに接続します
-3. **AI アシスタント** が stdio 経由で MCP サーバーと通信します
-4. **コマンドがリレー** され、ブリッジを通じて VMark のエディタに届きます
+2. **MCP サーバー** が VMark のアプリデータディレクトリからポートと認証トークンを読み取ります
+3. **MCP サーバー** が WebSocket ブリッジを通じて接続・認証します
+4. **AI アシスタント** が stdio 経由で MCP サーバーと通信します
+5. **コマンドがリレー** され、ブリッジを通じて VMark のエディタに届きます
 
 ## 利用可能な機能
 

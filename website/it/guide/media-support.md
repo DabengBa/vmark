@@ -60,6 +60,26 @@ Usa iframe YouTube con privacy migliorata:
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Embed Vimeo
+
+Usa iframe del player Vimeo:
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+Puoi anche incollare direttamente un URL Vimeo (ad esempio `https://vimeo.com/123456789`) e VMark lo convertirà automaticamente in un embed.
+
+### Embed Bilibili
+
+Usa l'iframe del player Bilibili con un BV ID:
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Incolla un URL di un video Bilibili (ad esempio `https://bilibili.com/video/BV1xxxxxxxxx`) e VMark lo convertirà automaticamente in un embed. Nota che gli URL brevi (`b23.tv`) non sono supportati poiché richiedono la risoluzione del reindirizzamento.
+
 ### Fallback Sintassi Immagine
 
 Puoi anche usare la sintassi delle immagini con estensioni di file multimediali — VMark le promuove automaticamente al tipo di media corretto:
@@ -78,6 +98,7 @@ Usa il menu Inserisci nella barra degli strumenti:
 - **Video** — apre un selettore di file per i file video, copia in `.assets/`, inserisce un tag `<video>`
 - **Audio** — apre un selettore di file per i file audio, copia in `.assets/`, inserisce un tag `<audio>`
 - **YouTube** — legge un URL YouTube dagli appunti e inserisce un embed con privacy migliorata
+- **Vimeo** e **Bilibili** — incolla un URL video direttamente nell'editor e VMark rileva automaticamente il provider
 
 ### Trascina e Rilascia
 
@@ -93,6 +114,8 @@ In modalità Sorgente, digita i tag HTML direttamente. I tag media sono evidenzi
 - **Video** — bordo verde acqua
 - **Audio** — bordo indaco
 - **YouTube** — bordo rosso
+- **Vimeo** — bordo blu
+- **Bilibili** — bordo rosa
 
 ## Modifica dei Media
 
@@ -120,5 +143,5 @@ I percorsi relativi sono consigliati — mantengono i tuoi documenti portabili t
 ## Sicurezza
 
 - I percorsi relativi vengono validati contro gli attacchi di path traversal
-- Gli iframe YouTube sono limitati ai domini `youtube.com` e `youtube-nocookie.com`
+- Gli iframe di embed video sono limitati ai domini consentiti: `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com` e `player.bilibili.com`
 - Le altre sorgenti di iframe vengono rimosse dal sanitizer

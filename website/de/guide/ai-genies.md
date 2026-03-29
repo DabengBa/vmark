@@ -126,9 +126,9 @@ Genies werden im Anwendungsdatenverzeichnis gespeichert:
 
 | Plattform | Pfad |
 |-----------|------|
-| macOS | `~/Library/Application Support/com.vmark.app/genies/` |
-| Windows | `%APPDATA%\com.vmark.app\genies\` |
-| Linux | `~/.local/share/com.vmark.app/genies/` |
+| macOS | `~/Library/Application Support/app.vmark/genies/` |
+| Windows | `%APPDATA%\app.vmark\genies\` |
+| Linux | `~/.local/share/app.vmark/genies/` |
 
 Öffnen Sie diesen Ordner über das Menü **Werkzeuge > Genies-Ordner öffnen**.
 

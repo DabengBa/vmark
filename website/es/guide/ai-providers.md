@@ -117,7 +117,7 @@ Luego reinicia VMark — no es necesario introducir la clave manualmente.
 |-----------|--------------|
 | Ya tienes Claude Code instalado | **Claude (CLI)** — cero configuración, usa tu suscripción |
 | Ya tienes Codex o Gemini instalado | **Codex / Gemini (CLI)** — usa tu suscripción |
-| Necesitas privacidad / uso sin conexión | Instala Ollama → **Ollama (CLI)** |
+| Necesitas privacidad / uso sin conexión | Instala Ollama → **Ollama (API)** en `http://localhost:11434` |
 | Modelo personalizado o alojado en tu servidor | **Ollama (API)** con tu endpoint |
 | Quieres la opción en la nube más económica | **Cualquier proveedor CLI** — la suscripción es mucho más barata que la API |
 | Sin suscripción, solo uso ocasional | Configura la variable de entorno con la clave API → **Proveedor REST** (pago por token) |

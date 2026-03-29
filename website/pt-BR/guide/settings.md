@@ -104,6 +104,12 @@ Configurações de comportamento ao colar, layout e renderização HTML.
 | Bordas de imagens e diagramas | Se mostrar uma borda ao redor de imagens, diagramas Mermaid e blocos matemáticos | Nenhuma | Nenhuma, Sempre, Ao passar o mouse |
 | Alinhamento de imagens e tabelas | Alinhamento horizontal para imagens de bloco e tabelas | Centro | Centro, Esquerda |
 
+### Lint
+
+| Configuração | Descrição | Padrão | Opções |
+|-------------|-----------|--------|--------|
+| Habilitar markdown lint | Verificar problemas comuns de markdown (links quebrados, texto alt ausente, incrementos de títulos, blocos de código não fechados, etc.) | Ligado | Ligado / Desligado |
+
 ### Renderização HTML
 
 | Configuração | Descrição | Padrão | Opções |
@@ -183,7 +189,7 @@ Quando o servidor estiver em execução, o painel também exibe:
 - **Ferramentas / Recursos** — número de ferramentas e recursos MCP disponíveis
 - **Clientes Conectados** — número de clientes de IA atualmente conectados
 
-Abaixo da seção Servidor MCP, você pode instalar a configuração MCP do VMark em clientes de IA suportados (Claude, Cursor, Windsurf, etc.) com um único clique.
+Abaixo da seção Servidor MCP, você pode instalar a configuração MCP do VMark em clientes de IA suportados (Claude Desktop, Claude Code, Codex CLI, Gemini CLI) com um único clique.
 
 Veja [Configuração MCP](/pt-BR/guide/mcp-setup) e [Referência de Ferramentas MCP](/pt-BR/guide/mcp-tools) para detalhes completos.
 
@@ -191,7 +197,7 @@ Veja [Configuração MCP](/pt-BR/guide/mcp-setup) e [Referência de Ferramentas 
 
 Configure qual provedor de IA alimenta os [Gênios de IA](/pt-BR/guide/ai-genies). Apenas um provedor pode estar ativo por vez.
 
-**Provedores CLI** — Use ferramentas CLI de IA instaladas localmente (Claude, Codex, Gemini, Ollama). Clique em **Detectar** para verificar seu `$PATH` em busca de CLIs disponíveis. Os provedores CLI usam seu plano de assinatura e não requerem chave de API.
+**Provedores CLI** — Use ferramentas CLI de IA instaladas localmente (Claude, Codex, Gemini). Clique em **Detectar** para verificar seu `$PATH` em busca de CLIs disponíveis. Os provedores CLI usam seu plano de assinatura e não requerem chave de API.
 
 **Provedores REST API** — Conecte-se diretamente a APIs de nuvem (Anthropic, OpenAI, Google AI, Ollama API). Cada um requer um endpoint, chave de API e nome de modelo.
 

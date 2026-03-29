@@ -41,6 +41,10 @@ Supported AI assistants:
 - **Codex CLI** - OpenAI's coding assistant
 - **Gemini CLI** - Google's AI assistant
 
+::: info Other MCP-Compatible Clients
+Other MCP-compatible clients such as Cursor, Windsurf, and similar tools can also connect to VMark's MCP server. Configure them manually by pointing to the MCP server binary path (see [Manual Configuration](#manual-configuration) below).
+:::
+
 #### Status Icons
 
 Each provider shows a status indicator:
@@ -104,6 +108,29 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 ### Claude Code
 
 Edit `~/.claude.json` or project `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "vmark": {
+      "command": "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+    }
+  }
+}
+```
+
+### Codex CLI
+
+Edit `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.vmark]
+command = "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+```
+
+### Gemini CLI
+
+Edit `~/.gemini/settings.json`:
 
 ```json
 {

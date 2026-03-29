@@ -41,6 +41,10 @@ VMark 讓你只需點擊一下即可連接 AI 助理。
 - **Codex CLI** - OpenAI 的程式設計助理
 - **Gemini CLI** - Google 的 AI 助理
 
+::: info 其他 MCP 相容用戶端
+其他 MCP 相容用戶端（如 Cursor、Windsurf 等類似工具）也可以連接到 VMark 的 MCP 伺服器。透過指向 MCP 伺服器執行檔路徑來手動設定它們（請參閱下方的[手動設定](#手動設定)）。
+:::
+
 #### 狀態圖示
 
 每個供應商顯示狀態指示器：
@@ -115,6 +119,29 @@ VMark 讓你只需點擊一下即可連接 AI 助理。
 }
 ```
 
+### Codex CLI
+
+編輯 `~/.codex/config.toml`：
+
+```toml
+[mcp_servers.vmark]
+command = "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+```
+
+### Gemini CLI
+
+編輯 `~/.gemini/settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "vmark": {
+      "command": "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+    }
+  }
+}
+```
+
 ::: tip 尋找執行檔路徑
 在 macOS 上，MCP 伺服器執行檔位於 VMark.app 內：
 - `VMark.app/Contents/MacOS/vmark-mcp-server`
@@ -135,9 +162,10 @@ AI 助理 <--stdio--> MCP 伺服器 <--WebSocket--> VMark 編輯器
 ```
 
 1. **VMark 在啟動時** 在可用連接埠上啟動 WebSocket 橋接
-2. **MCP 伺服器** 連接至此 WebSocket 橋接
-3. **AI 助理** 透過 stdio 與 MCP 伺服器通訊
-4. **指令透過橋接** 轉發至 VMark 的編輯器
+2. **MCP 伺服器** 從 VMark 的應用程式資料目錄讀取連接埠和驗證權杖
+3. **MCP 伺服器** 透過 WebSocket 橋接連線並驗證
+4. **AI 助理** 透過 stdio 與 MCP 伺服器通訊
+5. **指令透過橋接** 轉發至 VMark 的編輯器
 
 ## 可用功能
 

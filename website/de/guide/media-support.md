@@ -60,6 +60,26 @@ Datenschutzverbesserte YouTube-iFrames verwenden:
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Vimeo-Einbettungen
+
+Vimeo-Player-iFrames verwenden:
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+Sie können auch eine Vimeo-URL direkt einfügen (z.B. `https://vimeo.com/123456789`) und VMark konvertiert sie automatisch in eine Einbettung.
+
+### Bilibili-Einbettungen
+
+Den Bilibili-Player-iFrame mit einer BV-ID verwenden:
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Fügen Sie eine Bilibili-Video-URL ein (z.B. `https://bilibili.com/video/BV1xxxxxxxxx`) und VMark konvertiert sie automatisch in eine Einbettung. Beachten Sie, dass Kurz-URLs (`b23.tv`) nicht unterstützt werden, da sie eine Weiterleitungsauflösung erfordern.
+
 ### Bildsyntax-Fallback
 
 Sie können auch Bildsyntax mit Mediendateiendungen verwenden — VMark befördert diese automatisch zum korrekten Medientyp:
@@ -78,6 +98,7 @@ Das Einfügen-Menü in der Symbolleiste verwenden:
 - **Video** — öffnet eine Dateiauswahl für Videodateien, kopiert in `.assets/`, fügt einen `<video>`-Tag ein
 - **Audio** — öffnet eine Dateiauswahl für Audiodateien, kopiert in `.assets/`, fügt einen `<audio>`-Tag ein
 - **YouTube** — liest eine YouTube-URL aus der Zwischenablage und fügt eine datenschutzverbesserte Einbettung ein
+- **Vimeo** und **Bilibili** — fügen Sie eine Video-URL direkt in den Editor ein und VMark erkennt den Anbieter automatisch
 
 ### Drag & Drop
 
@@ -93,6 +114,8 @@ Im Quellmodus HTML-Tags direkt eingeben. Medien-Tags werden mit farbigen linken 
 - **Video** — Blaugrüner Rand
 - **Audio** — Indigoblauer Rand
 - **YouTube** — Roter Rand
+- **Vimeo** — Blauer Rand
+- **Bilibili** — Rosa Rand
 
 ## Medien bearbeiten
 
@@ -120,5 +143,5 @@ Relative Pfade werden empfohlen — sie halten Ihre Dokumente über Rechner hinw
 ## Sicherheit
 
 - Relative Pfade werden gegen Directory-Traversal-Angriffe validiert
-- YouTube-iFrames sind auf die Domains `youtube.com` und `youtube-nocookie.com` beschränkt
+- Video-Einbettungs-iFrames sind auf erlaubte Domains beschränkt: `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com` und `player.bilibili.com`
 - Andere iFrame-Quellen werden vom Bereiniger entfernt

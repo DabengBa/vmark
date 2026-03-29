@@ -92,6 +92,22 @@ Un popup unificato per la modifica di tutti i tipi di media — immagini, video 
 
 In modalità Sorgente, facendo clic sulla sintassi dell'immagine `![alt](path)` si apre lo stesso popup media. I file multimediali (estensioni video/audio) mostrano un'anteprima fluttuante con controlli di riproduzione nativi al passaggio del mouse.
 
+## Menu Contestuale Immagine
+
+Cliccando con il tasto destro su un'immagine in modalità WYSIWYG si apre un menu contestuale con azioni rapide (separato dal popup di modifica con doppio clic).
+
+**Attivazione:** Clic destro su qualsiasi immagine
+
+**Azioni:**
+| Azione | Descrizione |
+|--------|-------------|
+| Cambia Immagine | Apri un selettore di file per sostituire l'immagine |
+| Elimina Immagine | Rimuovi l'immagine dal documento |
+| Copia Percorso | Copia il percorso sorgente dell'immagine negli appunti |
+| Mostra nel Finder | Apri la posizione del file immagine nel gestore file (l'etichetta si adatta in base alla piattaforma) |
+
+Premi `Escape` per chiudere il menu contestuale senza eseguire alcuna azione.
+
 ## Popup Matematica
 
 Modifica le espressioni matematiche LaTeX con anteprima in tempo reale.

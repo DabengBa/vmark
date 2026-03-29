@@ -61,3 +61,51 @@ Se la barra dei menu rimane in inglese dopo aver cambiato la lingua nelle Impost
 ### Il terminale non accetta la punteggiatura CJK
 
 Corretto nella versione v0.6.5+. Aggiorna all'ultima versione.
+
+### Problemi di connessione del server MCP
+
+Il server MCP potrebbe non avviarsi o i client potrebbero non riuscire a connettersi.
+
+- Assicurati che VMark sia in esecuzione — il server MCP si avvia solo quando l'app è aperta.
+- Verifica che nessun altro processo stia usando la stessa porta. Il server MCP scrive un file di porta per il rilevamento dei client; file di porta obsoleti di una sessione precedente possono causare conflitti. Riavvia VMark per rigenerarlo.
+- Controlla il file di log per le voci `[MCP Bridge]` per identificare gli errori di connessione.
+
+### La scorciatoia da tastiera non funziona
+
+Una scorciatoia potrebbe sembrare non rispondere se è in conflitto con un'altra assegnazione o è stata personalizzata.
+
+- Apri Impostazioni (`Mod + ,`) e vai alla scheda **Scorciatoie** per verificare se la scorciatoia è stata riassegnata.
+- Cerca assegnazioni duplicate — se due azioni condividono la stessa combinazione di tasti, solo una si attiverà.
+- Su macOS, alcune scorciatoie possono essere in conflitto con le assegnazioni a livello di sistema (ad esempio Mission Control, Spotlight). Controlla **Impostazioni di Sistema > Tastiera > Abbreviazioni da tastiera**.
+
+### Problemi di esportazione/stampa
+
+L'esportazione PDF potrebbe bloccarsi o produrre un output incompleto.
+
+- Se le immagini mancano nell'esportazione, verifica che i percorsi delle immagini siano relativi al documento e che i file esistano su disco. Gli URL assoluti e le immagini remote devono essere accessibili.
+- Controlla i permessi dei file nella directory di output — VMark ha bisogno dell'accesso in scrittura per salvare il file esportato.
+- Per documenti di grandi dimensioni, l'esportazione potrebbe richiedere più tempo. Controlla il file di log per le voci `[Export]` se sembra bloccato.
+
+### Il file non si apre
+
+VMark potrebbe rifiutarsi di aprire un file o mostrare contenuto illeggibile.
+
+- Verifica che il file abbia i permessi di lettura per il tuo account utente.
+- VMark si aspetta Markdown codificato in UTF-8. I file in altre codifiche (ad esempio GB2312, Shift-JIS) potrebbero non essere visualizzati correttamente — convertili prima in UTF-8.
+- Se il file è bloccato da un altro processo (ad esempio un client di sincronizzazione o uno strumento di backup), chiudi quel processo e riprova.
+
+### Prestazioni dell'editor
+
+L'editor potrebbe rallentare con file molto grandi o molte schede aperte.
+
+- Chiudi le schede non utilizzate per liberare memoria — ogni scheda aperta mantiene il proprio stato dell'editor.
+- Documenti molto grandi (oltre 10.000 righe) possono causare ritardi nell'input. Considera di dividerli in file più piccoli.
+- Disabilita la Modalità Focus e la Modalità Macchina da Scrivere se non necessarie, poiché aggiungono un overhead di rendering aggiuntivo.
+
+### Il Genio IA non risponde
+
+I Geni IA richiedono un fornitore di IA configurato per funzionare.
+
+- Apri Impostazioni e verifica che un fornitore di IA (ad esempio Ollama, OpenAI, Anthropic) sia configurato con un nome di modello valido.
+- Il CLI del fornitore deve essere disponibile nel tuo PATH. Su macOS, le app con interfaccia grafica hanno un PATH minimo — se il CLI è stato installato tramite Homebrew, assicurati che il tuo profilo shell esporti il percorso corretto.
+- Controlla il nome del modello per errori di battitura. Un nome di modello errato fallirà silenziosamente o restituirà un errore.

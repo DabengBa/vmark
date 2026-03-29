@@ -198,7 +198,7 @@ Icon SVG sizes (conventions, not tokens):
 | `--cjk-letter-spacing` | CJK character spacing | `0.05em` |
 | `--editor-width` | Max editor content width | `50em` |
 
-**Note:** These tokens have static defaults in `:root` for print/SSR, but are dynamically updated by `useTheme.ts` based on user settings.
+**Note:** These tokens have static defaults in `:root` for print/SSR, but are dynamically updated by `useTheme.ts` based on user settings. For example, `--editor-line-height` defaults to `1.6` in CSS, but the user-facing default is `1.8` (set in `settingsStore.ts` as "Relaxed" and applied dynamically by `useTheme.ts`).
 
 ## Code/Syntax Tokens
 

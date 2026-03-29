@@ -113,6 +113,7 @@ Textumwandlung schnell über Format → Transformieren:
 - Blockzitate (verschachtelt unterstützt)
 - Codeblöcke mit Syntaxhervorhebung
 - Geordnete, ungeordnete und Aufgabenlisten
+- Listentyp wechseln: einen Absatz nacheinander in Aufzählung, nummerierte oder Aufgabenliste umwandeln
 - Horizontale Linien
 - Tabellen mit vollständiger Bearbeitungsunterstützung
 
@@ -223,7 +224,7 @@ Integrierte KI-Schreibassistenz, unterstützt von Ihrem bevorzugten Anbieter:
 - 13 Genies in vier Kategorien — Bearbeitung, Kreativität, Struktur und Werkzeuge
 - Spotlight-ähnliche Auswahl mit Suche und freien Eingaben (`Mod + Y`)
 - Inline-Vorschlagsdarstellung — mit Tastaturkürzeln akzeptieren oder ablehnen
-- Unterstützt CLI-Anbieter (Claude, Codex, Gemini, Ollama) und REST-APIs
+- Unterstützt CLI-Anbieter (Claude, Codex, Gemini) und REST-APIs (Anthropic, OpenAI, Google AI, Ollama)
 
 [Mehr erfahren →](/de/guide/ai-genies) | [Anbieter konfigurieren →](/de/guide/ai-providers)
 
@@ -250,6 +251,47 @@ Integrierte KI-Schreibassistenz, unterstützt von Ihrem bevorzugten Anbieter:
 
 Klicken Sie auf das Erweiterungs-Chevron in der Suchleiste, um die Ersetzen-Zeile anzuzeigen. Geben Sie den Ersatztext ein, dann verwenden Sie **Ersetzen** (einzelne Übereinstimmung) oder **Alle ersetzen** (alle Übereinstimmungen auf einmal). Der Übereinstimmungszähler zeigt die aktuelle Position und Gesamtzahl an (z. B. „3 von 12").
 
+## Markdown-Lint
+
+VMark enthält einen integrierten Markdown-Linter, der Ihr Dokument auf häufige Syntaxfehler und Barrierefreiheitsprobleme prüft. Aktivierbar in **Einstellungen > Markdown > Lint**.
+
+**Verwendung:**
+
+| Aktion | Tastenkürzel |
+|--------|--------------|
+| Lint-Prüfung ausführen | `Alt + Mod + V` |
+| Zum nächsten Problem springen | `F2` |
+| Zum vorherigen Problem springen | `Umschalt + F2` |
+
+Wenn Sie eine Lint-Prüfung ausführen, erscheinen Diagnosen als Inline-Hervorhebungen und Randmarkierungen. Falls keine Probleme gefunden werden, bestätigt eine Toast-Benachrichtigung, dass das Dokument fehlerfrei ist. Probleme werden als Fehler oder Warnungen klassifiziert.
+
+**Geprüfte Regeln (13 insgesamt):**
+
+- Undefinierte Referenzlinks
+- Nicht übereinstimmende Tabellenspaltenanzahlen
+- Vertauschte Link-Syntax `(Text)[URL]` statt `[Text](URL)`
+- Fehlendes Leerzeichen nach `#` in Überschriften
+- Leerzeichen innerhalb von Betonungszeichen
+- Leerer Linktext oder leere Link-URLs
+- Doppelte Link-/Bilddefinitionen
+- Unbenutzte Link-/Bilddefinitionen
+- Überschriftenebenen, die Stufen überspringen (z. B. H1 zu H3)
+- Bilder ohne Alt-Text (Barrierefreiheit)
+- Nicht geschlossene Fenced-Codeblöcke
+- Fehlerhafte Fragment-Links (`#anker` stimmt mit keiner Überschrift überein)
+
+Lint-Ergebnisse sind flüchtig und werden beim Bearbeiten des Dokuments gelöscht. Führen Sie die Prüfung jederzeit mit `Alt + Mod + V` erneut aus.
+
+## Universelle Symbolleiste
+
+Eine Formatierungs-Symbolleiste am unteren Rand des Editors, die in beiden Modi (WYSIWYG und Quellmodus) schnellen Zugriff auf alle Formatierungsaktionen bietet.
+
+- **Umschalten:** `Mod + Umschalt + P` öffnet die Symbolleiste und gibt ihr den Fokus. Erneutes Drücken gibt den Fokus an den Editor zurück, während die Symbolleiste sichtbar bleibt.
+- **Tastaturnavigation:** `Links`/`Rechts`-Pfeiltasten zum Wechseln zwischen Gruppen. `Enter` oder `Leertaste` öffnet ein Dropdown-Menü. Pfeiltasten navigieren innerhalb von Menüs.
+- **Zweistufiges Escape:** Wenn ein Dropdown-Menü geöffnet ist, schließt `Escape` zuerst das Menü. Nochmaliges Drücken schließt die gesamte Symbolleiste.
+- **Sitzungsspeicher:** Die Symbolleiste merkt sich, welcher Button zuletzt fokussiert war — beim erneuten Öffnen wird dort fortgesetzt.
+- **KI-Genies-Schnellzugriff:** Die Symbolleiste enthält einen KI-Genies-Button, der den Genie-Picker öffnet (`Mod + Y`).
+
 ## Exportoptionen
 
 VMark bietet flexible Exportoptionen zum Teilen Ihrer Dokumente.
@@ -275,7 +317,7 @@ Formatierten Inhalt zum Einfügen in andere Apps kopieren (`Cmd/Strg + Umschalt 
 
 ### Kopierformat
 
-Standardmäßig kopiert das Kopieren aus WYSIWYG reinen Text (ohne Formatierung) in die Zwischenablage. Aktivieren Sie das **Markdown**-Kopierformat in **Einstellungen > Markdown > Einfügen & Eingabe**, um stattdessen Markdown-Syntax in `text/plain` zu platzieren. Nützlich beim Einfügen in Terminals, Code-Editoren oder Chat-Apps.
+Standardmäßig kopiert das Kopieren aus WYSIWYG reinen Text (ohne Formatierung) in die Zwischenablage. Aktivieren Sie das **Markdown**-Kopierformat in **Einstellungen > Editor > Verhalten**, um stattdessen Markdown-Syntax in `text/plain` zu platzieren — Überschriften behalten ihre `#`, Links behalten ihre URLs usw. Nützlich beim Einfügen in Terminals, Code-Editoren oder Chat-Apps.
 
 ## CJK-Formatierung
 
@@ -293,10 +335,36 @@ Integrierte Textformatierungswerkzeuge für Chinesisch/Japanisch/Koreanisch:
 
 ## Dokumentverlauf
 
-- Automatisches Speichern mit konfigurierbarem Intervall
-- Frühere Versionen anzeigen und wiederherstellen
-- JSONL-Speicherformat
-- Verlauf pro Dokument
+VMark speichert automatisch Schnappschüsse Ihrer Dokumente, damit Sie frühere Versionen wiederherstellen können.
+
+- **Automatisches Speichern** mit konfigurierbarem Intervall erfasst Schnappschüsse im Hintergrund
+- **Dokumentbezogener Verlauf** lokal im JSONL-Format gespeichert
+- Öffnen Sie die Verlaufs-Seitenleiste mit `Ctrl + Shift + 3`, um vergangene Versionen zu durchsuchen
+- Schnappschüsse sind **nach Tagen gruppiert** mit Zeitstempeln, die den genauen Speicherzeitpunkt anzeigen
+- **Wiederherstellen** einer früheren Version durch Klicken auf die Wiederherstellungsschaltfläche neben einem Schnappschuss (ein Bestätigungsdialog verhindert versehentliches Zurücksetzen)
+- **Löschen** einzelner Schnappschüsse, die Sie nicht mehr benötigen, mit dem Papierkorb-Symbol
+- Der aktuelle Inhalt wird als neuer Schnappschuss gespeichert, bevor eine Wiederherstellung erfolgt, sodass Sie nie Ihre Arbeit verlieren
+- Der Verlauf erfordert, dass das Dokument als Datei gespeichert ist (unbenannte Dokumente haben keinen Verlauf)
+- Verlaufsverfolgung in **Einstellungen > Allgemein** aktivieren oder deaktivieren
+
+## Sitzungswiederherstellung (Hot Exit)
+
+Wenn Sie VMark beenden oder es unerwartet beendet wird, wird Ihre Sitzung bewahrt und beim nächsten Start wiederhergestellt.
+
+**Was gespeichert wird:**
+- Alle offenen Tabs und ihr Inhalt (einschließlich ungespeicherter Änderungen)
+- Cursorpositionen und Rückgängig-/Wiederholen-Verlauf
+- UI-Layout: Seitenleistenstatus, Gliederungssichtbarkeit, Quell-/Fokus-/Schreibmaschinenmodus, Terminalstatus
+- Fensterposition und -größe
+- Aktiver Arbeitsbereich und Dateiexplorer-Einstellungen
+
+**Funktionsweise:**
+- Beim Beenden erfasst VMark den vollständigen Sitzungsstatus aller Fenster
+- Beim Neustart werden Tabs genau so wiederhergestellt, wie Sie sie verlassen haben, wobei geänderte (ungespeicherte) Dokumente entsprechend markiert sind
+- Absturzwiederherstellung läuft automatisch nach einem unerwarteten Beenden und stellt Dokumente aus periodischen Wiederherstellungsschnappschüssen wieder her
+- Wiederherstellungsschnappschüsse älter als 7 Tage werden automatisch bereinigt
+
+Keine Konfiguration erforderlich. Sitzungswiederherstellung ist immer aktiv.
 
 ## Ansicht & Fokus
 
@@ -315,6 +383,31 @@ Fokusmodus und Schreibmaschinenmodus können gleichzeitig aktiviert werden. Zusa
 ### Zeilenumbruch (`Alt + Z`)
 
 Weichen Zeilenumbruch mit `Alt + Z` umschalten. Wenn aktiviert, werden lange Zeilen an der Editor-Breite umgebrochen, anstatt horizontal zu scrollen. Die Einstellung bleibt sitzungsübergreifend erhalten.
+
+### Nur-Lese-Modus (`F10`)
+
+Sperren Sie ein Dokument, um versehentliche Bearbeitungen zu verhindern. Mit `F10` umschalten. Wenn aktiv, werden alle Tastatureingaben und Formatierungsbefehle blockiert — Sie können weiterhin scrollen, Text auswählen und kopieren. Nützlich zum Überprüfen fertiger Dokumente oder zum Nachschlagen von Inhalten, während Sie in einem anderen Tab schreiben.
+
+### Gliederungsbereich (`Ctrl + Shift + 1`)
+
+Der Gliederungsbereich zeigt die Überschriftenstruktur Ihres Dokuments als zusammenklappbaren Baum in der Seitenleiste. Öffnen Sie ihn mit `Ctrl + Shift + 1`.
+
+- Klicken Sie auf eine Überschrift, um den Editor zu diesem Abschnitt zu scrollen
+- Klappen Sie Überschriftengruppen ein und aus, um sich auf bestimmte Teile Ihres Dokuments zu konzentrieren
+- Die aktuell aktive Überschrift wird beim Scrollen oder Tippen hervorgehoben
+- Wird in Echtzeit aktualisiert, wenn Sie Überschriften hinzufügen, entfernen oder umbenennen
+
+### Zoom
+
+Passen Sie die Editor-Schriftgröße an, ohne die Einstellungen zu öffnen:
+
+| Aktion | Tastenkürzel |
+|--------|--------------|
+| Vergrößern | `Mod + =` |
+| Verkleinern | `Mod + -` |
+| Auf Standard zurücksetzen | `Mod + 0` |
+
+Zoom ändert die Editor-Schriftgröße in 2px-Schritten (Bereich: 12px bis 32px). Es ändert denselben Schriftgrößenwert wie in **Einstellungen > Erscheinungsbild**, sodass Tastatur-Zoom und Einstellungsregler stets synchron bleiben.
 
 ## Texthilfsprogramme
 

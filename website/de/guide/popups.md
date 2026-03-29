@@ -92,6 +92,22 @@ Ein einheitliches Popup zum Bearbeiten aller Medientypen — Bilder, Video und A
 
 Im Quellmodus öffnet das Klicken auf Bildsyntax `![alt](pfad)` dasselbe Medien-Popup. Mediendateien (Video-/Audioendungen) zeigen eine schwebende Vorschau mit nativen Wiedergabe-Steuerelementen beim Hovern.
 
+## Bild-Kontextmenü
+
+Rechtsklick auf ein Bild im WYSIWYG-Modus öffnet ein Kontextmenü mit Schnellaktionen (getrennt vom Doppelklick-Bearbeitungs-Popup).
+
+**Auslöser:** Rechtsklick auf ein beliebiges Bild
+
+**Aktionen:**
+| Aktion | Beschreibung |
+|--------|--------------|
+| Bild ändern | Dateiauswahl öffnen, um das Bild zu ersetzen |
+| Bild löschen | Das Bild aus dem Dokument entfernen |
+| Pfad kopieren | Den Quellpfad des Bildes in die Zwischenablage kopieren |
+| Im Finder anzeigen | Den Speicherort der Bilddatei im Dateimanager öffnen (Beschriftung passt sich je nach Plattform an) |
+
+`Escape` drücken, um das Kontextmenü ohne Aktion zu schließen.
+
 ## Mathematik-Popup
 
 LaTeX-Mathematikausdrücke mit Live-Vorschau bearbeiten.

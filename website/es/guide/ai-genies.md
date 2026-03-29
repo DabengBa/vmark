@@ -126,9 +126,9 @@ Los genios se almacenan en el directorio de datos de la aplicación:
 
 | Plataforma | Ruta |
 |------------|------|
-| macOS | `~/Library/Application Support/com.vmark.app/genies/` |
-| Windows | `%APPDATA%\com.vmark.app\genies\` |
-| Linux | `~/.local/share/com.vmark.app/genies/` |
+| macOS | `~/Library/Application Support/app.vmark/genies/` |
+| Windows | `%APPDATA%\app.vmark\genies\` |
+| Linux | `~/.local/share/app.vmark/genies/` |
 
 Abre esta carpeta desde el menú **Herramientas > Abrir Carpeta de Genios**.
 

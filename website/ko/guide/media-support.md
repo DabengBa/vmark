@@ -60,6 +60,26 @@ VMark는 표준 HTML5 태그를 사용하여 마크다운 문서에서 동영상
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Vimeo 임베드
+
+Vimeo 플레이어 iframe을 사용합니다:
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+Vimeo URL을 직접 붙여넣기(예: `https://vimeo.com/123456789`)하면 VMark가 자동으로 임베드로 변환합니다.
+
+### Bilibili 임베드
+
+BV ID로 Bilibili 플레이어 iframe을 사용합니다:
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Bilibili 동영상 URL(예: `https://bilibili.com/video/BV1xxxxxxxxx`)을 붙여넣으면 VMark가 자동으로 임베드로 변환합니다. 단축 URL(`b23.tv`)은 리디렉션 해결이 필요하므로 지원되지 않습니다.
+
 ### 이미지 구문 대체
 
 미디어 파일 확장자와 함께 이미지 구문을 사용할 수도 있습니다 — VMark가 자동으로 올바른 미디어 타입으로 변환합니다:
@@ -78,6 +98,7 @@ VMark는 표준 HTML5 태그를 사용하여 마크다운 문서에서 동영상
 - **동영상** — 동영상 파일 선택기를 열고, `.assets/`에 복사하고, `<video>` 태그를 삽입합니다
 - **오디오** — 오디오 파일 선택기를 열고, `.assets/`에 복사하고, `<audio>` 태그를 삽입합니다
 - **YouTube** — 클립보드에서 YouTube URL을 읽고 프라이버시 강화 임베드를 삽입합니다
+- **Vimeo** 및 **Bilibili** — 에디터에 동영상 URL을 직접 붙여넣으면 VMark가 자동으로 제공자를 감지합니다
 
 ### 드래그 앤 드롭
 
@@ -93,6 +114,8 @@ VMark는 표준 HTML5 태그를 사용하여 마크다운 문서에서 동영상
 - **동영상** — 청록색 테두리
 - **오디오** — 인디고 테두리
 - **YouTube** — 빨간색 테두리
+- **Vimeo** — 파란색 테두리
+- **Bilibili** — 분홍색 테두리
 
 ## 미디어 편집
 
@@ -120,5 +143,5 @@ VMark는 세 가지 유형의 미디어 경로를 지원합니다:
 ## 보안
 
 - 상대 경로는 디렉터리 순회 공격에 대해 검증됩니다
-- YouTube iframe은 `youtube.com` 및 `youtube-nocookie.com` 도메인으로 제한됩니다
+- 동영상 임베드 iframe은 허용된 도메인으로 제한됩니다: `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com`, `player.bilibili.com`
 - 다른 iframe 소스는 새니타이저에 의해 제거됩니다

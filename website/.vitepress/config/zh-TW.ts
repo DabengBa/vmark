@@ -108,6 +108,10 @@ export const zhTW = {
               text: "成本與工作量評估",
               link: "/zh-TW/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "外掛即基礎設施",
+              link: "/zh-TW/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

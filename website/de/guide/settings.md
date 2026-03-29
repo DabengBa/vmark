@@ -104,6 +104,12 @@ Einfüge-Verhalten, Layout und HTML-Rendering-Einstellungen.
 | Bild- und Diagramm-Ränder | Ob ein Rand um Bilder, Mermaid-Diagramme und Mathematik-Blöcke angezeigt wird | Keiner | Keiner, Immer, Beim Hover |
 | Bild- und Tabellen-Ausrichtung | Horizontale Ausrichtung für Block-Bilder und Tabellen | Zentriert | Zentriert, Links |
 
+### Lint
+
+| Einstellung | Beschreibung | Standard | Optionen |
+|-------------|-------------|---------|---------|
+| Markdown-Lint aktivieren | Auf häufige Markdown-Probleme prüfen (defekte Links, fehlender Alt-Text, Überschriftenhierarchie, nicht geschlossene Umzäunungen usw.) | Ein | Ein / Aus |
+
 ### HTML-Rendering
 
 | Einstellung | Beschreibung | Standard | Optionen |
@@ -183,7 +189,7 @@ Wenn der Server läuft, zeigt der Bereich auch:
 - **Werkzeuge / Ressourcen** — Anzahl der verfügbaren MCP-Werkzeuge und Ressourcen
 - **Verbundene Clients** — Anzahl der aktuell verbundenen KI-Clients
 
-Unterhalb des MCP-Server-Abschnitts können Sie VMark's MCP-Konfiguration mit einem einzigen Klick in unterstützte KI-Clients (Claude, Cursor, Windsurf usw.) installieren.
+Unterhalb des MCP-Server-Abschnitts können Sie VMark's MCP-Konfiguration mit einem einzigen Klick in unterstützte KI-Clients (Claude Desktop, Claude Code, Codex CLI, Gemini CLI) installieren.
 
 Unter [MCP-Setup](/de/guide/mcp-setup) und [MCP-Werkzeuge Referenz](/de/guide/mcp-tools) finden Sie vollständige Details.
 
@@ -191,7 +197,7 @@ Unter [MCP-Setup](/de/guide/mcp-setup) und [MCP-Werkzeuge Referenz](/de/guide/mc
 
 Konfigurieren Sie, welcher KI-Anbieter [KI-Genies](/de/guide/ai-genies) betreibt. Es kann jeweils nur ein Anbieter aktiv sein.
 
-**CLI-Anbieter** — Verwenden Sie lokal installierte KI-CLI-Werkzeuge (Claude, Codex, Gemini, Ollama). Klicken Sie auf **Erkennen**, um Ihren `$PATH` nach verfügbaren CLIs zu durchsuchen. CLI-Anbieter verwenden Ihren Abonnement-Plan und benötigen keinen API-Schlüssel.
+**CLI-Anbieter** — Verwenden Sie lokal installierte KI-CLI-Werkzeuge (Claude, Codex, Gemini). Klicken Sie auf **Erkennen**, um Ihren `$PATH` nach verfügbaren CLIs zu durchsuchen. CLI-Anbieter verwenden Ihren Abonnement-Plan und benötigen keinen API-Schlüssel.
 
 **REST-API-Anbieter** — Verbinden Sie sich direkt mit Cloud-APIs (Anthropic, OpenAI, Google AI, Ollama API). Jeder benötigt einen Endpunkt, API-Schlüssel und Modellnamen.
 

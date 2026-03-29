@@ -117,7 +117,7 @@ Utilisez ceci lorsque vous souhaitez un accès de style REST à une instance Oll
 |-----------|---------------|
 | Claude Code déjà installé | **Claude (CLI)** — zéro configuration, utilise votre abonnement |
 | Codex ou Gemini déjà installé | **Codex / Gemini (CLI)** — utilise votre abonnement |
-| Besoin de confidentialité / hors ligne | Installez Ollama → **Ollama (CLI)** |
+| Besoin de confidentialité / hors ligne | Installez Ollama → **Ollama (API)** à `http://localhost:11434` |
 | Modèle personnalisé ou auto-hébergé | **Ollama (API)** avec votre endpoint |
 | Option cloud la moins chère | **N'importe quel fournisseur CLI** — l'abonnement est nettement moins cher que l'API |
 | Pas d'abonnement, usage léger uniquement | Définissez la variable d'env de clé API → **fournisseur REST** (paiement par jeton) |

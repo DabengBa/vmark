@@ -113,6 +113,7 @@ Cambia rápidamente el estilo de texto a través de Formato → Transformar:
 - Citas (anidadas soportadas)
 - Bloques de código con resaltado de sintaxis
 - Listas ordenadas, desordenadas y de tareas
+- Ciclar tipo de lista: convierte un párrafo a lista con viñetas, numerada o de tareas en secuencia
 - Reglas horizontales
 - Tablas con soporte de edición completo
 
@@ -223,7 +224,7 @@ Asistencia de escritura con IA integrada impulsada por el proveedor de tu elecci
 - 13 genios en cuatro categorías — edición, creativo, estructura y herramientas
 - Selector estilo Spotlight con búsqueda y prompts de forma libre (`Mod + Y`)
 - Renderizado de sugerencias en línea — aceptar o rechazar con atajos de teclado
-- Soporta proveedores CLI (Claude, Codex, Gemini, Ollama) y APIs REST
+- Soporta proveedores CLI (Claude, Codex, Gemini) y APIs REST (Anthropic, OpenAI, Google AI, Ollama)
 
 [Más información →](/es/guide/ai-genies) | [Configurar proveedores →](/es/guide/ai-providers)
 
@@ -250,6 +251,47 @@ Abre la barra de búsqueda con `Mod + F`. Aparece en línea en la parte superior
 
 Haz clic en el chevron de expansión en la barra de búsqueda para revelar la fila de reemplazo. Escribe el texto de reemplazo, luego usa **Reemplazar** (una coincidencia) o **Reemplazar Todo** (todas las coincidencias a la vez). El contador de coincidencias muestra la posición actual y el total (ej., "3 de 12") para que siempre sepas dónde estás.
 
+## Lint de Markdown
+
+VMark incluye un linter de Markdown integrado que revisa tu documento en busca de errores de sintaxis comunes y problemas de accesibilidad. Actívalo en **Configuración > Markdown > Lint**.
+
+**Cómo usar:**
+
+| Acción | Atajo |
+|--------|-------|
+| Ejecutar comprobación lint | `Alt + Mod + V` |
+| Ir al siguiente problema | `F2` |
+| Ir al problema anterior | `Shift + F2` |
+
+Al ejecutar una comprobación lint, los diagnósticos aparecen como resaltados en línea y marcadores en el margen. Si no se encuentran problemas, una notificación confirma que el documento está limpio. Los problemas se clasifican como errores o advertencias.
+
+**Reglas verificadas (13 en total):**
+
+- Enlaces de referencia no definidos
+- Recuento de columnas de tabla no coincidente
+- Sintaxis de enlace invertida `(texto)[url]` en lugar de `[texto](url)`
+- Espacio faltante después de `#` en encabezados
+- Espacios dentro de marcadores de énfasis
+- Texto de enlace vacío o URLs de enlace vacías
+- Definiciones de enlace/imagen duplicadas
+- Definiciones de enlace/imagen no utilizadas
+- Incrementos de nivel de encabezado que saltan niveles (ej., H1 a H3)
+- Imágenes sin texto alternativo (accesibilidad)
+- Bloques de código delimitados sin cerrar
+- Enlaces de fragmento rotos (`#ancla` que no coincide con ningún encabezado)
+
+Los resultados del lint son efímeros y se eliminan cuando editas el documento. Vuelve a ejecutar la comprobación en cualquier momento con `Alt + Mod + V`.
+
+## Barra de Herramientas Universal
+
+Una barra de herramientas de formato anclada en la parte inferior del editor, que proporciona acceso rápido a todas las acciones de formato tanto en modo WYSIWYG como de Fuente.
+
+- **Alternar:** `Mod + Shift + P` abre la barra de herramientas y le da el foco. Pulsa de nuevo para devolver el foco al editor manteniendo la barra visible.
+- **Navegación por teclado:** Usa las flechas `Izquierda`/`Derecha` para moverte entre grupos. `Enter` o `Espacio` abre un menú desplegable. Las flechas navegan dentro de los menús.
+- **Escape en dos pasos:** Si un menú desplegable está abierto, `Escape` cierra primero el menú. Pulsa `Escape` de nuevo para cerrar toda la barra de herramientas.
+- **Memoria de sesión:** La barra de herramientas recuerda qué botón fue el último enfocado durante la sesión actual, así que al re-enfocar continúas donde lo dejaste.
+- **Atajo de Genios de IA:** La barra de herramientas incluye un botón de Genios de IA que abre el selector de genios (`Mod + Y`).
+
 ## Opciones de Exportación
 
 VMark ofrece opciones de exportación flexibles para compartir tus documentos.
@@ -275,7 +317,7 @@ Copia el contenido formateado para pegarlo en otras aplicaciones (`Cmd/Ctrl + Sh
 
 ### Formato de Copia
 
-Por defecto, copiar desde WYSIWYG pone texto sin formato (sin formato) en el portapapeles. Activa el formato de copia **Markdown** en **Configuración > Markdown > Pegar & Entrada** para poner la sintaxis Markdown en `text/plain` en su lugar — los encabezados conservan su `#`, los enlaces conservan sus URLs, etc. Útil cuando se pega en terminales, editores de código o aplicaciones de chat.
+Por defecto, copiar desde WYSIWYG pone texto sin formato en el portapapeles. Activa el formato de copia **Markdown** en **Configuración > Editor > Comportamiento** para poner la sintaxis Markdown en `text/plain` en su lugar — los encabezados conservan su `#`, los enlaces conservan sus URLs, etc. Útil cuando se pega en terminales, editores de código o aplicaciones de chat.
 
 ## Formato CJK
 
@@ -293,10 +335,36 @@ Herramientas de formato de texto chino/japonés/coreano integradas:
 
 ## Historial de Documentos
 
-- Guardado automático con intervalo configurable
-- Ver y restaurar versiones anteriores
-- Formato de almacenamiento JSONL
-- Historial por documento
+VMark guarda automáticamente instantáneas de tus documentos para que puedas recuperar versiones anteriores.
+
+- **Guardado automático** con intervalo configurable captura instantáneas en segundo plano
+- **Historial por documento** almacenado localmente en formato JSONL
+- Abre la barra lateral de Historial con `Ctrl + Shift + 3` para explorar versiones anteriores
+- Las instantáneas están **agrupadas por día** con marcas de tiempo que muestran la hora exacta de cada versión guardada
+- **Restaura** una versión anterior haciendo clic en el botón de restaurar junto a cualquier instantánea (un diálogo de confirmación previene reversiones accidentales)
+- **Elimina** instantáneas individuales que ya no necesites con el botón de papelera
+- El contenido actual se guarda como nueva instantánea antes de cualquier reversión, así nunca pierdes tu trabajo
+- El historial requiere que el documento esté guardado en un archivo (los documentos sin título no tienen historial)
+- Activa o desactiva el seguimiento de historial en **Configuración > General**
+
+## Recuperación de Sesión (Hot Exit)
+
+Cuando cierras VMark o sale inesperadamente, tu sesión se preserva y restaura en el siguiente inicio.
+
+**Qué se guarda:**
+- Todas las pestañas abiertas y su contenido (incluyendo cambios no guardados)
+- Posiciones del cursor e historial de deshacer/rehacer
+- Disposición de la interfaz: estado de la barra lateral, visibilidad del esquema, modo fuente/enfoque/máquina de escribir, estado del terminal
+- Posición y tamaño de la ventana
+- Espacio de trabajo activo y configuración del explorador de archivos
+
+**Cómo funciona:**
+- Al cerrar, VMark captura el estado completo de la sesión de todas las ventanas
+- Al reiniciar, las pestañas se restauran exactamente como las dejaste, con documentos modificados (no guardados) marcados correspondientemente
+- La recuperación por caída se ejecuta automáticamente tras una salida inesperada, restaurando documentos desde instantáneas de recuperación periódicas
+- Las instantáneas de recuperación con más de 7 días se limpian automáticamente
+
+No se necesita configuración. La recuperación de sesión está siempre activa.
 
 ## Vista y Enfoque
 
@@ -315,6 +383,31 @@ El Modo Enfoque y el Modo Máquina de Escribir pueden habilitarse simultáneamen
 ### Ajuste de Línea (`Alt + Z`)
 
 Alterna el ajuste de línea suave con `Alt + Z`. Cuando está habilitado, las líneas largas se ajustan al ancho del editor en lugar de desplazarse horizontalmente. La configuración persiste entre sesiones.
+
+### Modo Solo Lectura (`F10`)
+
+Bloquea un documento para prevenir ediciones accidentales. Alterna con `F10`. Cuando está activo, toda entrada de teclado y comandos de formato se bloquean — puedes seguir desplazándote, seleccionar texto y copiar. Útil para revisar documentos terminados o consultar contenido mientras escribes en otra pestaña.
+
+### Panel de Esquema (`Ctrl + Shift + 1`)
+
+El panel de Esquema muestra la estructura de encabezados de tu documento como un árbol colapsable en la barra lateral. Ábrelo con `Ctrl + Shift + 1`.
+
+- Haz clic en cualquier encabezado para desplazar el editor a esa sección
+- Colapsa y expande grupos de encabezados para enfocarte en partes específicas de tu documento
+- El encabezado actualmente activo se resalta mientras te desplazas o escribes
+- Se actualiza en tiempo real al agregar, eliminar o renombrar encabezados
+
+### Zoom
+
+Ajusta el tamaño de fuente del editor sin abrir Configuración:
+
+| Acción | Atajo |
+|--------|-------|
+| Acercar | `Mod + =` |
+| Alejar | `Mod + -` |
+| Restablecer al valor predeterminado | `Mod + 0` |
+
+El zoom cambia el tamaño de fuente del editor en incrementos de 2px (rango: 12px a 32px). Modifica el mismo valor de tamaño de fuente que se encuentra en **Configuración > Apariencia**, por lo que el zoom por teclado y el deslizador de configuración siempre se mantienen sincronizados.
 
 ## Utilidades de Texto
 

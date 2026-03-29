@@ -113,6 +113,7 @@ Changez rapidement la casse via Format → Transformer :
 - Citations (imbrication prise en charge)
 - Blocs de code avec coloration syntaxique
 - Listes ordonnées, non ordonnées et de tâches
+- Changer le type de liste : convertir un paragraphe en liste à puces, numérotée ou de tâches successivement
 - Règles horizontales
 - Tableaux avec prise en charge d'édition complète
 
@@ -223,7 +224,7 @@ Assistance à l'écriture par IA intégrée propulsée par votre fournisseur pr�
 - 13 génies répartis en quatre catégories — édition, créativité, structure et outils
 - Sélecteur de style Spotlight avec recherche et invites libres (`Mod + Y`)
 - Rendu de suggestion en ligne — acceptez ou refusez avec des raccourcis clavier
-- Prend en charge les fournisseurs CLI (Claude, Codex, Gemini, Ollama) et les API REST
+- Prend en charge les fournisseurs CLI (Claude, Codex, Gemini) et les API REST (Anthropic, OpenAI, Google AI, Ollama)
 
 [En savoir plus →](/fr/guide/ai-genies) | [Configurer les fournisseurs →](/fr/guide/ai-providers)
 
@@ -250,6 +251,47 @@ Ouvrez la barre de recherche avec `Mod + F`. Elle apparaît en ligne en haut de 
 
 Cliquez sur le chevron d'expansion de la barre de recherche pour révéler la ligne de remplacement. Saisissez le texte de remplacement, puis utilisez **Remplacer** (une seule occurrence) ou **Tout remplacer** (chaque occurrence en même temps). Le compteur d'occurrences affiche la position actuelle et le total (par ex. « 3 sur 12 ») pour que vous sachiez toujours où vous en êtes.
 
+## Lint Markdown
+
+VMark intègre un linter Markdown qui vérifie votre document pour détecter les erreurs de syntaxe courantes et les problèmes d'accessibilité. Activez-le dans **Paramètres > Markdown > Lint**.
+
+**Utilisation :**
+
+| Action | Raccourci |
+|--------|----------|
+| Exécuter la vérification lint | `Alt + Mod + V` |
+| Aller au problème suivant | `F2` |
+| Aller au problème précédent | `Shift + F2` |
+
+Lorsque vous lancez une vérification lint, les diagnostics apparaissent sous forme de surlignages en ligne et de marqueurs dans la marge. Si aucun problème n'est trouvé, une notification confirme que le document est propre. Les problèmes sont classés en erreurs ou avertissements.
+
+**Règles vérifiées (13 au total) :**
+
+- Liens de référence non définis
+- Nombre de colonnes de tableau non concordant
+- Syntaxe de lien inversée `(texte)[url]` au lieu de `[texte](url)`
+- Espace manquant après `#` dans les titres
+- Espaces à l'intérieur des marqueurs d'emphase
+- Texte de lien vide ou URL de lien vides
+- Définitions de liens/images en double
+- Définitions de liens/images inutilisées
+- Niveaux de titre qui sautent des niveaux (par ex. H1 à H3)
+- Images sans texte alternatif (accessibilité)
+- Blocs de code clôturés non fermés
+- Liens de fragment brisés (`#ancre` ne correspondant à aucun titre)
+
+Les résultats du lint sont éphémères et effacés lorsque vous modifiez le document. Relancez la vérification à tout moment avec `Alt + Mod + V`.
+
+## Barre d'outils universelle
+
+Une barre d'outils de mise en forme ancrée en bas de l'éditeur, offrant un accès rapide à toutes les actions de mise en forme en mode WYSIWYG et Source.
+
+- **Basculer :** `Mod + Shift + P` ouvre la barre d'outils et lui donne le focus. Appuyez à nouveau pour redonner le focus à l'éditeur tout en gardant la barre visible.
+- **Navigation au clavier :** Utilisez les flèches `Gauche`/`Droite` pour naviguer entre les groupes. `Entrée` ou `Espace` ouvre un menu déroulant. Les flèches naviguent à l'intérieur des menus.
+- **Échappement en deux temps :** Si un menu déroulant est ouvert, `Échap` ferme d'abord le menu. Appuyez à nouveau sur `Échap` pour fermer toute la barre d'outils.
+- **Mémoire de session :** La barre d'outils se souvient du dernier bouton focalisé pendant la session en cours, la refocalisation reprend là où vous en étiez.
+- **Raccourci Génies IA :** La barre d'outils inclut un bouton Génies IA qui ouvre le sélecteur de génies (`Mod + Y`).
+
 ## Options d'exportation
 
 VMark offre des options d'exportation flexibles pour partager vos documents.
@@ -275,7 +317,7 @@ Copiez le contenu mis en forme pour le coller dans d'autres applications (`Cmd/C
 
 ### Format de copie
 
-Par défaut, la copie depuis WYSIWYG place du texte brut (sans mise en forme) dans le presse-papiers. Activez le format de copie **Markdown** dans **Paramètres > Markdown > Coller et saisie** pour placer la syntaxe Markdown dans `text/plain` à la place — les titres gardent leur `#`, les liens gardent leurs URL, etc. Utile lors du collage dans des terminaux, des éditeurs de code ou des applications de messagerie.
+Par défaut, la copie depuis WYSIWYG place du texte brut (sans mise en forme) dans le presse-papiers. Activez le format de copie **Markdown** dans **Paramètres > Éditeur > Comportement** pour placer la syntaxe Markdown dans `text/plain` à la place — les titres gardent leur `#`, les liens gardent leurs URL, etc. Utile lors du collage dans des terminaux, des éditeurs de code ou des applications de messagerie.
 
 ## Mise en forme CJK
 
@@ -293,10 +335,36 @@ Outils de mise en forme de texte chinois/japonais/coréen intégrés :
 
 ## Historique du document
 
-- Sauvegarde automatique avec intervalle configurable
-- Visualisez et restaurez les versions précédentes
-- Format de stockage JSONL
-- Historique par document
+VMark sauvegarde automatiquement des instantanés de vos documents afin que vous puissiez récupérer des versions antérieures.
+
+- **Sauvegarde automatique** avec intervalle configurable capture des instantanés en arrière-plan
+- **Historique par document** stocké localement au format JSONL
+- Ouvrez la barre latérale Historique avec `Ctrl + Shift + 3` pour parcourir les versions passées
+- Les instantanés sont **regroupés par jour** avec des horodatages indiquant l'heure exacte de chaque version sauvegardée
+- **Restaurez** une version précédente en cliquant sur le bouton de restauration à côté de n'importe quel instantané (un dialogue de confirmation empêche les retours accidentels)
+- **Supprimez** les instantanés individuels dont vous n'avez plus besoin avec le bouton corbeille
+- Le contenu actuel est sauvegardé comme nouvel instantané avant toute restauration, vous ne perdez donc jamais votre travail
+- L'historique nécessite que le document soit enregistré dans un fichier (les documents sans titre n'ont pas d'historique)
+- Activez ou désactivez le suivi de l'historique dans **Paramètres > Général**
+
+## Récupération de session (Hot Exit)
+
+Lorsque vous quittez VMark ou qu'il se ferme de manière inattendue, votre session est préservée et restaurée au prochain lancement.
+
+**Ce qui est sauvegardé :**
+- Tous les onglets ouverts et leur contenu (y compris les modifications non enregistrées)
+- Positions du curseur et historique d'annulation/rétablissement
+- Disposition de l'interface : état de la barre latérale, visibilité du plan, mode source/focus/machine à écrire, état du terminal
+- Position et taille de la fenêtre
+- Espace de travail actif et paramètres de l'explorateur de fichiers
+
+**Fonctionnement :**
+- À la fermeture, VMark capture l'état complet de la session de toutes les fenêtres
+- Au relancement, les onglets sont restaurés exactement comme vous les avez laissés, les documents modifiés (non enregistrés) étant marqués en conséquence
+- La récupération après plantage s'exécute automatiquement après une fermeture inattendue, restaurant les documents à partir d'instantanés de récupération périodiques
+- Les instantanés de récupération de plus de 7 jours sont nettoyés automatiquement
+
+Aucune configuration nécessaire. La récupération de session est toujours active.
 
 ## Affichage et focus
 
@@ -315,6 +383,31 @@ Le mode focus et le mode machine à écrire peuvent être activés simultanémen
 ### Retour à la ligne (`Alt + Z`)
 
 Basculez le retour à la ligne automatique avec `Alt + Z`. Quand il est activé, les longues lignes se replient à la largeur de l'éditeur au lieu de défiler horizontalement. Le paramètre persiste entre les sessions.
+
+### Mode lecture seule (`F10`)
+
+Verrouillez un document pour empêcher les modifications accidentelles. Basculez avec `F10`. Lorsqu'il est actif, toute saisie au clavier et les commandes de mise en forme sont bloquées — vous pouvez toujours défiler, sélectionner du texte et copier. Utile pour relire des documents terminés ou consulter du contenu tout en écrivant dans un autre onglet.
+
+### Panneau de plan (`Ctrl + Shift + 1`)
+
+Le panneau de plan affiche la structure des titres de votre document sous forme d'arborescence réductible dans la barre latérale. Ouvrez-le avec `Ctrl + Shift + 1`.
+
+- Cliquez sur n'importe quel titre pour faire défiler l'éditeur jusqu'à cette section
+- Réduisez et développez les groupes de titres pour vous concentrer sur des parties spécifiques de votre document
+- Le titre actuellement actif est mis en évidence lorsque vous défilez ou tapez
+- Mis à jour en temps réel lorsque vous ajoutez, supprimez ou renommez des titres
+
+### Zoom
+
+Ajustez la taille de police de l'éditeur sans ouvrir les Paramètres :
+
+| Action | Raccourci |
+|--------|----------|
+| Zoomer | `Mod + =` |
+| Dézoomer | `Mod + -` |
+| Réinitialiser la taille par défaut | `Mod + 0` |
+
+Le zoom modifie la taille de police de l'éditeur par incréments de 2px (plage : 12px à 32px). Il modifie la même valeur de taille de police que celle dans **Paramètres > Apparence**, de sorte que le zoom au clavier et le curseur des paramètres restent toujours synchronisés.
 
 ## Utilitaires de texte
 

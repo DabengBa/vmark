@@ -155,6 +155,18 @@ Präfixieren Sie eine Interpunktion mit `\`, um die Konvertierung zu verhindern:
 
 ---
 
+## KI-unterstützte Formatierung
+
+Wenn der [MCP-Server](/guide/mcp-setup) verbunden ist, können KI-Assistenten die CJK-Formatierung programmatisch über die Aktion `cjk_format` anwenden.
+
+**Bereichsoptionen:**
+- `"document"` (Standard) — formatiert das gesamte Dokument mit Ihren CJK-Einstellungen
+- `"selection"` — formatiert nur den aktuell ausgewählten Text
+
+Beide Bereiche verwenden einen Serialisieren-Formatieren-Parsen-Roundtrip, um Inline-Markierungen (Fett, Links, Mathematik usw.) zu erhalten und Ihre konfigurierten Formatierungsregeln zu respektieren.
+
+Weitere Informationen zu CJK-bezogenen MCP-Aktionen, einschließlich `cjk_punctuation` und `cjk_spacing`, finden Sie in der [MCP-Tools-Referenz](/guide/mcp-tools).
+
 ## Konfiguration
 
 CJK-Formatierungsoptionen können in Einstellungen → Sprache konfiguriert werden:
