@@ -22,6 +22,7 @@ env:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
       version: ${{ steps.get-version.outputs.version }}
@@ -271,6 +272,7 @@ jobs:
   publish-release:
     needs: [create-release, build-tauri]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Generate and upload latest.json
         env:

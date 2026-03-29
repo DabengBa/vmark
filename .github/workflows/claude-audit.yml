@@ -12,11 +12,15 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
-  id-token: write
+
+concurrency:
+  group: claude-audit
+  cancel-in-progress: true
 
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,9 +30,8 @@ jobs:
         id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          show_full_output: true
 
-          claude_args: "--model opus --allowedTools Bash,Read,Glob,Grep,WebSearch,WebFetch"
+          claude_args: "--model opus --max-turns 25 --allowedTools Bash,Read,Glob,Grep,WebSearch,WebFetch"
 
           prompt: |
             You are a codebase auditor for **VMark** — a Tauri v2 + React 19 + Zustand v5

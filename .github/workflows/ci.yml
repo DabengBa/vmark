@@ -6,8 +6,12 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   frontend:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +38,7 @@ jobs:
       - run: pnpm check:all
 
   rust-test:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
