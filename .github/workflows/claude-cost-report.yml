@@ -17,10 +17,10 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo (for ledger file)
-        uses: actions/checkout@v4
+      - name: Checkout data branch (ledger lives here)
+        uses: actions/checkout@v6
         with:
-          ref: main
+          ref: data
 
       - name: Collect runs and generate report
         env:
@@ -90,12 +90,12 @@ jobs:
           echo "" >> report.md
           echo "**Today: ${TOTAL_RUNS} runs, \$${TOTAL_COST_FMT}**" >> report.md
 
-          # --- Phase 2: Update ledger ---
+          # --- Phase 2: Update ledger and compute cumulative stats ---
 
           LEDGER=".github/cost-reports/ledger.json"
           mkdir -p .github/cost-reports
 
-          python3 - "$LEDGER" "$TODAY" "$TOTAL_RUNS" "$TOTAL_COST" "$TOTAL_INPUT" "$TOTAL_OUTPUT" "$TOTAL_CACHE_CREATE" "$TOTAL_CACHE_READ" <<'PYEOF'
+          STATS=$(python3 - "$LEDGER" "$TODAY" "$TOTAL_RUNS" "$TOTAL_COST" "$TOTAL_INPUT" "$TOTAL_OUTPUT" "$TOTAL_CACHE_CREATE" "$TOTAL_CACHE_READ" <<'PYEOF'
           import json, sys
           ledger_path = sys.argv[1]
           new_entry = {
@@ -112,27 +112,12 @@ jobs:
                   ledger = json.load(f)
           except (FileNotFoundError, json.JSONDecodeError):
               ledger = []
-          # Replace existing entry for same date, or append
           ledger = [e for e in ledger if e["date"] != new_entry["date"]]
           ledger.append(new_entry)
           ledger.sort(key=lambda e: e["date"])
           with open(ledger_path, "w") as f:
               json.dump(ledger, f, indent=2)
               f.write("\n")
-          # Output cumulative stats
-          total_cost = sum(e["cost_usd"] for e in ledger)
-          total_days = len(ledger)
-          recent_7 = ledger[-7:]
-          recent_30 = ledger[-30:]
-          avg_7d = sum(e["cost_usd"] for e in recent_7) / len(recent_7)
-          avg_30d = sum(e["cost_usd"] for e in recent_30) / len(recent_30)
-          print(f"{total_cost:.2f} {total_days} {avg_7d:.2f} {avg_30d:.2f}")
-          PYEOF
-
-          STATS=$(python3 - "$LEDGER" <<'PYEOF'
-          import json, sys
-          with open(sys.argv[1]) as f:
-              ledger = json.load(f)
           total_cost = sum(e["cost_usd"] for e in ledger)
           total_days = len(ledger)
           recent_7 = ledger[-7:]
@@ -176,9 +161,8 @@ jobs:
             echo "CUMULATIVE_COST=$CUMULATIVE_COST"
           } >> "$GITHUB_ENV"
 
-      - name: Commit ledger to repo
+      - name: Commit ledger to data branch
         if: env.SKIP != 'true'
-        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
