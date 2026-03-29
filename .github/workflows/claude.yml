@@ -21,6 +21,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 
 jobs:
   # Auto-fix audit issues: read the issue, apply the fix, run gates, open a PR
