@@ -1,10 +1,8 @@
 name: Update Homebrew Tap
 
 on:
-  release:
-    types: [published]
-
-  # Allow manual trigger
+  # Triggered by release.yml via gh workflow run — not by release event directly
+  # to avoid racing with asset uploads
   workflow_dispatch:
     inputs:
       version:
@@ -17,14 +15,10 @@ jobs:
     steps:
       - name: Get version
         id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            # Remove 'v' prefix from tag
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          fi
+          echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Wait for DMGs to be available
         run: |

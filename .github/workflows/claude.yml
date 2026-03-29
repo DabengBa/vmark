@@ -27,6 +27,7 @@ jobs:
   # Auto-fix audit issues: read the issue, apply the fix, run gates, open a PR
   audit-fix:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     concurrency:
       group: audit-fix-${{ github.event.issue.number }}
       cancel-in-progress: false
@@ -73,6 +74,7 @@ jobs:
   # General Claude Code: review issues, PRs, respond to @claude
   claude:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     concurrency:
       group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
       cancel-in-progress: true
@@ -97,9 +99,11 @@ jobs:
           use_sticky_comment: true
           include_fix_links: true
 
-      - name: Enable auto-merge for PRs
-        if: github.event_name == 'pull_request'
+      - name: Enable auto-merge for bot PRs
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.user.login == 'claude[bot]'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+        run: gh pr merge "$PR_NUMBER" --auto --squash 2>&1 || echo "Auto-merge not available for this PR"
