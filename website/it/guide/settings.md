@@ -104,6 +104,12 @@ Comportamento dell'incolla, layout e impostazioni di rendering HTML.
 | Bordi immagini e diagrammi | Se mostrare un bordo attorno alle immagini, ai diagrammi Mermaid e ai blocchi matematici | Nessuno | Nessuno, Sempre, Al passaggio |
 | Allineamento immagini e tabelle | Allineamento orizzontale per le immagini a blocco e le tabelle | Centro | Centro, Sinistra |
 
+### Lint
+
+| Impostazione | Descrizione | Predefinito | Opzioni |
+|-------------|-------------|-------------|---------|
+| Abilita markdown lint | Controlla problemi markdown comuni (link non funzionanti, testo alt mancante, incrementi intestazioni, blocchi di codice non chiusi, ecc.) | Attivo | Attivo / Off |
+
 ### Rendering HTML
 
 | Impostazione | Descrizione | Predefinito | Opzioni |
@@ -183,7 +189,7 @@ Quando il server è in esecuzione, il pannello mostra anche:
 - **Strumenti / Risorse** — numero di strumenti e risorse MCP disponibili
 - **Client Connessi** — numero di client IA attualmente connessi
 
-Sotto la sezione Server MCP, puoi installare la configurazione MCP di VMark nei client IA supportati (Claude, Cursor, Windsurf, ecc.) con un singolo clic.
+Sotto la sezione Server MCP, puoi installare la configurazione MCP di VMark nei client IA supportati (Claude Desktop, Claude Code, Codex CLI, Gemini CLI) con un singolo clic.
 
 Vedi [Configurazione MCP](/it/guide/mcp-setup) e [Riferimento Strumenti MCP](/it/guide/mcp-tools) per i dettagli completi.
 
@@ -191,7 +197,7 @@ Vedi [Configurazione MCP](/it/guide/mcp-setup) e [Riferimento Strumenti MCP](/it
 
 Configura quale provider IA alimenta i [Genies IA](/it/guide/ai-genies). È attivo un solo provider alla volta.
 
-**Provider CLI** — Usa strumenti CLI IA installati localmente (Claude, Codex, Gemini, Ollama). Fai clic su **Rileva** per cercare i CLI disponibili nel tuo `$PATH`. I provider CLI usano il tuo piano di abbonamento e non richiedono una chiave API.
+**Provider CLI** — Usa strumenti CLI IA installati localmente (Claude, Codex, Gemini). Fai clic su **Rileva** per cercare i CLI disponibili nel tuo `$PATH`. I provider CLI usano il tuo piano di abbonamento e non richiedono una chiave API.
 
 **Provider API REST** — Connettiti direttamente alle API cloud (Anthropic, OpenAI, Google AI, Ollama API). Ognuno richiede un endpoint, una chiave API e il nome del modello.
 

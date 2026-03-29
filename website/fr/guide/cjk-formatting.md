@@ -155,6 +155,18 @@ Préfixez n'importe quelle ponctuation avec `\` pour empêcher la conversion :
 
 ---
 
+## Mise en forme assistée par l'IA
+
+Lorsque le [serveur MCP](/guide/mcp-setup) est connecté, les assistants IA peuvent appliquer la mise en forme CJK de manière programmatique via l'action `cjk_format`.
+
+**Options de portée :**
+- `"document"` (par défaut) — formate l'intégralité du document en utilisant vos paramètres CJK
+- `"selection"` — formate uniquement le texte actuellement sélectionné
+
+Les deux portées utilisent un aller-retour sérialisation-formatage-analyse pour préserver les marques en ligne (gras, liens, maths, etc.) et respecter vos règles de mise en forme configurées.
+
+Consultez la [Référence des outils MCP](/guide/mcp-tools) pour la liste complète des actions MCP liées au CJK, y compris `cjk_punctuation` et `cjk_spacing`.
+
 ## Configuration
 
 Les options de mise en forme CJK peuvent être configurées dans Paramètres → Langue :

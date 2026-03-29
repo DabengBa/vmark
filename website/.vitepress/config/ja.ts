@@ -114,6 +114,10 @@ export const ja = {
               text: "コストと工数の評価",
               link: "/ja/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "プラグインというインフラ",
+              link: "/ja/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

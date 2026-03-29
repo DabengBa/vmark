@@ -115,7 +115,7 @@ Use isso quando quiser acesso no estilo REST a uma instância local do Ollama, o
 |----------|-------------|
 | Já tem o Claude Code instalado | **Claude (CLI)** — zero configuração, usa sua assinatura |
 | Já tem Codex ou Gemini instalado | **Codex / Gemini (CLI)** — usa sua assinatura |
-| Precisa de privacidade / offline | Instale o Ollama → **Ollama (CLI)** |
+| Precisa de privacidade / offline | Instale o Ollama → **Ollama (API)** em `http://localhost:11434` |
 | Modelo personalizado ou auto-hospedado | **Ollama (API)** com seu endpoint |
 | Quer a opção de nuvem mais barata | **Qualquer provedor CLI** — assinatura é dramaticamente mais barata que API |
 | Sem assinatura, uso leve apenas | Defina a variável de ambiente da chave de API → **provedor REST** (pague por token) |

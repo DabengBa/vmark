@@ -131,6 +131,32 @@ Chaque fenêtre VMark peut avoir son propre espace de travail indépendant. Cela
 
 Lorsque vous glissez un fichier markdown depuis le Finder et que la fenêtre actuelle a déjà du travail non enregistré, VMark ouvre automatiquement le projet du fichier dans une nouvelle fenêtre.
 
+### Détacher des onglets dans de nouvelles fenêtres
+
+Vous pouvez extraire un onglet de sa fenêtre pour en créer une nouvelle :
+
+- **Glissez un onglet vers le bas** au-delà de la barre d'onglets (environ 40 px) pour le détacher dans une nouvelle fenêtre à la position du curseur
+- **Glissez un onglet horizontalement** dans la barre d'onglets pour le réordonner parmi les autres onglets
+- Les onglets épinglés ne peuvent pas être glissés
+
+Le geste est verrouillé par direction : le mouvement horizontal lance un réordonnancement, tandis que le mouvement vertical déclenche un détachement. Vous pouvez passer du réordonnancement au détachement en cours de glissement en déplaçant le pointeur en dehors de la barre d'onglets.
+
+## Modifications externes
+
+VMark surveille votre espace de travail pour les modifications effectuées par d'autres programmes (Git, éditeurs externes, outils de build, etc.) et maintient les documents ouverts synchronisés.
+
+- **Les fichiers non modifiés** sont rechargés automatiquement lorsque leur contenu change sur le disque. Une brève notification toast confirme le rechargement.
+- **Les fichiers avec des modifications non enregistrées** déclenchent une boîte de dialogue avec trois options : **Enregistrer sous** (enregistrer votre version à un nouvel emplacement), **Recharger** (abandonner vos modifications et charger depuis le disque) ou **Conserver** (préserver vos modifications et marquer le fichier comme divergent).
+- **Les fichiers supprimés** sont marqués comme manquants dans leur onglet mais ne sont pas fermés — vous pouvez toujours enregistrer le contenu à un nouvel emplacement.
+- Lorsque plusieurs fichiers modifiés changent en même temps (par exemple après un `git checkout`), VMark les regroupe dans une seule boîte de dialogue pour que vous puissiez tout recharger, tout conserver ou examiner chaque fichier individuellement.
+- Si le contenu sur disque d'un fichier divergent correspond par la suite à ce que vous avez dans l'éditeur (par exemple un `git checkout` restaure le même texte), VMark efface automatiquement l'état divergent pour que la sauvegarde automatique reprenne.
+
+VMark filtre ses propres sauvegardes pour que vous ne soyez jamais sollicité par des modifications que vous avez faites dans l'application.
+
+## Documents récents du Dock macOS
+
+Les documents que vous ouvrez dans VMark sont enregistrés auprès de macOS, ils apparaissent donc dans le sous-menu **Ouvrir les éléments récents** lorsque vous faites un clic droit sur l'icône VMark dans le Dock.
+
 ## Intégration du terminal
 
 Le terminal intégré utilise automatiquement la racine de l'espace de travail comme répertoire de travail. Lorsque vous ouvrez ou changez d'espace de travail, toutes les sessions du terminal effectuent `cd` vers la nouvelle racine.
@@ -138,3 +164,30 @@ Le terminal intégré utilise automatiquement la racine de l'espace de travail c
 La variable d'environnement `VMARK_WORKSPACE` est définie sur le chemin de l'espace de travail dans chaque session de terminal, de sorte que vos scripts peuvent référencer la racine du projet.
 
 [En savoir plus sur le terminal →](/fr/guide/terminal)
+
+## Commande CLI Shell
+
+VMark peut installer une commande shell `vmark` pour que vous puissiez ouvrir des fichiers et des dossiers depuis le terminal.
+
+### Installation
+
+Allez dans **Aide > Installer la commande 'vmark'**. VMark écrit un petit script lanceur dans `/usr/local/bin/vmark` et demande votre mot de passe administrateur (la même approche que VS Code utilise pour sa commande `code`).
+
+### Utilisation
+
+```bash
+# Ouvrir un fichier
+vmark README.md
+
+# Ouvrir un dossier comme espace de travail
+vmark ~/projects/my-blog
+
+# Ouvrir plusieurs fichiers
+vmark chapter1.md chapter2.md
+```
+
+La commande délègue à `open -b app.vmark`, donc macOS gère le comportement d'instance unique — les fichiers s'ouvrent dans votre fenêtre VMark existante au lieu de lancer un nouveau processus.
+
+### Désinstallation
+
+Allez dans **Aide > Désinstaller la commande 'vmark'** pour supprimer `/usr/local/bin/vmark`. Si le fichier à ce chemin n'a pas été installé par VMark, l'opération est bloquée et vous êtes invité à le supprimer manuellement.

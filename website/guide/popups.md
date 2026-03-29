@@ -92,6 +92,22 @@ A unified popup for editing all media types — images, video, and audio.
 
 In Source mode, clicking on image syntax `![alt](path)` opens the same media popup. Media files (video/audio extensions) show a floating preview with native playback controls on hover.
 
+## Image Context Menu
+
+Right-clicking on an image in WYSIWYG mode opens a context menu with quick actions (separate from the double-click edit popup).
+
+**Trigger:** Right-click on any image
+
+**Actions:**
+| Action | Description |
+|--------|-------------|
+| Change Image | Open a file picker to replace the image |
+| Delete Image | Remove the image from the document |
+| Copy Path | Copy the image source path to clipboard |
+| Reveal in Finder | Open the image file location in your file manager (label adapts per platform) |
+
+Press `Escape` to dismiss the context menu without taking action.
+
 ## Math Popup
 
 Edit LaTeX math expressions with live preview.

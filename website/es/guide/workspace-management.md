@@ -131,6 +131,32 @@ Cada ventana de VMark puede tener su propio espacio de trabajo independiente. Es
 
 Cuando arrastras un archivo markdown desde el Finder y la ventana actual ya tiene trabajo sin guardar, VMark abre el proyecto del archivo en una nueva ventana automáticamente.
 
+### Separar Pestañas en Nuevas Ventanas
+
+Puedes sacar una pestaña de su ventana para crear una nueva:
+
+- **Arrastra una pestaña hacia abajo** más allá de la barra de pestañas (unos 40 px) para separarla en una nueva ventana en la posición del cursor
+- **Arrastra una pestaña horizontalmente** dentro de la barra de pestañas para reordenarla entre otras pestañas
+- Las pestañas fijadas no se pueden arrastrar
+
+El gesto está bloqueado por dirección: el movimiento horizontal inicia un reordenamiento, mientras que el movimiento vertical activa una separación. Puedes cambiar de reordenamiento a separación a mitad del arrastre moviendo el puntero fuera de la barra de pestañas.
+
+## Cambios Externos
+
+VMark monitorea tu espacio de trabajo en busca de cambios realizados por otros programas (Git, editores externos, herramientas de compilación, etc.) y mantiene los documentos abiertos sincronizados.
+
+- **Los archivos sin modificar** se recargan automáticamente cuando su contenido cambia en disco. Una breve notificación toast confirma la recarga.
+- **Los archivos con cambios sin guardar** activan un cuadro de diálogo con tres opciones: **Guardar como** (guardar tu versión en una nueva ubicación), **Recargar** (descartar tus cambios y cargar desde disco) o **Mantener** (preservar tus ediciones y marcar el archivo como divergente).
+- **Los archivos eliminados** se marcan como faltantes en su pestaña pero no se cierran — puedes guardar el contenido en una nueva ubicación.
+- Cuando múltiples archivos modificados cambian a la vez (por ejemplo, después de un `git checkout`), VMark los agrupa en un único diálogo para que puedas recargar todos, mantener todos o revisar cada archivo individualmente.
+- Si el contenido en disco de un archivo divergente luego coincide con lo que tienes en el editor (por ejemplo, un `git checkout` restaura el mismo texto), VMark limpia automáticamente el estado divergente para que el autoguardado normal se reanude.
+
+VMark filtra sus propios guardados para que nunca se te solicite por cambios que hiciste dentro de la aplicación.
+
+## Documentos Recientes del Dock de macOS
+
+Los documentos que abres en VMark se registran con macOS, así que aparecen en el submenú **Abrir recientes** cuando haces clic derecho en el icono de VMark en el Dock.
+
 ## Integración con el Terminal
 
 El terminal integrado usa automáticamente la raíz del espacio de trabajo como su directorio de trabajo. Cuando abres o cambias de espacio de trabajo, todas las sesiones del terminal ejecutan `cd` a la nueva raíz.
@@ -138,3 +164,30 @@ El terminal integrado usa automáticamente la raíz del espacio de trabajo como 
 La variable de entorno `VMARK_WORKSPACE` se establece con la ruta del espacio de trabajo en cada sesión del terminal, para que tus scripts puedan referenciar la raíz del proyecto.
 
 [Más información sobre el terminal →](/es/guide/terminal)
+
+## Comando CLI de Shell
+
+VMark puede instalar un comando de shell `vmark` para que puedas abrir archivos y carpetas desde el terminal.
+
+### Instalación
+
+Ve a **Ayuda > Instalar comando 'vmark'**. VMark escribe un pequeño script lanzador en `/usr/local/bin/vmark` y pide tu contraseña de administrador (el mismo enfoque que usa VS Code para su comando `code`).
+
+### Uso
+
+```bash
+# Abrir un archivo
+vmark README.md
+
+# Abrir una carpeta como espacio de trabajo
+vmark ~/projects/my-blog
+
+# Abrir múltiples archivos
+vmark chapter1.md chapter2.md
+```
+
+El comando delega a `open -b app.vmark`, así que macOS maneja el comportamiento de instancia única — los archivos se abren en tu ventana existente de VMark en lugar de iniciar un nuevo proceso.
+
+### Desinstalación
+
+Ve a **Ayuda > Desinstalar comando 'vmark'** para eliminar `/usr/local/bin/vmark`. Si el archivo en esa ruta no fue instalado por VMark, la operación se bloquea y se te pide que lo elimines manualmente.

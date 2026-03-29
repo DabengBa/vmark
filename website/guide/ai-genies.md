@@ -126,9 +126,9 @@ Genies are stored in your application data directory:
 
 | Platform | Path |
 |----------|------|
-| macOS | `~/Library/Application Support/com.vmark.app/genies/` |
-| Windows | `%APPDATA%\com.vmark.app\genies\` |
-| Linux | `~/.local/share/com.vmark.app/genies/` |
+| macOS | `~/Library/Application Support/app.vmark/genies/` |
+| Windows | `%APPDATA%\app.vmark\genies\` |
+| Linux | `~/.local/share/app.vmark/genies/` |
 
 Open this folder from menu **Tools > Open Genies Folder**.
 

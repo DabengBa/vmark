@@ -76,6 +76,8 @@ If you prefer keeping system functions on F-keys, you can customize VMark shortc
 | Bullet List | `Alt + Mod + U` |
 | Ordered List | `Alt + Mod + O` |
 | Task List | `Alt + Mod + X` |
+| Toggle Task Checkbox | `Mod + Shift + Enter` |
+| Cycle List Type | _(customizable)_ |
 | Indent | `Mod + ]` |
 | Outdent | `Mod + [` |
 | Horizontal Line | `Alt + Mod + -` |
@@ -117,8 +119,8 @@ If you prefer keeping system functions on F-keys, you can customize VMark shortc
 | Insert Important | `Alt + Mod + Shift + I` |
 | Insert Caution | `Mod + Shift + U` |
 | Insert Collapsible | `Alt + Mod + D` |
-| Insert Diagram | `Alt + Shift + Mod + D` |
-| Insert Mindmap | `Alt + Shift + Mod + K` |
+| Insert Diagram | `Alt + Mod + Shift + D` |
+| Insert Mindmap | `Alt + Mod + Shift + K` |
 | Toggle Comment | `Mod + /` |
 
 ## Selection & Multi-Cursor
@@ -160,7 +162,7 @@ If you prefer keeping system functions on F-keys, you can customize VMark shortc
 | Toggle Outline | `Ctrl + Shift + 1` |
 | Toggle File Explorer | `Ctrl + Shift + 2` |
 | Toggle History | `Ctrl + Shift + 3` |
-| Toggle Line Numbers | `Alt + Mod + L` |
+| Toggle Line Numbers (code blocks) | `Alt + Mod + L` |
 | Toggle Terminal | Ctrl + `` ` `` |
 | Toggle Diagram Preview | `Alt + Mod + P` |
 | Fit Tables to Width | _(customizable)_ |

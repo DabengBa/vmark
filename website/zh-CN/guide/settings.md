@@ -104,6 +104,12 @@ VMark 的设置面板让你可以自定义编辑器的方方面面。使用 `Mod
 | 图片和图表边框 | 是否在图片、Mermaid 图表和数学块周围显示边框 | 无 | 无、始终、悬停时 |
 | 图片和表格对齐 | 块图片和表格的水平对齐方式 | 居中 | 居中、左对齐 |
 
+### Lint
+
+| 设置 | 描述 | 默认值 | 选项 |
+|------|------|--------|------|
+| 启用 Markdown 检查 | 检查常见 Markdown 问题（损坏的链接、缺少 alt 文本、标题层级跳跃、未关闭的代码围栏等） | 开启 | 开启/关闭 |
+
 ### HTML 渲染
 
 | 设置 | 描述 | 默认值 | 选项 |
@@ -183,7 +189,7 @@ MCP（模型上下文协议）服务器允许外部 AI 助手（如 Claude Code 
 - **工具/资源** —— 可用的 MCP 工具和资源数量
 - **已连接的客户端** —— 当前连接的 AI 客户端数量
 
-在 MCP 服务器部分下方，你可以一键将 VMark 的 MCP 配置安装到支持的 AI 客户端（Claude、Cursor、Windsurf 等）。
+在 MCP 服务器部分下方，你可以一键将 VMark 的 MCP 配置安装到支持的 AI 客户端（Claude Desktop、Claude Code、Codex CLI、Gemini CLI）。
 
 完整详情请参阅 [MCP 设置](/zh-CN/guide/mcp-setup) 和 [MCP 工具参考](/zh-CN/guide/mcp-tools)。
 
@@ -191,7 +197,7 @@ MCP（模型上下文协议）服务器允许外部 AI 助手（如 Claude Code 
 
 配置驱动 [AI 精灵](/zh-CN/guide/ai-genies)的 AI 提供商。同一时间只能激活一个提供商。
 
-**CLI 提供商** —— 使用本地安装的 AI CLI 工具（Claude、Codex、Gemini、Ollama）。点击 **检测** 扫描 `$PATH` 中可用的 CLI。CLI 提供商使用你的订阅计划，无需 API 密钥。
+**CLI 提供商** —— 使用本地安装的 AI CLI 工具（Claude、Codex、Gemini）。点击 **检测** 扫描 `$PATH` 中可用的 CLI。CLI 提供商使用你的订阅计划，无需 API 密钥。
 
 **REST API 提供商** —— 直接连接云端 API（Anthropic、OpenAI、Google AI、Ollama API）。每个都需要端点、API 密钥和模型名称。
 

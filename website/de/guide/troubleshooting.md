@@ -61,3 +61,51 @@ Wenn die Menüleiste nach dem Sprachwechsel in den Einstellungen weiterhin Engli
 ### Terminal akzeptiert keine CJK-Satzzeichen
 
 Behoben ab v0.6.5+. Aktualisiere auf die neueste Version.
+
+### MCP-Server-Verbindungsprobleme
+
+Der MCP-Server startet möglicherweise nicht oder Clients können sich nicht verbinden.
+
+- Stelle sicher, dass VMark ausgeführt wird — der MCP-Server startet nur, wenn die App geöffnet ist.
+- Überprüfe, ob kein anderer Prozess denselben Port verwendet. Der MCP-Server schreibt eine Port-Datei zur Client-Erkennung; veraltete Port-Dateien aus einer vorherigen Sitzung können Konflikte verursachen. Starte VMark neu, um sie zu regenerieren.
+- Überprüfe die Protokolldatei auf `[MCP Bridge]`-Einträge, um Verbindungsfehler zu identifizieren.
+
+### Tastenkürzel funktioniert nicht
+
+Ein Tastenkürzel reagiert möglicherweise nicht, wenn es mit einer anderen Belegung in Konflikt steht oder angepasst wurde.
+
+- Öffne Einstellungen (`Mod + ,`) und navigiere zum Tab **Tastenkürzel**, um zu prüfen, ob das Kürzel neu zugewiesen wurde.
+- Suche nach doppelten Belegungen — wenn zwei Aktionen dieselbe Tastenkombination teilen, wird nur eine ausgeführt.
+- Unter macOS können einige Tastenkürzel mit Systemeinstellungen in Konflikt stehen (z. B. Mission Control, Spotlight). Prüfe **Systemeinstellungen > Tastatur > Tastaturkurzbefehle**.
+
+### Export-/Druckprobleme
+
+Der PDF-Export kann hängen bleiben oder unvollständige Ausgabe erzeugen.
+
+- Wenn Bilder im Export fehlen, überprüfe, ob Bildpfade relativ zum Dokument sind und die Dateien auf der Festplatte existieren. Absolute URLs und Remote-Bilder sollten erreichbar sein.
+- Überprüfe die Dateiberechtigungen im Ausgabeverzeichnis — VMark benötigt Schreibzugriff, um die exportierte Datei zu speichern.
+- Bei großen Dokumenten kann der Export länger dauern. Überprüfe die Protokolldatei auf `[Export]`-Einträge, wenn er hängen zu bleiben scheint.
+
+### Datei lässt sich nicht öffnen
+
+VMark kann eine Datei möglicherweise nicht öffnen oder zeigt verstümmelten Inhalt.
+
+- Überprüfe, ob die Datei Leseberechtigungen für dein Benutzerkonto hat.
+- VMark erwartet UTF-8-kodiertes Markdown. Dateien in anderen Kodierungen (z. B. GB2312, Shift-JIS) werden möglicherweise nicht korrekt angezeigt — konvertiere sie zuerst in UTF-8.
+- Wenn die Datei von einem anderen Prozess gesperrt ist (z. B. ein Sync-Client oder Backup-Tool), schließe diesen Prozess und versuche es erneut.
+
+### Editor-Leistung
+
+Der Editor kann bei sehr großen Dateien oder vielen geöffneten Tabs langsam werden.
+
+- Schließe unbenutzte Tabs, um Speicher freizugeben — jeder geöffnete Tab pflegt seinen eigenen Editor-Zustand.
+- Sehr große Dokumente (über 10.000 Zeilen) können Eingabeverzögerungen verursachen. Erwäge, sie in kleinere Dateien aufzuteilen.
+- Deaktiviere den Fokusmodus und den Schreibmaschinen-Modus, wenn sie nicht benötigt werden, da sie zusätzlichen Render-Overhead verursachen.
+
+### KI-Genie reagiert nicht
+
+KI-Genies benötigen einen konfigurierten KI-Anbieter, um zu funktionieren.
+
+- Öffne Einstellungen und überprüfe, ob ein KI-Anbieter (z. B. Ollama, OpenAI, Anthropic) mit einem gültigen Modellnamen konfiguriert ist.
+- Die Anbieter-CLI muss in deinem PATH verfügbar sein. Unter macOS haben GUI-Apps einen minimalen PATH — wenn die CLI über Homebrew installiert wurde, stelle sicher, dass dein Shell-Profil den richtigen Pfad exportiert.
+- Überprüfe den Modellnamen auf Tippfehler. Ein falscher Modellname schlägt stillschweigend fehl oder gibt einen Fehler zurück.

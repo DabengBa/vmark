@@ -113,6 +113,7 @@ Altere rapidamente o caso do texto via Formatar → Transformar:
 - Citações (aninhamento suportado)
 - Blocos de código com realce de sintaxe
 - Listas ordenadas, não ordenadas e de tarefas
+- Ciclar tipo de lista: converte um parágrafo em lista com marcadores, numerada ou de tarefas em sequência
 - Linhas horizontais
 - Tabelas com suporte completo de edição
 
@@ -223,7 +224,7 @@ Assistência de escrita com IA integrada com base no seu provedor escolhido:
 - 13 gênios em quatro categorias — edição, criativo, estrutura e ferramentas
 - Seletor no estilo Spotlight com pesquisa e prompts livres (`Mod + Y`)
 - Renderização de sugestão inline — aceitar ou rejeitar com atalhos de teclado
-- Suporta provedores CLI (Claude, Codex, Gemini, Ollama) e APIs REST
+- Suporta provedores CLI (Claude, Codex, Gemini) e APIs REST (Anthropic, OpenAI, Google AI, Ollama)
 
 [Saiba mais →](/pt-BR/guide/ai-genies) | [Configurar provedores →](/pt-BR/guide/ai-providers)
 
@@ -250,6 +251,47 @@ Abra a barra de pesquisa com `Mod + F`. Ela aparece inline na parte superior da 
 
 Clique no chevron de expansão na barra de pesquisa para revelar a linha de substituição. Digite o texto de substituição, então use **Substituir** (única correspondência) ou **Substituir Tudo** (todas as correspondências de uma vez). O contador de correspondências exibe a posição atual e o total (por exemplo, "3 de 12") para que você sempre saiba onde está.
 
+## Lint de Markdown
+
+O VMark inclui um linter de Markdown integrado que verifica seu documento em busca de erros de sintaxe comuns e problemas de acessibilidade. Habilite em **Configurações > Markdown > Lint**.
+
+**Como usar:**
+
+| Ação | Atalho |
+|------|--------|
+| Executar verificação lint | `Alt + Mod + V` |
+| Ir para o próximo problema | `F2` |
+| Ir para o problema anterior | `Shift + F2` |
+
+Ao executar uma verificação lint, diagnósticos aparecem como destaques inline e marcadores na margem. Se nenhum problema for encontrado, uma notificação confirma que o documento está limpo. Problemas são classificados como erros ou avisos.
+
+**Regras verificadas (13 no total):**
+
+- Links de referência não definidos
+- Contagem de colunas de tabela não correspondente
+- Sintaxe de link invertida `(texto)[url]` em vez de `[texto](url)`
+- Espaço faltando após `#` em títulos
+- Espaços dentro de marcadores de ênfase
+- Texto de link vazio ou URLs de link vazias
+- Definições de link/imagem duplicadas
+- Definições de link/imagem não utilizadas
+- Incrementos de nível de título que pulam níveis (ex.: H1 para H3)
+- Imagens sem texto alternativo (acessibilidade)
+- Blocos de código delimitados não fechados
+- Links de fragmento quebrados (`#ancora` que não corresponde a nenhum título)
+
+Os resultados do lint são efêmeros e limpos quando você edita o documento. Execute a verificação novamente a qualquer momento com `Alt + Mod + V`.
+
+## Barra de Ferramentas Universal
+
+Uma barra de ferramentas de formatação ancorada na parte inferior do editor, fornecendo acesso rápido a todas as ações de formatação nos modos WYSIWYG e Fonte.
+
+- **Alternar:** `Mod + Shift + P` abre a barra de ferramentas e dá foco a ela. Pressione novamente para retornar o foco ao editor mantendo a barra visível.
+- **Navegação por teclado:** Use as setas `Esquerda`/`Direita` para mover entre grupos. `Enter` ou `Espaço` abre um menu suspenso. As setas navegam dentro dos menus.
+- **Escape em dois passos:** Se um menu suspenso estiver aberto, `Escape` fecha primeiro o menu. Pressione `Escape` novamente para fechar toda a barra de ferramentas.
+- **Memória de sessão:** A barra de ferramentas lembra qual botão estava focado por último durante a sessão atual, então ao re-focar continua de onde parou.
+- **Atalho dos Gênios de IA:** A barra de ferramentas inclui um botão de Gênios de IA que abre o seletor de gênios (`Mod + Y`).
+
 ## Opções de Exportação
 
 O VMark oferece opções flexíveis de exportação para compartilhar seus documentos.
@@ -275,7 +317,7 @@ Copiar conteúdo formatado para colar em outros aplicativos (`Cmd/Ctrl + Shift +
 
 ### Formato de Cópia
 
-Por padrão, copiar do WYSIWYG coloca texto simples (sem formatação) na área de transferência. Habilite o formato de cópia **Markdown** em **Configurações > Markdown > Colar e Entrada** para colocar sintaxe Markdown em `text/plain` em vez disso — títulos mantêm seus `#`, links mantêm seus URLs, etc. Útil ao colar em terminais, editores de código ou aplicativos de chat.
+Por padrão, copiar do WYSIWYG coloca texto simples (sem formatação) na área de transferência. Habilite o formato de cópia **Markdown** em **Configurações > Editor > Comportamento** para colocar sintaxe Markdown em `text/plain` em vez disso — títulos mantêm seus `#`, links mantêm seus URLs, etc. Útil ao colar em terminais, editores de código ou aplicativos de chat.
 
 ## Formatação CJK
 
@@ -293,10 +335,36 @@ Ferramentas de formatação de texto em Chinês/Japonês/Coreano integradas:
 
 ## Histórico de Documentos
 
-- Salvamento automático com intervalo configurável
-- Visualizar e restaurar versões anteriores
-- Formato de armazenamento JSONL
-- Histórico por documento
+O VMark salva automaticamente snapshots dos seus documentos para que você possa recuperar versões anteriores.
+
+- **Salvamento automático** com intervalo configurável captura snapshots em segundo plano
+- **Histórico por documento** armazenado localmente em formato JSONL
+- Abra a barra lateral de Histórico com `Ctrl + Shift + 3` para navegar por versões anteriores
+- Os snapshots são **agrupados por dia** com carimbos de data/hora mostrando o momento exato de cada versão salva
+- **Restaure** uma versão anterior clicando no botão de restaurar ao lado de qualquer snapshot (um diálogo de confirmação previne reversões acidentais)
+- **Exclua** snapshots individuais que você não precisa mais com o botão de lixeira
+- O conteúdo atual é salvo como novo snapshot antes de qualquer reversão, então você nunca perde seu trabalho
+- O histórico requer que o documento esteja salvo em um arquivo (documentos sem título não têm histórico)
+- Ative ou desative o rastreamento de histórico em **Configurações > Geral**
+
+## Recuperação de Sessão (Hot Exit)
+
+Quando você sai do VMark ou ele fecha inesperadamente, sua sessão é preservada e restaurada no próximo lançamento.
+
+**O que é salvo:**
+- Todas as abas abertas e seu conteúdo (incluindo alterações não salvas)
+- Posições do cursor e histórico de desfazer/refazer
+- Layout da interface: estado da barra lateral, visibilidade do esquema, modo fonte/foco/máquina de escrever, estado do terminal
+- Posição e tamanho da janela
+- Área de trabalho ativa e configurações do explorador de arquivos
+
+**Como funciona:**
+- Ao sair, o VMark captura o estado completo da sessão de todas as janelas
+- Ao relançar, as abas são restauradas exatamente como você as deixou, com documentos modificados (não salvos) marcados adequadamente
+- A recuperação de falhas é executada automaticamente após uma saída inesperada, restaurando documentos a partir de snapshots de recuperação periódicos
+- Snapshots de recuperação com mais de 7 dias são limpos automaticamente
+
+Nenhuma configuração necessária. A recuperação de sessão está sempre ativa.
 
 ## Visualização e Foco
 
@@ -315,6 +383,31 @@ O Modo Foco e o Modo Máquina de Escrever podem ser habilitados simultaneamente.
 ### Quebra de Linha (`Alt + Z`)
 
 Alterne a quebra de linha suave com `Alt + Z`. Quando habilitado, linhas longas são quebradas na largura do editor em vez de rolar horizontalmente. A configuração persiste entre sessões.
+
+### Modo Somente Leitura (`F10`)
+
+Bloqueie um documento para evitar edições acidentais. Alterne com `F10`. Quando ativo, toda entrada de teclado e comandos de formatação são bloqueados — você ainda pode rolar, selecionar texto e copiar. Útil para revisar documentos finalizados ou consultar conteúdo enquanto escreve em outra aba.
+
+### Painel de Esquema (`Ctrl + Shift + 1`)
+
+O painel de Esquema exibe a estrutura de títulos do seu documento como uma árvore recolhível na barra lateral. Abra com `Ctrl + Shift + 1`.
+
+- Clique em qualquer título para rolar o editor até aquela seção
+- Recolha e expanda grupos de títulos para focar em partes específicas do documento
+- O título atualmente ativo é destacado conforme você rola ou digita
+- Atualiza em tempo real ao adicionar, remover ou renomear títulos
+
+### Zoom
+
+Ajuste o tamanho da fonte do editor sem abrir as Configurações:
+
+| Ação | Atalho |
+|------|--------|
+| Aumentar zoom | `Mod + =` |
+| Diminuir zoom | `Mod + -` |
+| Redefinir para o padrão | `Mod + 0` |
+
+O zoom altera o tamanho da fonte do editor em incrementos de 2px (faixa: 12px a 32px). Modifica o mesmo valor de tamanho de fonte encontrado em **Configurações > Aparência**, então o zoom por teclado e o controle deslizante das configurações permanecem sempre sincronizados.
 
 ## Utilitários de Texto
 

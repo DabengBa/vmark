@@ -60,6 +60,26 @@ Use iframes do YouTube com privacidade aprimorada:
 <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
 ```
 
+### Embeds do Vimeo
+
+Use iframes do player Vimeo:
+
+```html
+<iframe src="https://player.vimeo.com/video/VIDEO_ID" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+```
+
+Você também pode colar uma URL do Vimeo diretamente (por exemplo, `https://vimeo.com/123456789`) e o VMark a converterá automaticamente em um embed.
+
+### Embeds do Bilibili
+
+Use o iframe do player Bilibili com um BV ID:
+
+```html
+<iframe src="https://player.bilibili.com/player.html?bvid=BV1xxxxxxxxx" width="560" height="350" frameborder="0" allowfullscreen></iframe>
+```
+
+Cole uma URL de vídeo do Bilibili (por exemplo, `https://bilibili.com/video/BV1xxxxxxxxx`) e o VMark a converterá em um embed automaticamente. Observe que URLs curtas (`b23.tv`) não são suportadas, pois requerem resolução de redirecionamento.
+
 ### Fallback de Sintaxe de Imagem
 
 Você também pode usar a sintaxe de imagem com extensões de arquivo de mídia — o VMark as promove automaticamente para o tipo de mídia correto:
@@ -78,6 +98,7 @@ Use o menu Inserir na barra de ferramentas:
 - **Vídeo** — abre um seletor de arquivo para arquivos de vídeo, copia para `.assets/`, insere uma tag `<video>`
 - **Áudio** — abre um seletor de arquivo para arquivos de áudio, copia para `.assets/`, insere uma tag `<audio>`
 - **YouTube** — lê uma URL do YouTube da área de transferência e insere um embed com privacidade aprimorada
+- **Vimeo** e **Bilibili** — cole uma URL de vídeo diretamente no editor e o VMark detecta automaticamente o provedor
 
 ### Arrastar e Soltar
 
@@ -93,6 +114,8 @@ No modo Fonte, digite as tags HTML diretamente. As tags de mídia são destacada
 - **Vídeo** — borda verde-azulada
 - **Áudio** — borda índigo
 - **YouTube** — borda vermelha
+- **Vimeo** — borda azul
+- **Bilibili** — borda rosa
 
 ## Editando Mídia
 
@@ -120,5 +143,5 @@ Caminhos relativos são recomendados — eles mantêm seus documentos portáteis
 ## Segurança
 
 - Caminhos relativos são validados contra ataques de travessia de diretório
-- Iframes do YouTube são restritos aos domínios `youtube.com` e `youtube-nocookie.com`
+- Iframes de embeds de vídeo são restritos aos domínios permitidos: `youtube.com`, `youtube-nocookie.com`, `player.vimeo.com` e `player.bilibili.com`
 - Outras fontes de iframe são removidas pelo sanitizador

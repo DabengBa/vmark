@@ -9,14 +9,14 @@ VMark est conçu pour les flux de travail axés sur le clavier. La plupart des r
 
 ## Touches de fonction sur macOS
 
-VMark utilise les touches de fonction (F4–F9) pour des basculements de mode rapides. Sur macOS, ces touches sont mappées aux fonctions système (luminosité, volume, etc.) par défaut.
+VMark utilise les touches de fonction (F4–F10) pour des basculements de mode rapides. Sur macOS, ces touches sont mappées aux fonctions système (luminosité, volume, etc.) par défaut.
 
 **Pour utiliser les touches F directement sans maintenir Fn :**
 
 1. Ouvrez **Préférences Système** → **Clavier**
 2. Activez **« Utiliser les touches F1, F2, etc. comme touches de fonction standard »**
 
-Vous pouvez également maintenir la touche **Fn** enfoncée en appuyant sur F4–F9 pour déclencher les raccourcis VMark.
+Vous pouvez également maintenir la touche **Fn** enfoncée en appuyant sur F4–F10 pour déclencher les raccourcis VMark.
 
 ::: tip
 Si vous préférez conserver les fonctions système sur les touches F, vous pouvez personnaliser les raccourcis VMark dans les Paramètres (`Mod + ,`) pour utiliser des combinaisons de touches différentes.
@@ -35,6 +35,7 @@ Si vous préférez conserver les fonctions système sur les touches F, vous pouv
 | `F7` | Basculer la barre d'état |
 | `F8` | Mode focus |
 | `F9` | Mode machine à écrire |
+| `F10` | Mode lecture seule |
 
 ## Édition
 
@@ -75,6 +76,8 @@ Si vous préférez conserver les fonctions système sur les touches F, vous pouv
 | Liste à puces | `Alt + Mod + U` |
 | Liste ordonnée | `Alt + Mod + O` |
 | Liste de tâches | `Alt + Mod + X` |
+| Basculer la case à cocher de tâche | `Mod + Shift + Entrée` |
+| Changer le type de liste | _(personnalisable)_ |
 | Indenter | `Mod + ]` |
 | Désindenter | `Mod + [` |
 | Ligne horizontale | `Alt + Mod + -` |
@@ -151,6 +154,7 @@ Si vous préférez conserver les fonctions système sur les touches F, vous pouv
 | Basculer la barre d'état | `F7` |
 | Mode focus | `F8` |
 | Mode machine à écrire | `F9` |
+| Mode lecture seule | `F10` |
 | Taille réelle | `Mod + 0` |
 | Zoom avant | `Mod + =` |
 | Zoom arrière | `Mod + -` |
@@ -158,7 +162,7 @@ Si vous préférez conserver les fonctions système sur les touches F, vous pouv
 | Basculer le plan | `Ctrl + Shift + 1` |
 | Basculer l'explorateur de fichiers | `Ctrl + Shift + 2` |
 | Basculer l'historique | `Ctrl + Shift + 3` |
-| Basculer les numéros de ligne | `Alt + Mod + L` |
+| Basculer les numéros de ligne (blocs de code) | `Alt + Mod + L` |
 | Basculer le terminal | Ctrl + `` ` `` |
 | Basculer l'aperçu du diagramme | `Alt + Mod + P` |
 | Ajuster les tableaux à la largeur | _(personnalisable)_ |

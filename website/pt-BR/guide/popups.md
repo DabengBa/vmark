@@ -92,6 +92,22 @@ Um popup unificado para editar todos os tipos de mídia — imagens, vídeo e á
 
 No modo Fonte, clicar na sintaxe de imagem `![alt](caminho)` abre o mesmo popup de mídia. Arquivos de mídia (extensões de vídeo/áudio) mostram uma prévia flutuante com controles nativos de reprodução ao passar o mouse.
 
+## Menu de Contexto de Imagem
+
+Clicando com o botão direito em uma imagem no modo WYSIWYG abre um menu de contexto com ações rápidas (separado do popup de edição de duplo clique).
+
+**Ativação:** Clique com o botão direito em qualquer imagem
+
+**Ações:**
+| Ação | Descrição |
+|------|-----------|
+| Alterar Imagem | Abrir um seletor de arquivo para substituir a imagem |
+| Excluir Imagem | Remover a imagem do documento |
+| Copiar Caminho | Copiar o caminho da fonte da imagem para a área de transferência |
+| Revelar no Finder | Abrir a localização do arquivo de imagem no gerenciador de arquivos (o rótulo se adapta por plataforma) |
+
+Pressione `Escape` para fechar o menu de contexto sem executar nenhuma ação.
+
 ## Popup de Matemática
 
 Edite expressões LaTeX com prévia ao vivo.

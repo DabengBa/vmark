@@ -155,6 +155,18 @@ Añade `\` antes de cualquier signo de puntuación para evitar la conversión:
 
 ---
 
+## Formateo Asistido por IA
+
+Cuando el [servidor MCP](/guide/mcp-setup) está conectado, los asistentes de IA pueden aplicar el formateo CJK de forma programática a través de la acción `cjk_format`.
+
+**Opciones de alcance:**
+- `"document"` (predeterminado) — formatea el documento completo usando tu configuración CJK
+- `"selection"` — formatea solo el texto seleccionado actualmente
+
+Ambos alcances utilizan un viaje de ida y vuelta de serialización-formato-análisis para preservar las marcas en línea (negrita, enlaces, matemáticas, etc.) y respetar tus reglas de formato configuradas.
+
+Consulta la [Referencia de Herramientas MCP](/guide/mcp-tools) para la lista completa de acciones MCP relacionadas con CJK, incluyendo `cjk_punctuation` y `cjk_spacing`.
+
 ## Configuración
 
 Las opciones de formato CJK se pueden configurar en Configuración → Idioma:

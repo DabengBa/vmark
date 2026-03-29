@@ -113,6 +113,7 @@ Quickly change text case via Format → Transform:
 - Blockquotes (nested supported)
 - Code blocks with syntax highlighting
 - Ordered, unordered, and task lists
+- Cycle list type: convert a paragraph to bullet, ordered, or task list in sequence
 - Horizontal rules
 - Tables with full editing support
 
@@ -223,7 +224,7 @@ Built-in AI writing assistance powered by your choice of provider:
 - 13 genies across four categories — editing, creative, structure, and tools
 - Spotlight-style picker with search and freeform prompts (`Mod + Y`)
 - Inline suggestion rendering — accept or reject with keyboard shortcuts
-- Supports CLI providers (Claude, Codex, Gemini, Ollama) and REST APIs
+- Supports CLI providers (Claude, Codex, Gemini) and REST APIs (Anthropic, OpenAI, Google AI, Ollama)
 
 [Learn more →](/guide/ai-genies) | [Configure providers →](/guide/ai-providers)
 
@@ -250,6 +251,47 @@ Open the find bar with `Mod + F`. It appears inline at the top of the editor are
 
 Click the expand chevron on the find bar to reveal the replace row. Type replacement text, then use **Replace** (single match) or **Replace All** (every match at once). The match counter displays the current position and total (e.g., "3 of 12") so you always know where you are.
 
+## Markdown Lint
+
+VMark includes a built-in markdown linter that checks your document for common syntax mistakes and accessibility issues. Enable it in **Settings > Markdown > Lint**.
+
+**How to use:**
+
+| Action | Shortcut |
+|--------|----------|
+| Run lint check | `Alt + Mod + V` |
+| Jump to next issue | `F2` |
+| Jump to previous issue | `Shift + F2` |
+
+When you run a lint check, diagnostics appear as inline highlights and gutter markers. If no issues are found, a toast notification confirms the document is clean. Issues are classified as errors or warnings.
+
+**Rules checked (13 total):**
+
+- Undefined reference links
+- Mismatched table column counts
+- Reversed link syntax `(text)[url]` instead of `[text](url)`
+- Missing space after `#` in headings
+- Spaces inside emphasis markers
+- Empty link text or empty link URLs
+- Duplicate link/image definitions
+- Unused link/image definitions
+- Heading level increments that skip levels (e.g., H1 to H3)
+- Images without alt text (accessibility)
+- Unclosed fenced code blocks
+- Broken fragment links (`#anchor` not matching any heading)
+
+Lint results are ephemeral and cleared when you edit the document. Re-run the check at any time with `Alt + Mod + V`.
+
+## Universal Toolbar
+
+A formatting toolbar anchored at the bottom of the editor, providing quick access to all formatting actions in both WYSIWYG and Source modes.
+
+- **Toggle:** `Mod + Shift + P` opens the toolbar and gives it focus. Press it again to return focus to the editor while keeping the toolbar visible.
+- **Keyboard navigation:** Use `Left`/`Right` arrows to move between groups. `Enter` or `Space` opens a dropdown menu. Arrow keys navigate within menus.
+- **Two-step Escape:** If a dropdown menu is open, `Escape` closes the menu first. Press `Escape` again to close the entire toolbar.
+- **Session memory:** The toolbar remembers which button was last focused during the current session, so re-focusing picks up where you left off.
+- **AI Genies shortcut:** The toolbar includes an AI Genies button that opens the genie picker (`Mod + Y`).
+
 ## Export Options
 
 VMark offers flexible export options for sharing your documents.
@@ -275,7 +317,7 @@ Copy formatted content for pasting into other apps (`Cmd/Ctrl + Shift + C`).
 
 ### Copy Format
 
-By default, copying from WYSIWYG puts plain text (without formatting) in the clipboard. Enable **Markdown** copy format in **Settings > Markdown > Paste & Input** to put Markdown syntax in `text/plain` instead — headings keep their `#`, links keep their URLs, etc. Useful when pasting into terminals, code editors, or chat apps.
+By default, copying from WYSIWYG puts plain text (without formatting) in the clipboard. Enable **Markdown** copy format in **Settings > Editor > Behavior** to put Markdown syntax in `text/plain` instead — headings keep their `#`, links keep their URLs, etc. Useful when pasting into terminals, code editors, or chat apps.
 
 ## CJK Formatting
 
@@ -293,10 +335,36 @@ Built-in Chinese/Japanese/Korean text formatting:
 
 ## Document History
 
-- Auto-save with configurable interval
-- View and restore previous versions
-- JSONL storage format
-- Per-document history
+VMark automatically saves snapshots of your documents so you can recover earlier versions.
+
+- **Auto-save** with configurable interval captures snapshots in the background
+- **Per-document history** stored locally in JSONL format
+- Open the History sidebar with `Ctrl + Shift + 3` to browse past versions
+- Snapshots are **grouped by day** with timestamps showing the exact time each version was saved
+- **Restore** a previous version by clicking the restore button next to any snapshot (a confirmation dialog prevents accidental reverts)
+- **Delete** individual snapshots you no longer need with the trash button
+- The current content is saved as a new snapshot before any revert, so you never lose your work
+- History requires the document to be saved to a file (untitled documents have no history)
+- Enable or disable history tracking in **Settings > General**
+
+## Session Recovery (Hot Exit)
+
+When you quit VMark or it exits unexpectedly, your session is preserved and restored on the next launch.
+
+**What's saved:**
+- All open tabs and their content (including unsaved changes)
+- Cursor positions and undo/redo history
+- UI layout: sidebar state, outline visibility, source/focus/typewriter mode, terminal state
+- Window position and size
+- Active workspace and file explorer settings
+
+**How it works:**
+- On quit, VMark captures the complete session state from all windows
+- On relaunch, tabs are restored exactly as you left them, with dirty (unsaved) documents marked accordingly
+- Crash recovery runs automatically after an unexpected exit, restoring documents from periodic recovery snapshots
+- Recovery snapshots older than 7 days are cleaned up automatically
+
+No configuration needed. Session recovery is always active.
 
 ## View & Focus
 
@@ -315,6 +383,31 @@ Focus Mode and Typewriter Mode can be enabled simultaneously. Together they prov
 ### Word Wrap (`Alt + Z`)
 
 Toggle soft line wrapping with `Alt + Z`. When enabled, long lines wrap at the editor width instead of scrolling horizontally. The setting persists across sessions.
+
+### Read-Only Mode (`F10`)
+
+Lock a document to prevent accidental edits. Toggle with `F10`. When active, all keyboard input and formatting commands are blocked — you can still scroll, select text, and copy. Useful for reviewing finished documents or referencing content while writing in another tab.
+
+### Outline Panel (`Ctrl + Shift + 1`)
+
+The Outline panel displays your document's heading structure as a collapsible tree in the sidebar. Open it with `Ctrl + Shift + 1`.
+
+- Click any heading to scroll the editor to that section
+- Collapse and expand heading groups to focus on specific parts of your document
+- The currently active heading is highlighted as you scroll or type
+- Updates live as you add, remove, or rename headings
+
+### Zoom
+
+Adjust the editor font size without opening Settings:
+
+| Action | Shortcut |
+|--------|----------|
+| Zoom in | `Mod + =` |
+| Zoom out | `Mod + -` |
+| Reset to default | `Mod + 0` |
+
+Zoom changes the editor font size in 2px increments (range: 12px to 32px). It modifies the same font size value found in **Settings > Appearance**, so keyboard zoom and the settings slider always stay in sync.
 
 ## Text Utilities
 

@@ -155,6 +155,18 @@ Prefix any punctuation with `\` to prevent conversion:
 
 ---
 
+## AI-Assisted Formatting
+
+When the [MCP server](/guide/mcp-setup) is connected, AI assistants can apply CJK formatting programmatically via the `cjk_format` action.
+
+**Scope options:**
+- `"document"` (default) — formats the entire document using your CJK settings
+- `"selection"` — formats only the currently selected text
+
+Both scopes use a serialize-format-parse roundtrip to preserve inline marks (bold, links, math, etc.) and respect your configured formatting rules.
+
+See the [MCP Tools Reference](/guide/mcp-tools) for the full list of CJK-related MCP actions, including `cjk_punctuation` and `cjk_spacing`.
+
 ## Configuration
 
 CJK formatting options can be configured in Settings → Language:

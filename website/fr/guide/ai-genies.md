@@ -126,9 +126,9 @@ Les génies sont stockés dans votre répertoire de données d'application :
 
 | Plateforme | Chemin |
 |------------|--------|
-| macOS | `~/Library/Application Support/com.vmark.app/genies/` |
-| Windows | `%APPDATA%\com.vmark.app\genies\` |
-| Linux | `~/.local/share/com.vmark.app/genies/` |
+| macOS | `~/Library/Application Support/app.vmark/genies/` |
+| Windows | `%APPDATA%\app.vmark\genies\` |
+| Linux | `~/.local/share/app.vmark/genies/` |
 
 Ouvrez ce dossier depuis le menu **Outils > Ouvrir le dossier des génies**.
 

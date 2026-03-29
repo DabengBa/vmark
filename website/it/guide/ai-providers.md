@@ -117,7 +117,7 @@ Usa questo quando vuoi accesso in stile REST a un'istanza Ollama locale, o quand
 |------------|-----------------|
 | Hai già Claude Code installato | **Claude (CLI)** — configurazione zero, usa il tuo abbonamento |
 | Hai già Codex o Gemini installato | **Codex / Gemini (CLI)** — usa il tuo abbonamento |
-| Necessiti di privacy / offline | Installa Ollama → **Ollama (CLI)** |
+| Necessiti di privacy / offline | Installa Ollama → **Ollama (API)** su `http://localhost:11434` |
 | Modello personalizzato o self-hosted | **Ollama (API)** con il tuo endpoint |
 | Vuoi l'opzione cloud più economica | **Qualsiasi provider CLI** — l'abbonamento è molto più economico dell'API |
 | Nessun abbonamento, uso leggero | Imposta la chiave API come variabile d'ambiente → **Provider REST** (paga per token) |

@@ -92,6 +92,22 @@ Une fenêtre contextuelle unifiée pour modifier tous les types de médias — i
 
 En mode Source, cliquer sur la syntaxe d'image `![alt](chemin)` ouvre la même fenêtre contextuelle multimédia. Les fichiers médias (extensions vidéo/audio) affichent une prévisualisation flottante avec des contrôles de lecture natifs au survol.
 
+## Menu contextuel d'image
+
+Un clic droit sur une image en mode WYSIWYG ouvre un menu contextuel avec des actions rapides (séparé de la fenêtre contextuelle de modification par double-clic).
+
+**Déclencheur :** Clic droit sur n'importe quelle image
+
+**Actions :**
+| Action | Description |
+|--------|-------------|
+| Changer l'image | Ouvrir un sélecteur de fichiers pour remplacer l'image |
+| Supprimer l'image | Supprimer l'image du document |
+| Copier le chemin | Copier le chemin source de l'image dans le presse-papiers |
+| Révéler dans le Finder | Ouvrir l'emplacement du fichier image dans votre gestionnaire de fichiers (le libellé s'adapte selon la plateforme) |
+
+Appuyez sur `Échap` pour fermer le menu contextuel sans effectuer d'action.
+
 ## Fenêtre contextuelle mathématique
 
 Modifier les expressions mathématiques LaTeX avec une prévisualisation en direct.

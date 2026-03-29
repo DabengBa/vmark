@@ -114,6 +114,10 @@ export const ko = {
               text: "비용 및 공수 평가",
               link: "/ko/guide/users-as-developers/cost-evaluation",
             },
+            {
+              text: "인프라로서의 플러그인",
+              link: "/ko/guide/users-as-developers/plugins-as-infrastructure",
+            },
           ],
         },
       ],

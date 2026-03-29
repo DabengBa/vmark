@@ -8,7 +8,7 @@
  *   npx @vmark/mcp-server
  *   node dist/index.js
  *
- * The server communicates with VMark via WebSocket bridge on localhost:9224.
+ * The server communicates with VMark via WebSocket bridge on localhost (port auto-assigned, discovered via port file).
  */
 
 // Re-export public API
@@ -156,7 +156,7 @@ export function createVMarkMcpServer(bridge: Bridge): VMarkMcpServer {
   registerEditorTool(server);         // editor (3 actions)
   registerWorkspaceTool(server);      // workspace (12 actions)
   registerTabsTool(server);           // tabs (6 actions)
-  registerMediaTool(server);          // media (11 actions)
+  registerMediaTool(server);          // media (12 actions)
   registerSuggestionsTool(server);    // suggestions (5 actions)
 
   // Register resources

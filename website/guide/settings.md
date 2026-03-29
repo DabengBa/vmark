@@ -104,6 +104,12 @@ Paste behavior, layout, and HTML rendering settings.
 | Image & diagram borders | Whether to show a border around images, Mermaid diagrams, and math blocks | None | None, Always, On hover |
 | Image & table alignment | Horizontal alignment for block images and tables | Center | Center, Left |
 
+### Lint
+
+| Setting | Description | Default | Options |
+|---------|-------------|---------|---------|
+| Enable markdown lint | Check for common markdown issues (broken links, missing alt text, heading increments, unclosed fences, etc.) | On | On / Off |
+
 ### HTML Rendering
 
 | Setting | Description | Default | Options |
@@ -183,7 +189,7 @@ When the server is running, the panel also displays:
 - **Tools / Resources** — number of available MCP tools and resources
 - **Connected Clients** — number of AI clients currently connected
 
-Below the MCP Server section, you can install VMark's MCP configuration into supported AI clients (Claude, Cursor, Windsurf, etc.) with a single click.
+Below the MCP Server section, you can install VMark's MCP configuration into supported AI clients (Claude Desktop, Claude Code, Codex CLI, Gemini CLI) with a single click.
 
 See [MCP Setup](/guide/mcp-setup) and [MCP Tools Reference](/guide/mcp-tools) for full details.
 
@@ -191,7 +197,7 @@ See [MCP Setup](/guide/mcp-setup) and [MCP Tools Reference](/guide/mcp-tools) fo
 
 Configure which AI provider powers [AI Genies](/guide/ai-genies). Only one provider can be active at a time.
 
-**CLI Providers** — Use locally installed AI CLI tools (Claude, Codex, Gemini, Ollama). Click **Detect** to scan your `$PATH` for available CLIs. CLI providers use your subscription plan and require no API key.
+**CLI Providers** — Use locally installed AI CLI tools (Claude, Codex, Gemini). Click **Detect** to scan your `$PATH` for available CLIs. CLI providers use your subscription plan and require no API key.
 
 **REST API Providers** — Connect directly to cloud APIs (Anthropic, OpenAI, Google AI, Ollama API). Each requires an endpoint, API key, and model name.
 

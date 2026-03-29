@@ -92,6 +92,22 @@ Un popup unificado para editar todos los tipos de medios — imágenes, vídeo y
 
 En el modo Fuente, hacer clic en la sintaxis de imagen `![alt](ruta)` abre el mismo popup de medios. Los archivos multimedia (extensiones de vídeo/audio) muestran una vista previa flotante con controles de reproducción nativos al pasar el ratón.
 
+## Menú Contextual de Imagen
+
+Al hacer clic derecho en una imagen en el modo WYSIWYG se abre un menú contextual con acciones rápidas (separado del popup de edición de doble clic).
+
+**Activación:** Clic derecho en cualquier imagen
+
+**Acciones:**
+| Acción | Descripción |
+|--------|-------------|
+| Cambiar Imagen | Abre un selector de archivos para reemplazar la imagen |
+| Eliminar Imagen | Elimina la imagen del documento |
+| Copiar Ruta | Copia la ruta de origen de la imagen al portapapeles |
+| Revelar en Finder | Abre la ubicación del archivo de imagen en el administrador de archivos (la etiqueta se adapta según la plataforma) |
+
+Presiona `Escape` para cerrar el menú contextual sin realizar ninguna acción.
+
 ## Popup de Matemáticas
 
 Edita expresiones matemáticas LaTeX con vista previa en tiempo real.

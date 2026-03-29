@@ -9,14 +9,14 @@ O VMark é projetado para fluxos de trabalho com teclado em primeiro lugar. A ma
 
 ## Teclas de Função no macOS
 
-O VMark usa teclas de função (F4–F9) para alternâncias rápidas de modo. No macOS, essas teclas são mapeadas para funções do sistema (brilho, volume, etc.) por padrão.
+O VMark usa teclas de função (F4–F10) para alternâncias rápidas de modo. No macOS, essas teclas são mapeadas para funções do sistema (brilho, volume, etc.) por padrão.
 
 **Para usar as teclas F diretamente sem segurar Fn:**
 
 1. Abra **Configurações do Sistema** → **Teclado**
 2. Habilite **"Usar teclas F1, F2, etc. como teclas de função padrão"**
 
-Alternativamente, segure a tecla **Fn** ao pressionar F4–F9 para acionar os atalhos do VMark.
+Alternativamente, segure a tecla **Fn** ao pressionar F4–F10 para acionar os atalhos do VMark.
 
 ::: tip
 Se você preferir manter as funções do sistema nas teclas F, pode personalizar os atalhos do VMark nas Configurações (`Mod + ,`) para usar combinações de teclas diferentes.
@@ -35,6 +35,7 @@ Se você preferir manter as funções do sistema nas teclas F, pode personalizar
 | `F7` | Alternar Barra de Status |
 | `F8` | Modo Foco |
 | `F9` | Modo Máquina de Escrever |
+| `F10` | Modo Somente Leitura |
 
 ## Editar
 
@@ -75,6 +76,8 @@ Se você preferir manter as funções do sistema nas teclas F, pode personalizar
 | Lista com Marcadores | `Alt + Mod + U` |
 | Lista Ordenada | `Alt + Mod + O` |
 | Lista de Tarefas | `Alt + Mod + X` |
+| Alternar Caixa de Seleção de Tarefa | `Mod + Shift + Enter` |
+| Alternar Tipo de Lista | _(personalizável)_ |
 | Aumentar Recuo | `Mod + ]` |
 | Diminuir Recuo | `Mod + [` |
 | Linha Horizontal | `Alt + Mod + -` |
@@ -151,6 +154,7 @@ Se você preferir manter as funções do sistema nas teclas F, pode personalizar
 | Alternar Barra de Status | `F7` |
 | Modo Foco | `F8` |
 | Modo Máquina de Escrever | `F9` |
+| Modo Somente Leitura | `F10` |
 | Tamanho Real | `Mod + 0` |
 | Aumentar Zoom | `Mod + =` |
 | Diminuir Zoom | `Mod + -` |
@@ -158,7 +162,7 @@ Se você preferir manter as funções do sistema nas teclas F, pode personalizar
 | Alternar Esboço | `Ctrl + Shift + 1` |
 | Alternar Explorador de Arquivos | `Ctrl + Shift + 2` |
 | Alternar Histórico | `Ctrl + Shift + 3` |
-| Alternar Números de Linha | `Alt + Mod + L` |
+| Alternar Números de Linha (blocos de código) | `Alt + Mod + L` |
 | Alternar Terminal | Ctrl + `` ` `` |
 | Alternar Visualização de Diagrama | `Alt + Mod + P` |
 | Ajustar Tabelas à Largura | _(personalizável)_ |

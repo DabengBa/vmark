@@ -41,6 +41,10 @@ Assistants IA pris en charge :
 - **Codex CLI** - Assistant de codage d'OpenAI
 - **Gemini CLI** - Assistant IA de Google
 
+::: info Autres clients compatibles MCP
+D'autres clients compatibles MCP tels que Cursor, Windsurf et des outils similaires peuvent également se connecter au serveur MCP de VMark. Configurez-les manuellement en pointant vers le chemin du binaire du serveur MCP (voir [Configuration manuelle](#configuration-manuelle) ci-dessous).
+:::
+
 #### Icônes de statut
 
 Chaque fournisseur affiche un indicateur de statut :
@@ -115,6 +119,29 @@ Modifiez `~/.claude.json` ou le fichier `.mcp.json` du projet :
 }
 ```
 
+### Codex CLI
+
+Modifiez `~/.codex/config.toml` :
+
+```toml
+[mcp_servers.vmark]
+command = "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+```
+
+### Gemini CLI
+
+Modifiez `~/.gemini/settings.json` :
+
+```json
+{
+  "mcpServers": {
+    "vmark": {
+      "command": "/Applications/VMark.app/Contents/MacOS/vmark-mcp-server"
+    }
+  }
+}
+```
+
 ::: tip Trouver le chemin du binaire
 Sur macOS, le binaire du serveur MCP est à l'intérieur de VMark.app :
 - `VMark.app/Contents/MacOS/vmark-mcp-server`
@@ -135,9 +162,10 @@ Assistant IA <--stdio--> Serveur MCP <--WebSocket--> Éditeur VMark
 ```
 
 1. **VMark démarre un pont WebSocket** sur un port disponible au lancement
-2. **Le serveur MCP** se connecte à ce pont WebSocket
-3. **L'assistant IA** communique avec le serveur MCP via stdio
-4. **Les commandes sont relayées** vers l'éditeur de VMark via le pont
+2. **Le serveur MCP** lit le port et le jeton d'authentification depuis le répertoire de données de l'application VMark
+3. **Le serveur MCP** se connecte et s'authentifie via le pont WebSocket
+4. **L'assistant IA** communique avec le serveur MCP via stdio
+5. **Les commandes sont relayées** vers l'éditeur de VMark via le pont
 
 ## Capacités disponibles
 

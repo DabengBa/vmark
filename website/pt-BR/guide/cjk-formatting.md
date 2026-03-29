@@ -155,6 +155,18 @@ Prefixe qualquer pontuação com `\` para evitar a conversão:
 
 ---
 
+## Formatação Assistida por IA
+
+Quando o [servidor MCP](/guide/mcp-setup) está conectado, assistentes de IA podem aplicar a formatação CJK programaticamente via a ação `cjk_format`.
+
+**Opções de escopo:**
+- `"document"` (padrão) — formata o documento inteiro usando suas configurações CJK
+- `"selection"` — formata apenas o texto atualmente selecionado
+
+Ambos os escopos utilizam um ciclo de serialização-formatação-análise para preservar as marcações inline (negrito, links, matemática, etc.) e respeitar suas regras de formatação configuradas.
+
+Consulte a [Referência de Ferramentas MCP](/guide/mcp-tools) para a lista completa de ações MCP relacionadas a CJK, incluindo `cjk_punctuation` e `cjk_spacing`.
+
 ## Configuração
 
 As opções de formatação CJK podem ser configuradas em Configurações → Idioma:

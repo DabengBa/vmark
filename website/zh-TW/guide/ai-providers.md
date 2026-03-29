@@ -117,7 +117,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 |------|------|
 | 已安裝 Claude Code | **Claude (CLI)** — 零設定，使用你的訂閱 |
 | 已安裝 Codex 或 Gemini | **Codex / Gemini (CLI)** — 使用你的訂閱 |
-| 需要隱私/離線使用 | 安裝 Ollama → **Ollama (CLI)** |
+| 需要隱私/離線使用 | 安裝 Ollama → 在 `http://localhost:11434` 使用 **Ollama (API)** |
 | 自訂或自架模型 | **Ollama (API)**，使用你的端點 |
 | 想要最便宜的雲端選項 | **任何 CLI 供應商** — 訂閱比 API 便宜得多 |
 | 無訂閱，僅輕度使用 | 設定 API 金鑰環境變數 → **REST 供應商**（按 Token 計費） |
