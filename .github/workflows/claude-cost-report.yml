@@ -13,9 +13,14 @@ permissions:
   issues: write
   actions: read
 
+concurrency:
+  group: cost-report
+  cancel-in-progress: true
+
 jobs:
   report:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout data branch (ledger lives here)
         uses: actions/checkout@v6
