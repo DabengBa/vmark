@@ -30,6 +30,8 @@ interface SearchState {
   caseSensitive: boolean;
   wholeWord: boolean;
   useRegex: boolean;
+  /** Search the underlying markdown source instead of rendered text (WYSIWYG only) */
+  searchMarkdown: boolean;
   matchCount: number;
   currentIndex: number;
 }
@@ -43,6 +45,7 @@ interface SearchActions {
   toggleCaseSensitive: () => void;
   toggleWholeWord: () => void;
   toggleRegex: () => void;
+  toggleSearchMarkdown: () => void;
   setMatches: (count: number, currentIndex: number) => void;
   findNext: () => void;
   findPrevious: () => void;
@@ -57,6 +60,7 @@ const initialState: SearchState = {
   caseSensitive: false,
   wholeWord: false,
   useRegex: false,
+  searchMarkdown: false,
   matchCount: 0,
   currentIndex: -1,
 };
@@ -83,6 +87,9 @@ export const useSearchStore = create<SearchState & SearchActions>((set, get) => 
 
   toggleRegex: () =>
     set((state) => ({ useRegex: !state.useRegex, currentIndex: -1 })),
+
+  toggleSearchMarkdown: () =>
+    set((state) => ({ searchMarkdown: !state.searchMarkdown, currentIndex: -1 })),
 
   setMatches: (matchCount, currentIndex) => set({ matchCount, currentIndex }),
 

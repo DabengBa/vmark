@@ -24,6 +24,7 @@
  */
 import { Node, mergeAttributes } from "@tiptap/core";
 import { sourceLineAttr } from "../shared/sourceLineAttr";
+import { createFrontmatterNodeView } from "@/plugins/frontmatterPanel/nodeView";
 
 export const frontmatterExtension = Node.create({
   name: "frontmatter",
@@ -46,8 +47,6 @@ export const frontmatterExtension = Node.create({
         getAttrs: (element) => {
           const el = element as HTMLElement;
           const dataValue = el.getAttribute("data-value");
-          // Fallback: use textContent if data-value is missing (e.g., after sanitization)
-          // Return false to skip parsing if no value can be recovered
           if (dataValue !== null) {
             return { value: dataValue };
           }
@@ -67,5 +66,11 @@ export const frontmatterExtension = Node.create({
         contenteditable: "false",
       }),
     ];
+  },
+
+  addNodeView() {
+    return ({ node, editor, getPos }) => {
+      return createFrontmatterNodeView(node, editor.view, getPos as () => number | undefined);
+    };
   },
 });
