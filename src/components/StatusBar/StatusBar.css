@@ -228,10 +228,12 @@
 }
 
 .tab-pill.tab-missing:hover {
+  background-color: rgba(154, 103, 0, 0.15);
   background-color: color-mix(in srgb, var(--warning-color) 15%, transparent);
 }
 
 .tab-pill.tab-missing.active {
+  background-color: rgba(154, 103, 0, 0.2);
   background-color: color-mix(in srgb, var(--warning-color) 20%, transparent);
 }
 
