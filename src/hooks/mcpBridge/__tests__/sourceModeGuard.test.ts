@@ -6,13 +6,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isBlockedInSourceMode, SOURCE_MODE_ERROR } from "../sourceModeGuard";
+import { isBlockedInSourceMode, hasSourceHandler, SOURCE_MODE_ERROR } from "../sourceModeGuard";
 
 describe("sourceModeGuard", () => {
   describe("isBlockedInSourceMode", () => {
     describe("editor-dependent operations (should be blocked)", () => {
       it.each([
-        "document.getContent",
         "document.setContent",
         "document.insertAtCursor",
         "document.insertAtPosition",
@@ -36,8 +35,6 @@ describe("sourceModeGuard", () => {
         "table.delete",
         "table.batchModify",
         "list.batchModify",
-        "outline.get",
-        "metadata.get",
         "structure.getAst",
         "structure.getDigest",
         "structure.listBlocks",
@@ -67,7 +64,6 @@ describe("sourceModeGuard", () => {
         "suggestion.list",
         "suggestion.acceptAll",
         "suggestion.rejectAll",
-        "editor.focus",
       ])("blocks %s in source mode", (type) => {
         expect(isBlockedInSourceMode(type)).toBe(true);
       });
@@ -118,6 +114,18 @@ describe("sourceModeGuard", () => {
       });
     });
   });
+
+    describe("source-capable operations (not blocked, have source handlers)", () => {
+      it.each([
+        "document.getContent",
+        "outline.get",
+        "metadata.get",
+        "editor.focus",
+      ])("%s is not blocked and has a source handler", (type) => {
+        expect(isBlockedInSourceMode(type)).toBe(false);
+        expect(hasSourceHandler(type)).toBe(true);
+      });
+    });
 
   describe("SOURCE_MODE_ERROR", () => {
     it("tells MCP clients to call editor.setMode", () => {

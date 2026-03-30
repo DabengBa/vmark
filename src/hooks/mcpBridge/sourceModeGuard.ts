@@ -27,17 +27,25 @@ export const SOURCE_MODE_ERROR =
  * Unknown types are NOT blocked — they pass through to the dispatcher's
  * default "unknown type" handler for proper error reporting.
  */
-const EDITOR_DEPENDENT_OPS = new Set([
-  // Document operations (read/write Tiptap state)
+/**
+ * Operations that have Source-mode-capable handlers.
+ * These are routed to sourceHandlers.ts instead of being blocked.
+ */
+export const SOURCE_CAPABLE_OPS = new Set([
   "document.getContent",
+  "outline.get",
+  "metadata.get",
+  "editor.focus",
+]);
+
+const EDITOR_DEPENDENT_OPS = new Set([
+  // Document operations (write Tiptap state)
   "document.setContent",
   "document.insertAtCursor",
   "document.insertAtPosition",
   "document.search",
   "document.replaceInSource",
-  // Outline and metadata (read Tiptap DOM)
-  "outline.get",
-  "metadata.get",
+  // outline.get, metadata.get — moved to SOURCE_CAPABLE_OPS
   // Selection operations (Tiptap selection API)
   "selection.get",
   "selection.set",
@@ -56,8 +64,7 @@ const EDITOR_DEPENDENT_OPS = new Set([
   "format.setLink",
   "format.removeLink",
   "format.clear",
-  // Editor focus (Tiptap DOM focus)
-  "editor.focus",
+  // editor.focus — moved to SOURCE_CAPABLE_OPS
   // Block operations (Tiptap node types)
   "block.setType",
   "block.insertHorizontalRule",
@@ -112,4 +119,11 @@ const EDITOR_DEPENDENT_OPS = new Set([
  */
 export function isBlockedInSourceMode(type: string): boolean {
   return EDITOR_DEPENDENT_OPS.has(type);
+}
+
+/**
+ * Check if an operation has a Source-mode-capable handler.
+ */
+export function hasSourceHandler(type: string): boolean {
+  return SOURCE_CAPABLE_OPS.has(type);
 }
