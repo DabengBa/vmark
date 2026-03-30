@@ -29,10 +29,12 @@
 
 /* Line background highlights */
 .lint-line-error {
+  background: rgba(207, 34, 46, 0.04);
   background: color-mix(in srgb, var(--error-color) 4%, transparent);
 }
 
 .lint-line-warning {
+  background: rgba(154, 103, 0, 0.06);
   background: color-mix(in srgb, var(--warning-color) 6%, transparent);
 }
 
@@ -41,11 +43,13 @@
 /* Block-level node decoration for lint diagnostics */
 .lint-block-error {
   box-shadow: inset 2px 0 0 var(--error-color);
+  background: rgba(207, 34, 46, 0.03);
   background: color-mix(in srgb, var(--error-color) 3%, transparent);
 }
 
 .lint-block-warning {
   box-shadow: inset 2px 0 0 var(--warning-color);
+  background: rgba(154, 103, 0, 0.04);
   background: color-mix(in srgb, var(--warning-color) 4%, transparent);
 }
 

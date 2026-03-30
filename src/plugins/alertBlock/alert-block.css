@@ -71,6 +71,7 @@
    =================== */
 .alert-note {
   --alert-border: var(--alert-note);
+  --alert-bg: rgba(9, 105, 218, 0.1);
   --alert-bg: color-mix(in srgb, var(--alert-note) 10%, transparent);
   --alert-title: var(--alert-note);
 }
@@ -85,6 +86,7 @@
    =================== */
 .alert-tip {
   --alert-border: var(--alert-tip);
+  --alert-bg: rgba(26, 127, 55, 0.1);
   --alert-bg: color-mix(in srgb, var(--alert-tip) 10%, transparent);
   --alert-title: var(--alert-tip);
 }
@@ -99,6 +101,7 @@
    =================== */
 .alert-important {
   --alert-border: var(--alert-important);
+  --alert-bg: rgba(130, 80, 223, 0.1);
   --alert-bg: color-mix(in srgb, var(--alert-important) 10%, transparent);
   --alert-title: var(--alert-important);
 }
@@ -113,6 +116,7 @@
    =================== */
 .alert-warning {
   --alert-border: var(--alert-warning);
+  --alert-bg: rgba(154, 103, 0, 0.1);
   --alert-bg: color-mix(in srgb, var(--alert-warning) 10%, transparent);
   --alert-title: var(--alert-warning);
 }
@@ -127,6 +131,7 @@
    =================== */
 .alert-caution {
   --alert-border: var(--alert-caution);
+  --alert-bg: rgba(207, 34, 46, 0.1);
   --alert-bg: color-mix(in srgb, var(--alert-caution) 10%, transparent);
   --alert-title: var(--alert-caution);
 }

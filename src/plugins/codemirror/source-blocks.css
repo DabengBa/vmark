@@ -12,6 +12,7 @@
 /* NOTE - Blue */
 .cm-alert-note {
   --alert-border: var(--alert-note);
+  --alert-bg: rgba(9, 105, 218, 0.05);
   --alert-bg: color-mix(in srgb, var(--alert-note) 5%, transparent);
   --alert-icon: var(--alert-note);
 }
@@ -19,6 +20,7 @@
 /* TIP - Green */
 .cm-alert-tip {
   --alert-border: var(--alert-tip);
+  --alert-bg: rgba(26, 127, 55, 0.05);
   --alert-bg: color-mix(in srgb, var(--alert-tip) 5%, transparent);
   --alert-icon: var(--alert-tip);
 }
@@ -26,6 +28,7 @@
 /* IMPORTANT - Purple */
 .cm-alert-important {
   --alert-border: var(--alert-important);
+  --alert-bg: rgba(130, 80, 223, 0.05);
   --alert-bg: color-mix(in srgb, var(--alert-important) 5%, transparent);
   --alert-icon: var(--alert-important);
 }
@@ -33,6 +36,7 @@
 /* WARNING - Yellow/Amber */
 .cm-alert-warning {
   --alert-border: var(--alert-warning);
+  --alert-bg: rgba(154, 103, 0, 0.05);
   --alert-bg: color-mix(in srgb, var(--alert-warning) 5%, transparent);
   --alert-icon: var(--alert-warning);
 }
@@ -40,6 +44,7 @@
 /* CAUTION - Red */
 .cm-alert-caution {
   --alert-border: var(--alert-caution);
+  --alert-bg: rgba(207, 34, 46, 0.05);
   --alert-bg: color-mix(in srgb, var(--alert-caution) 5%, transparent);
   --alert-icon: var(--alert-caution);
 }
@@ -50,30 +55,35 @@
    =================== */
 .dark-theme .cm-alert-note {
   --alert-border: var(--alert-note-dark);
+  --alert-bg: rgba(88, 166, 255, 0.08);
   --alert-bg: color-mix(in srgb, var(--alert-note-dark) 8%, transparent);
   --alert-icon: var(--alert-note-dark);
 }
 
 .dark-theme .cm-alert-tip {
   --alert-border: var(--alert-tip-dark);
+  --alert-bg: rgba(63, 185, 80, 0.08);
   --alert-bg: color-mix(in srgb, var(--alert-tip-dark) 8%, transparent);
   --alert-icon: var(--alert-tip-dark);
 }
 
 .dark-theme .cm-alert-important {
   --alert-border: var(--alert-important-dark);
+  --alert-bg: rgba(163, 113, 247, 0.08);
   --alert-bg: color-mix(in srgb, var(--alert-important-dark) 8%, transparent);
   --alert-icon: var(--alert-important-dark);
 }
 
 .dark-theme .cm-alert-warning {
   --alert-border: var(--alert-warning-dark);
+  --alert-bg: rgba(210, 153, 34, 0.08);
   --alert-bg: color-mix(in srgb, var(--alert-warning-dark) 8%, transparent);
   --alert-icon: var(--alert-warning-dark);
 }
 
 .dark-theme .cm-alert-caution {
   --alert-border: var(--alert-caution-dark);
+  --alert-bg: rgba(248, 81, 73, 0.08);
   --alert-bg: color-mix(in srgb, var(--alert-caution-dark) 8%, transparent);
   --alert-icon: var(--alert-caution-dark);
 }
@@ -204,6 +214,7 @@
 /* Video - Teal */
 .cm-media-video {
   --media-border: var(--media-video);
+  --media-bg: rgba(13, 148, 136, 0.05);
   --media-bg: color-mix(in srgb, var(--media-video) 5%, transparent);
   --media-icon: var(--media-video);
 }
@@ -211,6 +222,7 @@
 /* Audio - Indigo */
 .cm-media-audio {
   --media-border: var(--media-audio);
+  --media-bg: rgba(99, 102, 241, 0.05);
   --media-bg: color-mix(in srgb, var(--media-audio) 5%, transparent);
   --media-icon: var(--media-audio);
 }
@@ -218,6 +230,7 @@
 /* YouTube - Red */
 .cm-media-youtube {
   --media-border: var(--media-youtube);
+  --media-bg: rgba(220, 38, 38, 0.05);
   --media-bg: color-mix(in srgb, var(--media-youtube) 5%, transparent);
   --media-icon: var(--media-youtube);
 }
@@ -225,6 +238,7 @@
 /* Vimeo - Cyan */
 .cm-media-vimeo {
   --media-border: var(--media-vimeo);
+  --media-bg: rgba(0, 173, 239, 0.05);
   --media-bg: color-mix(in srgb, var(--media-vimeo) 5%, transparent);
   --media-icon: var(--media-vimeo);
 }
@@ -232,6 +246,7 @@
 /* Bilibili - Pink */
 .cm-media-bilibili {
   --media-border: var(--media-bilibili);
+  --media-bg: rgba(251, 114, 153, 0.05);
   --media-bg: color-mix(in srgb, var(--media-bilibili) 5%, transparent);
   --media-icon: var(--media-bilibili);
 }
@@ -241,30 +256,35 @@
    =================== */
 .dark-theme .cm-media-video {
   --media-border: var(--media-video-dark);
+  --media-bg: rgba(45, 212, 191, 0.08);
   --media-bg: color-mix(in srgb, var(--media-video-dark) 8%, transparent);
   --media-icon: var(--media-video-dark);
 }
 
 .dark-theme .cm-media-audio {
   --media-border: var(--media-audio-dark);
+  --media-bg: rgba(129, 140, 248, 0.08);
   --media-bg: color-mix(in srgb, var(--media-audio-dark) 8%, transparent);
   --media-icon: var(--media-audio-dark);
 }
 
 .dark-theme .cm-media-youtube {
   --media-border: var(--media-youtube-dark);
+  --media-bg: rgba(248, 113, 113, 0.08);
   --media-bg: color-mix(in srgb, var(--media-youtube-dark) 8%, transparent);
   --media-icon: var(--media-youtube-dark);
 }
 
 .dark-theme .cm-media-vimeo {
   --media-border: var(--media-vimeo-dark);
+  --media-bg: rgba(74, 195, 240, 0.08);
   --media-bg: color-mix(in srgb, var(--media-vimeo-dark) 8%, transparent);
   --media-icon: var(--media-vimeo-dark);
 }
 
 .dark-theme .cm-media-bilibili {
   --media-border: var(--media-bilibili-dark);
+  --media-bg: rgba(252, 156, 181, 0.08);
   --media-bg: color-mix(in srgb, var(--media-bilibili-dark) 8%, transparent);
   --media-icon: var(--media-bilibili-dark);
 }

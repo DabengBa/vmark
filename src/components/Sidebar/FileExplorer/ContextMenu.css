@@ -8,6 +8,7 @@
   z-index: 1000;
   min-width: 180px;
   max-width: 240px;
+  background: var(--bg-color);
   background: color-mix(in srgb, var(--bg-color) 97%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

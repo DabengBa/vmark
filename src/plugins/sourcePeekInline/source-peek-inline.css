@@ -187,6 +187,7 @@
   background: var(--error-bg);
   color: var(--error-color);
   font-size: 12px;
+  border-top: 1px solid rgba(207, 34, 46, 0.3);
   border-top: 1px solid color-mix(in srgb, var(--error-color) 30%, transparent);
 }
 
@@ -203,6 +204,7 @@
 }
 
 .dark-theme .source-peek-inline-error {
+  background: rgba(207, 34, 46, 0.15);
   background: color-mix(in srgb, var(--error-color) 15%, transparent);
 }
 
