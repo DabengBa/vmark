@@ -176,5 +176,7 @@
   "preview.loading": "Loading…",
   "preview.noMediaPath": "No media path",
   "preview.pathResolutionFailed": "Path resolution failed",
-  "preview.failedToLoad": "Failed to load"
+  "preview.failedToLoad": "Failed to load",
+
+  "frontmatter.label": "Frontmatter"
 }
