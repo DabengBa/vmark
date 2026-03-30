@@ -39,10 +39,18 @@ import { handleClipboardImagePaste } from "./smartPasteClipboardImage";
 export function createSmartPastePlugin() {
   return EditorView.domEventHandlers({
     paste: (event, view) => {
+      const { from, to } = view.state.selection.main;
+
+      // Clipboard binary image (e.g., screenshot paste) — check before text guard
+      // because screenshot paste may have no text/plain content
+      if (handleClipboardImagePaste(view, event)) {
+        event.preventDefault();
+        return true;
+      }
+
       const pastedText = event.clipboardData?.getData("text/plain");
       if (!pastedText) return false;
 
-      const { from, to } = view.state.selection.main;
       const trimmedText = pastedText.trim();
 
       // HTML paste: convert HTML to markdown (skip inside code fences)
@@ -75,12 +83,6 @@ export function createSmartPastePlugin() {
           changes: { from, to, insert: pastedText },
           selection: { anchor: from + pastedText.length },
         });
-        return true;
-      }
-
-      // Clipboard binary image (e.g., screenshot paste)
-      if (handleClipboardImagePaste(view, event)) {
-        event.preventDefault();
         return true;
       }
 
