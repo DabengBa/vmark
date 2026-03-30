@@ -25,19 +25,22 @@ function buildImageMarkdown(
   alt: string,
   src: string,
   title: string | null,
-  useAngleBrackets: boolean
+  useAngleBrackets: boolean,
+  width?: string,
 ): string {
   const shouldUseAngleBrackets = useAngleBrackets || /\s/.test(src);
   const dest = shouldUseAngleBrackets ? `<${src}>` : src;
   const titlePart = title ? ` "${title}"` : "";
-  return `![${alt}](${dest}${titlePart})`;
+  const widthPart = width ? `{width=${width}}` : "";
+  return `![${alt}](${dest}${titlePart})${widthPart}`;
 }
 
 function parseImageMarkdown(
   markdown: string
-): { alt: string; src: string; title: string | null; useAngleBrackets: boolean } | null {
+): { alt: string; src: string; title: string | null; useAngleBrackets: boolean; width: string } | null {
+  // Match image with optional {width=N} suffix
   const match = markdown.match(
-    /^!\[([^\]]*)\]\((?:<([^>]+)>|([^)\s"]+))(?:\s+"([^"]*)")?\)$/
+    /^!\[([^\]]*)\]\((?:<([^>]+)>|([^)\s"]+))(?:\s+"([^"]*)")?\)(?:\{width=(\d+(?:px|%)?)\})?$/
   );
   if (!match) return null;
   return {
@@ -45,6 +48,7 @@ function parseImageMarkdown(
     src: match[2] || match[3],
     title: match[4] ?? null,
     useAngleBrackets: Boolean(match[2]),
+    width: match[5] ?? "",
   };
 }
 
@@ -83,13 +87,47 @@ function getImageRange(view: EditorView): { from: number; to: number } | null {
 function getImageMetaFromRange(
   view: EditorView,
   range: { from: number; to: number }
-): { title: string | null; useAngleBrackets: boolean } {
+): { title: string | null; useAngleBrackets: boolean; width: string } {
   const markdown = view.state.doc.sliceString(range.from, range.to);
   const parsed = parseImageMarkdown(markdown);
   return {
     title: parsed?.title ?? null,
     useAngleBrackets: parsed?.useAngleBrackets ?? false,
+    width: parsed?.width ?? "",
   };
+}
+
+/**
+ * Get the width value from the current image markdown.
+ */
+export function getImageWidth(view: EditorView): string {
+  const range = getImageRange(view);
+  if (!range) return "";
+  return getImageMetaFromRange(view, range).width;
+}
+
+/**
+ * Save width change to the current image markdown.
+ */
+export function saveImageWidth(view: EditorView, width: string): void {
+  const state = useMediaPopupStore.getState();
+  const { mediaSrc: imageSrc, mediaAlt: imageAlt } = state;
+  const range = getImageRange(view);
+  if (!range) return;
+
+  const { title, useAngleBrackets } = getImageMetaFromRange(view, range);
+  const newMarkdown = buildImageMarkdown(imageAlt, imageSrc, title, useAngleBrackets, width || undefined);
+
+  // Account for the {width=N} suffix in the original range
+  const originalText = view.state.doc.sliceString(range.from, range.to + 20);
+  const widthSuffixMatch = originalText.match(/\)\{width=\d+(?:px|%)?\}/);
+  const actualEnd = widthSuffixMatch ? range.from + (originalText.indexOf(widthSuffixMatch[0]) + widthSuffixMatch[0].length) : range.to;
+
+  runOrQueueCodeMirrorAction(view, () => {
+    view.dispatch({
+      changes: { from: range.from, to: actualEnd, insert: newMarkdown },
+    });
+  });
 }
 
 /**
@@ -104,14 +142,21 @@ export function saveImageChanges(view: EditorView): void {
     return;
   }
 
-  const { title, useAngleBrackets } = getImageMetaFromRange(view, range);
-  const newMarkdown = buildImageMarkdown(imageAlt, imageSrc, title, useAngleBrackets);
+  const { title, useAngleBrackets, width } = getImageMetaFromRange(view, range);
+  const newMarkdown = buildImageMarkdown(imageAlt, imageSrc, title, useAngleBrackets, width || undefined);
+
+  // Account for potential {width=N} suffix after the image markdown
+  const extendedText = view.state.doc.sliceString(range.from, Math.min(range.to + 30, view.state.doc.length));
+  const baseImage = extendedText.match(/^!\[[^\]]*\]\([^)]*\)/);
+  const afterBase = baseImage ? extendedText.slice(baseImage[0].length) : "";
+  const widthSuffix = afterBase.match(/^\{width=\d+(?:px|%)?\}/);
+  const actualEnd = widthSuffix ? range.to + widthSuffix[0].length : range.to;
 
   runOrQueueCodeMirrorAction(view, () => {
     view.dispatch({
       changes: {
         from: range.from,
-        to: range.to,
+        to: actualEnd,
         insert: newMarkdown,
       },
     });

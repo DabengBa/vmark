@@ -114,6 +114,7 @@ Edit LaTeX math expressions with live preview.
 
 **Trigger:**
 - **WYSIWYG:** Click on inline math `$...$`
+- **Source:** Place cursor inside `$...$`, `$$...$$`, or ` ```latex ` blocks
 
 **Fields:**
 - **LaTeX Input** — Edit the math expression
@@ -123,7 +124,7 @@ Edit LaTeX math expressions with live preview.
 **Shortcuts:**
 - `Mod + Enter` — Save and close
 - `Escape` — Cancel and close
-- `Shift + Backspace` — Delete inline math (works even when non-empty)
+- `Shift + Backspace` — Delete inline math (works even when non-empty, WYSIWYG only)
 - `Alt + Mod + M` — Insert new inline math
 
 ::: tip Error Hints
@@ -131,7 +132,7 @@ When you have a LaTeX syntax error, the popup shows helpful suggestions like mis
 :::
 
 ::: info Source Mode
-In Source mode, edit math directly in the text. The preview appears in the Mermaid/Math preview panel.
+Source mode provides the same editable math popup as WYSIWYG mode — a textarea for LaTeX input with a live KaTeX preview below it. The popup opens automatically when your cursor enters any math syntax (`$...$`, `$$...$$`, or ` ```latex `). Press `Mod + Enter` to save or `Escape` to cancel.
 :::
 
 ## Footnote Popup
@@ -204,7 +205,7 @@ Fix spelling errors with suggestions.
 | Image | Double-click | Click on `![](path)` |
 | Video | Double-click | — |
 | Audio | Double-click | — |
-| Math | Click | Direct edit |
+| Math | Click | Cursor in math → popup |
 | Footnote | Hover | Direct edit |
 | Wiki Link | Hover | Click |
 | Table | Toolbar | Right-click menu |
