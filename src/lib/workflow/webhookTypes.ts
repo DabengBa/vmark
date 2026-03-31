@@ -20,11 +20,11 @@ export interface WebhookConnector {
   rateLimit?: { requests: number; period: string };
 }
 
-export interface WebhookAuth {
-  type: "bearer" | "api-key" | "basic" | "none";
-  headerName?: string;
-  credentialRef: string;
-}
+export type WebhookAuth =
+  | { type: "bearer"; credentialRef: string }
+  | { type: "api-key"; headerName: string; credentialRef: string }
+  | { type: "basic"; credentialRef: string }
+  | { type: "none" };
 
 export interface WebhookInput {
   type: "json" | "form" | "text";

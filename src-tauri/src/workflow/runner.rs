@@ -111,7 +111,27 @@ pub async fn run_workflow_sequential(
 
         // Resolve parameters: output refs + env substitution
         let resolved_params =
-            resolve_params(&step.with, &outputs, &merged_env, workspace_root)?;
+            match resolve_params(&step.with, &outputs, &merged_env, workspace_root) {
+                Ok(p) => p,
+                Err(e) => {
+                    // Treat param resolution failure as a step error (not a workflow abort)
+                    failed = true;
+                    failed_step = step_id.clone();
+                    emit_event(
+                        app,
+                        "workflow:step-update",
+                        StepStatusEvent {
+                            execution_id: execution_id.clone(),
+                            step_id,
+                            status: "error".to_string(),
+                            output: None,
+                            error: Some(format!("Parameter resolution failed: {}", e)),
+                            duration: Some(start.elapsed().as_millis() as u64),
+                        },
+                    );
+                    continue;
+                }
+            };
 
         // Execute step based on type
         let result = execute_step(&step.uses, &resolved_params, workspace_root).await;
@@ -119,17 +139,24 @@ pub async fn run_workflow_sequential(
 
         match result {
             Ok(output) => {
-                // Truncate large outputs before storing (prevent memory bloat)
-                let stored_output = if output.len() > MAX_OUTPUT_SIZE_BYTES {
+                // Store full output for downstream step consumption
+                outputs.insert(step_id.clone(), output.clone());
+                // Truncate only for IPC emission (char-safe, no byte-boundary panic)
+                let emitted_output = if output.len() > MAX_OUTPUT_SIZE_BYTES {
+                    let safe_end = output
+                        .char_indices()
+                        .take_while(|(i, _)| *i < MAX_OUTPUT_SIZE_BYTES)
+                        .last()
+                        .map(|(i, c)| i + c.len_utf8())
+                        .unwrap_or(0);
                     format!(
-                        "{}...\n[Output truncated: {} bytes total]",
-                        &output[..MAX_OUTPUT_SIZE_BYTES],
+                        "{}...\n[Output truncated for display: {} bytes total]",
+                        &output[..safe_end],
                         output.len()
                     )
                 } else {
-                    output.clone()
+                    output
                 };
-                outputs.insert(step_id.clone(), stored_output.clone());
                 emit_event(
                     app,
                     "workflow:step-update",
@@ -137,7 +164,7 @@ pub async fn run_workflow_sequential(
                         execution_id: execution_id.clone(),
                         step_id,
                         status: "success".to_string(),
-                        output: Some(stored_output),
+                        output: Some(emitted_output),
                         error: None,
                         duration: Some(duration_ms),
                     },

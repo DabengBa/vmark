@@ -299,11 +299,17 @@ export function parseWorkflow(yaml: string): WorkflowGraph {
         : [String(rawStep.needs)];
     }
 
-    // Parse with — coerce all values to strings
+    // Parse with — require scalar values (strings, numbers, booleans)
     const withObj: Record<string, string> = {};
     if (rawStep.with && typeof rawStep.with === "object") {
       for (const [k, v] of Object.entries(rawStep.with as Record<string, unknown>)) {
-        withObj[k] = String(v);
+        if (v !== null && typeof v === "object") {
+          throw new WorkflowValidationError(
+            `Step '${id}' has non-scalar value for 'with.${k}' — objects and arrays are not supported`,
+            id,
+          );
+        }
+        withObj[k] = String(v ?? "");
       }
     }
 
