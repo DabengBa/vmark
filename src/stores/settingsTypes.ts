@@ -220,6 +220,7 @@ export interface AdvancedSettingsState {
   mcpServer: McpServerSettings;
   customLinkProtocols: string[]; // Custom URL protocols to recognize (e.g., "obsidian", "vscode")
   keepBothEditorsAlive: boolean; // Keep both editors mounted for faster mode switching (default: false)
+  workflowEngine: boolean; // Enable YAML workflow engine (developer feature, default: false)
 }
 
 /** General settings — auto-save, document history, tab size, line endings, and quit behavior. */

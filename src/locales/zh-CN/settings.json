@@ -177,7 +177,6 @@
   "markdown.htmlRendering.hidden": "隐藏",
   "markdown.htmlRendering.sanitized": "已清理",
   "markdown.htmlRendering.sanitizedWithStyles": "已清理 + 样式",
-
   "markdown.group.lint": "Markdown Lint",
   "markdown.lintEnabled.label": "Enable markdown lint",
   "markdown.lintEnabled.description": "Check for common markdown issues (broken links, missing alt text, heading increments, etc.)",
@@ -296,7 +295,6 @@
   "integrations.aiProviders.available": "可用",
   "integrations.aiProviders.notFound": "未找到",
   "integrations.healthCheck.error": "健康检查：{{error}}",
-
   "integrations.apiEndpoint": "API 端点",
   "integrations.apiKey": "API 密钥",
   "integrations.showApiKey": "显示 API 密钥",
@@ -304,13 +302,11 @@
   "integrations.copyApiKey": "复制 API 密钥",
   "integrations.testApiKey": "测试 API 密钥",
   "integrations.testModel": "测试模型",
-
   "integrations.modelPlaceholder": "模型",
   "integrations.showModels": "显示模型",
   "integrations.refreshModels": "刷新模型",
   "integrations.loadingModels": "加载模型中...",
   "integrations.noModels": "未找到模型",
-
   "removeTag": "移除 {{tag}}",
   "copied": "已复制！",
   "copy": "复制",
@@ -394,14 +390,12 @@
   "shortcuts.capture.assignAnyway": "强制确认",
   "shortcuts.capture.pressEsc": "按",
   "shortcuts.capture.toCancel": "取消",
-
   "shortcuts.category.formatting": "格式",
   "shortcuts.category.blocks": "块元素",
   "shortcuts.category.navigation": "导航",
   "shortcuts.category.editing": "编辑",
   "shortcuts.category.view": "视图",
   "shortcuts.category.file": "文件",
-
   "shortcuts.label.bold": "粗体",
   "shortcuts.label.italic": "斜体",
   "shortcuts.label.code": "行内代码",
@@ -547,5 +541,8 @@
   "advanced.hotExit.noSession": "未找到已保存的会话",
   "advanced.hotExit.restoreSuccess": "会话恢复成功",
   "advanced.hotExit.noSessionToRestore": "没有要恢复的已保存会话",
-  "advanced.hotExit.sessionCleared": "会话已清除"
+  "advanced.hotExit.sessionCleared": "会话已清除",
+  "advanced.group.experimental": "Experimental Features",
+  "advanced.workflowEngine.label": "Workflow Engine",
+  "advanced.workflowEngine.description": "Enable YAML workflow files with React Flow visualization (experimental)"
 }

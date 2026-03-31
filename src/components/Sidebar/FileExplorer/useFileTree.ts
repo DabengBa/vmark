@@ -27,7 +27,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FileNode, FsChangeEvent, DirectoryEntry } from "./types";
 import { shouldRefreshTree } from "@/utils/fsEventFilter";
 import { isMarkdownFileName, isVMarkFileName, stripMarkdownExtension } from "@/utils/dropPaths";
-import { WORKFLOW_ENABLED } from "@/lib/workflow/featureFlag";
+import { isWorkflowEnabled } from "@/utils/workflowFeatureFlag";
 import { shouldIncludeEntry, type FileTreeFilterOptions } from "./fileTreeFilters";
 import { fileExplorerError } from "@/utils/debug";
 
@@ -91,7 +91,7 @@ async function loadDirectoryRecursive(
 
 const mdFilter = (name: string, isFolder: boolean): boolean => {
   if (isFolder) return true;
-  if (WORKFLOW_ENABLED) return isVMarkFileName(name);
+  if (isWorkflowEnabled()) return isVMarkFileName(name);
   return isMarkdownFileName(name);
 };
 

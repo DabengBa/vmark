@@ -35,7 +35,6 @@ const SourceEditor = lazy(() =>
 );
 import { DropZoneIndicator } from "./DropZoneIndicator";
 import { WorkflowSidePanel } from "@/plugins/workflowPreview";
-import { WORKFLOW_ENABLED } from "@/lib/workflow/featureFlag";
 import "./editor.css";
 import "./heading-picker.css";
 import "@/styles/popup-shared.css";
@@ -52,6 +51,7 @@ export function Editor() {
   const htmlRenderingMode = useSettingsStore((s) => s.markdown.htmlRenderingMode);
   const tableFitToWidth = useSettingsStore((s) => s.markdown.tableFitToWidth);
   const keepAlive = useSettingsStore((s) => s.advanced.keepBothEditorsAlive);
+  const workflowEnabled = useSettingsStore((s) => s.advanced.workflowEngine);
   const readOnly = useDocumentStore((s) => tabId ? s.documents[tabId]?.readOnly ?? false : false);
   // lintEnabled not used directly — lint checks the setting at invocation time
 
@@ -89,7 +89,7 @@ export function Editor() {
       <div className="editor-content" data-active-editor={activeEditor}>
         {editorContent}
       </div>
-      {WORKFLOW_ENABLED && <WorkflowSidePanel />}
+      {workflowEnabled && <WorkflowSidePanel />}
       <HeadingPicker />
       <DropZoneIndicator />
     </div>

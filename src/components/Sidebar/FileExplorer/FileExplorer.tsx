@@ -42,7 +42,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useWindowLabel } from "@/contexts/WindowContext";
 import { getFileName, getParentDir } from "@/utils/paths";
 import { isVMarkFileName, isMarkdownFileName } from "@/utils/dropPaths";
-import { WORKFLOW_ENABLED } from "@/lib/workflow/featureFlag";
+import { isWorkflowEnabled } from "@/utils/workflowFeatureFlag";
 import type { FileNode as FileNodeType } from "./types";
 import "./FileExplorer.css";
 
@@ -166,7 +166,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(
   const openFileByType = useCallback(
     (path: string) => {
       const fileName = getFileName(path);
-      const isSupported = fileName && (WORKFLOW_ENABLED ? isVMarkFileName(fileName) : isMarkdownFileName(fileName));
+      const isSupported = fileName && (isWorkflowEnabled() ? isVMarkFileName(fileName) : isMarkdownFileName(fileName));
       if (isSupported) {
         openFile(path);
       } else {
