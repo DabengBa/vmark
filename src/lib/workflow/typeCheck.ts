@@ -42,14 +42,12 @@ const ACTION_OUTPUT_TYPES: Record<string, GenieOutputType> = {
 };
 
 /** Type compatibility matrix: [sourceOutput][targetInput] → compatible? */
-function isCompatible(sourceOutput: GenieOutputType, targetInput: GenieInputType): boolean {
+function isCompatible(sourceOutput: GenieOutputType, targetInput: string): boolean {
   if (targetInput === "none") return true;
   if (targetInput === "pipe") return true;
   if (sourceOutput === "text" && targetInput === "text") return true;
   if (sourceOutput === "files" && targetInput === "files") return true;
-  if (sourceOutput === "files" && targetInput === "pipe") return true;
   if (sourceOutput === "json" && targetInput === "text") return true;
-  if (sourceOutput === "json" && targetInput === "pipe") return true;
   if (sourceOutput === "file" && targetInput === "files") return true;
   return false;
 }
