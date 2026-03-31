@@ -9,7 +9,7 @@
  * @module plugins/workflowPreview/WorkflowPreview
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import {
   ReactFlow,
   Background,
@@ -47,10 +47,13 @@ function WorkflowPreviewInner({ graph, activeStepId, onNodeClick }: WorkflowPrev
       }
     }
 
-    // Fit view after layout
-    setTimeout(() => fitView({ padding: 0.1 }), 50);
-
     return result;
+  }, [graph, activeStepId]);
+
+  // Fit view after layout changes — in useEffect, not useMemo (no side effects in memo)
+  useEffect(() => {
+    const timer = setTimeout(() => fitView({ padding: 0.1 }), 50);
+    return () => clearTimeout(timer);
   }, [graph, activeStepId, fitView]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(

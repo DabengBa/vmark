@@ -10,13 +10,14 @@
  * @module plugins/workflowPreview/WorkflowSidePanel
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useWorkflowPreviewStore } from "@/stores/workflowPreviewStore";
 import { WorkflowPreview } from "./WorkflowPreview";
 import { useTranslation } from "react-i18next";
 import "./workflow-side-panel.css";
 
 const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH_RATIO = 0.8; // max 80% of container
 const DEFAULT_PANEL_WIDTH = 400;
 
 export function WorkflowSidePanel() {
@@ -27,34 +28,53 @@ export function WorkflowSidePanel() {
   const activeStepId = useWorkflowPreviewStore((s) => s.activeStepId);
 
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const isResizing = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Resize handler refs for cleanup (project convention: rules/50 section 2)
+  const handlersRef = useRef<{
+    move: ((e: MouseEvent) => void) | null;
+    up: (() => void) | null;
+  }>({ move: null, up: null });
+
+  const cleanup = useCallback(() => {
+    if (handlersRef.current.move) {
+      document.removeEventListener("mousemove", handlersRef.current.move);
+    }
+    if (handlersRef.current.up) {
+      document.removeEventListener("mouseup", handlersRef.current.up);
+    }
+    handlersRef.current = { move: null, up: null };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => cleanup, [cleanup]);
 
   const handleNodeClick = useCallback((stepId: string, _yamlLine?: number) => {
-    // TODO: Jump to YAML line in CodeMirror (Phase 2 follow-up)
     useWorkflowPreviewStore.getState().setActiveStepId(stepId);
   }, []);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    isResizing.current = true;
+    cleanup(); // Clean up any previous handlers
+
     const startX = e.clientX;
     const startWidth = panelWidth;
+    const containerWidth = panelRef.current?.parentElement?.clientWidth ?? window.innerWidth;
+    const maxWidth = containerWidth * MAX_PANEL_WIDTH_RATIO;
 
     const onMove = (moveEvent: MouseEvent) => {
-      if (!isResizing.current) return;
       const delta = startX - moveEvent.clientX;
-      setPanelWidth(Math.max(MIN_PANEL_WIDTH, startWidth + delta));
+      setPanelWidth(Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, startWidth + delta)));
     };
 
     const onUp = () => {
-      isResizing.current = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
+      cleanup();
     };
 
+    handlersRef.current = { move: onMove, up: onUp };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [panelWidth]);
+  }, [panelWidth, cleanup]);
 
   if (!panelOpen) return null;
 
@@ -62,6 +82,7 @@ export function WorkflowSidePanel() {
     <div
       className="workflow-side-panel"
       style={{ width: panelWidth }}
+      ref={panelRef}
     >
       <div
         className="workflow-side-panel__resize-handle"
@@ -72,7 +93,7 @@ export function WorkflowSidePanel() {
       <div className="workflow-side-panel__content">
         {parseError ? (
           <div className="workflow-side-panel__error">
-            <span className="workflow-side-panel__error-icon">⚠</span>
+            <span className="workflow-side-panel__error-icon">&#x26A0;</span>
             <span className="workflow-side-panel__error-text">{parseError}</span>
           </div>
         ) : graph ? (
