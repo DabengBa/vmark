@@ -36,6 +36,7 @@ export function AdvancedSettings() {
   const [isBusy, setIsBusy] = useState(false);
   const customLinkProtocols = useSettingsStore((state) => state.advanced.customLinkProtocols);
   const keepBothEditorsAlive = useSettingsStore((state) => state.advanced.keepBothEditorsAlive);
+  const workflowEngine = useSettingsStore((state) => state.advanced.workflowEngine);
   const updateAdvancedSetting = useSettingsStore((state) => state.updateAdvancedSetting);
 
   return (
@@ -73,6 +74,21 @@ export function AdvancedSettings() {
           />
         </SettingRow>
       </SettingsGroup>
+
+      {/* Developer features - only visible when developer mode is enabled */}
+      {devTools && (
+        <SettingsGroup title={t("advanced.group.experimental")}>
+          <SettingRow
+            label={t("advanced.workflowEngine.label")}
+            description={t("advanced.workflowEngine.description")}
+          >
+            <Toggle
+              checked={workflowEngine}
+              onChange={(v) => updateAdvancedSetting("workflowEngine", v)}
+            />
+          </SettingRow>
+        </SettingsGroup>
+      )}
 
       {/* Hot Exit Dev Tools - only visible when developer mode is enabled */}
       {devTools && (

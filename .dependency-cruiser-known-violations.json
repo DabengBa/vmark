@@ -27,6 +27,15 @@
     }
   },
   {
+    "type": "dependency",
+    "from": "src/utils/workflowFeatureFlag.ts",
+    "to": "src/stores/settingsStore.ts",
+    "rule": {
+      "severity": "error",
+      "name": "leaf-modules-stay-pure"
+    }
+  },
+  {
     "type": "cycle",
     "from": "src/plugins/sourceContextDetection/tableActions.ts",
     "to": "src/plugins/sourceContextDetection/tableDetection.ts",

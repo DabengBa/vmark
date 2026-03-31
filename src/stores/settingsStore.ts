@@ -231,6 +231,7 @@ const initialState: SettingsState = {
     },
     customLinkProtocols: ["obsidian", "vscode", "dict", "x-dictionary"],
     keepBothEditorsAlive: false,
+    workflowEngine: false,
   },
   update: {
     autoCheckEnabled: true,
