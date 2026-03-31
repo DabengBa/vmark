@@ -639,3 +639,18 @@ export const imageContextMenuError = isDev
 export const finderFileOpenError = isDev
   ? (...args: unknown[]) => console.error("[FinderFileOpen]", ...args)
   : (...args: unknown[]) => prodError("[FinderFileOpen]", ...args);
+
+/** Debug logger for Workflow Engine operations. */
+export const workflowLog = isDev
+  ? (...args: unknown[]) => console.log("[Workflow]", ...args)
+  : () => {};
+
+/** Warning logger for Workflow Engine operations. */
+export const workflowWarn = isDev
+  ? (...args: unknown[]) => console.warn("[Workflow]", ...args)
+  : (...args: unknown[]) => prodWarn("[Workflow]", ...args);
+
+/** Error logger for Workflow Engine operations. */
+export const workflowError = isDev
+  ? (...args: unknown[]) => console.error("[Workflow]", ...args)
+  : (...args: unknown[]) => prodError("[Workflow]", ...args);

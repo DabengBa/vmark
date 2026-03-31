@@ -86,7 +86,8 @@ function computeSourceRanges(
   yaml: string,
   stepCount: number,
 ): Array<{ startLine: number; endLine: number }> {
-  const lines = yaml.split("\n");
+  // Normalize line endings (CRLF/CR → LF) for consistent source range computation
+  const lines = yaml.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   const ranges: Array<{ startLine: number; endLine: number }> = [];
   let inSteps = false;
   let currentStepStart = -1;
@@ -283,7 +284,10 @@ export function parseWorkflow(yaml: string): WorkflowGraph {
 
     // Check duplicate IDs
     if (seenIds.has(id)) {
-      throw new WorkflowValidationError(`Duplicate step ID: '${id}'`, id);
+      const hint = rawStep.id
+        ? `Duplicate step ID: '${id}'`
+        : `Multiple steps use '${uses}' without explicit 'id:' fields — add 'id:' to distinguish them`;
+      throw new WorkflowValidationError(hint, id);
     }
     seenIds.add(id);
 
