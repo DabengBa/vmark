@@ -6225,6 +6225,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-pdf-kit",
  "objc2-web-kit 0.3.2",
+ "regex",
  "reqwest",
  "rust-i18n",
  "serde",

@@ -1,7 +1,8 @@
 //! File snapshots for workflow undo.
 //!
 //! Before any workflow execution that modifies files, snapshot all affected
-//! files. Snapshots are stored in the app data directory and can be restored.
+//! files. Snapshots preserve the full relative path from the workspace root
+//! to prevent filename collisions between files in different directories.
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -18,10 +19,13 @@ pub struct SnapshotInfo {
 }
 
 /// Create a snapshot of the given files before modification.
+/// Files are stored using their relative path from the workspace root
+/// to prevent collisions between same-named files in different directories.
 pub async fn create_snapshot(
     app_data_dir: &Path,
     execution_id: &str,
     file_paths: &[PathBuf],
+    workspace_root: &Path,
 ) -> Result<String, String> {
     let snapshot_id = format!("snap-{}", execution_id);
     let snapshot_dir = app_data_dir
@@ -32,21 +36,33 @@ pub async fn create_snapshot(
         .await
         .map_err(|e| format!("Failed to create snapshot directory: {}", e))?;
 
+    // Cleanup old snapshots before creating a new one
+    cleanup_old_snapshots(app_data_dir).await;
+
     let mut saved_files = Vec::new();
 
     for path in file_paths {
-        if path.exists() {
-            let file_name = path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-            let dest = snapshot_dir.join(&file_name);
-            tokio::fs::copy(path, &dest)
-                .await
-                .map_err(|e| format!("Failed to snapshot '{}': {}", path.display(), e))?;
-            saved_files.push(path.to_string_lossy().to_string());
+        if !path.exists() {
+            continue;
         }
+
+        // Use relative path from workspace root to preserve directory structure
+        let relative = path
+            .strip_prefix(workspace_root)
+            .unwrap_or(path);
+        let dest = snapshot_dir.join(relative);
+
+        // Create parent directories in snapshot
+        if let Some(parent) = dest.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| format!("Failed to create snapshot subdirectory: {}", e))?;
+        }
+
+        tokio::fs::copy(path, &dest)
+            .await
+            .map_err(|e| format!("Failed to snapshot '{}': {}", path.display(), e))?;
+        saved_files.push(path.to_string_lossy().to_string());
     }
 
     // Write metadata
@@ -73,6 +89,7 @@ pub async fn create_snapshot(
 pub async fn restore_snapshot(
     app_data_dir: &Path,
     snapshot_id: &str,
+    workspace_root: &Path,
 ) -> Result<(), String> {
     let snapshot_dir = app_data_dir
         .join("workflow-snapshots")
@@ -85,17 +102,42 @@ pub async fn restore_snapshot(
     let info: SnapshotInfo =
         serde_json::from_str(&meta_str).map_err(|e| format!("Invalid snapshot metadata: {}", e))?;
 
-    for original_path in &info.files {
-        let file_name = Path::new(original_path)
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-        let snapshot_file = snapshot_dir.join(&file_name);
+    for original_path_str in &info.files {
+        let original_path = PathBuf::from(original_path_str);
+
+        // Validate restore path is within workspace (prevent metadata tampering)
+        let canonical_root = workspace_root
+            .canonicalize()
+            .unwrap_or_else(|_| workspace_root.to_path_buf());
+        if let Ok(canonical_target) = original_path.canonicalize() {
+            if !canonical_target.starts_with(&canonical_root) {
+                log::warn!(
+                    "Skipping restore of '{}' — outside workspace root",
+                    original_path_str
+                );
+                continue;
+            }
+        }
+
+        // Find the snapshot file using relative path
+        let relative = original_path
+            .strip_prefix(workspace_root)
+            .unwrap_or(&original_path);
+        let snapshot_file = snapshot_dir.join(relative);
+
         if snapshot_file.exists() {
-            tokio::fs::copy(&snapshot_file, original_path)
+            // Create parent directory if needed
+            if let Some(parent) = original_path.parent() {
+                let _ = tokio::fs::create_dir_all(parent).await;
+            }
+            tokio::fs::copy(&snapshot_file, &original_path)
                 .await
-                .map_err(|e| format!("Failed to restore '{}': {}", original_path, e))?;
+                .map_err(|e| format!("Failed to restore '{}': {}", original_path_str, e))?;
+        } else {
+            log::warn!(
+                "Snapshot file missing for '{}' — skipping",
+                original_path_str
+            );
         }
     }
 
@@ -121,10 +163,12 @@ pub async fn list_snapshots(app_data_dir: &Path) -> Result<Vec<SnapshotInfo>, St
     {
         let meta_path = entry.path().join("metadata.json");
         if meta_path.exists() {
-            if let Ok(meta_str) = tokio::fs::read_to_string(&meta_path).await {
-                if let Ok(info) = serde_json::from_str::<SnapshotInfo>(&meta_str) {
-                    snapshots.push(info);
-                }
+            match tokio::fs::read_to_string(&meta_path).await {
+                Ok(meta_str) => match serde_json::from_str::<SnapshotInfo>(&meta_str) {
+                    Ok(info) => snapshots.push(info),
+                    Err(e) => log::warn!("Corrupt snapshot metadata at {:?}: {}", meta_path, e),
+                },
+                Err(e) => log::warn!("Unreadable snapshot at {:?}: {}", meta_path, e),
             }
         }
     }
@@ -133,4 +177,38 @@ pub async fn list_snapshots(app_data_dir: &Path) -> Result<Vec<SnapshotInfo>, St
     snapshots.truncate(MAX_SNAPSHOTS);
 
     Ok(snapshots)
+}
+
+/// Delete snapshot directories beyond MAX_SNAPSHOTS.
+async fn cleanup_old_snapshots(app_data_dir: &Path) {
+    let snapshots_dir = app_data_dir.join("workflow-snapshots");
+    if !snapshots_dir.exists() {
+        return;
+    }
+
+    // Collect all snapshot dirs with timestamps
+    let mut entries: Vec<(PathBuf, u64)> = Vec::new();
+    if let Ok(mut dir) = tokio::fs::read_dir(&snapshots_dir).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            let meta_path = entry.path().join("metadata.json");
+            if let Ok(meta_str) = tokio::fs::read_to_string(&meta_path).await {
+                if let Ok(info) = serde_json::from_str::<SnapshotInfo>(&meta_str) {
+                    entries.push((entry.path(), info.timestamp));
+                }
+            }
+        }
+    }
+
+    if entries.len() <= MAX_SNAPSHOTS {
+        return;
+    }
+
+    // Sort oldest first
+    entries.sort_by_key(|(_, ts)| *ts);
+    let to_remove = entries.len() - MAX_SNAPSHOTS;
+    for (path, _) in entries.into_iter().take(to_remove) {
+        if let Err(e) = tokio::fs::remove_dir_all(&path).await {
+            log::warn!("Failed to cleanup old snapshot {:?}: {}", path, e);
+        }
+    }
 }
