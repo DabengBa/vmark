@@ -254,15 +254,40 @@ function getLeadingMarkerLength(lineText: string): number {
 }
 
 /**
+ * Find the occurrence of `needle` in `haystack` closest to `expectedCol`.
+ * Scans all occurrences and returns the index of the nearest one.
+ * Returns -1 if `needle` is not found at all.
+ */
+function findNearestIndexOf(haystack: string, needle: string, expectedCol: number): number {
+  let bestIdx = -1;
+  let bestDist = Infinity;
+  let from = 0;
+  while (from <= haystack.length) {
+    const idx = haystack.indexOf(needle, from);
+    if (idx === -1) break;
+    const dist = Math.abs(idx - expectedCol);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = idx;
+    }
+    from = idx + 1;
+  }
+  return bestIdx;
+}
+
+/**
  * Find the best column position in a line using word/context matching.
+ * When multiple occurrences exist, picks the one closest to the expected
+ * column (derived from percentInLine) to avoid jumping to the wrong repeat.
  */
 function findColumnInLine(lineText: string, cursorInfo: CursorInfo): number {
   const { text: strippedText } = stripMarkdownSyntax(lineText, lineText.length);
+  const expectedCol = Math.round(cursorInfo.percentInLine * strippedText.length);
 
   // Strategy 1: Context match
   const pattern = cursorInfo.contextBefore + cursorInfo.contextAfter;
   if (pattern.length >= MIN_CONTEXT_PATTERN_LENGTH) {
-    const idx = strippedText.indexOf(pattern);
+    const idx = findNearestIndexOf(strippedText, pattern, expectedCol);
     if (idx !== -1) {
       return idx + cursorInfo.contextBefore.length;
     }
@@ -270,12 +295,12 @@ function findColumnInLine(lineText: string, cursorInfo: CursorInfo): number {
 
   // Strategy 2: Word match
   if (cursorInfo.wordAtCursor) {
-    const idx = strippedText.indexOf(cursorInfo.wordAtCursor);
+    const idx = findNearestIndexOf(strippedText, cursorInfo.wordAtCursor, expectedCol);
     if (idx !== -1) {
       return idx + cursorInfo.offsetInWord;
     }
   }
 
   // Strategy 3: Percentage fallback
-  return Math.round(cursorInfo.percentInLine * strippedText.length);
+  return expectedCol;
 }
