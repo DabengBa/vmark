@@ -31,6 +31,24 @@ pub fn validate_path(path: &str, workspace_root: &Path) -> Result<PathBuf, Strin
         ));
     }
 
+    // If the path exists, resolve symlinks and re-check containment
+    if normalized.exists() {
+        let canonical = normalized
+            .canonicalize()
+            .map_err(|e| format!("Failed to resolve '{}': {}", path, e))?;
+        let canonical_root = workspace_root
+            .canonicalize()
+            .unwrap_or_else(|_| workspace_root.to_path_buf());
+        if !canonical.starts_with(&canonical_root) {
+            return Err(format!(
+                "Path '{}' resolves via symlink to '{}' which is outside the workspace",
+                path,
+                canonical.display()
+            ));
+        }
+        return Ok(canonical);
+    }
+
     Ok(normalized)
 }
 

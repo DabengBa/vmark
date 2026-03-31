@@ -50,11 +50,11 @@ function WorkflowPreviewInner({ graph, activeStepId, onNodeClick }: WorkflowPrev
     return result;
   }, [graph, activeStepId]);
 
-  // Fit view after layout changes — in useEffect, not useMemo (no side effects in memo)
+  // Fit view only on graph topology change (not on activeStepId selection changes)
   useEffect(() => {
     const timer = setTimeout(() => fitView({ padding: 0.1 }), 50);
     return () => clearTimeout(timer);
-  }, [graph, activeStepId, fitView]);
+  }, [graph, fitView]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {

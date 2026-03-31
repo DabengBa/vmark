@@ -105,18 +105,17 @@ pub async fn restore_snapshot(
     for original_path_str in &info.files {
         let original_path = PathBuf::from(original_path_str);
 
-        // Validate restore path is within workspace (prevent metadata tampering)
-        let canonical_root = workspace_root
-            .canonicalize()
-            .unwrap_or_else(|_| workspace_root.to_path_buf());
-        if let Ok(canonical_target) = original_path.canonicalize() {
-            if !canonical_target.starts_with(&canonical_root) {
-                log::warn!(
-                    "Skipping restore of '{}' — outside workspace root",
-                    original_path_str
-                );
-                continue;
-            }
+        // Validate restore path is within workspace using same sandbox rules
+        // This catches both existing paths (symlink escape) and non-existent
+        // paths (metadata tampering with relative/absolute traversal)
+        if let Err(e) = super::sandbox::validate_path(
+            original_path_str,
+            workspace_root,
+        ) {
+            log::warn!(
+                "Skipping restore of '{}' — {}", original_path_str, e
+            );
+            continue;
         }
 
         // Find the snapshot file using relative path
