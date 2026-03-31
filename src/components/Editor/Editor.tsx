@@ -17,6 +17,7 @@
  *
  * @coordinates-with SourceEditor.tsx, TiptapEditor.tsx — mounts one or both based on mode
  * @coordinates-with stores/editorStore.ts — reads sourceMode for mode switching
+ * @coordinates-with plugins/workflowPreview/WorkflowSidePanel.tsx — renders workflow panel for .yml files
  * @module components/Editor/Editor
  */
 import { lazy, Suspense } from "react";
@@ -33,6 +34,7 @@ const SourceEditor = lazy(() =>
   import("./SourceEditor").then((m) => ({ default: m.SourceEditor }))
 );
 import { DropZoneIndicator } from "./DropZoneIndicator";
+import { WorkflowSidePanel } from "@/plugins/workflowPreview";
 import "./editor.css";
 import "./heading-picker.css";
 import "@/styles/popup-shared.css";
@@ -86,6 +88,7 @@ export function Editor() {
       <div className="editor-content" data-active-editor={activeEditor}>
         {editorContent}
       </div>
+      <WorkflowSidePanel />
       <HeadingPicker />
       <DropZoneIndicator />
     </div>
