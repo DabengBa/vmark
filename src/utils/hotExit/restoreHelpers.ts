@@ -221,7 +221,7 @@ export async function restoreTabs(windowLabel: string, windowState: WindowState)
   const seenFilePaths = new Set<string>();
   const deduplicatedTabs = windowState.tabs.filter((tabState) => {
     if (!tabState.file_path) return true; // untitled tabs are never duplicates
-    const normalized = tabState.file_path.toLowerCase();
+    const normalized = navigator.platform?.includes("Linux") ? tabState.file_path : tabState.file_path.toLowerCase();
     if (seenFilePaths.has(normalized)) {
       hotExitWarn(
         `Skipping duplicate tab '${tabState.id}' with file_path '${tabState.file_path}' during restore`

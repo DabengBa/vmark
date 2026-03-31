@@ -84,6 +84,12 @@ pub async fn hot_exit_capture(app: AppHandle) -> Result<SessionData, String> {
                 }
             });
         }
+
+        // Preserve workspace from previous session if not set
+        // (workspace capture not yet implemented, so current capture always has None)
+        if session.workspace.is_none() {
+            session.workspace = prev_session.workspace;
+        }
     }
 
     write_session_atomic(&app, &session).await?;

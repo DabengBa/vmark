@@ -146,21 +146,48 @@ export function findClosestSourceLine(
 }
 
 /**
+ * Find the occurrence of `needle` in `haystack` closest to `expectedCol`.
+ * Uses indexOf with a start offset to scan all occurrences, then returns the
+ * index of the nearest one. Returns -1 if `needle` is not found at all.
+ */
+function findNearestIndexOf(haystack: string, needle: string, expectedCol: number): number {
+  let bestIdx = -1;
+  let bestDist = Infinity;
+  let from = 0;
+  while (from <= haystack.length) {
+    const idx = haystack.indexOf(needle, from);
+    if (idx === -1) break;
+    const dist = Math.abs(idx - expectedCol);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = idx;
+    }
+    from = idx + 1;
+  }
+  return bestIdx;
+}
+
+/**
  * Find the best column position in a line using word/context matching.
  * Tries multiple strategies in order of precision:
  * 1. Context match (using surrounding characters)
  * 2. Word match (finding the word at cursor)
  * 3. Percentage fallback
  *
+ * When multiple occurrences exist, picks the one closest to the expected
+ * column (derived from percentInLine) to avoid jumping to the wrong repeat.
+ *
  * @param lineText - The text content of the line
  * @param cursorInfo - Cursor info with context and position hints
  * @returns Column position within the line
  */
 export function findColumnInLine(lineText: string, cursorInfo: CursorInfo): number {
+  const expectedCol = Math.round(cursorInfo.percentInLine * lineText.length);
+
   // Strategy 1: Context match
   const pattern = cursorInfo.contextBefore + cursorInfo.contextAfter;
   if (pattern.length >= MIN_CONTEXT_PATTERN_LENGTH) {
-    const idx = lineText.indexOf(pattern);
+    const idx = findNearestIndexOf(lineText, pattern, expectedCol);
     if (idx !== -1) {
       return idx + cursorInfo.contextBefore.length;
     }
@@ -168,12 +195,12 @@ export function findColumnInLine(lineText: string, cursorInfo: CursorInfo): numb
 
   // Strategy 2: Word match
   if (cursorInfo.wordAtCursor) {
-    const idx = lineText.indexOf(cursorInfo.wordAtCursor);
+    const idx = findNearestIndexOf(lineText, cursorInfo.wordAtCursor, expectedCol);
     if (idx !== -1) {
       return idx + cursorInfo.offsetInWord;
     }
   }
 
   // Strategy 3: Percentage fallback
-  return Math.round(cursorInfo.percentInLine * lineText.length);
+  return expectedCol;
 }

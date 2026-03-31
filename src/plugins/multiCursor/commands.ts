@@ -41,7 +41,7 @@ function findNextUnusedOccurrence(
 ): { from: number; to: number } | null {
   // Look after the given position
   for (const occ of occurrences) {
-    if (occ.from > afterPos && !rangeExists(existingRanges, occ.from, occ.to)) {
+    if (occ.from >= afterPos && !rangeExists(existingRanges, occ.from, occ.to)) {
       return occ;
     }
   }
