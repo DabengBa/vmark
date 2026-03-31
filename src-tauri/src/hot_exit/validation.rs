@@ -125,6 +125,7 @@ mod tests {
                 last_modified_timestamp: None,
                 is_untitled: true,
                 untitled_number: Some(1),
+                is_read_only: false,
                 undo_history: Vec::new(),
                 redo_history: Vec::new(),
             },

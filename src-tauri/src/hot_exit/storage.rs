@@ -232,6 +232,7 @@ mod tests {
                         last_modified_timestamp: None,
                         is_untitled: false,
                         untitled_number: None,
+                        is_read_only: false,
                         undo_history: Vec::new(),
                         redo_history: Vec::new(),
                     },
