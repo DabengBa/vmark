@@ -159,7 +159,7 @@ export class VMarkMcpServer implements McpServerInterface {
     if (!response.success) {
       throw new Error(response.error);
     }
-    return response.data;
+    return (response.data ?? undefined) as T;
   }
 
   /**

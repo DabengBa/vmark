@@ -276,6 +276,13 @@ export class WebSocketBridge implements Bridge {
       });
     }
 
+    // Reject and clear stale auth callbacks from a previous connection attempt
+    if (this._authReject) {
+      this._authReject('Connection superseded by new attempt');
+    }
+    this._authResolve = null;
+    this._authReject = null;
+
     this.connecting = true;
     this.intentionalDisconnect = false;
 
