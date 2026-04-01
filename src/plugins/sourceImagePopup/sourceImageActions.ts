@@ -98,39 +98,6 @@ function getImageMetaFromRange(
 }
 
 /**
- * Get the width value from the current image markdown.
- */
-export function getImageWidth(view: EditorView): string {
-  const range = getImageRange(view);
-  if (!range) return "";
-  return getImageMetaFromRange(view, range).width;
-}
-
-/**
- * Save width change to the current image markdown.
- */
-export function saveImageWidth(view: EditorView, width: string): void {
-  const state = useMediaPopupStore.getState();
-  const { mediaSrc: imageSrc, mediaAlt: imageAlt } = state;
-  const range = getImageRange(view);
-  if (!range) return;
-
-  const { title, useAngleBrackets } = getImageMetaFromRange(view, range);
-  const newMarkdown = buildImageMarkdown(imageAlt, imageSrc, title, useAngleBrackets, width || undefined);
-
-  // Account for the {width=N} suffix in the original range
-  const originalText = view.state.doc.sliceString(range.from, range.to + 20);
-  const widthSuffixMatch = originalText.match(/\)\{width=\d+(?:px|%)?\}/);
-  const actualEnd = widthSuffixMatch ? range.from + (originalText.indexOf(widthSuffixMatch[0]) + widthSuffixMatch[0].length) : range.to;
-
-  runOrQueueCodeMirrorAction(view, () => {
-    view.dispatch({
-      changes: { from: range.from, to: actualEnd, insert: newMarkdown },
-    });
-  });
-}
-
-/**
  * Save image changes to the document.
  * Replaces the current image markdown with updated values.
  */

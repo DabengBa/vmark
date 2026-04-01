@@ -5,7 +5,6 @@
  * that adapts toolbar items based on cursor position and selection state.
  *
  * @coordinates-with tiptapContext.ts — builds these contexts from editor state
- * @coordinates-with nodeDetection.tiptap.ts — detects node types for context building
  * @module plugins/formatToolbar/types
  */
 

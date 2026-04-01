@@ -56,7 +56,7 @@ export function useUpdateBroadcast() {
 
     if (prevJson !== currentJson) {
       prevState.current = currentState;
-      emit(UPDATE_STATE_EVENT, currentState).catch(() => {});
+      emit(UPDATE_STATE_EVENT, currentState).catch((e) => { console.warn("[UpdateSync] emit failed:", e); });
     }
   }, [status, updateInfo, downloadProgress, error]);
 }
@@ -99,7 +99,7 @@ export function useUpdateListener() {
 
     // Small delay to ensure listeners are set up
     const timer = setTimeout(() => {
-      emit(REQUEST_STATE_EVENT).catch(() => {});
+      emit(REQUEST_STATE_EVENT).catch((e) => { console.warn("[UpdateSync] request state failed:", e); });
     }, 100);
 
     return () => clearTimeout(timer);

@@ -54,7 +54,7 @@ pub(super) async fn run_rest_anthropic(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
+        let text = resp.text().await.unwrap_or_else(|e| format!("<failed to read body: {}>", e));
         emit_error(
             window,
             request_id,
@@ -117,7 +117,7 @@ pub(super) async fn run_rest_openai(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
+        let text = resp.text().await.unwrap_or_else(|e| format!("<failed to read body: {}>", e));
         emit_error(
             window,
             request_id,
@@ -181,7 +181,7 @@ pub(super) async fn run_rest_google(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
+        let text = resp.text().await.unwrap_or_else(|e| format!("<failed to read body: {}>", e));
         emit_error(
             window,
             request_id,
@@ -244,7 +244,7 @@ pub(super) async fn run_rest_ollama(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
+        let text = resp.text().await.unwrap_or_else(|e| format!("<failed to read body: {}>", e));
         emit_error(
             window,
             request_id,

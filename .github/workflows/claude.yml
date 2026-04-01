@@ -34,7 +34,7 @@ jobs:
   # Triggered by workflow_run (after audit creates issues) or by human-opened audit issues
   audit-fix:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     concurrency:
       group: audit-fix
       cancel-in-progress: false
@@ -81,7 +81,7 @@ jobs:
           allowed_bots: "claude[bot]"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
-          claude_args: "--model opus --max-turns 25 --allowedTools Bash Read Write Edit Glob Grep MultiEdit"
+          claude_args: "--model opus --max-turns 20 --allowedTools Bash Read Write Edit Glob Grep MultiEdit"
           show_full_output: true
           prompt: |
             Fix the open audit issues. Issue numbers: ${{ steps.find-issues.outputs.ISSUE_NUMBERS }}

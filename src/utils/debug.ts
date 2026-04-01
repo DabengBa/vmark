@@ -54,7 +54,7 @@ function prodWarn(tag: string, ...args: unknown[]) {
     console.warn(tag, ...args);
   } else {
     console.warn(tag, ...args);
-    if (_tauriWarn) void _tauriWarn(formatArgs(tag, args)).catch(() => {});
+    if (_tauriWarn) void _tauriWarn(formatArgs(tag, args)).catch((e) => { console.error("[Log] persist warn failed:", e); });
   }
 }
 
@@ -65,7 +65,7 @@ function prodError(tag: string, ...args: unknown[]) {
     console.error(tag, ...args);
   } else {
     console.error(tag, ...args);
-    if (_tauriError) void _tauriError(formatArgs(tag, args)).catch(() => {});
+    if (_tauriError) void _tauriError(formatArgs(tag, args)).catch((e) => { console.error("[Log] persist error failed:", e); });
   }
 }
 
@@ -650,7 +650,3 @@ export const workflowWarn = isDev
   ? (...args: unknown[]) => console.warn("[Workflow]", ...args)
   : (...args: unknown[]) => prodWarn("[Workflow]", ...args);
 
-/** Error logger for Workflow Engine operations. */
-export const workflowError = isDev
-  ? (...args: unknown[]) => console.error("[Workflow]", ...args)
-  : (...args: unknown[]) => prodError("[Workflow]", ...args);

@@ -34,5 +34,5 @@ if (startupLang && startupLang !== "en") {
       }
       return invoke("rebuild_menu", { shortcuts: menuShortcuts });
     })
-    .catch(() => {});
+    .catch((e) => { console.warn("[MenuSync] rebuild failed:", e); });
 }

@@ -12,6 +12,7 @@ use tauri::command;
 
 fn make_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
@@ -34,7 +35,7 @@ async fn check_response(resp: reqwest::Response) -> Result<reqwest::Response, St
         return Ok(resp);
     }
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
+    let text = resp.text().await.unwrap_or_else(|e| format!("<failed to read body: {}>", e));
     Err(format!("HTTP {}: {}", status.as_u16(), text))
 }
 
