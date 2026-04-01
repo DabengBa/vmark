@@ -549,12 +549,15 @@ describe("CodeBlockWithLineNumbers", () => {
       expect(nodeView.contentDOM).toBeDefined();
       expect(nodeView.contentDOM.tagName).toBe("CODE");
 
-      // Check structure: wrapper > gutter + pre > code + langSelector
+      // Check structure: wrapper > gutter + pre > code + actions(copy + langSelector)
       const children = nodeView.dom.children;
-      expect(children.length).toBe(3); // gutter, pre, langSelector
+      expect(children.length).toBe(3); // gutter, pre, actionsContainer
       expect(children[0].className).toBe("code-line-numbers");
       expect(children[1].tagName).toBe("PRE");
-      expect(children[2].className).toBe("code-lang-selector");
+      expect(children[2].className).toBe("code-block-actions");
+      // Actions container has copy button and language selector
+      expect(children[2].querySelector(".code-copy-btn")).not.toBeNull();
+      expect(children[2].querySelector(".code-lang-selector")).not.toBeNull();
     });
 
     it("renders correct number of line numbers", () => {

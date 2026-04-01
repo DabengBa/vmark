@@ -3,6 +3,7 @@
  *
  * Tests for the code block node view including:
  * - Line numbers in gutter
+ * - Copy button with clipboard feedback
  * - Language selector dropdown
  * - Search filtering
  * - Keyboard navigation
@@ -16,6 +17,11 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 // Mock sourcePopup
 // We need to create the CodeBlockNodeView directly since it's not exported.
 // We'll recreate it for testing purposes.
+
+/** Lucide copy icon (14×14) — same constant as production code */
+const COPY_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+/** Lucide check icon (14×14) — same constant as production code */
+const CHECK_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 /**
  * Common programming languages with display names.
@@ -39,6 +45,8 @@ class TestCodeBlockNodeView {
   private gutter: HTMLElement;
   private codeElement: HTMLElement;
   private langSelector: HTMLElement;
+  private copyBtn: HTMLElement;
+  private actionsContainer: HTMLElement;
   private dropdown: HTMLElement | null = null;
   private dropdownHost: HTMLElement | null = null;
   private node: ProseMirrorNode;
@@ -83,7 +91,23 @@ class TestCodeBlockNodeView {
     this.langSelector.contentEditable = "false";
     this.updateLangSelectorText();
     this.langSelector.addEventListener("mousedown", this.handleLangClick, { capture: true });
-    this.dom.appendChild(this.langSelector);
+
+    // Create copy button
+    this.copyBtn = document.createElement("button");
+    this.copyBtn.className = "code-copy-btn";
+    this.copyBtn.innerHTML = COPY_ICON_SVG;
+    this.copyBtn.title = "Copy source code";
+    this.copyBtn.setAttribute("aria-label", "Copy source code");
+    this.copyBtn.addEventListener("mousedown", this.handleCopyMouseDown);
+    this.copyBtn.addEventListener("click", this.handleCopyClick);
+
+    // Actions container: copy button + language selector
+    this.actionsContainer = document.createElement("div");
+    this.actionsContainer.className = "code-block-actions";
+    this.actionsContainer.contentEditable = "false";
+    this.actionsContainer.appendChild(this.copyBtn);
+    this.actionsContainer.appendChild(this.langSelector);
+    this.dom.appendChild(this.actionsContainer);
 
     // Initial line count
     this.updateLineNumbers();
@@ -108,6 +132,8 @@ class TestCodeBlockNodeView {
   destroy(): void {
     this.closeDropdown();
     this.langSelector.removeEventListener("mousedown", this.handleLangClick, { capture: true });
+    this.copyBtn.removeEventListener("mousedown", this.handleCopyMouseDown);
+    this.copyBtn.removeEventListener("click", this.handleCopyClick);
   }
 
   private updateLangSelectorText(): void {
@@ -129,6 +155,24 @@ class TestCodeBlockNodeView {
       this.gutter.appendChild(lineNum);
     }
   }
+
+  private handleCopyMouseDown = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  private handleCopyClick = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    navigator.clipboard?.writeText(this.node.textContent);
+    this.copyBtn.innerHTML = CHECK_ICON_SVG;
+    this.copyBtn.classList.add("code-copy-btn--success");
+    setTimeout(() => {
+      this.copyBtn.innerHTML = COPY_ICON_SVG;
+      this.copyBtn.classList.remove("code-copy-btn--success");
+    }, 1500);
+  };
 
   private handleLangClick = (e: MouseEvent): void => {
     e.preventDefault();
@@ -351,7 +395,7 @@ class TestCodeBlockNodeView {
     if (this.gutter.contains(mutation.target)) {
       return true;
     }
-    if (this.langSelector.contains(mutation.target)) {
+    if (this.actionsContainer.contains(mutation.target)) {
       return true;
     }
     if (this.dropdown?.contains(mutation.target)) {
@@ -457,6 +501,14 @@ describe("CodeBlockNodeView", () => {
       expect(nodeView.contentDOM.tagName.toLowerCase()).toBe("code");
     });
 
+    it("creates actions container with copy button and language selector", () => {
+      createNodeView();
+      const actions = nodeView.dom.querySelector(".code-block-actions");
+      expect(actions).not.toBeNull();
+      expect(actions?.querySelector(".code-copy-btn")).not.toBeNull();
+      expect(actions?.querySelector(".code-lang-selector")).not.toBeNull();
+    });
+
     it("creates language selector", () => {
       createNodeView();
       const langSelector = nodeView.dom.querySelector(".code-lang-selector");
@@ -493,6 +545,82 @@ describe("CodeBlockNodeView", () => {
       createNodeView(createMockNode({}, ""));
       const lineNums = nodeView.dom.querySelectorAll(".line-num");
       expect(lineNums.length).toBe(1); // Empty content still has 1 line
+    });
+  });
+
+  describe("Copy Button", () => {
+    let writeTextMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: writeTextMock },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it("has correct aria-label", () => {
+      createNodeView();
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn");
+      expect(copyBtn?.getAttribute("aria-label")).toBe("Copy source code");
+    });
+
+    it("has copy icon SVG", () => {
+      createNodeView();
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn");
+      expect(copyBtn?.querySelector("svg")).not.toBeNull();
+    });
+
+    it("copies code content to clipboard on click", () => {
+      createNodeView(createMockNode({ language: "javascript" }, "const x = 1;\nconsole.log(x);"));
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn") as HTMLElement;
+
+      copyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(writeTextMock).toHaveBeenCalledWith("const x = 1;\nconsole.log(x);");
+    });
+
+    it("shows checkmark feedback after copy", () => {
+      createNodeView(createMockNode({}, "hello"));
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn") as HTMLElement;
+
+      copyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(copyBtn.classList.contains("code-copy-btn--success")).toBe(true);
+      // Check icon changed to checkmark
+      const svg = copyBtn.querySelector("svg polyline");
+      expect(svg).not.toBeNull();
+    });
+
+    it("reverts to copy icon after timeout", () => {
+      vi.useFakeTimers();
+      createNodeView(createMockNode({}, "hello"));
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn") as HTMLElement;
+
+      copyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(copyBtn.classList.contains("code-copy-btn--success")).toBe(true);
+
+      vi.advanceTimersByTime(1500);
+
+      expect(copyBtn.classList.contains("code-copy-btn--success")).toBe(false);
+      // Should have the rect element from the copy icon
+      const svg = copyBtn.querySelector("svg rect");
+      expect(svg).not.toBeNull();
+
+      vi.useRealTimers();
+    });
+
+    it("prevents event propagation on mousedown", () => {
+      createNodeView();
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn") as HTMLElement;
+
+      const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+      const stopPropSpy = vi.spyOn(event, "stopPropagation");
+      copyBtn.dispatchEvent(event);
+
+      expect(stopPropSpy).toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
     });
   });
 
@@ -728,13 +856,16 @@ describe("CodeBlockNodeView", () => {
       expect(document.querySelector(".code-lang-dropdown")).toBeNull();
     });
 
-    it("removes event listener on destroy", () => {
+    it("removes event listeners on destroy", () => {
       createNodeView();
-      const removeEventListenerSpy = vi.spyOn(nodeView.dom.querySelector(".code-lang-selector") as HTMLElement, "removeEventListener");
+      const langRemoveSpy = vi.spyOn(nodeView.dom.querySelector(".code-lang-selector") as HTMLElement, "removeEventListener");
+      const copyRemoveSpy = vi.spyOn(nodeView.dom.querySelector(".code-copy-btn") as HTMLElement, "removeEventListener");
 
       nodeView.destroy();
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith("mousedown", expect.any(Function), { capture: true });
+      expect(langRemoveSpy).toHaveBeenCalledWith("mousedown", expect.any(Function), { capture: true });
+      expect(copyRemoveSpy).toHaveBeenCalledWith("mousedown", expect.any(Function));
+      expect(copyRemoveSpy).toHaveBeenCalledWith("click", expect.any(Function));
     });
   });
 
@@ -745,6 +876,22 @@ describe("CodeBlockNodeView", () => {
       const lineNum = gutter.querySelector(".line-num") as HTMLElement;
 
       const mutation = { type: "childList", target: lineNum } as unknown as Parameters<typeof nodeView.ignoreMutation>[0];
+      expect(nodeView.ignoreMutation(mutation)).toBe(true);
+    });
+
+    it("ignores mutations in actions container", () => {
+      createNodeView();
+      const actions = nodeView.dom.querySelector(".code-block-actions") as HTMLElement;
+
+      const mutation = { type: "childList", target: actions } as unknown as Parameters<typeof nodeView.ignoreMutation>[0];
+      expect(nodeView.ignoreMutation(mutation)).toBe(true);
+    });
+
+    it("ignores mutations in copy button", () => {
+      createNodeView();
+      const copyBtn = nodeView.dom.querySelector(".code-copy-btn") as HTMLElement;
+
+      const mutation = { type: "childList", target: copyBtn } as unknown as Parameters<typeof nodeView.ignoreMutation>[0];
       expect(nodeView.ignoreMutation(mutation)).toBe(true);
     });
 
