@@ -140,13 +140,45 @@ const SAFE_UNESCAPE_RE = /\\([[\]$`_*!])/g;
 /** Characters that create block-level syntax at start of line. */
 const BLOCK_START_CHARS = new Set(["#", "-", "*", ">", "+"]);
 
+/** Build character ranges for fenced code blocks and inline code spans. */
+function buildCodeRanges(markdown: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const fenceRe = /^(`{3,}|~{3,}).*\n([\s\S]*?\n)\1\s*$/gm;
+  let fm: RegExpExecArray | null;
+  while ((fm = fenceRe.exec(markdown))) {
+    ranges.push([fm.index, fm.index + fm[0].length]);
+  }
+  const inlineRe = /`[^`]+`/g;
+  let im: RegExpExecArray | null;
+  while ((im = inlineRe.exec(markdown))) {
+    ranges.push([im.index, im.index + im[0].length]);
+  }
+  return ranges;
+}
+
+/** Apply a regex replacement only outside code blocks and inline code. */
+function replaceOutsideCode(markdown: string, re: RegExp, replacement: string): string {
+  const ranges = buildCodeRanges(markdown);
+  const isInsideCode = (offset: number) =>
+    ranges.some(([start, end]) => offset >= start && offset < end);
+  return markdown.replace(re, (match, ...args) => {
+    const offset = args[args.length - 2] as number;
+    if (isInsideCode(offset)) return match;
+    return match.replace(re, replacement);
+  });
+}
+
 function stripUnnecessaryEscapes(markdown: string): string {
+  const ranges = buildCodeRanges(markdown);
+  const isInsideCode = (offset: number) =>
+    ranges.some(([start, end]) => offset >= start && offset < end);
+
   return markdown.replace(SAFE_UNESCAPE_RE, (match, char: string, offset: number) => {
-    // Find start of current line
+    if (isInsideCode(offset)) return match;
+
     const lineStart = markdown.lastIndexOf("\n", offset - 1) + 1;
     const beforeOnLine = markdown.slice(lineStart, offset).trimStart();
 
-    // At start of line: keep escape for block-trigger characters
     if (beforeOnLine === "" && BLOCK_START_CHARS.has(char)) {
       return match;
     }
@@ -181,7 +213,8 @@ export function serializeMdastToMarkdown(
   result = stripUnnecessaryEscapes(result);
 
   if (options.hardBreakStyle === "twoSpaces") {
-    return result.replace(/\\(\r?\n)/g, "  $1");
+    // Replace backslash line breaks with two-space breaks, but skip code fences.
+    result = replaceOutsideCode(result, /\\(\r?\n)/g, "  $1");
   }
   return result;
 }

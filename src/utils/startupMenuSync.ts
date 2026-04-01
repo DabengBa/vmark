@@ -32,7 +32,17 @@ if (startupLang && startupLang !== "en") {
           );
         }
       }
-      return invoke("rebuild_menu", { shortcuts: menuShortcuts });
+      return invoke("rebuild_menu", { shortcuts: menuShortcuts }).then(async () => {
+        // Rebuild resets dynamic submenus — re-populate them
+        const geniesAccel = menuShortcuts["search-genies"]
+          ? { "search-genies": menuShortcuts["search-genies"] }
+          : null;
+        await invoke("refresh_genies_menu", { shortcuts: geniesAccel });
+        const { useRecentFilesStore } = await import("@/stores/recentFilesStore");
+        const { useRecentWorkspacesStore } = await import("@/stores/recentWorkspacesStore");
+        useRecentFilesStore.getState().syncToNativeMenu();
+        useRecentWorkspacesStore.getState().syncToNativeMenu();
+      });
     })
     .catch((e) => { console.warn("[MenuSync] rebuild failed:", e); });
 }

@@ -92,9 +92,16 @@ export function LanguageSettings() {
       updateGeneralSetting("language", value);
     } catch (e) {
       i18nWarn(" Failed to switch language:", e);
-      // Revert both JS and Rust locale to previous
+      // Revert JS + Rust locale, then rebuild menu with previous language labels
       await i18n.changeLanguage(previousLang);
-      invoke("set_locale", { locale: previousLang }).catch((e) => { console.warn("[i18n] revert locale failed:", e); });
+      invoke("set_locale", { locale: previousLang }).catch((e2) => { console.warn("[i18n] revert locale failed:", e2); });
+      const revertShortcuts: Record<string, string> = {};
+      for (const def of DEFAULT_SHORTCUTS) {
+        if (def.menuId) {
+          revertShortcuts[def.menuId] = prosemirrorToTauri(useShortcutsStore.getState().getAllShortcuts()[def.id] ?? "");
+        }
+      }
+      invoke("rebuild_menu", { shortcuts: revertShortcuts }).catch((e2) => { console.warn("[i18n] revert menu failed:", e2); });
     } finally {
       changingRef.current = false;
     }

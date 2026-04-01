@@ -32,7 +32,8 @@ function buildImageMarkdown(
   const dest = shouldUseAngleBrackets ? `<${src}>` : src;
   const titlePart = title ? ` "${title}"` : "";
   const widthPart = width ? `{width=${width}}` : "";
-  return `![${alt}](${dest}${titlePart})${widthPart}`;
+  const safeAlt = alt.replace(/\]/g, "\\]");
+  return `![${safeAlt}](${dest}${titlePart})${widthPart}`;
 }
 
 function parseImageMarkdown(
@@ -209,11 +210,16 @@ export function removeImage(view: EditorView): void {
     return;
   }
 
+  // Extend range to include trailing {width=N} suffix if present
+  const trailingText = view.state.doc.sliceString(range.to, range.to + 30);
+  const widthSuffix = trailingText.match(/^\{width=\d+(?:px|%)?\}/);
+  const actualEnd = widthSuffix ? range.to + widthSuffix[0].length : range.to;
+
   runOrQueueCodeMirrorAction(view, () => {
     view.dispatch({
       changes: {
         from: range.from,
-        to: range.to,
+        to: actualEnd,
         insert: "",
       },
     });

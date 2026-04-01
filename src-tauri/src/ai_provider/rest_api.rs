@@ -218,6 +218,12 @@ pub async fn list_models(
                 .map(|arr| {
                     arr.iter()
                         .filter_map(|m| {
+                            // Only include models that support generateContent
+                            let supports = m.get("supportedGenerationMethods")
+                                .and_then(|s| s.as_array())
+                                .map(|arr| arr.iter().any(|v| v.as_str() == Some("generateContent")))
+                                .unwrap_or(false);
+                            if !supports { return None; }
                             m.get("name")
                                 .and_then(|n| n.as_str())
                                 .map(|n| n.strip_prefix("models/").unwrap_or(n).to_string())
@@ -307,9 +313,10 @@ pub async fn validate_model(
             let body = serde_json::json!({
                 "contents": [{"parts": [{"text": "Hi"}]}]
             });
+            let model_id = model.strip_prefix("models/").unwrap_or(&model);
             let url = format!(
                 "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
-                model
+                model_id
             );
             let resp = client
                 .post(&url)

@@ -165,9 +165,10 @@ pub(super) async fn run_rest_google(
         "contents": [{"parts": [{"text": prompt}]}]
     });
 
+    let model_id = model.strip_prefix("models/").unwrap_or(model);
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
-        model
+        model_id
     );
 
     let resp = client
