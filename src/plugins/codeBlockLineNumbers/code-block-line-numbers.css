@@ -57,14 +57,61 @@
 }
 
 /* ===========================================
- * Language Selector
+ * Code Block Actions (copy button + language selector)
  * =========================================== */
 
-/* Language selector chip */
-.tiptap-editor .code-lang-selector {
+/* Actions container */
+.tiptap-editor .code-block-actions {
   position: absolute;
   top: 4px;
   right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  z-index: 10;
+  user-select: none;
+}
+
+/* Copy button — hidden by default, appears on code block hover */
+.tiptap-editor .code-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--md-char-color);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.tiptap-editor .code-block-wrapper:hover .code-copy-btn {
+  opacity: 0.7;
+}
+
+.tiptap-editor .code-copy-btn:hover {
+  opacity: 1;
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+/* Success state after copying — must override wrapper:hover opacity */
+.tiptap-editor .code-block-wrapper .code-copy-btn.code-copy-btn--success {
+  opacity: 1;
+  color: var(--success-color);
+}
+
+.dark-theme .tiptap-editor .code-block-wrapper .code-copy-btn.code-copy-btn--success {
+  color: var(--success-color-dark);
+}
+
+/* Language selector chip */
+.tiptap-editor .code-lang-selector {
+  position: relative;
   padding: 2px 6px;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -72,10 +119,8 @@
   background: transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  user-select: none;
   transition: color 0.15s, opacity 0.15s;
   opacity: 0.7;
-  z-index: 10;
 }
 
 .tiptap-editor .code-lang-selector:hover {
@@ -87,7 +132,6 @@
   outline: none;
   color: var(--text-color);
   opacity: 1;
-  position: relative;
 }
 
 .tiptap-editor .code-lang-selector:focus-visible::after {

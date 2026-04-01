@@ -2,13 +2,14 @@
  * Code Block Extension with Line Numbers
  *
  * Purpose: Extends CodeBlockLowlight with a custom NodeView that renders a line-number
- * gutter and a language selector chip, providing a code-editor-like experience in WYSIWYG.
+ * gutter, a copy button, and a language selector chip, providing a code-editor-like experience in WYSIWYG.
  *
  * Key decisions:
  *   - Built on CodeBlockLowlight (not raw CodeBlock) for syntax highlighting via lowlight
  *   - Line numbers are rendered in a separate gutter div that updates on every mutation
  *   - Language selector is a floating chip positioned inside the code block wrapper
  *   - Language dropdown uses fixed positioning (popup-host aware) to avoid clipping
+ *   - Copy button uses navigator.clipboard API with visual checkmark feedback
  *   - Respects settings.lineNumbers toggle for showing/hiding the gutter
  *
  * Known limitations:
@@ -25,10 +26,16 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { NodeView, ViewMutationRecord } from "@tiptap/pm/view";
 import type { Editor } from "@tiptap/core";
 import { getPopupHostForDom, toHostCoordsForDom } from "@/plugins/sourcePopup";
+import i18n from "@/i18n";
 import "./code-block-line-numbers.css";
 import "./hljs-syntax.css";
 
 const lowlight = createLowlight(common);
+
+/** Lucide copy icon (14×14) */
+const COPY_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+/** Lucide check icon (14×14) */
+const CHECK_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 /**
  * Common programming languages with display names.
@@ -89,6 +96,8 @@ class CodeBlockNodeView implements NodeView {
   private gutter: HTMLElement;
   private codeElement: HTMLElement;
   private langSelector: HTMLElement;
+  private copyBtn: HTMLElement;
+  private actionsContainer: HTMLElement;
   private dropdown: HTMLElement | null = null;
   private dropdownHost: HTMLElement | null = null;
   private node: ProseMirrorNode;
@@ -130,7 +139,24 @@ class CodeBlockNodeView implements NodeView {
     this.updateLangSelectorText();
     // Use mousedown with capture phase to get event before ProseMirror
     this.langSelector.addEventListener("mousedown", this.handleLangClick, { capture: true });
-    this.dom.appendChild(this.langSelector);
+
+    // Create copy button
+    this.copyBtn = document.createElement("button");
+    this.copyBtn.className = "code-copy-btn";
+    this.copyBtn.innerHTML = COPY_ICON_SVG;
+    const copyLabel = i18n.t("editor:plugin.copySource");
+    this.copyBtn.title = copyLabel;
+    this.copyBtn.setAttribute("aria-label", copyLabel);
+    this.copyBtn.addEventListener("mousedown", this.handleCopyMouseDown);
+    this.copyBtn.addEventListener("click", this.handleCopyClick);
+
+    // Actions container: copy button + language selector
+    this.actionsContainer = document.createElement("div");
+    this.actionsContainer.className = "code-block-actions";
+    this.actionsContainer.contentEditable = "false";
+    this.actionsContainer.appendChild(this.copyBtn);
+    this.actionsContainer.appendChild(this.langSelector);
+    this.dom.appendChild(this.actionsContainer);
 
     // Initial line count
     this.updateLineNumbers();
@@ -158,6 +184,8 @@ class CodeBlockNodeView implements NodeView {
   destroy(): void {
     this.closeDropdown();
     this.langSelector.removeEventListener("mousedown", this.handleLangClick, { capture: true });
+    this.copyBtn.removeEventListener("mousedown", this.handleCopyMouseDown);
+    this.copyBtn.removeEventListener("click", this.handleCopyClick);
   }
 
   private updateLangSelectorText(): void {
@@ -182,6 +210,24 @@ class CodeBlockNodeView implements NodeView {
       this.gutter.appendChild(lineNum);
     }
   }
+
+  private handleCopyMouseDown = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  private handleCopyClick = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    navigator.clipboard?.writeText(this.node.textContent);
+    this.copyBtn.innerHTML = CHECK_ICON_SVG;
+    this.copyBtn.classList.add("code-copy-btn--success");
+    setTimeout(() => {
+      this.copyBtn.innerHTML = COPY_ICON_SVG;
+      this.copyBtn.classList.remove("code-copy-btn--success");
+    }, 1500);
+  };
 
   private handleLangClick = (e: MouseEvent): void => {
     e.preventDefault();
@@ -447,7 +493,7 @@ class CodeBlockNodeView implements NodeView {
     if (this.gutter.contains(mutation.target as Node)) {
       return true;
     }
-    if (this.langSelector.contains(mutation.target as Node)) {
+    if (this.actionsContainer.contains(mutation.target as Node)) {
       return true;
     }
     if (this.dropdown?.contains(mutation.target as Node)) {
