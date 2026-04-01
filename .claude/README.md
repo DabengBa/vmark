@@ -135,15 +135,9 @@ Subagent definitions used by `/feature-workflow` for complex tasks:
 | `release-steward` | Commit messages and release notes |
 | `manual-test-author` | Manual testing guide maintenance |
 
-### Hooks (`hooks/`)
+### Hooks
 
-Hooks run automatically at specific points in the Claude Code lifecycle:
-
-| File | Trigger | Purpose |
-|------|---------|---------|
-| `refine_prompt.sh` | UserPromptSubmit | When a prompt starts with `::` or `>>`, sends it for translation/refinement, copies the result to clipboard, and blocks the original. |
-
-**`refine_prompt.sh`** — Opt-in via `::` or `>>` prefix. Translates non-English prompts to English and optimizes prompt structure for better AI coding results. See the [Prompt Refinement guide](https://vmark.app/guide/users-as-developers/prompt-refinement) for details.
+Prompt refinement is now handled by the `claude-english-buddy` plugin (installed globally). No project-level hooks remain.
 
 ## Bot Cost Reports
 
