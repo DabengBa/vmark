@@ -192,6 +192,29 @@ export function createMarkdownAutoPairPlugin() {
         }, 0);
       }
 
+      /**
+       * Replace the backtick run on the current line with a clean code fence.
+       * Scans from lineStart to capture all backticks — robust against stale
+       * auto-paired backticks from slow typing or future timing changes.
+       */
+      private replaceWithCodeFence(lineStart: number): void {
+        setTimeout(() => {
+          const doc = this.view.state.doc;
+          // Scan from line start to find end of backtick run
+          let endOfRun = lineStart;
+          while (endOfRun < doc.length && doc.sliceString(endOfRun, endOfRun + 1) === "`") {
+            endOfRun++;
+          }
+          // Replace entire backtick run with clean code fence
+          const fence = "```\n\n```";
+          safeDispatch(
+            this.view,
+            { from: lineStart, to: endOfRun, insert: fence },
+            lineStart + 3
+          );
+        }, 0);
+      }
+
       handleBacktick(pos: number) {
         const doc = this.view.state.doc;
         const twoBefore = doc.sliceString(Math.max(0, pos - 2), pos);
@@ -213,9 +236,7 @@ export function createMarkdownAutoPairPlugin() {
           const textBeforeOnLine = doc.sliceString(lineStart, pos - 2).trim();
 
           if (textBeforeOnLine === "") {
-            // Insert: cursor stays after ```, then \n\n```
-            // Result: ```|cursor\n\n```
-            this.insertClosingPair("\n\n```");
+            this.replaceWithCodeFence(lineStart);
           }
           return;
         }

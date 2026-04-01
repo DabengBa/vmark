@@ -92,6 +92,34 @@ describe("single backtick auto-pair (Source mode)", () => {
     expect(activeView.state.doc.toString()).toBe("```\n\n```");
   });
 
+  it("triple backtick typed slowly (with auto-pair timeouts firing) produces clean code fence", async () => {
+    activeView = createView("");
+
+    // Keystroke 1
+    simulateTyping(activeView, "`");
+
+    // Wait for 150ms auto-pair timeout to fire (inserts closing backtick)
+    await new Promise((r) => setTimeout(r, 200));
+    expect(activeView.state.doc.toString()).toBe("``"); // auto-paired
+    expect(activeView.state.selection.main.head).toBe(1); // cursor between paired backticks
+
+    // Keystroke 2 — typed between the auto-paired backticks (cursor at pos 1)
+    simulateTyping(activeView, "`");
+    expect(activeView.state.selection.main.head).toBe(2); // cursor after 2nd typed backtick
+
+    // Wait for auto-pair timeout again
+    await new Promise((r) => setTimeout(r, 200));
+    expect(activeView.state.selection.main.head).toBe(2); // cursor stable after timeout
+
+    // Keystroke 3
+    simulateTyping(activeView, "`");
+
+    // Wait for code fence insertion
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(activeView.state.doc.toString()).toBe("```\n\n```");
+  });
+
   it("single backtick mid-line auto-pairs after delay", async () => {
     activeView = createView("hello ", 6);
 
